@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { z } from "zod";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,31 @@ import {
 } from "@/components/ui/select";
 import { Plus, MapPin, TrendingUp, Search, Pencil, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+// Schema de validação com Zod
+const pdvFormSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(3, { message: "Nome deve ter pelo menos 3 caracteres" })
+    .max(100, { message: "Nome deve ter no máximo 100 caracteres" }),
+  location: z
+    .string()
+    .trim()
+    .min(3, { message: "Localização deve ter pelo menos 3 caracteres" })
+    .max(100, { message: "Localização deve ter no máximo 100 caracteres" }),
+  machineId: z
+    .string()
+    .trim()
+    .min(3, { message: "ID da máquina deve ter pelo menos 3 caracteres" })
+    .max(20, { message: "ID da máquina deve ter no máximo 20 caracteres" })
+    .regex(/^[A-Za-z0-9-]+$/, {
+      message: "ID da máquina deve conter apenas letras, números e hífens",
+    }),
+  status: z.enum(["active", "inactive"]),
+});
+
+type PDVFormData = z.infer<typeof pdvFormSchema>;
 
 interface PDV {
   id: string;
@@ -115,7 +141,41 @@ export default function PDVs() {
     machineId: "",
     status: "active" as "active" | "inactive",
   });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const { toast } = useToast();
+
+  // Função de validação reutilizável
+  const validateForm = (data: PDVFormData, excludeId?: string): boolean => {
+    const result = pdvFormSchema.safeParse(data);
+
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      result.error.errors.forEach((err) => {
+        if (err.path[0]) {
+          errors[err.path[0] as string] = err.message;
+        }
+      });
+      setFormErrors(errors);
+      return false;
+    }
+
+    // Verificar ID único
+    const isDuplicate = pdvs.some(
+      (p) =>
+        p.machineId.toLowerCase() === data.machineId.toLowerCase() &&
+        p.id !== excludeId
+    );
+
+    if (isDuplicate) {
+      setFormErrors({ machineId: "Este ID de máquina já está em uso" });
+      return false;
+    }
+
+    setFormErrors({});
+    return true;
+  };
+
+  const clearFormErrors = () => setFormErrors({});
 
   const filteredPdvs = pdvs.filter(
     (pdv) =>
@@ -125,20 +185,15 @@ export default function PDVs() {
   );
 
   const handleCreatePdv = () => {
-    if (!newPdv.name || !newPdv.location || !newPdv.machineId) {
-      toast({
-        title: "Erro",
-        description: "Preencha todos os campos obrigatórios.",
-        variant: "destructive",
-      });
+    if (!validateForm(newPdv)) {
       return;
     }
 
     const pdv: PDV = {
-      id: String(pdvs.length + 1),
-      name: newPdv.name,
-      location: newPdv.location,
-      machineId: newPdv.machineId,
+      id: String(Date.now()),
+      name: newPdv.name.trim(),
+      location: newPdv.location.trim(),
+      machineId: newPdv.machineId.trim(),
       status: newPdv.status,
       revenue: "R$ 0",
       transactions: 0,
@@ -146,6 +201,7 @@ export default function PDVs() {
 
     setPdvs([...pdvs, pdv]);
     setNewPdv({ name: "", location: "", machineId: "", status: "active" });
+    clearFormErrors();
     setIsCreateDialogOpen(false);
 
     toast({
@@ -156,28 +212,32 @@ export default function PDVs() {
 
   const handleOpenEdit = (pdv: PDV) => {
     setEditingPdv({ ...pdv });
+    clearFormErrors();
     setIsEditDialogOpen(true);
   };
 
   const handleEditPdv = () => {
     if (!editingPdv) return;
 
-    if (!editingPdv.name || !editingPdv.location || !editingPdv.machineId) {
-      toast({
-        title: "Erro",
-        description: "Preencha todos os campos obrigatórios.",
-        variant: "destructive",
-      });
+    if (!validateForm(editingPdv, editingPdv.id)) {
       return;
     }
 
-    setPdvs(pdvs.map((p) => (p.id === editingPdv.id ? editingPdv : p)));
+    const updatedPdv = {
+      ...editingPdv,
+      name: editingPdv.name.trim(),
+      location: editingPdv.location.trim(),
+      machineId: editingPdv.machineId.trim(),
+    };
+
+    setPdvs(pdvs.map((p) => (p.id === updatedPdv.id ? updatedPdv : p)));
+    clearFormErrors();
     setIsEditDialogOpen(false);
     setEditingPdv(null);
 
     toast({
       title: "PDV atualizado",
-      description: `${editingPdv.name} foi atualizado com sucesso.`,
+      description: `${updatedPdv.name} foi atualizado com sucesso.`,
     });
   };
 
@@ -235,10 +295,15 @@ export default function PDVs() {
                     id="name"
                     placeholder="Ex: Shopping Ibirapuera"
                     value={newPdv.name}
-                    onChange={(e) =>
-                      setNewPdv({ ...newPdv, name: e.target.value })
-                    }
+                    onChange={(e) => {
+                      setNewPdv({ ...newPdv, name: e.target.value });
+                      if (formErrors.name) setFormErrors({ ...formErrors, name: "" });
+                    }}
+                    className={formErrors.name ? "border-destructive" : ""}
                   />
+                  {formErrors.name && (
+                    <p className="text-sm text-destructive">{formErrors.name}</p>
+                  )}
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="location">Localização *</Label>
@@ -246,10 +311,15 @@ export default function PDVs() {
                     id="location"
                     placeholder="Ex: São Paulo - SP"
                     value={newPdv.location}
-                    onChange={(e) =>
-                      setNewPdv({ ...newPdv, location: e.target.value })
-                    }
+                    onChange={(e) => {
+                      setNewPdv({ ...newPdv, location: e.target.value });
+                      if (formErrors.location) setFormErrors({ ...formErrors, location: "" });
+                    }}
+                    className={formErrors.location ? "border-destructive" : ""}
                   />
+                  {formErrors.location && (
+                    <p className="text-sm text-destructive">{formErrors.location}</p>
+                  )}
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="machineId">ID da Máquina *</Label>
@@ -257,10 +327,15 @@ export default function PDVs() {
                     id="machineId"
                     placeholder="Ex: PMC-007"
                     value={newPdv.machineId}
-                    onChange={(e) =>
-                      setNewPdv({ ...newPdv, machineId: e.target.value })
-                    }
+                    onChange={(e) => {
+                      setNewPdv({ ...newPdv, machineId: e.target.value });
+                      if (formErrors.machineId) setFormErrors({ ...formErrors, machineId: "" });
+                    }}
+                    className={formErrors.machineId ? "border-destructive" : ""}
                   />
+                  {formErrors.machineId && (
+                    <p className="text-sm text-destructive">{formErrors.machineId}</p>
+                  )}
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="status">Status</Label>
@@ -283,7 +358,10 @@ export default function PDVs() {
               <DialogFooter>
                 <Button
                   variant="outline"
-                  onClick={() => setIsCreateDialogOpen(false)}
+                  onClick={() => {
+                    setIsCreateDialogOpen(false);
+                    clearFormErrors();
+                  }}
                 >
                   Cancelar
                 </Button>
@@ -401,30 +479,45 @@ export default function PDVs() {
                 <Input
                   id="edit-name"
                   value={editingPdv.name}
-                  onChange={(e) =>
-                    setEditingPdv({ ...editingPdv, name: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setEditingPdv({ ...editingPdv, name: e.target.value });
+                    if (formErrors.name) setFormErrors({ ...formErrors, name: "" });
+                  }}
+                  className={formErrors.name ? "border-destructive" : ""}
                 />
+                {formErrors.name && (
+                  <p className="text-sm text-destructive">{formErrors.name}</p>
+                )}
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="edit-location">Localização *</Label>
                 <Input
                   id="edit-location"
                   value={editingPdv.location}
-                  onChange={(e) =>
-                    setEditingPdv({ ...editingPdv, location: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setEditingPdv({ ...editingPdv, location: e.target.value });
+                    if (formErrors.location) setFormErrors({ ...formErrors, location: "" });
+                  }}
+                  className={formErrors.location ? "border-destructive" : ""}
                 />
+                {formErrors.location && (
+                  <p className="text-sm text-destructive">{formErrors.location}</p>
+                )}
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="edit-machineId">ID da Máquina *</Label>
                 <Input
                   id="edit-machineId"
                   value={editingPdv.machineId}
-                  onChange={(e) =>
-                    setEditingPdv({ ...editingPdv, machineId: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setEditingPdv({ ...editingPdv, machineId: e.target.value });
+                    if (formErrors.machineId) setFormErrors({ ...formErrors, machineId: "" });
+                  }}
+                  className={formErrors.machineId ? "border-destructive" : ""}
                 />
+                {formErrors.machineId && (
+                  <p className="text-sm text-destructive">{formErrors.machineId}</p>
+                )}
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="edit-status">Status</Label>
@@ -446,7 +539,13 @@ export default function PDVs() {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsEditDialogOpen(false);
+                clearFormErrors();
+              }}
+            >
               Cancelar
             </Button>
             <Button onClick={handleEditPdv}>Salvar Alterações</Button>
