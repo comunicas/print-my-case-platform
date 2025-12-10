@@ -340,32 +340,32 @@ export default function Team() {
         </div>
 
         {/* Team Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
           {filteredMembers.map((member) => (
-            <Card key={member.id} className="hover:shadow-md transition-shadow">
+            <Card key={member.id} className="hover:shadow-md transition-shadow min-w-0">
               <CardHeader className="pb-2 px-4 md:px-6 pt-4 md:pt-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarFallback className={getAvatarColor(member.role)}>
-                        {getInitials(member.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Avatar className="h-10 w-10 flex-shrink-0">
+                    <AvatarFallback className={getAvatarColor(member.role)}>
+                      {getInitials(member.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
                       <CardTitle className="text-base md:text-lg font-semibold truncate">
                         {member.name}
                       </CardTitle>
-                      <div className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground mt-0.5">
-                        <Mail className="h-3 w-3 flex-shrink-0" />
-                        <span className="truncate">{member.email}</span>
-                      </div>
+                      <Badge
+                        className={`flex-shrink-0 text-xs ${getRoleBadgeClass(member.role)}`}
+                      >
+                        {roleLabels[member.role]}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground mt-0.5">
+                      <Mail className="h-3 w-3 flex-shrink-0" />
+                      <span className="truncate">{member.email}</span>
                     </div>
                   </div>
-                  <Badge
-                    className={`ml-2 flex-shrink-0 ${getRoleBadgeClass(member.role)}`}
-                  >
-                    {roleLabels[member.role]}
-                  </Badge>
                 </div>
               </CardHeader>
               <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
