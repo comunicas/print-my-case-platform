@@ -96,25 +96,36 @@ const mockTeamMembers: TeamMember[] = [
   },
 ];
 
-const getRoleBadgeVariant = (role: TeamMemberRole): "default" | "secondary" | "destructive" | "outline" => {
+const getRoleBadgeClass = (role: TeamMemberRole): string => {
   switch (role) {
     case "super_admin":
-      return "destructive";
     case "org_admin":
-      return "default";
+      return "bg-orange-500 text-white hover:bg-orange-600 border-transparent";
     case "operator":
-      return "secondary";
+      return "bg-purple-100 text-purple-800 hover:bg-purple-200 border-transparent";
     case "viewer":
-      return "outline";
+      return "bg-muted text-muted-foreground hover:bg-muted/80 border-transparent";
+  }
+};
+
+const getAvatarColor = (role: TeamMemberRole): string => {
+  switch (role) {
+    case "super_admin":
+    case "org_admin":
+      return "bg-purple-100 text-purple-700";
+    case "operator":
+      return "bg-emerald-100 text-emerald-700";
+    case "viewer":
+      return "bg-blue-100 text-blue-700";
   }
 };
 
 const getStatusColor = (status: TeamMemberStatus): string => {
   switch (status) {
     case "active":
-      return "text-green-600";
+      return "text-emerald-600";
     case "pending":
-      return "text-yellow-600";
+      return "text-orange-500";
     case "inactive":
       return "text-muted-foreground";
   }
@@ -336,7 +347,7 @@ export default function Team() {
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10">
-                      <AvatarFallback className="bg-primary/10 text-primary">
+                      <AvatarFallback className={getAvatarColor(member.role)}>
                         {getInitials(member.name)}
                       </AvatarFallback>
                     </Avatar>
@@ -351,8 +362,7 @@ export default function Team() {
                     </div>
                   </div>
                   <Badge
-                    variant={getRoleBadgeVariant(member.role)}
-                    className="ml-2 flex-shrink-0"
+                    className={`ml-2 flex-shrink-0 ${getRoleBadgeClass(member.role)}`}
                   >
                     {roleLabels[member.role]}
                   </Badge>

@@ -19,7 +19,7 @@ export type TeamMemberRole = TeamMemberFormData["role"];
 export type TeamMemberStatus = TeamMemberFormData["status"];
 
 export const roleLabels: Record<TeamMemberRole, string> = {
-  super_admin: "Administrador Geral",
+  super_admin: "Administrador",
   org_admin: "Administrador",
   operator: "Operador",
   viewer: "Visualizador",
