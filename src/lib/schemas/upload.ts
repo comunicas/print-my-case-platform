@@ -3,6 +3,38 @@ import { z } from "zod";
 export type UploadStatus = "processing" | "ready" | "error";
 export type UploadType = "sales" | "stock";
 
+// Colunas obrigatórias para planilha de Vendas (REVENUE)
+export const SALES_REQUIRED_COLUMNS = [
+  "ID do comerciante",
+  "ID do dispositivo",
+  "Número do pedido",
+  "Nome do produto",
+  "Número da transação",
+  "Hora do pagamento",
+  "Valor (BRL)",
+  "Tipo de pagamento",
+  "Status",
+  "Valor do reembolso (BRL)",
+] as const;
+
+// Colunas obrigatórias para planilha de Estoque (REPORT-SLOT)
+export const STOCK_REQUIRED_COLUMNS = [
+  "Número de registro",
+  "Código da máquina",
+  "Número do slot",
+  "Nome do Produto",
+  "Quantidade",
+  "Se deve ativar",
+] as const;
+
+// Interface para resultado da validação
+export interface ColumnValidationResult {
+  isValid: boolean;
+  missingColumns: string[];
+  foundColumns: string[];
+  totalRows: number;
+}
+
 export interface Upload {
   id: string;
   pdvId: string;

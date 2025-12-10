@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,9 +19,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, FileSpreadsheet, Link, X } from "lucide-react";
+import { Upload, FileSpreadsheet, Link, X, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { UploadType } from "@/lib/schemas/upload";
+import { UploadType, ColumnValidationResult } from "@/lib/schemas/upload";
+import { validateSpreadsheetColumns } from "@/lib/utils/spreadsheet-validator";
 
 interface PDVOption {
   id: string;
@@ -71,7 +72,16 @@ export function UploadDialog({
   const [driveUrl, setDriveUrl] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
+  const [validationResult, setValidationResult] = useState<ColumnValidationResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Re-validate when type changes and file exists
+  useEffect(() => {
+    if (file) {
+      validateFile(file);
+    }
+  }, [type]);
 
   const resetForm = () => {
     setPdvId("");
@@ -82,11 +92,38 @@ export function UploadDialog({
     setDriveUrl("");
     setErrors({});
     setIsDragOver(false);
+    setIsValidating(false);
+    setValidationResult(null);
   };
 
   const handleClose = (open: boolean) => {
     if (!open) resetForm();
     onOpenChange(open);
+  };
+
+  const validateFile = async (fileToValidate: File) => {
+    setIsValidating(true);
+    setValidationResult(null);
+    setErrors((prev) => ({ ...prev, file: "" }));
+
+    try {
+      const result = await validateSpreadsheetColumns(fileToValidate, type);
+      setValidationResult(result);
+
+      if (!result.isValid) {
+        setErrors((prev) => ({
+          ...prev,
+          file: `Colunas obrigatórias faltando: ${result.missingColumns.join(", ")}`,
+        }));
+      }
+    } catch (error) {
+      setErrors((prev) => ({
+        ...prev,
+        file: "Erro ao ler o arquivo. Verifique se é um arquivo Excel válido.",
+      }));
+    } finally {
+      setIsValidating(false);
+    }
   };
 
   const validateForm = (): boolean => {
@@ -95,6 +132,9 @@ export function UploadDialog({
     if (!pdvId) newErrors.pdvId = "Selecione um PDV";
     if (!period) newErrors.period = "Selecione o período";
     if (source === "file" && !file) newErrors.file = "Selecione um arquivo";
+    if (source === "file" && file && validationResult && !validationResult.isValid) {
+      newErrors.file = `Colunas obrigatórias faltando: ${validationResult.missingColumns.join(", ")}`;
+    }
     if (source === "drive" && !driveUrl) newErrors.driveUrl = "Insira um link do Drive";
 
     setErrors(newErrors);
@@ -130,7 +170,7 @@ export function UploadDialog({
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile && isValidFileType(droppedFile)) {
       setFile(droppedFile);
-      setErrors((prev) => ({ ...prev, file: "" }));
+      validateFile(droppedFile);
     }
   };
 
@@ -138,7 +178,7 @@ export function UploadDialog({
     const selectedFile = e.target.files?.[0];
     if (selectedFile && isValidFileType(selectedFile)) {
       setFile(selectedFile);
-      setErrors((prev) => ({ ...prev, file: "" }));
+      validateFile(selectedFile);
     }
   };
 
@@ -153,10 +193,16 @@ export function UploadDialog({
 
   const removeFile = () => {
     setFile(null);
+    setValidationResult(null);
+    setErrors((prev) => ({ ...prev, file: "" }));
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
+
+  const isSubmitDisabled = 
+    isValidating || 
+    (source === "file" && file && validationResult && !validationResult.isValid);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -261,13 +307,14 @@ export function UploadDialog({
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => !file && fileInputRef.current?.click()}
                   className={cn(
-                    "border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors",
+                    "border-2 border-dashed rounded-lg p-6 text-center transition-colors",
+                    !file && "cursor-pointer",
                     isDragOver
                       ? "border-primary bg-primary/5"
                       : "border-muted-foreground/25 hover:border-primary/50",
-                    errors.file && "border-destructive"
+                    errors.file && !validationResult?.isValid && "border-destructive"
                   )}
                 >
                   <input
@@ -278,26 +325,64 @@ export function UploadDialog({
                     className="hidden"
                   />
                   {file ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <FileSpreadsheet className="h-8 w-8 text-primary" />
-                      <div className="text-left">
-                        <p className="font-medium text-sm">{file.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {(file.size / 1024).toFixed(1)} KB
-                        </p>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-center gap-2">
+                        <FileSpreadsheet className="h-8 w-8 text-primary" />
+                        <div className="text-left">
+                          <p className="font-medium text-sm">{file.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {(file.size / 1024).toFixed(1)} KB
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 ml-2"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeFile();
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 ml-2"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeFile();
-                        }}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+
+                      {/* Validation Status */}
+                      {isValidating && (
+                        <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span className="text-sm">Validando colunas...</span>
+                        </div>
+                      )}
+
+                      {validationResult && !isValidating && (
+                        <div className={cn(
+                          "rounded-md p-3 text-sm",
+                          validationResult.isValid 
+                            ? "bg-primary/10 text-primary" 
+                            : "bg-destructive/10 text-destructive"
+                        )}>
+                          {validationResult.isValid ? (
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4" />
+                              <span>Arquivo válido - {validationResult.totalRows} registros encontrados</span>
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <AlertCircle className="h-4 w-4" />
+                                <span className="font-medium">Colunas obrigatórias faltando:</span>
+                              </div>
+                              <ul className="list-disc list-inside pl-1 space-y-1">
+                                {validationResult.missingColumns.map((col) => (
+                                  <li key={col}>{col}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <>
@@ -311,7 +396,7 @@ export function UploadDialog({
                     </>
                   )}
                 </div>
-                {errors.file && (
+                {errors.file && !validationResult && (
                   <p className="text-sm text-destructive mt-2">{errors.file}</p>
                 )}
               </TabsContent>
@@ -331,7 +416,7 @@ export function UploadDialog({
                     <p className="text-sm text-destructive">{errors.driveUrl}</p>
                   )}
                   <p className="text-xs text-muted-foreground">
-                    Cole o link de compartilhamento do Google Drive
+                    Cole o link de compartilhamento do Google Drive (validação será feita no servidor)
                   </p>
                 </div>
               </TabsContent>
@@ -343,8 +428,12 @@ export function UploadDialog({
           <Button variant="outline" onClick={() => handleClose(false)}>
             Cancelar
           </Button>
-          <Button onClick={handleSubmit}>
-            <Upload className="h-4 w-4 mr-2" />
+          <Button onClick={handleSubmit} disabled={!!isSubmitDisabled}>
+            {isValidating ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Upload className="h-4 w-4 mr-2" />
+            )}
             Enviar Upload
           </Button>
         </DialogFooter>
