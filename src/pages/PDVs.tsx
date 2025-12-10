@@ -15,13 +15,23 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, MapPin, Settings, TrendingUp, Search } from "lucide-react";
+import { Plus, MapPin, TrendingUp, Search, Pencil, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface PDV {
@@ -95,6 +105,10 @@ export default function PDVs() {
   const [pdvs, setPdvs] = useState<PDV[]>(mockPDVs);
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [editingPdv, setEditingPdv] = useState<PDV | null>(null);
+  const [deletingPdv, setDeletingPdv] = useState<PDV | null>(null);
   const [newPdv, setNewPdv] = useState({
     name: "",
     location: "",
@@ -138,6 +152,52 @@ export default function PDVs() {
       title: "PDV criado",
       description: `${pdv.name} foi adicionado com sucesso.`,
     });
+  };
+
+  const handleOpenEdit = (pdv: PDV) => {
+    setEditingPdv({ ...pdv });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditPdv = () => {
+    if (!editingPdv) return;
+
+    if (!editingPdv.name || !editingPdv.location || !editingPdv.machineId) {
+      toast({
+        title: "Erro",
+        description: "Preencha todos os campos obrigatórios.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setPdvs(pdvs.map((p) => (p.id === editingPdv.id ? editingPdv : p)));
+    setIsEditDialogOpen(false);
+    setEditingPdv(null);
+
+    toast({
+      title: "PDV atualizado",
+      description: `${editingPdv.name} foi atualizado com sucesso.`,
+    });
+  };
+
+  const handleOpenDelete = (pdv: PDV) => {
+    setDeletingPdv(pdv);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeletePdv = () => {
+    if (!deletingPdv) return;
+
+    setPdvs(pdvs.filter((p) => p.id !== deletingPdv.id));
+    setIsDeleteDialogOpen(false);
+
+    toast({
+      title: "PDV excluído",
+      description: `${deletingPdv.name} foi removido.`,
+    });
+
+    setDeletingPdv(null);
   };
 
   return (
@@ -284,14 +344,25 @@ export default function PDVs() {
                     <span className="text-muted-foreground">Transações</span>
                     <span className="font-medium">{pdv.transactions}</span>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full mt-2"
-                  >
-                    <Settings className="h-4 w-4 mr-2" />
-                    Gerenciar
-                  </Button>
+                  <div className="flex gap-2 mt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => handleOpenEdit(pdv)}
+                    >
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Editar
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => handleOpenDelete(pdv)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -313,6 +384,97 @@ export default function PDVs() {
           </div>
         )}
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Editar Ponto de Venda</DialogTitle>
+            <DialogDescription>
+              Atualize as informações do PDV.
+            </DialogDescription>
+          </DialogHeader>
+          {editingPdv && (
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-name">Nome do PDV *</Label>
+                <Input
+                  id="edit-name"
+                  value={editingPdv.name}
+                  onChange={(e) =>
+                    setEditingPdv({ ...editingPdv, name: e.target.value })
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-location">Localização *</Label>
+                <Input
+                  id="edit-location"
+                  value={editingPdv.location}
+                  onChange={(e) =>
+                    setEditingPdv({ ...editingPdv, location: e.target.value })
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-machineId">ID da Máquina *</Label>
+                <Input
+                  id="edit-machineId"
+                  value={editingPdv.machineId}
+                  onChange={(e) =>
+                    setEditingPdv({ ...editingPdv, machineId: e.target.value })
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-status">Status</Label>
+                <Select
+                  value={editingPdv.status}
+                  onValueChange={(value: "active" | "inactive") =>
+                    setEditingPdv({ ...editingPdv, status: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Ativo</SelectItem>
+                    <SelectItem value="inactive">Inativo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleEditPdv}>Salvar Alterações</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir PDV</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>{deletingPdv?.name}</strong>?
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeletePdv}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }
