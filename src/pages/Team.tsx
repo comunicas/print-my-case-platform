@@ -34,7 +34,14 @@ import {
   TeamMemberStatus,
   roleLabels,
   statusLabels,
+  rolePermissions,
 } from "@/lib/schemas/team";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface TeamMember {
   id: string;
@@ -355,11 +362,29 @@ export default function Team() {
                       <CardTitle className="text-base md:text-lg font-semibold truncate">
                         {member.name}
                       </CardTitle>
-                      <Badge
-                        className={`flex-shrink-0 text-xs ${getRoleBadgeClass(member.role)}`}
-                      >
-                        {roleLabels[member.role]}
-                      </Badge>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge
+                              className={`flex-shrink-0 text-xs cursor-help ${getRoleBadgeClass(member.role)}`}
+                            >
+                              {roleLabels[member.role]}
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-xs">
+                            <div className="space-y-1">
+                              <p className="font-semibold text-sm">{roleLabels[member.role]}</p>
+                              <ul className="text-xs space-y-0.5">
+                                {rolePermissions[member.role].map((permission, index) => (
+                                  <li key={index} className="flex items-center gap-1">
+                                    <span className="text-green-500">✓</span> {permission}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                     <div className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground mt-0.5">
                       <Mail className="h-3 w-3 flex-shrink-0" />
