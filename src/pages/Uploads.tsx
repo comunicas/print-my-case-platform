@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ import {
   AlertCircle,
   RefreshCw,
   ExternalLink,
+  Eye,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { UploadDialog } from "@/components/upload/UploadDialog";
@@ -145,6 +147,7 @@ const mockUploads: Upload[] = [
 ];
 
 export default function Uploads() {
+  const navigate = useNavigate();
   const [uploads, setUploads] = useState<Upload[]>(mockUploads);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterPdv, setFilterPdv] = useState<string>("all");
@@ -470,6 +473,16 @@ export default function Uploads() {
                             onClick={() => handleReprocess(upload)}
                           >
                             <RefreshCw className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                        {upload.status === "ready" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => navigate(`/upload/${upload.id}`)}
+                          >
+                            <Eye className="h-3.5 w-3.5" />
                           </Button>
                         )}
                         <Button
