@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
 import { MobileSidebar } from "./MobileSidebar";
@@ -11,7 +12,8 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [activeItem, setActiveItem] = useState("/");
+  const location = useLocation();
+  const navigate = useNavigate();
   const breakpoint = useBreakpoint();
 
   const isMobile = breakpoint === "mobile";
@@ -20,6 +22,10 @@ export function AppLayout({ children }: AppLayoutProps) {
   // Auto-collapse sidebar on tablet
   const effectiveCollapsed = isTablet ? true : sidebarCollapsed;
 
+  const handleNavigate = (href: string) => {
+    navigate(href);
+  };
+
   return (
     <div className="min-h-screen flex w-full bg-background">
       {/* Mobile Sidebar (Sheet/Drawer) */}
@@ -27,8 +33,8 @@ export function AppLayout({ children }: AppLayoutProps) {
         <MobileSidebar
           open={mobileMenuOpen}
           onOpenChange={setMobileMenuOpen}
-          activeItem={activeItem}
-          onNavigate={setActiveItem}
+          activeItem={location.pathname}
+          onNavigate={handleNavigate}
         />
       )}
 
@@ -37,8 +43,8 @@ export function AppLayout({ children }: AppLayoutProps) {
         <AppSidebar
           collapsed={effectiveCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-          activeItem={activeItem}
-          onNavigate={setActiveItem}
+          activeItem={location.pathname}
+          onNavigate={handleNavigate}
         />
       )}
 
