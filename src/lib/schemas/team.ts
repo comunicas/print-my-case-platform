@@ -30,3 +30,29 @@ export const statusLabels: Record<TeamMemberStatus, string> = {
   pending: "Pendente",
   inactive: "Inativo",
 };
+
+export const rolePermissions: Record<TeamMemberRole, string[]> = {
+  super_admin: [
+    "Acesso total ao sistema",
+    "Gerenciar usuários e permissões",
+    "Configurar organizações",
+    "Gerenciar PDVs e uploads",
+    "Visualizar relatórios completos",
+  ],
+  org_admin: [
+    "Gerenciar usuários da organização",
+    "Gerenciar PDVs e uploads",
+    "Visualizar relatórios da organização",
+    "Configurar preferências",
+  ],
+  operator: [
+    "Acessar PDVs atribuídos",
+    "Fazer uploads de arquivos",
+    "Visualizar relatórios básicos",
+  ],
+  viewer: [
+    "Visualizar PDVs",
+    "Visualizar relatórios básicos",
+    "Apenas leitura",
+  ],
+};
