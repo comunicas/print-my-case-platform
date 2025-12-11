@@ -25,6 +25,7 @@ import {
   TrendingUp,
   Loader2,
   PackageX,
+  CheckCircle2,
 } from "lucide-react";
 import { useReportStockHealth } from "@/hooks/useReportStockHealth";
 import { ReportEmptyState } from "./ReportEmptyState";
@@ -144,6 +145,49 @@ export function StockHealthReport() {
             <div className="w-full max-w-md">
               <Progress value={data.healthScore} className={`h-4 ${getProgressColor(data.healthScore)}`} />
             </div>
+            
+            {/* Segmented Progress Bar */}
+            {data.totals.totalActiveSlots > 0 && (
+              <div className="w-full max-w-md space-y-2">
+                <div className="flex w-full h-3 rounded-full overflow-hidden bg-muted">
+                  <div 
+                    className="bg-emerald-500 transition-all" 
+                    style={{ width: `${(data.totals.healthySlots / data.totals.totalActiveSlots) * 100}%` }}
+                  />
+                  <div 
+                    className="bg-blue-500 transition-all" 
+                    style={{ width: `${(data.totals.goodSlots / data.totals.totalActiveSlots) * 100}%` }}
+                  />
+                  <div 
+                    className="bg-yellow-500 transition-all" 
+                    style={{ width: `${(data.totals.riskSlots / data.totals.totalActiveSlots) * 100}%` }}
+                  />
+                  <div 
+                    className="bg-destructive transition-all" 
+                    style={{ width: `${(data.totals.criticalSlots / data.totals.totalActiveSlots) * 100}%` }}
+                  />
+                </div>
+                <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                    Saudável ({((data.totals.healthySlots / data.totals.totalActiveSlots) * 100).toFixed(0)}%)
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <div className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+                    Bom ({((data.totals.goodSlots / data.totals.totalActiveSlots) * 100).toFixed(0)}%)
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <div className="h-2.5 w-2.5 rounded-full bg-yellow-500" />
+                    Risco ({((data.totals.riskSlots / data.totals.totalActiveSlots) * 100).toFixed(0)}%)
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <div className="h-2.5 w-2.5 rounded-full bg-destructive" />
+                    Crítico ({((data.totals.criticalSlots / data.totals.totalActiveSlots) * 100).toFixed(0)}%)
+                  </span>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-4 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
                 <XCircle className="h-4 w-4 text-destructive" />
@@ -157,6 +201,40 @@ export function StockHealthReport() {
                 <Package className="h-4 w-4" />
                 {data.totals.totalUnits.toLocaleString("pt-BR")} unidades
               </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Category Distribution Card */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Distribuição dos Slots por Categoria</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div className="flex flex-col items-center p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+              <XCircle className="h-6 w-6 text-destructive mb-2" />
+              <span className="text-2xl font-bold text-destructive">{data.totals.criticalSlots}</span>
+              <span className="text-xs text-muted-foreground text-center">Crítico (0 un.)</span>
+            </div>
+            
+            <div className="flex flex-col items-center p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+              <AlertTriangle className="h-6 w-6 text-yellow-500 mb-2" />
+              <span className="text-2xl font-bold text-yellow-500">{data.totals.riskSlots}</span>
+              <span className="text-xs text-muted-foreground text-center">Risco (1 un.)</span>
+            </div>
+            
+            <div className="flex flex-col items-center p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+              <Package className="h-6 w-6 text-blue-500 mb-2" />
+              <span className="text-2xl font-bold text-blue-500">{data.totals.goodSlots}</span>
+              <span className="text-xs text-muted-foreground text-center">Bom (2 un.)</span>
+            </div>
+            
+            <div className="flex flex-col items-center p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+              <CheckCircle2 className="h-6 w-6 text-emerald-500 mb-2" />
+              <span className="text-2xl font-bold text-emerald-500">{data.totals.healthySlots}</span>
+              <span className="text-xs text-muted-foreground text-center">Saudável (3+ un.)</span>
             </div>
           </div>
         </CardContent>
