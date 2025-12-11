@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -24,8 +26,16 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from "recharts";
-import { Download, TrendingUp, TrendingDown, Trophy, AlertTriangle } from "lucide-react";
+import { Download, TrendingUp, TrendingDown, Trophy, AlertTriangle, CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { datePresets, pdvList as mockPdvList } from "@/lib/mock-data";
 
 // Mock data
 const topProducts = [
@@ -66,25 +76,54 @@ const chartConfig = {
 
 const pdvList = [
   { id: "all", name: "Todos os PDVs" },
-  { id: "1", name: "Shopping Ibirapuera" },
-  { id: "2", name: "Shopping Morumbi" },
-  { id: "3", name: "Shopping Eldorado" },
-  { id: "4", name: "Pátio Paulista" },
+  ...mockPdvList.map(p => ({ id: p.id, name: p.name }))
 ];
 
 export function ProductsReport() {
   const [selectedPdv, setSelectedPdv] = useState("all");
   const [viewMode, setViewMode] = useState<"top" | "bottom">("top");
+  const [startDate, setStartDate] = useState<Date | undefined>(
+    new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  );
+  const [endDate, setEndDate] = useState<Date | undefined>(new Date());
 
   const totalSold = topProducts.reduce((acc, curr) => acc + curr.quantity, 0);
   const totalRevenue = topProducts.reduce((acc, curr) => acc + curr.revenue, 0);
   const avgTicket = totalRevenue / totalSold;
 
+  const handlePresetClick = (preset: typeof datePresets[0]) => {
+    const { start, end } = preset.getDates();
+    setStartDate(start);
+    setEndDate(end);
+  };
+
+  const formatPeriod = () => {
+    if (startDate && endDate) {
+      return `${format(startDate, "dd/MM", { locale: ptBR })} - ${format(endDate, "dd/MM/yyyy", { locale: ptBR })}`;
+    }
+    return "";
+  };
+
   return (
     <div className="space-y-6">
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-between">
-        <div className="flex flex-col sm:flex-row gap-2">
+      <div className="flex flex-col gap-4">
+        {/* Date Presets */}
+        <div className="flex flex-wrap gap-2">
+          {datePresets.map((preset) => (
+            <Button
+              key={preset.label}
+              variant="outline"
+              size="sm"
+              onClick={() => handlePresetClick(preset)}
+              className="text-xs"
+            >
+              {preset.label}
+            </Button>
+          ))}
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
           <Select value={selectedPdv} onValueChange={setSelectedPdv}>
             <SelectTrigger className="w-full sm:w-[200px]">
               <SelectValue placeholder="Selecione o PDV" />
@@ -97,6 +136,62 @@ export function ProductsReport() {
               ))}
             </SelectContent>
           </Select>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full sm:w-[180px] justify-start text-left font-normal",
+                  !startDate && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {startDate ? format(startDate, "dd/MM/yyyy", { locale: ptBR }) : "Data inicial"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={startDate}
+                onSelect={(date) => {
+                  setStartDate(date);
+                  if (date && endDate && date > endDate) {
+                    setEndDate(date);
+                  }
+                }}
+                initialFocus
+                className="pointer-events-auto"
+                locale={ptBR}
+              />
+            </PopoverContent>
+          </Popover>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full sm:w-[180px] justify-start text-left font-normal",
+                  !endDate && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {endDate ? format(endDate, "dd/MM/yyyy", { locale: ptBR }) : "Data final"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={endDate}
+                onSelect={setEndDate}
+                disabled={(date) => (startDate ? date < startDate : false)}
+                initialFocus
+                className="pointer-events-auto"
+                locale={ptBR}
+              />
+            </PopoverContent>
+          </Popover>
 
           <div className="flex gap-2">
             <Button
@@ -116,12 +211,12 @@ export function ProductsReport() {
               Menos Vendidos
             </Button>
           </div>
-        </div>
 
-        <Button variant="outline" className="gap-2">
-          <Download className="h-4 w-4" />
-          Exportar
-        </Button>
+          <Button variant="outline" className="gap-2 sm:ml-auto">
+            <Download className="h-4 w-4" />
+            Exportar
+          </Button>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -136,6 +231,7 @@ export function ProductsReport() {
             <div className="text-2xl font-bold">
               {totalSold.toLocaleString("pt-BR")} un.
             </div>
+            <p className="text-xs text-muted-foreground mt-1">{formatPeriod()}</p>
           </CardContent>
         </Card>
 
@@ -152,6 +248,7 @@ export function ProductsReport() {
                 currency: "BRL",
               })}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">{formatPeriod()}</p>
           </CardContent>
         </Card>
 
@@ -168,6 +265,7 @@ export function ProductsReport() {
                 currency: "BRL",
               })}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">{formatPeriod()}</p>
           </CardContent>
         </Card>
       </div>

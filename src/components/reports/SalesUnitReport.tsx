@@ -40,14 +40,12 @@ import {
 } from "recharts";
 import { Download, TrendingUp, TrendingDown, Minus, CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { datePresets, pdvList as mockPdvList } from "@/lib/mock-data";
 
 // Mock data
 const pdvList = [
   { id: "all", name: "Todos os PDVs" },
-  { id: "1", name: "Shopping Ibirapuera" },
-  { id: "2", name: "Shopping Morumbi" },
-  { id: "3", name: "Shopping Eldorado" },
-  { id: "4", name: "Pátio Paulista" },
+  ...mockPdvList.map(p => ({ id: p.id, name: p.name }))
 ];
 
 const salesByPdv = [
@@ -107,10 +105,38 @@ export function SalesUnitReport() {
     return "text-muted-foreground";
   };
 
+  const handlePresetClick = (preset: typeof datePresets[0]) => {
+    const { start, end } = preset.getDates();
+    setStartDate(start);
+    setEndDate(end);
+  };
+
+  const formatPeriod = () => {
+    if (startDate && endDate) {
+      return `${format(startDate, "dd/MM", { locale: ptBR })} - ${format(endDate, "dd/MM/yyyy", { locale: ptBR })}`;
+    }
+    return "";
+  };
+
   return (
     <div className="space-y-6">
       {/* Filters */}
       <div className="flex flex-col gap-4">
+        {/* Date Presets */}
+        <div className="flex flex-wrap gap-2">
+          {datePresets.map((preset) => (
+            <Button
+              key={preset.label}
+              variant="outline"
+              size="sm"
+              onClick={() => handlePresetClick(preset)}
+              className="text-xs"
+            >
+              {preset.label}
+            </Button>
+          ))}
+        </div>
+
         <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
           <Select value={selectedPdv} onValueChange={setSelectedPdv}>
             <SelectTrigger className="w-full sm:w-[200px]">
@@ -203,6 +229,7 @@ export function SalesUnitReport() {
                 currency: "BRL",
               })}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">{formatPeriod()}</p>
           </CardContent>
         </Card>
 
@@ -216,6 +243,7 @@ export function SalesUnitReport() {
             <div className="text-2xl font-bold">
               {totals.transactions.toLocaleString("pt-BR")}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">{formatPeriod()}</p>
           </CardContent>
         </Card>
 
@@ -232,6 +260,7 @@ export function SalesUnitReport() {
                 currency: "BRL",
               })}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">{formatPeriod()}</p>
           </CardContent>
         </Card>
 
@@ -243,6 +272,7 @@ export function SalesUnitReport() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{filteredData.length}</div>
+            <p className="text-xs text-muted-foreground mt-1">{formatPeriod()}</p>
           </CardContent>
         </Card>
       </div>

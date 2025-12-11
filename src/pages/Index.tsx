@@ -1,56 +1,44 @@
+import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
-import { DollarSign, ShoppingCart, TrendingUp, MapPin } from "lucide-react";
-import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
+import { 
+  DollarSign, 
+  ShoppingCart, 
+  TrendingUp, 
+  MapPin, 
+  AlertTriangle, 
+  XCircle, 
+  Clock,
+  ArrowRight,
+  BarChart3,
+  CalendarDays,
+  Package,
+  Activity,
+  FileSpreadsheet,
+  CheckCircle2,
+  Loader2
+} from "lucide-react";
+import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid } from "recharts";
+import { 
+  dashboardKPIs, 
+  revenueByMonth, 
+  salesByPdv, 
+  paymentMethods, 
+  stockByPdv, 
+  topProducts,
+  stockAlerts,
+  recentUploads,
+  formatCurrency 
+} from "@/lib/mock-data";
 
-// Mock KPIs
 const mockKPIs = [
-  { title: "Receita Total", value: "R$ 45.231,89", change: "+12.5%", icon: DollarSign },
-  { title: "Transações", value: "1.234", change: "+8.2%", icon: ShoppingCart },
-  { title: "Ticket Médio", value: "R$ 36,67", change: "+3.1%", icon: TrendingUp },
-  { title: "PDVs Ativos", value: "8", change: "0", icon: MapPin },
-];
-
-// Mock data para gráficos
-const revenueByMonth = [
-  { month: "Jul", revenue: 28500 },
-  { month: "Ago", revenue: 32100 },
-  { month: "Set", revenue: 29800 },
-  { month: "Out", revenue: 35200 },
-  { month: "Nov", revenue: 38900 },
-  { month: "Dez", revenue: 45231 },
-];
-
-const salesByPdv = [
-  { pdv: "Ibirapuera", revenue: 12450 },
-  { pdv: "Morumbi", revenue: 9230 },
-  { pdv: "Eldorado", revenue: 15780 },
-  { pdv: "Pátio Paulista", revenue: 7650 },
-];
-
-const paymentMethods = [
-  { method: "Pix", value: 45, fill: "hsl(var(--chart-1))" },
-  { method: "Crédito", value: 35, fill: "hsl(var(--chart-2))" },
-  { method: "Débito", value: 20, fill: "hsl(var(--chart-3))" },
-];
-
-const stockByPdv = [
-  { pdv: "Ibirapuera", units: 420 },
-  { pdv: "Morumbi", units: 380 },
-  { pdv: "Eldorado", units: 510 },
-  { pdv: "Pátio Paulista", units: 290 },
-];
-
-const topProducts = [
-  { product: "Capinha iPhone 14", quantity: 142 },
-  { product: "Carregador USB-C", quantity: 98 },
-  { product: "Fone Bluetooth", quantity: 87 },
-  { product: "Power Bank", quantity: 76 },
-  { product: "Película Samsung", quantity: 65 },
-  { product: "Cabo Lightning", quantity: 58 },
-  { product: "Suporte Veicular", quantity: 45 },
-  { product: "Caixa de Som", quantity: 38 },
+  { title: "Receita Total", value: formatCurrency(dashboardKPIs.totalRevenue), change: `+${dashboardKPIs.revenueChange}%`, icon: DollarSign },
+  { title: "Transações", value: dashboardKPIs.transactions.toLocaleString("pt-BR"), change: `+${dashboardKPIs.transactionsChange}%`, icon: ShoppingCart },
+  { title: "Ticket Médio", value: formatCurrency(dashboardKPIs.avgTicket), change: `+${dashboardKPIs.avgTicketChange}%`, icon: TrendingUp },
+  { title: "PDVs Ativos", value: dashboardKPIs.activePdvs.toString(), change: "0", icon: MapPin },
 ];
 
 const chartConfigRevenue = {
@@ -76,10 +64,16 @@ const chartConfigPayment = {
   debito: { label: "Débito", color: "hsl(var(--chart-3))" },
 };
 
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+const reportShortcuts = [
+  { label: "Vendas por Unidade", icon: BarChart3, tab: "unit" },
+  { label: "Vendas Mensal", icon: CalendarDays, tab: "monthly" },
+  { label: "Análise de Produtos", icon: Package, tab: "products" },
+  { label: "Saúde do Estoque", icon: Activity, tab: "stock" },
+];
 
 export default function Index() {
+  const navigate = useNavigate();
+
   return (
     <AppLayout>
       <div className="space-y-4 md:space-y-6">
@@ -113,6 +107,115 @@ export default function Index() {
             );
           })}
         </div>
+
+        {/* Alerts + Quick Access Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Stock Alerts Card */}
+          <Card>
+            <CardHeader className="px-4 md:px-6 pt-4 md:pt-6 pb-3">
+              <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                Alertas de Estoque
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 md:px-6 pb-4 md:pb-6 space-y-3">
+              <div className="flex items-center gap-3">
+                <XCircle className="h-4 w-4 text-destructive" />
+                <span className="text-sm text-foreground">{stockAlerts.rupture} produto em ruptura</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                <span className="text-sm text-foreground">{stockAlerts.lowStock} produtos com estoque baixo</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-foreground">{stockAlerts.stagnant} produtos parados (+30 dias)</span>
+              </div>
+              <Button 
+                variant="link" 
+                className="p-0 h-auto text-primary" 
+                onClick={() => navigate('/reports?tab=stock')}
+              >
+                Ver relatório completo <ArrowRight className="h-4 w-4 ml-1" />
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Quick Access Card */}
+          <Card>
+            <CardHeader className="px-4 md:px-6 pt-4 md:pt-6 pb-3">
+              <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-primary" />
+                Atalhos Rápidos
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
+              <div className="grid grid-cols-2 gap-2">
+                {reportShortcuts.map((shortcut) => {
+                  const Icon = shortcut.icon;
+                  return (
+                    <Button
+                      key={shortcut.tab}
+                      variant="outline"
+                      className="justify-start gap-2 h-auto py-3"
+                      onClick={() => navigate(`/reports?tab=${shortcut.tab}`)}
+                    >
+                      <Icon className="h-4 w-4 text-primary" />
+                      <span className="text-sm">{shortcut.label}</span>
+                    </Button>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Recent Uploads */}
+        <Card>
+          <CardHeader className="px-4 md:px-6 pt-4 md:pt-6 pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                <FileSpreadsheet className="h-5 w-5 text-primary" />
+                Últimos Uploads
+              </CardTitle>
+              <Button 
+                variant="link" 
+                className="p-0 h-auto text-primary"
+                onClick={() => navigate('/uploads')}
+              >
+                Ver todos <ArrowRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {recentUploads.map((upload) => (
+                <Card 
+                  key={upload.id} 
+                  className="cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => navigate(`/uploads/${upload.id}`)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between mb-2">
+                      <Badge variant={upload.type === "sales" ? "default" : "secondary"}>
+                        {upload.type === "sales" ? "Vendas" : "Estoque"}
+                      </Badge>
+                      {upload.status === "processed" ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                      ) : (
+                        <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
+                      )}
+                    </div>
+                    <p className="font-medium text-sm text-foreground">{upload.pdv}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {new Date(upload.date).toLocaleDateString("pt-BR")} • {upload.records} registros
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Row 1: Revenue + Sales by PDV */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
