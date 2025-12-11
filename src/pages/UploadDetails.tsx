@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, FileSpreadsheet, Search, Package, ShoppingCart } from "lucide-react";
+import { ArrowLeft, FileSpreadsheet, Search, Package, ShoppingCart, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -24,85 +24,9 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import {
-  Upload,
-  SalesRecord,
-  StockRecord,
-  uploadTypeLabels,
-  uploadStatusLabels,
-} from "@/lib/schemas/upload";
-
-// Mock data - será substituído por dados reais do backend
-const mockUploads: Upload[] = [
-  {
-    id: "1",
-    pdvId: "1",
-    pdvName: "Shopping Ibirapuera",
-    deviceId: "1001543",
-    type: "sales",
-    fileName: "REVENUE.xlsx",
-    status: "ready",
-    recordsCount: 87,
-    period: "2025-12",
-    uploadedBy: "João Silva",
-    uploadedAt: new Date("2025-12-08T10:30:00"),
-    processedAt: new Date("2025-12-08T10:31:00"),
-  },
-  {
-    id: "2",
-    pdvId: "2",
-    pdvName: "Shopping Morumbi",
-    deviceId: "1001544",
-    type: "stock",
-    fileName: "REPORT-SLOT.xlsx",
-    status: "ready",
-    recordsCount: 86,
-    period: "2025-12",
-    uploadedBy: "Maria Santos",
-    uploadedAt: new Date("2025-12-07T15:45:00"),
-    processedAt: new Date("2025-12-07T15:46:00"),
-  },
-];
-
-const mockSalesRecords: SalesRecord[] = Array.from({ length: 87 }, (_, i) => ({
-  merchantId: "123456",
-  deviceId: "1001543",
-  orderNumber: `PED-${String(i + 1).padStart(3, "0")}`,
-  productName: [
-    "Capinha iPhone 14 Pro Max",
-    "Película Samsung Galaxy S23",
-    "Carregador USB-C 20W",
-    "Fone Bluetooth TWS",
-    "Cabo Lightning 2m",
-    "Suporte Veicular Magnético",
-    "Power Bank 10000mAh",
-    "Capa Xiaomi Redmi Note 12",
-  ][i % 8],
-  transactionNumber: `TXN-${String(i + 1).padStart(5, "0")}`,
-  paymentDate: new Date(2025, 11, 10 - (i % 10), 10 + (i % 12), (i * 7) % 60),
-  amount: [29.9, 15.0, 45.0, 89.9, 25.0, 35.0, 79.9, 19.9][i % 8],
-  paymentMethod: ["Pix", "Crédito", "Débito", "Pix", "Crédito"][i % 5],
-  status: i % 15 === 0 ? "Reembolsado" : "Pago",
-  refundAmount: i % 15 === 0 ? [29.9, 15.0, 45.0][i % 3] : 0,
-}));
-
-const mockStockRecords: StockRecord[] = Array.from({ length: 86 }, (_, i) => ({
-  recordNumber: String(i + 1),
-  deviceId: "1001544",
-  slotNumber: String((i % 10) + 1).padStart(2, "0"),
-  productName: [
-    "Capinha iPhone 14 Pro Max",
-    "Película Samsung Galaxy S23",
-    "Carregador USB-C 20W",
-    "Fone Bluetooth TWS",
-    "Cabo Lightning 2m",
-    "Suporte Veicular Magnético",
-    "Power Bank 10000mAh",
-    "Capa Xiaomi Redmi Note 12",
-  ][i % 8],
-  quantity: Math.floor(Math.random() * 20) + 1,
-  isActive: i % 10 !== 0,
-}));
+import { uploadTypeLabels, uploadStatusLabels } from "@/lib/schemas/upload";
+import { useUploadDetails, SalesRecordData, StockRecordData } from "@/hooks/useUploadDetails";
+import { formatCurrency } from "@/lib/utils";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -112,22 +36,26 @@ const UploadDetails = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
-  const upload = mockUploads.find((u) => u.id === id);
-
-  const salesRecords = upload?.type === "sales" ? mockSalesRecords : [];
-  const stockRecords = upload?.type === "stock" ? mockStockRecords : [];
+  const {
+    upload,
+    isLoading,
+    salesRecords,
+    salesRecordsLoading,
+    stockRecords,
+    stockRecordsLoading,
+  } = useUploadDetails(id);
 
   const filteredSalesRecords = useMemo(() => {
     if (!searchQuery) return salesRecords;
     return salesRecords.filter((r) =>
-      r.productName.toLowerCase().includes(searchQuery.toLowerCase())
+      r.product_name.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [salesRecords, searchQuery]);
 
   const filteredStockRecords = useMemo(() => {
     if (!searchQuery) return stockRecords;
     return stockRecords.filter((r) =>
-      r.productName.toLowerCase().includes(searchQuery.toLowerCase())
+      r.product_name.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [stockRecords, searchQuery]);
 
@@ -149,23 +77,33 @@ const UploadDetails = () => {
 
   // Estatísticas
   const salesStats = useMemo(() => {
-    const total = salesRecords.reduce((acc, r) => acc + r.amount, 0);
-    const refunds = salesRecords.filter((r) => r.refundAmount > 0).length;
+    const total = salesRecords.reduce((acc, r) => acc + Number(r.amount), 0);
+    const refunds = salesRecords.filter((r) => (r.refund_amount || 0) > 0).length;
     return { total, refunds };
   }, [salesRecords]);
 
   const stockStats = useMemo(() => {
     const totalUnits = stockRecords.reduce((acc, r) => acc + r.quantity, 0);
-    const activeSlots = stockRecords.filter((r) => r.isActive).length;
+    const activeSlots = stockRecords.filter((r) => r.is_active).length;
     return { totalUnits, activeSlots };
   }, [stockRecords]);
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   if (!upload) {
     return (
       <AppLayout>
         <div className="flex flex-col items-center justify-center h-64 gap-4">
           <p className="text-muted-foreground">Upload não encontrado</p>
-          <Button variant="outline" onClick={() => navigate("/upload")}>
+          <Button variant="outline" onClick={() => navigate("/uploads")}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Voltar para Uploads
           </Button>
@@ -180,12 +118,7 @@ const UploadDetails = () => {
     error: "bg-red-500/10 text-red-600 border-red-500/20",
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value);
-  };
+  const recordsLoading = upload.type === "sales" ? salesRecordsLoading : stockRecordsLoading;
 
   return (
     <AppLayout>
@@ -195,7 +128,7 @@ const UploadDetails = () => {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate("/upload")}
+            onClick={() => navigate("/uploads")}
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -217,7 +150,7 @@ const UploadDetails = () => {
                     {uploadTypeLabels[upload.type]}
                   </CardTitle>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {upload.pdvName} • Código: {upload.deviceId}
+                    {upload.pdv.name} • Código: {upload.pdv.machine_id}
                   </p>
                 </div>
               </div>
@@ -231,28 +164,24 @@ const UploadDetails = () => {
               <div>
                 <p className="text-muted-foreground">Período</p>
                 <p className="font-medium">
-                  {format(new Date(upload.period + "-01"), "MMM yyyy", {
-                    locale: ptBR,
-                  })}
+                  {upload.period ? format(new Date(upload.period + "-01"), "MMM yyyy", { locale: ptBR }) : "-"}
                 </p>
               </div>
               <div>
                 <p className="text-muted-foreground">Arquivo</p>
                 <div className="flex items-center gap-1">
                   <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
-                  <p className="font-medium truncate">{upload.fileName}</p>
+                  <p className="font-medium truncate">{upload.file_name}</p>
                 </div>
               </div>
               <div>
                 <p className="text-muted-foreground">Enviado por</p>
-                <p className="font-medium">{upload.uploadedBy}</p>
+                <p className="font-medium">{upload.uploader.name}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Data de envio</p>
                 <p className="font-medium">
-                  {format(upload.uploadedAt, "dd/MM/yyyy 'às' HH:mm", {
-                    locale: ptBR,
-                  })}
+                  {format(new Date(upload.uploaded_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                 </p>
               </div>
             </div>
@@ -306,7 +235,11 @@ const UploadDetails = () => {
             </div>
           </CardHeader>
           <CardContent>
-            {upload.type === "sales" ? (
+            {recordsLoading ? (
+              <div className="flex items-center justify-center h-32">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : upload.type === "sales" ? (
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
@@ -330,15 +263,15 @@ const UploadDetails = () => {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      paginatedSalesRecords.map((record, idx) => (
-                        <TableRow key={idx}>
+                      paginatedSalesRecords.map((record) => (
+                        <TableRow key={record.id}>
                           <TableCell className="font-medium max-w-[200px] truncate">
-                            {record.productName}
+                            {record.product_name}
                           </TableCell>
                           <TableCell className="text-right">
-                            {formatCurrency(record.amount)}
+                            {formatCurrency(Number(record.amount))}
                           </TableCell>
-                          <TableCell>{record.paymentMethod}</TableCell>
+                          <TableCell>{record.payment_method || "-"}</TableCell>
                           <TableCell>
                             <Badge
                               variant="outline"
@@ -348,15 +281,15 @@ const UploadDetails = () => {
                                   : "bg-orange-500/10 text-orange-600 border-orange-500/20"
                               }
                             >
-                              {record.status}
+                              {record.status || "-"}
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {format(record.paymentDate, "dd/MM/yyyy HH:mm")}
+                            {format(new Date(record.payment_date), "dd/MM/yyyy HH:mm")}
                           </TableCell>
                           <TableCell className="text-right">
-                            {record.refundAmount > 0
-                              ? formatCurrency(record.refundAmount)
+                            {(record.refund_amount || 0) > 0
+                              ? formatCurrency(Number(record.refund_amount))
                               : "-"}
                           </TableCell>
                         </TableRow>
@@ -387,13 +320,13 @@ const UploadDetails = () => {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      paginatedStockRecords.map((record, idx) => (
-                        <TableRow key={idx}>
+                      paginatedStockRecords.map((record) => (
+                        <TableRow key={record.id}>
                           <TableCell className="font-medium">
-                            {record.slotNumber}
+                            {record.slot_number}
                           </TableCell>
                           <TableCell className="max-w-[250px] truncate">
-                            {record.productName}
+                            {record.product_name}
                           </TableCell>
                           <TableCell className="text-right">
                             {record.quantity}
@@ -402,12 +335,12 @@ const UploadDetails = () => {
                             <Badge
                               variant="outline"
                               className={
-                                record.isActive
+                                record.is_active
                                   ? "bg-green-500/10 text-green-600 border-green-500/20"
                                   : "bg-muted text-muted-foreground"
                               }
                             >
-                              {record.isActive ? "Ativo" : "Inativo"}
+                              {record.is_active ? "Ativo" : "Inativo"}
                             </Badge>
                           </TableCell>
                         </TableRow>

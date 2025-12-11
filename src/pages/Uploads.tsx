@@ -336,7 +336,7 @@ export default function Uploads() {
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7"
-                            onClick={() => navigate(`/upload/${upload.id}`)}
+                            onClick={() => navigate(`/uploads/${upload.id}`)}
                           >
                             <Eye className="h-3.5 w-3.5" />
                           </Button>
