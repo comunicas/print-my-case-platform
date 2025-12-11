@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Mail, Lock, User } from "lucide-react";
+import { Loader2, Mail, Lock, User, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { z } from "zod";
 
 const loginSchema = z.object({
@@ -25,22 +25,55 @@ const signupSchema = z.object({
   path: ["confirmPassword"],
 });
 
+const resetEmailSchema = z.object({
+  email: z.string().email("Email inválido"),
+});
+
+const newPasswordSchema = z.object({
+  password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "As senhas não coincidem",
+  path: ["confirmPassword"],
+});
+
+type AuthMode = "login" | "forgot" | "reset";
+
 export default function Auth() {
   const navigate = useNavigate();
-  const { user, signIn, signUp, loading: authLoading } = useAuth();
+  const [searchParams] = useSearchParams();
+  const { user, signIn, signUp, resetPassword, updatePassword, loading: authLoading } = useAuth();
   const { toast } = useToast();
   
+  const [mode, setMode] = useState<AuthMode>("login");
   const [isLoading, setIsLoading] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [passwordUpdated, setPasswordUpdated] = useState(false);
+  
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [signupData, setSignupData] = useState({ name: "", email: "", password: "", confirmPassword: "" });
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [newPasswordData, setNewPasswordData] = useState({ password: "", confirmPassword: "" });
+  
   const [loginErrors, setLoginErrors] = useState<Record<string, string>>({});
   const [signupErrors, setSignupErrors] = useState<Record<string, string>>({});
+  const [forgotErrors, setForgotErrors] = useState<Record<string, string>>({});
+  const [newPasswordErrors, setNewPasswordErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (user) {
+    // Check if user came from password reset email
+    const modeParam = searchParams.get("mode");
+    if (modeParam === "reset") {
+      setMode("reset");
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    // Only redirect if user is logged in AND not in reset mode
+    if (user && mode !== "reset") {
       navigate("/");
     }
-  }, [user, navigate]);
+  }, [user, navigate, mode]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,6 +151,64 @@ export default function Auth() {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotErrors({});
+    
+    const result = resetEmailSchema.safeParse({ email: forgotEmail });
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      result.error.errors.forEach((err) => {
+        if (err.path[0]) errors[err.path[0] as string] = err.message;
+      });
+      setForgotErrors(errors);
+      return;
+    }
+
+    setIsLoading(true);
+    const { error } = await resetPassword(forgotEmail);
+    setIsLoading(false);
+
+    if (error) {
+      toast({
+        title: "Erro ao enviar email",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setResetEmailSent(true);
+    }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setNewPasswordErrors({});
+    
+    const result = newPasswordSchema.safeParse(newPasswordData);
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      result.error.errors.forEach((err) => {
+        if (err.path[0]) errors[err.path[0] as string] = err.message;
+      });
+      setNewPasswordErrors(errors);
+      return;
+    }
+
+    setIsLoading(true);
+    const { error } = await updatePassword(newPasswordData.password);
+    setIsLoading(false);
+
+    if (error) {
+      toast({
+        title: "Erro ao atualizar senha",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setPasswordUpdated(true);
+    }
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -126,6 +217,216 @@ export default function Auth() {
     );
   }
 
+  // Forgot Password Mode
+  if (mode === "forgot") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <img 
+              src="/logo-printmycase.png" 
+              alt="Print My Case" 
+              className="h-16 mx-auto mb-4"
+            />
+            <h1 className="text-2xl font-bold text-foreground">Print My Case</h1>
+            <p className="text-muted-foreground">Sistema de Gestão de PDVs</p>
+          </div>
+
+          <Card>
+            <CardHeader className="space-y-1 pb-4">
+              <CardTitle className="text-xl text-center">Recuperar senha</CardTitle>
+              <CardDescription className="text-center">
+                {resetEmailSent 
+                  ? "Verifique seu email" 
+                  : "Informe seu email para receber o link de recuperação"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {resetEmailSent ? (
+                <div className="text-center space-y-4">
+                  <div className="flex justify-center">
+                    <CheckCircle2 className="h-16 w-16 text-green-500" />
+                  </div>
+                  <p className="text-muted-foreground">
+                    Enviamos um link de recuperação para <strong>{forgotEmail}</strong>. 
+                    Verifique sua caixa de entrada e spam.
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => {
+                      setMode("login");
+                      setResetEmailSent(false);
+                      setForgotEmail("");
+                    }}
+                  >
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Voltar para login
+                  </Button>
+                </div>
+              ) : (
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="forgot-email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="forgot-email"
+                        type="email"
+                        placeholder="seu@email.com"
+                        className={`pl-10 ${forgotErrors.email ? "border-destructive" : ""}`}
+                        value={forgotEmail}
+                        onChange={(e) => {
+                          setForgotEmail(e.target.value);
+                          if (forgotErrors.email) setForgotErrors({});
+                        }}
+                      />
+                    </div>
+                    {forgotErrors.email && (
+                      <p className="text-sm text-destructive">{forgotErrors.email}</p>
+                    )}
+                  </div>
+
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Enviando...
+                      </>
+                    ) : (
+                      "Enviar link de recuperação"
+                    )}
+                  </Button>
+
+                  <Button 
+                    type="button"
+                    variant="ghost" 
+                    className="w-full"
+                    onClick={() => setMode("login")}
+                  >
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Voltar para login
+                  </Button>
+                </form>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Reset Password Mode (after clicking email link)
+  if (mode === "reset") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <img 
+              src="/logo-printmycase.png" 
+              alt="Print My Case" 
+              className="h-16 mx-auto mb-4"
+            />
+            <h1 className="text-2xl font-bold text-foreground">Print My Case</h1>
+            <p className="text-muted-foreground">Sistema de Gestão de PDVs</p>
+          </div>
+
+          <Card>
+            <CardHeader className="space-y-1 pb-4">
+              <CardTitle className="text-xl text-center">
+                {passwordUpdated ? "Senha atualizada!" : "Definir nova senha"}
+              </CardTitle>
+              <CardDescription className="text-center">
+                {passwordUpdated 
+                  ? "Sua senha foi alterada com sucesso" 
+                  : "Digite sua nova senha abaixo"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {passwordUpdated ? (
+                <div className="text-center space-y-4">
+                  <div className="flex justify-center">
+                    <CheckCircle2 className="h-16 w-16 text-green-500" />
+                  </div>
+                  <p className="text-muted-foreground">
+                    Você já pode fazer login com sua nova senha.
+                  </p>
+                  <Button 
+                    className="w-full"
+                    onClick={() => {
+                      setMode("login");
+                      setPasswordUpdated(false);
+                      setNewPasswordData({ password: "", confirmPassword: "" });
+                      navigate("/auth");
+                    }}
+                  >
+                    Ir para login
+                  </Button>
+                </div>
+              ) : (
+                <form onSubmit={handleUpdatePassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="new-password">Nova senha</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="new-password"
+                        type="password"
+                        placeholder="••••••••"
+                        className={`pl-10 ${newPasswordErrors.password ? "border-destructive" : ""}`}
+                        value={newPasswordData.password}
+                        onChange={(e) => {
+                          setNewPasswordData({ ...newPasswordData, password: e.target.value });
+                          if (newPasswordErrors.password) setNewPasswordErrors({});
+                        }}
+                      />
+                    </div>
+                    {newPasswordErrors.password && (
+                      <p className="text-sm text-destructive">{newPasswordErrors.password}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="confirm-new-password">Confirmar nova senha</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="confirm-new-password"
+                        type="password"
+                        placeholder="••••••••"
+                        className={`pl-10 ${newPasswordErrors.confirmPassword ? "border-destructive" : ""}`}
+                        value={newPasswordData.confirmPassword}
+                        onChange={(e) => {
+                          setNewPasswordData({ ...newPasswordData, confirmPassword: e.target.value });
+                          if (newPasswordErrors.confirmPassword) setNewPasswordErrors({});
+                        }}
+                      />
+                    </div>
+                    {newPasswordErrors.confirmPassword && (
+                      <p className="text-sm text-destructive">{newPasswordErrors.confirmPassword}</p>
+                    )}
+                  </div>
+
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Atualizando...
+                      </>
+                    ) : (
+                      "Atualizar senha"
+                    )}
+                  </Button>
+                </form>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Login/Signup Mode
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
       <div className="w-full max-w-md">
@@ -207,6 +508,16 @@ export default function Auth() {
                       "Entrar"
                     )}
                   </Button>
+
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      className="text-sm text-primary hover:underline"
+                      onClick={() => setMode("forgot")}
+                    >
+                      Esqueci minha senha
+                    </button>
+                  </div>
                 </form>
               </TabsContent>
 
