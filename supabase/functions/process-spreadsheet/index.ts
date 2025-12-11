@@ -6,6 +6,25 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Field length limits based on database constraints
+const FIELD_LIMITS = {
+  merchant_id: 100,
+  device_id: 100,
+  order_number: 100,
+  product_name: 255,
+  transaction_number: 100,
+  payment_method: 50,
+  status: 50,
+  record_number: 50,
+  slot_number: 50,
+};
+
+// Amount limits for validation
+const AMOUNT_MIN = 0;
+const AMOUNT_MAX = 10000000; // 10 million (reasonable max for a single transaction)
+const QUANTITY_MIN = 0;
+const QUANTITY_MAX = 100000; // reasonable max for stock quantity
+
 // Column mapping for sales spreadsheet (REVENUE.xlsx)
 const SALES_COLUMN_MAP: Record<string, string> = {
   "Comerciante": "merchant_id",
@@ -30,12 +49,64 @@ const STOCK_COLUMN_MAP: Record<string, string> = {
   "Ativado": "is_active",
 };
 
+/**
+ * Sanitize and truncate string value to max length
+ * Removes potentially dangerous characters and ensures length limits
+ */
+function sanitizeString(value: unknown, maxLength: number): string | null {
+  if (value === null || value === undefined || value === "") return null;
+  
+  let str = String(value).trim();
+  
+  // Remove null bytes and other control characters (except common whitespace)
+  str = str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+  
+  // Truncate to max length
+  if (str.length > maxLength) {
+    str = str.substring(0, maxLength);
+  }
+  
+  return str || null;
+}
+
+/**
+ * Validate and sanitize order number format
+ * Allows alphanumeric characters, hyphens, underscores, and dots
+ */
+function sanitizeOrderNumber(value: unknown): string | null {
+  const str = sanitizeString(value, FIELD_LIMITS.order_number);
+  if (!str) return null;
+  
+  // Remove characters that aren't alphanumeric, hyphens, underscores, or dots
+  const sanitized = str.replace(/[^a-zA-Z0-9\-_\.]/g, "");
+  
+  return sanitized || null;
+}
+
+/**
+ * Validate and sanitize device ID
+ * Allows alphanumeric characters and hyphens
+ */
+function sanitizeDeviceId(value: unknown): string | null {
+  const str = sanitizeString(value, FIELD_LIMITS.device_id);
+  if (!str) return null;
+  
+  // Remove characters that aren't alphanumeric or hyphens
+  const sanitized = str.replace(/[^a-zA-Z0-9\-]/g, "");
+  
+  return sanitized || null;
+}
+
 // Parse Brazilian date format "DD/MM/YYYY HH:MM" or Excel serial date
 function parsePaymentDate(value: unknown): string {
   if (!value) return new Date().toISOString();
   
   // If it's a number (Excel serial date)
   if (typeof value === "number") {
+    // Validate reasonable date range (1900-2100)
+    if (value < 1 || value > 73050) { // 73050 is roughly year 2100
+      return new Date().toISOString();
+    }
     const excelEpoch = new Date(1899, 11, 30);
     const date = new Date(excelEpoch.getTime() + value * 86400000);
     return date.toISOString();
@@ -43,14 +114,28 @@ function parsePaymentDate(value: unknown): string {
   
   const str = String(value).trim();
   
+  // Limit string length for date parsing
+  if (str.length > 50) {
+    return new Date().toISOString();
+  }
+  
   // Try DD/MM/YYYY HH:MM format
   const match = str.match(/(\d{2})\/(\d{2})\/(\d{4})\s*(\d{2}):(\d{2})/);
   if (match) {
     const [, day, month, year, hour, minute] = match;
+    const parsedYear = parseInt(year);
+    const parsedMonth = parseInt(month);
+    const parsedDay = parseInt(day);
+    
+    // Validate date components
+    if (parsedYear < 1900 || parsedYear > 2100) return new Date().toISOString();
+    if (parsedMonth < 1 || parsedMonth > 12) return new Date().toISOString();
+    if (parsedDay < 1 || parsedDay > 31) return new Date().toISOString();
+    
     return new Date(
-      parseInt(year),
-      parseInt(month) - 1,
-      parseInt(day),
+      parsedYear,
+      parsedMonth - 1,
+      parsedDay,
       parseInt(hour),
       parseInt(minute)
     ).toISOString();
@@ -59,33 +144,68 @@ function parsePaymentDate(value: unknown): string {
   // Try parsing as ISO date
   const parsed = new Date(str);
   if (!isNaN(parsed.getTime())) {
-    return parsed.toISOString();
+    // Validate reasonable date range
+    const year = parsed.getFullYear();
+    if (year >= 1900 && year <= 2100) {
+      return parsed.toISOString();
+    }
   }
   
   return new Date().toISOString();
 }
 
-// Parse monetary value "R$ 1.234,56" or number
+// Parse monetary value "R$ 1.234,56" or number with validation
 function parseAmount(value: unknown): number {
   if (!value) return 0;
-  if (typeof value === "number") return value;
+  if (typeof value === "number") {
+    // Validate range
+    if (value < AMOUNT_MIN || value > AMOUNT_MAX) {
+      console.warn(`Amount out of range: ${value}, clamping to limits`);
+      return Math.max(AMOUNT_MIN, Math.min(AMOUNT_MAX, value));
+    }
+    return value;
+  }
   
-  const str = String(value)
+  const str = String(value).substring(0, 50) // Limit input length
     .replace(/[R$\s]/g, "")
     .replace(/\./g, "")
     .replace(",", ".");
   
   const parsed = parseFloat(str);
-  return isNaN(parsed) ? 0 : parsed;
+  if (isNaN(parsed)) return 0;
+  
+  // Validate range
+  if (parsed < AMOUNT_MIN || parsed > AMOUNT_MAX) {
+    console.warn(`Amount out of range: ${parsed}, clamping to limits`);
+    return Math.max(AMOUNT_MIN, Math.min(AMOUNT_MAX, parsed));
+  }
+  
+  return parsed;
 }
 
-// Parse quantity value
+// Parse quantity value with validation
 function parseQuantity(value: unknown): number {
   if (!value) return 0;
-  if (typeof value === "number") return Math.floor(value);
+  if (typeof value === "number") {
+    const qty = Math.floor(value);
+    // Validate range
+    if (qty < QUANTITY_MIN || qty > QUANTITY_MAX) {
+      console.warn(`Quantity out of range: ${qty}, clamping to limits`);
+      return Math.max(QUANTITY_MIN, Math.min(QUANTITY_MAX, qty));
+    }
+    return qty;
+  }
   
-  const parsed = parseInt(String(value), 10);
-  return isNaN(parsed) ? 0 : parsed;
+  const parsed = parseInt(String(value).substring(0, 20), 10);
+  if (isNaN(parsed)) return 0;
+  
+  // Validate range
+  if (parsed < QUANTITY_MIN || parsed > QUANTITY_MAX) {
+    console.warn(`Quantity out of range: ${parsed}, clamping to limits`);
+    return Math.max(QUANTITY_MIN, Math.min(QUANTITY_MAX, parsed));
+  }
+  
+  return parsed;
 }
 
 // Parse boolean value "Sim"/"Não" or "1"/"0" or boolean
@@ -93,12 +213,12 @@ function parseBoolean(value: unknown): boolean {
   if (typeof value === "boolean") return value;
   if (typeof value === "number") return value === 1;
   
-  const str = String(value).toLowerCase().trim();
+  const str = String(value).toLowerCase().trim().substring(0, 20);
   return str === "sim" || str === "yes" || str === "1" || str === "true" || str === "ativado";
 }
 
-// Map spreadsheet row to database record
-function mapSalesRow(row: Record<string, unknown>, pdvId: string, uploadId: string): Record<string, unknown> {
+// Map spreadsheet row to database record with validation
+function mapSalesRow(row: Record<string, unknown>, pdvId: string, uploadId: string): Record<string, unknown> | null {
   const mapped: Record<string, unknown> = {
     pdv_id: pdvId,
     upload_id: uploadId,
@@ -115,15 +235,36 @@ function mapSalesRow(row: Record<string, unknown>, pdvId: string, uploadId: stri
       case "refund_amount":
         mapped[dbCol] = parseAmount(value);
         break;
+      case "device_id":
+        mapped[dbCol] = sanitizeDeviceId(value);
+        break;
+      case "order_number":
+        mapped[dbCol] = sanitizeOrderNumber(value);
+        break;
+      case "product_name":
+        mapped[dbCol] = sanitizeString(value, FIELD_LIMITS.product_name);
+        break;
+      case "merchant_id":
+        mapped[dbCol] = sanitizeString(value, FIELD_LIMITS.merchant_id);
+        break;
+      case "transaction_number":
+        mapped[dbCol] = sanitizeString(value, FIELD_LIMITS.transaction_number);
+        break;
+      case "payment_method":
+        mapped[dbCol] = sanitizeString(value, FIELD_LIMITS.payment_method);
+        break;
+      case "status":
+        mapped[dbCol] = sanitizeString(value, FIELD_LIMITS.status);
+        break;
       default:
-        mapped[dbCol] = value ? String(value).trim() : null;
+        mapped[dbCol] = sanitizeString(value, 255);
     }
   }
   
   return mapped;
 }
 
-function mapStockRow(row: Record<string, unknown>, pdvId: string, uploadId: string): Record<string, unknown> {
+function mapStockRow(row: Record<string, unknown>, pdvId: string, uploadId: string): Record<string, unknown> | null {
   const mapped: Record<string, unknown> = {
     pdv_id: pdvId,
     upload_id: uploadId,
@@ -139,8 +280,20 @@ function mapStockRow(row: Record<string, unknown>, pdvId: string, uploadId: stri
       case "is_active":
         mapped[dbCol] = parseBoolean(value);
         break;
+      case "device_id":
+        mapped[dbCol] = sanitizeDeviceId(value);
+        break;
+      case "slot_number":
+        mapped[dbCol] = sanitizeString(value, FIELD_LIMITS.slot_number);
+        break;
+      case "product_name":
+        mapped[dbCol] = sanitizeString(value, FIELD_LIMITS.product_name);
+        break;
+      case "record_number":
+        mapped[dbCol] = sanitizeString(value, FIELD_LIMITS.record_number);
+        break;
       default:
-        mapped[dbCol] = value ? String(value).trim() : null;
+        mapped[dbCol] = sanitizeString(value, 255);
     }
   }
   
@@ -159,6 +312,15 @@ Deno.serve(async (req) => {
     if (!uploadId) {
       return new Response(
         JSON.stringify({ success: false, error: "uploadId is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate uploadId format (UUID)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(uploadId)) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid uploadId format" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -307,20 +469,40 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Limit max rows to prevent DoS
+    const MAX_ROWS = 50000;
+    if (rows.length > MAX_ROWS) {
+      await supabase
+        .from("uploads")
+        .update({ 
+          status: "error", 
+          error_message: `Planilha excede o limite de ${MAX_ROWS} linhas`, 
+          processed_at: new Date().toISOString() 
+        })
+        .eq("id", uploadId);
+      
+      return new Response(
+        JSON.stringify({ success: false, error: `Spreadsheet exceeds maximum of ${MAX_ROWS} rows` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // 4. Transform and insert records based on type
     const pdvId = upload.pdv_id;
     let recordsInserted = 0;
+    let skippedRecords = 0;
 
     if (upload.type === "sales") {
-      // Map rows to sales records
-      const salesRecords = rows.map(row => mapSalesRow(row, pdvId, uploadId));
+      // Map rows to sales records with validation
+      const salesRecords = rows.map(row => mapSalesRow(row, pdvId, uploadId)).filter(Boolean);
       
       // Filter out records without required fields
       const validRecords = salesRecords.filter(r => 
-        r.device_id && r.order_number && r.product_name && r.amount
+        r && r.device_id && r.order_number && r.product_name && r.amount !== null && r.amount !== undefined
       );
-
-      console.log(`Inserting ${validRecords.length} valid sales records...`);
+      
+      skippedRecords = rows.length - validRecords.length;
+      console.log(`Inserting ${validRecords.length} valid sales records (skipped ${skippedRecords})...`);
 
       // Batch insert (chunks of 500)
       const chunkSize = 500;
@@ -338,15 +520,16 @@ Deno.serve(async (req) => {
         recordsInserted += chunk.length;
       }
     } else if (upload.type === "stock") {
-      // Map rows to stock records
-      const stockRecords = rows.map(row => mapStockRow(row, pdvId, uploadId));
+      // Map rows to stock records with validation
+      const stockRecords = rows.map(row => mapStockRow(row, pdvId, uploadId)).filter(Boolean);
       
       // Filter out records without required fields
       const validRecords = stockRecords.filter(r => 
-        r.device_id && r.slot_number && r.product_name
+        r && r.device_id && r.slot_number && r.product_name
       );
-
-      console.log(`Inserting ${validRecords.length} valid stock records...`);
+      
+      skippedRecords = rows.length - validRecords.length;
+      console.log(`Inserting ${validRecords.length} valid stock records (skipped ${skippedRecords})...`);
 
       // Batch insert (chunks of 500)
       const chunkSize = 500;
@@ -376,12 +559,13 @@ Deno.serve(async (req) => {
       })
       .eq("id", uploadId);
 
-    console.log(`Successfully processed ${recordsInserted} records`);
+    console.log(`Successfully processed ${recordsInserted} records (skipped ${skippedRecords})`);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         recordsCount: recordsInserted,
+        skippedCount: skippedRecords,
         message: `Processado com sucesso: ${recordsInserted} registros` 
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
