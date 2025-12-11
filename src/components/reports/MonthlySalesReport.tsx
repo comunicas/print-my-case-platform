@@ -25,6 +25,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar } from "recharts";
 import { Download, TrendingUp, TrendingDown, CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { datePresets } from "@/lib/mock-data";
 
 // Mock data
 const dailySales = Array.from({ length: 31 }, (_, i) => ({
@@ -72,70 +73,100 @@ export function MonthlySalesReport() {
   const previousMonthRevenue = 42100;
   const variation = ((totalRevenue - previousMonthRevenue) / previousMonthRevenue) * 100;
 
+  const handlePresetClick = (preset: typeof datePresets[0]) => {
+    const { start, end } = preset.getDates();
+    setStartDate(start);
+    setEndDate(end);
+  };
+
+  const formatPeriod = () => {
+    if (startDate && endDate) {
+      return `${format(startDate, "dd/MM", { locale: ptBR })} - ${format(endDate, "dd/MM/yyyy", { locale: ptBR })}`;
+    }
+    return "";
+  };
+
   return (
     <div className="space-y-6">
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
-        <Popover>
-          <PopoverTrigger asChild>
+      <div className="flex flex-col gap-4">
+        {/* Date Presets */}
+        <div className="flex flex-wrap gap-2">
+          {datePresets.map((preset) => (
             <Button
+              key={preset.label}
               variant="outline"
-              className={cn(
-                "w-full sm:w-[180px] justify-start text-left font-normal",
-                !startDate && "text-muted-foreground"
-              )}
+              size="sm"
+              onClick={() => handlePresetClick(preset)}
+              className="text-xs"
             >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {startDate ? format(startDate, "dd/MM/yyyy", { locale: ptBR }) : "Data inicial"}
+              {preset.label}
             </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={startDate}
-              onSelect={(date) => {
-                setStartDate(date);
-                if (date && endDate && date > endDate) {
-                  setEndDate(date);
-                }
-              }}
-              initialFocus
-              className="pointer-events-auto"
-              locale={ptBR}
-            />
-          </PopoverContent>
-        </Popover>
+          ))}
+        </div>
 
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className={cn(
-                "w-full sm:w-[180px] justify-start text-left font-normal",
-                !endDate && "text-muted-foreground"
-              )}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {endDate ? format(endDate, "dd/MM/yyyy", { locale: ptBR }) : "Data final"}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={endDate}
-              onSelect={setEndDate}
-              disabled={(date) => (startDate ? date < startDate : false)}
-              initialFocus
-              className="pointer-events-auto"
-              locale={ptBR}
-            />
-          </PopoverContent>
-        </Popover>
+        <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full sm:w-[180px] justify-start text-left font-normal",
+                  !startDate && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {startDate ? format(startDate, "dd/MM/yyyy", { locale: ptBR }) : "Data inicial"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={startDate}
+                onSelect={(date) => {
+                  setStartDate(date);
+                  if (date && endDate && date > endDate) {
+                    setEndDate(date);
+                  }
+                }}
+                initialFocus
+                className="pointer-events-auto"
+                locale={ptBR}
+              />
+            </PopoverContent>
+          </Popover>
 
-        <Button variant="outline" className="gap-2 sm:ml-auto">
-          <Download className="h-4 w-4" />
-          Exportar
-        </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full sm:w-[180px] justify-start text-left font-normal",
+                  !endDate && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {endDate ? format(endDate, "dd/MM/yyyy", { locale: ptBR }) : "Data final"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={endDate}
+                onSelect={setEndDate}
+                disabled={(date) => (startDate ? date < startDate : false)}
+                initialFocus
+                className="pointer-events-auto"
+                locale={ptBR}
+              />
+            </PopoverContent>
+          </Popover>
+
+          <Button variant="outline" className="gap-2 sm:ml-auto">
+            <Download className="h-4 w-4" />
+            Exportar
+          </Button>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -143,7 +174,7 @@ export function MonthlySalesReport() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Receita do Mês
+              Receita do Período
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -155,8 +186,9 @@ export function MonthlySalesReport() {
             </div>
             <div className={`flex items-center gap-1 text-sm mt-1 ${variation >= 0 ? "text-emerald-500" : "text-destructive"}`}>
               {variation >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-              <span>{variation >= 0 ? "+" : ""}{variation.toFixed(1)}% vs mês anterior</span>
+              <span>{variation >= 0 ? "+" : ""}{variation.toFixed(1)}% vs período anterior</span>
             </div>
+            <p className="text-xs text-muted-foreground mt-1">{formatPeriod()}</p>
           </CardContent>
         </Card>
 
@@ -173,6 +205,7 @@ export function MonthlySalesReport() {
                 currency: "BRL",
               })}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">{formatPeriod()}</p>
           </CardContent>
         </Card>
 
