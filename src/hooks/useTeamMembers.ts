@@ -50,7 +50,7 @@ export function useTeamMembers() {
           avatar_url: profile.avatar_url,
           status: profile.status as "active" | "pending" | "inactive",
           role: (userRole?.role as TeamMember["role"]) ?? "viewer",
-          created_at: profile.created_at,
+          created_at: profile.created_at ?? new Date().toISOString(),
         };
       });
 
@@ -59,22 +59,49 @@ export function useTeamMembers() {
     enabled: !!profile?.organization_id,
   });
 
-  const updateMemberRole = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: TeamMember["role"] }) => {
+  const updateMember = useMutation({
+    mutationFn: async (data: { 
+      userId: string; 
+      name: string; 
+      role: TeamMember["role"]; 
+      status: TeamMember["status"];
+    }) => {
       if (!isAdmin) throw new Error("Permissão negada");
       
-      // Update or insert role
-      const { error } = await supabase
+      // Update profile (name and status)
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ 
+          name: data.name, 
+          status: data.status,
+          updated_at: new Date().toISOString() 
+        })
+        .eq("id", data.userId);
+      
+      if (profileError) throw profileError;
+      
+      // First delete existing role then insert new one
+      const { error: deleteError } = await supabase
         .from("user_roles")
-        .upsert({ user_id: userId, role }, { onConflict: "user_id,role" });
-
-      if (error) throw error;
+        .delete()
+        .eq("user_id", data.userId);
+      
+      if (deleteError) throw deleteError;
+      
+      const { error: insertError } = await supabase
+        .from("user_roles")
+        .insert({ 
+          user_id: data.userId, 
+          role: data.role 
+        });
+      
+      if (insertError) throw insertError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
       toast({
-        title: "Função atualizada",
-        description: "A função do membro foi alterada.",
+        title: "Membro atualizado",
+        description: "Alterações salvas com sucesso.",
       });
     },
     onError: (error) => {
@@ -86,13 +113,18 @@ export function useTeamMembers() {
     },
   });
 
-  const updateMemberStatus = useMutation({
-    mutationFn: async ({ userId, status }: { userId: string; status: TeamMember["status"] }) => {
+  const removeMember = useMutation({
+    mutationFn: async (userId: string) => {
       if (!isAdmin) throw new Error("Permissão negada");
       
+      // Remove from organization (don't delete the user)
       const { error } = await supabase
         .from("profiles")
-        .update({ status })
+        .update({ 
+          organization_id: null, 
+          status: "inactive",
+          updated_at: new Date().toISOString()
+        })
         .eq("id", userId);
 
       if (error) throw error;
@@ -100,13 +132,13 @@ export function useTeamMembers() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
       toast({
-        title: "Status atualizado",
-        description: "O status do membro foi alterado.",
+        title: "Membro removido",
+        description: "O membro foi removido da organização.",
       });
     },
     onError: (error) => {
       toast({
-        title: "Erro ao atualizar",
+        title: "Erro ao remover",
         description: error.message,
         variant: "destructive",
       });
@@ -117,7 +149,8 @@ export function useTeamMembers() {
     members: teamQuery.data ?? [],
     isLoading: teamQuery.isLoading,
     error: teamQuery.error,
-    updateMemberRole,
-    updateMemberStatus,
+    isAdmin,
+    updateMember,
+    removeMember,
   };
 }
