@@ -1,4 +1,5 @@
-import { Bell, ChevronDown, Menu, User, LogOut } from "lucide-react";
+import { Bell, ChevronDown, Menu, User, LogOut, Sun, Moon } from "lucide-react";
+import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -31,6 +32,8 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ isMobile, onMenuClick }: AppHeaderProps) {
+  const { theme, setTheme } = useTheme();
+  
   const initials = mockUser.name
     .split(" ")
     .map((n) => n[0])
@@ -81,6 +84,17 @@ export function AppHeader({ isMobile, onMenuClick }: AppHeaderProps) {
       </div>
 
       <div className="flex items-center gap-1 md:gap-3">
+        {/* Theme Toggle */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          className="relative"
+        >
+          <Sun className="h-4 w-4 md:h-5 md:w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 text-muted-foreground" />
+          <Moon className="absolute h-4 w-4 md:h-5 md:w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 text-muted-foreground" />
+        </Button>
+
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
