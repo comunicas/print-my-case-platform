@@ -8,6 +8,7 @@ import PDVs from "./pages/PDVs";
 import Team from "./pages/Team";
 import Uploads from "./pages/Uploads";
 import UploadDetails from "./pages/UploadDetails";
+import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/team" element={<Team />} />
           <Route path="/upload" element={<Uploads />} />
           <Route path="/upload/:id" element={<UploadDetails />} />
+          <Route path="/reports" element={<Reports />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
