@@ -50,7 +50,7 @@ import {
 } from "@/lib/schemas/upload";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useUploads, UploadWithRelations } from "@/hooks/useUploads";
+import { useUploads, UploadListItem } from "@/hooks/useUploads";
 import { usePDVs } from "@/hooks/usePDVs";
 import { useProfile } from "@/hooks/useProfile";
 
@@ -66,7 +66,7 @@ export default function Uploads() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [deletingUpload, setDeletingUpload] = useState<UploadWithRelations | null>(null);
+  const [deletingUpload, setDeletingUpload] = useState<UploadListItem | null>(null);
 
   const filteredUploads = uploads.filter((upload) => {
     const matchesSearch =
@@ -101,7 +101,7 @@ export default function Uploads() {
     );
   };
 
-  const handleOpenDelete = (upload: UploadWithRelations) => {
+  const handleOpenDelete = (upload: UploadListItem) => {
     setDeletingUpload(upload);
     setIsDeleteDialogOpen(true);
   };

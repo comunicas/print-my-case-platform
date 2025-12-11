@@ -25,7 +25,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { uploadTypeLabels, uploadStatusLabels } from "@/lib/schemas/upload";
-import { useUploadDetails, SalesRecordData, StockRecordData } from "@/hooks/useUploadDetails";
+import { useUploadDetails, SalesRecordPreview, StockRecordPreview } from "@/hooks/useUploadDetails";
 import { formatCurrency } from "@/lib/utils";
 
 const ITEMS_PER_PAGE = 10;
