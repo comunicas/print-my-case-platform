@@ -27,7 +27,7 @@ import { validateSpreadsheetColumns } from "@/lib/utils/spreadsheet-validator";
 interface PDVOption {
   id: string;
   name: string;
-  deviceId: string;
+  machine_id: string;
 }
 
 interface UploadDialogProps {
@@ -41,6 +41,7 @@ interface UploadDialogProps {
     file?: File;
     driveUrl?: string;
   }) => void;
+  isSubmitting?: boolean;
 }
 
 const periods = [
@@ -63,6 +64,7 @@ export function UploadDialog({
   onOpenChange,
   pdvOptions,
   onSubmit,
+  isSubmitting = false,
 }: UploadDialogProps) {
   const [pdvId, setPdvId] = useState("");
   const [type, setType] = useState<UploadType>("sales");
@@ -202,6 +204,7 @@ export function UploadDialog({
 
   const isSubmitDisabled = 
     isValidating || 
+    isSubmitting ||
     (source === "file" && file && validationResult && !validationResult.isValid);
 
   return (
@@ -231,7 +234,7 @@ export function UploadDialog({
               <SelectContent>
                 {pdvOptions.map((pdv) => (
                   <SelectItem key={pdv.id} value={pdv.id}>
-                    {pdv.name} ({pdv.deviceId})
+                    {pdv.name} ({pdv.machine_id})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -429,12 +432,12 @@ export function UploadDialog({
             Cancelar
           </Button>
           <Button onClick={handleSubmit} disabled={!!isSubmitDisabled}>
-            {isValidating ? (
+            {isValidating || isSubmitting ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
               <Upload className="h-4 w-4 mr-2" />
             )}
-            Enviar Upload
+            {isSubmitting ? "Enviando..." : "Enviar Upload"}
           </Button>
         </DialogFooter>
       </DialogContent>
