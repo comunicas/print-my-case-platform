@@ -28,7 +28,7 @@ const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
   { icon: MapPin, label: "PDVs", href: "/pdvs" },
   { icon: Users, label: "Equipe", href: "/team", roles: ["org_admin", "super_admin"] },
-  { icon: Upload, label: "Upload", href: "/upload" },
+  { icon: Upload, label: "Uploads", href: "/uploads" },
   { icon: BarChart3, label: "Relatórios", href: "/reports" },
   { icon: Settings, label: "Configurações", href: "/settings" },
 ];

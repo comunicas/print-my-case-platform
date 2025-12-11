@@ -31,8 +31,8 @@ const App = () => (
               <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
               <Route path="/pdvs" element={<ProtectedRoute><PDVs /></ProtectedRoute>} />
               <Route path="/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />
-              <Route path="/upload" element={<ProtectedRoute><Uploads /></ProtectedRoute>} />
-              <Route path="/upload/:id" element={<ProtectedRoute><UploadDetails /></ProtectedRoute>} />
+              <Route path="/uploads" element={<ProtectedRoute><Uploads /></ProtectedRoute>} />
+              <Route path="/uploads/:id" element={<ProtectedRoute><UploadDetails /></ProtectedRoute>} />
               <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
