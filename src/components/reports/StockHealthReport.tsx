@@ -1,7 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import {
   Table,
   TableBody,
@@ -47,12 +46,6 @@ const getHealthLabel = (score: number) => {
   if (score >= 60) return "Bom";
   if (score >= 40) return "Atenção";
   return "Crítico";
-};
-
-const getProgressColor = (score: number) => {
-  if (score >= 80) return "bg-emerald-500";
-  if (score >= 60) return "bg-yellow-500";
-  return "bg-destructive";
 };
 
 const getAlertIcon = (type: string) => {
@@ -141,9 +134,6 @@ export function StockHealthReport() {
             </div>
             <div className={`text-lg font-medium ${getHealthColor(data.healthScore)}`}>
               {getHealthLabel(data.healthScore)}
-            </div>
-            <div className="w-full max-w-md">
-              <Progress value={data.healthScore} className={`h-4 ${getProgressColor(data.healthScore)}`} />
             </div>
             
             {/* Segmented Progress Bar */}
