@@ -26,6 +26,11 @@ import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Cart
 import { useDashboard } from "@/hooks/useDashboard";
 import { formatCurrency } from "@/lib/utils";
 
+// Helper para truncar labels longos nos gráficos
+function truncateLabel(label: string, maxLength: number = 12): string {
+  return label.length > maxLength ? `${label.substring(0, maxLength)}...` : label;
+}
+
 const chartConfigRevenue = {
   revenue: { label: "Receita", color: "hsl(var(--primary))" },
 };
@@ -189,7 +194,7 @@ export default function Index() {
               </div>
               <div className="flex items-center gap-3">
                 <Clock className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-foreground">{stockAlerts.stagnant} produto{stockAlerts.stagnant !== 1 ? 's' : ''} parado{stockAlerts.stagnant !== 1 ? 's' : ''} (+30 dias)</span>
+                <span className="text-sm text-muted-foreground">Produtos parados (+30 dias): N/D</span>
               </div>
               <Button 
                 variant="link" 
@@ -337,7 +342,7 @@ export default function Index() {
                     <ChartContainer config={chartConfigSales} className="h-[250px] w-full">
                       <BarChart data={salesByPdv} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                        <XAxis dataKey="pdv" className="text-xs" tick={{ fill: "hsl(var(--muted-foreground))" }} />
+                        <XAxis dataKey="pdv" className="text-xs" tick={{ fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => truncateLabel(v)} />
                         <YAxis
                           className="text-xs"
                           tick={{ fill: "hsl(var(--muted-foreground))" }}
@@ -369,7 +374,7 @@ export default function Index() {
                   {paymentMethods.length > 0 ? (
                     <ChartContainer config={chartConfigPayment} className="h-[250px] w-full">
                       <PieChart>
-                        <ChartTooltip content={<ChartTooltipContent formatter={(value) => `${value}%`} />} />
+                        <ChartTooltip content={<ChartTooltipContent formatter={(value, name, item) => `${value}% (${(item.payload as any)?.count || 0} vendas)`} />} />
                         <Pie
                           data={paymentMethods}
                           dataKey="value"
@@ -412,7 +417,7 @@ export default function Index() {
                     <ChartContainer config={chartConfigStock} className="h-[250px] w-full">
                       <BarChart data={stockByPdv} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                        <XAxis dataKey="pdv" className="text-xs" tick={{ fill: "hsl(var(--muted-foreground))" }} />
+                        <XAxis dataKey="pdv" className="text-xs" tick={{ fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => truncateLabel(v)} />
                         <YAxis className="text-xs" tick={{ fill: "hsl(var(--muted-foreground))" }} />
                         <ChartTooltip
                           content={<ChartTooltipContent formatter={(value) => `${value} unidades`} />}
