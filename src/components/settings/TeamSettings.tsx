@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -100,7 +99,7 @@ const formatDate = (dateStr: string): string => {
   return new Date(dateStr).toLocaleDateString("pt-BR");
 };
 
-export default function Team() {
+export function TeamSettings() {
   const { members, isLoading, isAdmin, updateMember, removeMember } = useTeamMembers();
   const { profile } = useProfile();
   const [searchQuery, setSearchQuery] = useState("");
@@ -205,164 +204,160 @@ export default function Team() {
 
   if (isLoading) {
     return (
-      <AppLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      </AppLayout>
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
     );
   }
 
   return (
-    <AppLayout>
-      <div className="space-y-4 md:space-y-6">
-        {/* Header Section */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground">
-              Equipe
-            </h1>
-            <p className="text-sm md:text-base text-muted-foreground mt-1">
-              Gerencie usuários e permissões
-            </p>
-          </div>
-
-          {isAdmin && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button disabled className="w-full sm:w-auto">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Adicionar Membro
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Em breve: sistema de convites por email</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
+    <div className="space-y-4">
+      {/* Header Section */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">
+            Equipe
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Gerencie usuários e permissões
+          </p>
         </div>
 
-        {/* Search Bar */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nome, email ou função..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
+        {isAdmin && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button disabled size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Adicionar Membro
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Em breve: sistema de convites por email</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
 
-        {/* Team Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
-          {filteredMembers.map((member) => (
-            <Card key={member.id} className="hover:shadow-md transition-shadow min-w-0">
-              <CardHeader className="pb-2 px-4 md:px-6 pt-4 md:pt-6">
-                <div className="flex items-center gap-3 min-w-0">
-                  <Avatar className="h-10 w-10 flex-shrink-0">
-                    <AvatarFallback className={getAvatarColor(member.role)}>
-                      {getInitials(member.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <CardTitle className="text-base md:text-lg font-semibold truncate">
-                        {member.name}
-                      </CardTitle>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Badge
-                              className={`flex-shrink-0 text-xs cursor-help ${getRoleBadgeClass(member.role)}`}
-                            >
-                              {roleLabels[member.role]}
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-xs">
-                            <div className="space-y-1">
-                              <p className="font-semibold text-sm">{roleLabels[member.role]}</p>
-                              <ul className="text-xs space-y-0.5">
-                                {rolePermissions[member.role].map((permission, index) => (
-                                  <li key={index} className="flex items-center gap-1">
-                                    <span className="text-green-500">✓</span> {permission}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                    <div className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground mt-0.5">
-                      <Mail className="h-3 w-3 flex-shrink-0" />
-                      <span className="truncate">{member.email}</span>
-                    </div>
+      {/* Search Bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar por nome, email ou função..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+
+      {/* Team Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {filteredMembers.map((member) => (
+          <Card key={member.id} className="hover:shadow-md transition-shadow min-w-0">
+            <CardHeader className="pb-2 px-4 pt-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <Avatar className="h-10 w-10 flex-shrink-0">
+                  <AvatarFallback className={getAvatarColor(member.role)}>
+                    {getInitials(member.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <CardTitle className="text-base font-semibold truncate">
+                      {member.name}
+                    </CardTitle>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge
+                            className={`flex-shrink-0 text-xs cursor-help ${getRoleBadgeClass(member.role)}`}
+                          >
+                            {roleLabels[member.role]}
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-xs">
+                          <div className="space-y-1">
+                            <p className="font-semibold text-sm">{roleLabels[member.role]}</p>
+                            <ul className="text-xs space-y-0.5">
+                              {rolePermissions[member.role].map((permission, index) => (
+                                <li key={index} className="flex items-center gap-1">
+                                  <span className="text-green-500">✓</span> {permission}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                    <Mail className="h-3 w-3 flex-shrink-0" />
+                    <span className="truncate">{member.email}</span>
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-xs md:text-sm">
-                    <span className="text-muted-foreground">Status</span>
-                    <span className={`font-medium ${getStatusColor(member.status)}`}>
-                      ● {statusLabels[member.status]}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs md:text-sm">
-                    <span className="text-muted-foreground">Desde</span>
-                    <span className="font-medium">{formatDate(member.created_at)}</span>
-                  </div>
-                  {isAdmin && (
-                    <div className="flex gap-2 mt-2">
+              </div>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Status</span>
+                  <span className={`font-medium ${getStatusColor(member.status)}`}>
+                    ● {statusLabels[member.status]}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Desde</span>
+                  <span className="font-medium">{formatDate(member.created_at)}</span>
+                </div>
+                {isAdmin && (
+                  <div className="flex gap-2 mt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => handleOpenEdit(member)}
+                    >
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Editar
+                    </Button>
+                    {member.id !== profile?.id && (
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex-1"
-                        onClick={() => handleOpenEdit(member)}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => handleOpenDelete(member)}
                       >
-                        <Pencil className="h-4 w-4 mr-2" />
-                        Editar
+                        <Trash2 className="h-4 w-4" />
                       </Button>
-                      {member.id !== profile?.id && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => handleOpenDelete(member)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                  {member.id === profile?.id && (
-                    <Badge variant="outline" className="mt-2 text-xs">
-                      Você
-                    </Badge>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Empty State */}
-        {filteredMembers.length === 0 && (
-          <div className="text-center py-12">
-            <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium text-foreground">
-              Nenhum membro encontrado
-            </h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              {searchQuery
-                ? "Tente ajustar sua busca."
-                : "Nenhum membro na organização."}
-            </p>
-          </div>
-        )}
+                    )}
+                  </div>
+                )}
+                {member.id === profile?.id && (
+                  <Badge variant="outline" className="mt-2 text-xs">
+                    Você
+                  </Badge>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
+
+      {/* Empty State */}
+      {filteredMembers.length === 0 && (
+        <div className="text-center py-12">
+          <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-medium text-foreground">
+            Nenhum membro encontrado
+          </h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            {searchQuery
+              ? "Tente ajustar sua busca."
+              : "Nenhum membro na organização."}
+          </p>
+        </div>
+      )}
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -427,6 +422,6 @@ export default function Team() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </AppLayout>
+    </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useTheme } from "next-themes";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,7 +15,9 @@ import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { User, Settings as SettingsIcon, Building2, Plug, Camera, Lock, ExternalLink, Key, Cloud, FileSpreadsheet, Loader2 } from "lucide-react";
+import { User, Settings as SettingsIcon, Building2, Plug, Camera, Lock, ExternalLink, Key, Cloud, FileSpreadsheet, Loader2, MapPin, Users } from "lucide-react";
+import { PDVsSettings } from "@/components/settings/PDVsSettings";
+import { TeamSettings } from "@/components/settings/TeamSettings";
 import { toast } from "@/hooks/use-toast";
 import { profileFormSchema, passwordFormSchema, organizationFormSchema } from "@/lib/schemas/settings";
 import { useAuth } from "@/contexts/AuthContext";
@@ -32,6 +35,7 @@ const roleLabels: Record<string, { label: string; variant: "default" | "secondar
 };
 
 export default function Settings() {
+  const [searchParams] = useSearchParams();
   const { theme, setTheme } = useTheme();
   const { session } = useAuth();
   const { profile, role, isAdmin, isLoading: profileLoading, updateProfile } = useProfile();
@@ -39,7 +43,10 @@ export default function Settings() {
   const { preferences, isLoading: prefsLoading, updatePreferences } = usePreferences();
   const { pdvs, isLoading: pdvsLoading } = usePDVs();
   
-  const [activeTab, setActiveTab] = useState("profile");
+  const [activeTab, setActiveTab] = useState(() => {
+    const tabFromUrl = searchParams.get("tab");
+    return tabFromUrl || "profile";
+  });
   
   // Profile state
   const [profileData, setProfileData] = useState({
@@ -274,7 +281,7 @@ export default function Settings() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto">
+          <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 h-auto">
             <TabsTrigger value="profile" className="gap-2 py-2">
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">Perfil</span>
@@ -287,6 +294,16 @@ export default function Settings() {
               <Building2 className="h-4 w-4" />
               <span className="hidden sm:inline">Organização</span>
             </TabsTrigger>
+            <TabsTrigger value="pdvs" className="gap-2 py-2">
+              <MapPin className="h-4 w-4" />
+              <span className="hidden sm:inline">PDVs</span>
+            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="team" className="gap-2 py-2">
+                <Users className="h-4 w-4" />
+                <span className="hidden sm:inline">Equipe</span>
+              </TabsTrigger>
+            )}
             <TabsTrigger value="integrations" className="gap-2 py-2">
               <Plug className="h-4 w-4" />
               <span className="hidden sm:inline">Integrações</span>
@@ -889,12 +906,24 @@ export default function Settings() {
                     ))}
                   </div>
                 )}
-                <Button variant="link" className="mt-4 px-0" asChild>
-                  <a href="/pdvs">Ver todos os PDVs →</a>
+                <Button variant="link" className="mt-4 px-0" onClick={() => setActiveTab("pdvs")}>
+                  Ver todos os PDVs →
                 </Button>
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* PDVs Tab */}
+          <TabsContent value="pdvs" className="space-y-6">
+            <PDVsSettings />
+          </TabsContent>
+
+          {/* Team Tab */}
+          {isAdmin && (
+            <TabsContent value="team" className="space-y-6">
+              <TeamSettings />
+            </TabsContent>
+          )}
 
           {/* Integrations Tab */}
           <TabsContent value="integrations" className="space-y-6">
