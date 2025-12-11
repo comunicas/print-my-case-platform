@@ -4,6 +4,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -285,11 +286,11 @@ export default function Settings() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phone">Telefone</Label>
-                    <Input
+                    <PhoneInput
                       id="phone"
                       value={profileData.phone}
-                      onChange={(e) => {
-                        setProfileData({ ...profileData, phone: e.target.value });
+                      onChange={(value) => {
+                        setProfileData({ ...profileData, phone: value });
                         if (profileErrors.phone) setProfileErrors({ ...profileErrors, phone: "" });
                       }}
                       placeholder="(00) 00000-0000"
@@ -673,11 +674,11 @@ export default function Settings() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="orgPhone">Telefone</Label>
-                    <Input
+                    <PhoneInput
                       id="orgPhone"
                       value={orgData.phone}
-                      onChange={(e) => {
-                        setOrgData({ ...orgData, phone: e.target.value });
+                      onChange={(value) => {
+                        setOrgData({ ...orgData, phone: value });
                         if (orgErrors.phone) setOrgErrors({ ...orgErrors, phone: "" });
                       }}
                       className={orgErrors.phone ? "border-destructive" : ""}
