@@ -56,6 +56,7 @@ interface EditingMember {
 const getRoleBadgeClass = (role: TeamMemberRole): string => {
   switch (role) {
     case "super_admin":
+      return "bg-violet-600 text-white hover:bg-violet-700 border-transparent";
     case "org_admin":
       return "bg-orange-500 text-white hover:bg-orange-600 border-transparent";
     case "operator":
@@ -68,6 +69,7 @@ const getRoleBadgeClass = (role: TeamMemberRole): string => {
 const getAvatarColor = (role: TeamMemberRole): string => {
   switch (role) {
     case "super_admin":
+      return "bg-violet-100 text-violet-700";
     case "org_admin":
       return "bg-purple-100 text-purple-700";
     case "operator":
