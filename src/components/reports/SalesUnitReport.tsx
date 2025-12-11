@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -22,6 +24,12 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import {
   BarChart,
   Bar,
   XAxis,
@@ -29,9 +37,9 @@ import {
   CartesianGrid,
   LineChart,
   Line,
-  ResponsiveContainer,
 } from "recharts";
-import { Download, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Download, TrendingUp, TrendingDown, Minus, CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // Mock data
 const pdvList = [
@@ -68,6 +76,10 @@ const chartConfig = {
 
 export function SalesUnitReport() {
   const [selectedPdv, setSelectedPdv] = useState("all");
+  const [startDate, setStartDate] = useState<Date | undefined>(
+    new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  );
+  const [endDate, setEndDate] = useState<Date | undefined>(new Date());
 
   const filteredData = selectedPdv === "all" 
     ? salesByPdv 
@@ -98,24 +110,82 @@ export function SalesUnitReport() {
   return (
     <div className="space-y-6">
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-between">
-        <Select value={selectedPdv} onValueChange={setSelectedPdv}>
-          <SelectTrigger className="w-full sm:w-[250px]">
-            <SelectValue placeholder="Selecione o PDV" />
-          </SelectTrigger>
-          <SelectContent>
-            {pdvList.map((pdv) => (
-              <SelectItem key={pdv.id} value={pdv.id}>
-                {pdv.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
+          <Select value={selectedPdv} onValueChange={setSelectedPdv}>
+            <SelectTrigger className="w-full sm:w-[200px]">
+              <SelectValue placeholder="Selecione o PDV" />
+            </SelectTrigger>
+            <SelectContent>
+              {pdvList.map((pdv) => (
+                <SelectItem key={pdv.id} value={pdv.id}>
+                  {pdv.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Button variant="outline" className="gap-2">
-          <Download className="h-4 w-4" />
-          Exportar
-        </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full sm:w-[180px] justify-start text-left font-normal",
+                  !startDate && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {startDate ? format(startDate, "dd/MM/yyyy", { locale: ptBR }) : "Data inicial"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={startDate}
+                onSelect={(date) => {
+                  setStartDate(date);
+                  if (date && endDate && date > endDate) {
+                    setEndDate(date);
+                  }
+                }}
+                initialFocus
+                className="pointer-events-auto"
+                locale={ptBR}
+              />
+            </PopoverContent>
+          </Popover>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full sm:w-[180px] justify-start text-left font-normal",
+                  !endDate && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {endDate ? format(endDate, "dd/MM/yyyy", { locale: ptBR }) : "Data final"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={endDate}
+                onSelect={setEndDate}
+                disabled={(date) => (startDate ? date < startDate : false)}
+                initialFocus
+                className="pointer-events-auto"
+                locale={ptBR}
+              />
+            </PopoverContent>
+          </Popover>
+
+          <Button variant="outline" className="gap-2 sm:ml-auto">
+            <Download className="h-4 w-4" />
+            Exportar
+          </Button>
+        </div>
       </div>
 
       {/* KPI Cards */}
