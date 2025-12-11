@@ -165,12 +165,61 @@ Deno.serve(async (req) => {
 
     console.log(`Processing upload: ${uploadId}`);
 
-    // Create Supabase client with service role for RLS bypass
+    // === AUTHORIZATION CHECK ===
+    // Verify the calling user is authorized to process this upload
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error("No authorization header provided");
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // Create client with user's auth to check permissions via RLS
+    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
+
+    // Verify user is authenticated
+    const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
+    if (userError || !user) {
+      console.error("User authentication failed:", userError);
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`User authenticated: ${user.id}`);
+
+    // Verify user can access this upload (RLS will enforce organization check)
+    const { data: uploadCheck, error: accessError } = await supabaseUser
+      .from("uploads")
+      .select("id")
+      .eq("id", uploadId)
+      .single();
+
+    if (accessError || !uploadCheck) {
+      console.error("Access denied or upload not found:", accessError);
+      return new Response(
+        JSON.stringify({ success: false, error: "Upload not found or access denied" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`Authorization verified for upload: ${uploadId}`);
+    // === END AUTHORIZATION CHECK ===
+
+    // Create Supabase client with service role for data processing (RLS bypass)
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // 1. Fetch upload record
+    // 1. Fetch upload record with full details
     const { data: upload, error: uploadError } = await supabase
       .from("uploads")
       .select("*, pdv:pdvs(id, machine_id)")
