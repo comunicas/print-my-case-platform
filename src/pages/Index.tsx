@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { 
   DollarSign, 
@@ -20,13 +23,14 @@ import {
   FileSpreadsheet,
   CheckCircle2,
   Loader2,
-  Upload
+  Upload,
+  Building2
 } from "lucide-react";
 import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid } from "recharts";
 import { useDashboard } from "@/hooks/useDashboard";
+import { useOrganizations } from "@/hooks/useOrganizations";
 import { formatCurrency } from "@/lib/utils";
 
-// Helper para truncar labels longos nos gráficos
 function truncateLabel(label: string, maxLength: number = 12): string {
   return label.length > maxLength ? `${label.substring(0, maxLength)}...` : label;
 }
@@ -63,7 +67,9 @@ const reportShortcuts = [
 
 export default function Index() {
   const navigate = useNavigate();
-  const { data, isLoading } = useDashboard();
+  const [selectedOrgId, setSelectedOrgId] = useState<string>("all");
+  const { organizations, isSuperAdmin } = useOrganizations();
+  const { data, isLoading } = useDashboard({ selectedOrganizationId: selectedOrgId });
 
   if (isLoading) {
     return (
@@ -83,6 +89,8 @@ export default function Index() {
     revenueChange: 0,
     transactionsChange: 0,
   };
+
+  const globalMetrics = data?.globalMetrics;
 
   const kpiCards = [
     { 
@@ -130,6 +138,55 @@ export default function Index() {
             Visão geral do desempenho das suas máquinas
           </p>
         </div>
+
+        {/* Super Admin Consolidated View */}
+        {isSuperAdmin && globalMetrics && (
+          <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
+            <CardHeader className="px-4 md:px-6 pt-4 md:pt-6 pb-3">
+              <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                <Building2 className="h-5 w-5 text-primary" />
+                Visão Consolidada
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div className="text-center md:text-left">
+                  <p className="text-xl md:text-2xl font-bold text-foreground">{globalMetrics.totalOrganizations}</p>
+                  <p className="text-xs md:text-sm text-muted-foreground">Organizações</p>
+                </div>
+                <div className="text-center md:text-left">
+                  <p className="text-xl md:text-2xl font-bold text-foreground">{globalMetrics.totalPdvsGlobal}</p>
+                  <p className="text-xs md:text-sm text-muted-foreground">PDVs Total</p>
+                </div>
+                <div className="text-center md:text-left">
+                  <p className="text-xl md:text-2xl font-bold text-foreground">{formatCurrency(globalMetrics.totalRevenueGlobal)}</p>
+                  <p className="text-xs md:text-sm text-muted-foreground">Receita Global</p>
+                </div>
+                <div className="text-center md:text-left">
+                  <p className="text-xl md:text-2xl font-bold text-foreground">{globalMetrics.totalTransactionsGlobal.toLocaleString("pt-BR")}</p>
+                  <p className="text-xs md:text-sm text-muted-foreground">Transações Global</p>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-border">
+                <Label className="text-sm font-medium">Filtrar por Organização</Label>
+                <Select value={selectedOrgId} onValueChange={setSelectedOrgId}>
+                  <SelectTrigger className="mt-2 w-full md:w-72 bg-background">
+                    <SelectValue placeholder="Todas as organizações" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as organizações</SelectItem>
+                    {organizations.map((org) => (
+                      <SelectItem key={org.id} value={org.id}>
+                        {org.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Empty State */}
         {!hasData && (
@@ -419,9 +476,7 @@ export default function Index() {
                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                         <XAxis dataKey="pdv" className="text-xs" tick={{ fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => truncateLabel(v)} />
                         <YAxis className="text-xs" tick={{ fill: "hsl(var(--muted-foreground))" }} />
-                        <ChartTooltip
-                          content={<ChartTooltipContent formatter={(value) => `${value} unidades`} />}
-                        />
+                        <ChartTooltip content={<ChartTooltipContent />} />
                         <Bar dataKey="units" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ChartContainer>
@@ -435,32 +490,35 @@ export default function Index() {
             </div>
 
             {/* Row 3: Top Products */}
-            {topProducts.length > 0 && (
-              <Card>
-                <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
-                  <CardTitle className="text-base md:text-lg">Produtos Mais Vendidos</CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
+            <Card>
+              <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
+                <CardTitle className="text-base md:text-lg">Produtos Mais Vendidos</CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
+                {topProducts.length > 0 ? (
                   <ChartContainer config={chartConfigProducts} className="h-[300px] w-full">
-                    <BarChart data={topProducts} layout="vertical" margin={{ top: 10, right: 30, left: 100, bottom: 0 }}>
+                    <BarChart data={topProducts} layout="vertical" margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                       <XAxis type="number" className="text-xs" tick={{ fill: "hsl(var(--muted-foreground))" }} />
-                      <YAxis
-                        type="category"
-                        dataKey="product"
-                        className="text-xs"
+                      <YAxis 
+                        type="category" 
+                        dataKey="product" 
+                        className="text-xs" 
                         tick={{ fill: "hsl(var(--muted-foreground))" }}
-                        width={90}
+                        width={100}
+                        tickFormatter={(v) => truncateLabel(v, 15)}
                       />
-                      <ChartTooltip
-                        content={<ChartTooltipContent formatter={(value) => `${value} vendas`} />}
-                      />
+                      <ChartTooltip content={<ChartTooltipContent />} />
                       <Bar dataKey="quantity" fill="hsl(var(--chart-3))" radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ChartContainer>
-                </CardContent>
-              </Card>
-            )}
+                ) : (
+                  <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                    Nenhum dado de produtos disponível
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </>
         )}
       </div>

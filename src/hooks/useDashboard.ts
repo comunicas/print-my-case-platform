@@ -26,9 +26,14 @@ export interface DashboardData {
     records: number;
   }[];
   hasData: boolean;
+  globalMetrics?: {
+    totalOrganizations: number;
+    totalPdvsGlobal: number;
+    totalRevenueGlobal: number;
+    totalTransactionsGlobal: number;
+  };
 }
 
-// Tipos para queries com joins
 interface SalesRecordWithPdv {
   pdv_id: string;
   amount: number;
@@ -69,15 +74,114 @@ function normalizePaymentMethod(method: string | null): string {
   return "Outro";
 }
 
-export function useDashboard() {
-  const { profile } = useProfile();
+interface UseDashboardParams {
+  selectedOrganizationId?: string | "all";
+}
+
+export function useDashboard({ selectedOrganizationId }: UseDashboardParams = {}) {
+  const { profile, role } = useProfile();
+  const isSuperAdmin = role === "super_admin";
 
   const dashboardQuery = useQuery({
-    queryKey: ["dashboard", profile?.organization_id],
+    queryKey: ["dashboard", profile?.organization_id, selectedOrganizationId, isSuperAdmin],
     queryFn: async (): Promise<DashboardData> => {
       const now = new Date();
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+      // Determine which PDVs to query based on role and filter
+      let pdvIds: string[] | null = null;
+      
+      if (!isSuperAdmin || (selectedOrganizationId && selectedOrganizationId !== "all")) {
+        const orgIdToFilter = selectedOrganizationId && selectedOrganizationId !== "all" 
+          ? selectedOrganizationId 
+          : profile?.organization_id;
+        
+        if (orgIdToFilter) {
+          const { data: pdvs } = await supabase
+            .from("pdvs")
+            .select("id")
+            .eq("organization_id", orgIdToFilter);
+          pdvIds = pdvs?.map(p => p.id) || [];
+        }
+      }
+
+      // Build base queries
+      let currentSalesQuery = supabase
+        .from("sales_records")
+        .select("amount, refund_amount")
+        .gte("payment_date", thirtyDaysAgo.toISOString());
+
+      let previousSalesQuery = supabase
+        .from("sales_records")
+        .select("amount, refund_amount")
+        .gte("payment_date", sixtyDaysAgo.toISOString())
+        .lt("payment_date", thirtyDaysAgo.toISOString());
+
+      let revenueByMonthQuery = supabase
+        .from("sales_records")
+        .select("payment_date, amount, refund_amount")
+        .gte("payment_date", new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000).toISOString());
+
+      let salesByPdvQuery = supabase
+        .from("sales_records")
+        .select("pdv_id, amount, refund_amount, pdv:pdvs(name)")
+        .gte("payment_date", thirtyDaysAgo.toISOString());
+
+      let paymentMethodsQuery = supabase
+        .from("sales_records")
+        .select("payment_method")
+        .gte("payment_date", thirtyDaysAgo.toISOString());
+
+      let stockByPdvQuery = supabase
+        .from("stock_records")
+        .select("pdv_id, quantity, pdv:pdvs(name)")
+        .eq("is_active", true);
+
+      let topProductsQuery = supabase
+        .from("sales_records")
+        .select("product_name")
+        .gte("payment_date", thirtyDaysAgo.toISOString());
+
+      let stockAlertsQuery = supabase
+        .from("stock_records")
+        .select("quantity, product_name")
+        .eq("is_active", true);
+
+      let recentUploadsQuery = supabase
+        .from("uploads")
+        .select("id, type, status, uploaded_at, records_count, pdv:pdvs(name)")
+        .order("uploaded_at", { ascending: false })
+        .limit(3);
+
+      let activePdvsQuery = supabase
+        .from("pdvs")
+        .select("id")
+        .eq("status", "active");
+
+      // Apply PDV filter if needed
+      if (pdvIds !== null) {
+        const filterIds = pdvIds.length > 0 ? pdvIds : ["no-match"];
+        currentSalesQuery = currentSalesQuery.in("pdv_id", filterIds);
+        previousSalesQuery = previousSalesQuery.in("pdv_id", filterIds);
+        revenueByMonthQuery = revenueByMonthQuery.in("pdv_id", filterIds);
+        salesByPdvQuery = salesByPdvQuery.in("pdv_id", filterIds);
+        paymentMethodsQuery = paymentMethodsQuery.in("pdv_id", filterIds);
+        stockByPdvQuery = stockByPdvQuery.in("pdv_id", filterIds);
+        topProductsQuery = topProductsQuery.in("pdv_id", filterIds);
+        stockAlertsQuery = stockAlertsQuery.in("pdv_id", filterIds);
+        recentUploadsQuery = recentUploadsQuery.in("pdv_id", filterIds);
+      }
+
+      // Apply organization filter for PDVs count
+      if (!isSuperAdmin || (selectedOrganizationId && selectedOrganizationId !== "all")) {
+        const orgIdToFilter = selectedOrganizationId && selectedOrganizationId !== "all" 
+          ? selectedOrganizationId 
+          : profile?.organization_id;
+        if (orgIdToFilter) {
+          activePdvsQuery = activePdvsQuery.eq("organization_id", orgIdToFilter);
+        }
+      }
 
       // Fetch all data in parallel
       const [
@@ -92,75 +196,46 @@ export function useDashboard() {
         recentUploadsResult,
         activePdvsResult,
       ] = await Promise.all([
-        // Current period sales (last 30 days)
-        supabase
-          .from("sales_records")
-          .select("amount, refund_amount")
-          .gte("payment_date", thirtyDaysAgo.toISOString()),
-
-        // Previous period sales (30-60 days ago)
-        supabase
-          .from("sales_records")
-          .select("amount, refund_amount")
-          .gte("payment_date", sixtyDaysAgo.toISOString())
-          .lt("payment_date", thirtyDaysAgo.toISOString()),
-
-        // Revenue by month (last 6 months)
-        supabase
-          .from("sales_records")
-          .select("payment_date, amount, refund_amount")
-          .gte("payment_date", new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000).toISOString()),
-
-        // Sales by PDV
-        supabase
-          .from("sales_records")
-          .select("pdv_id, amount, refund_amount, pdv:pdvs(name)")
-          .gte("payment_date", thirtyDaysAgo.toISOString()),
-
-        // Payment methods
-        supabase
-          .from("sales_records")
-          .select("payment_method")
-          .gte("payment_date", thirtyDaysAgo.toISOString()),
-
-        // Stock by PDV
-        supabase
-          .from("stock_records")
-          .select("pdv_id, quantity, pdv:pdvs(name)")
-          .eq("is_active", true),
-
-        // Top products
-        supabase
-          .from("sales_records")
-          .select("product_name")
-          .gte("payment_date", thirtyDaysAgo.toISOString()),
-
-        // Stock alerts
-        supabase
-          .from("stock_records")
-          .select("quantity, product_name")
-          .eq("is_active", true),
-
-        // Recent uploads
-        supabase
-          .from("uploads")
-          .select("id, type, status, uploaded_at, records_count, pdv:pdvs(name)")
-          .order("uploaded_at", { ascending: false })
-          .limit(3),
-
-        // Active PDVs count
-        supabase
-          .from("pdvs")
-          .select("id")
-          .eq("status", "active"),
+        currentSalesQuery,
+        previousSalesQuery,
+        revenueByMonthQuery,
+        salesByPdvQuery,
+        paymentMethodsQuery,
+        stockByPdvQuery,
+        topProductsQuery,
+        stockAlertsQuery,
+        recentUploadsQuery,
+        activePdvsQuery,
       ]);
+
+      // Fetch global metrics for super_admin
+      let globalMetrics: DashboardData["globalMetrics"] = undefined;
+      if (isSuperAdmin) {
+        const [orgsResult, globalPdvsResult, globalSalesResult] = await Promise.all([
+          supabase.from("organizations").select("id", { count: "exact", head: true }),
+          supabase.from("pdvs").select("id", { count: "exact", head: true }).eq("status", "active"),
+          supabase.from("sales_records").select("amount, refund_amount").gte("payment_date", thirtyDaysAgo.toISOString()),
+        ]);
+        
+        const globalSalesData = globalSalesResult.data || [];
+        const totalRevenueGlobal = globalSalesData.reduce(
+          (sum: number, r: any) => sum + (Number(r.amount) - Number(r.refund_amount || 0)),
+          0
+        );
+        globalMetrics = {
+          totalOrganizations: orgsResult.count || 0,
+          totalPdvsGlobal: globalPdvsResult.count || 0,
+          totalRevenueGlobal,
+          totalTransactionsGlobal: globalSalesData.length,
+        };
+      }
 
       // Calculate KPIs
       const currentSales = currentSalesResult.data || [];
       const previousSales = previousSalesResult.data || [];
 
       const totalRevenue = currentSales.reduce(
-        (sum, r) => sum + (Number(r.amount) - Number(r.refund_amount || 0)),
+        (sum: number, r: any) => sum + (Number(r.amount) - Number(r.refund_amount || 0)),
         0
       );
       const transactions = currentSales.length;
@@ -168,7 +243,7 @@ export function useDashboard() {
       const activePdvs = activePdvsResult.data?.length || 0;
 
       const previousRevenue = previousSales.reduce(
-        (sum, r) => sum + (Number(r.amount) - Number(r.refund_amount || 0)),
+        (sum: number, r: any) => sum + (Number(r.amount) - Number(r.refund_amount || 0)),
         0
       );
       const previousTransactions = previousSales.length;
@@ -184,10 +259,9 @@ export function useDashboard() {
       const monthlyData = new Map<string, number>();
       const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
       
-      (revenueByMonthResult.data || []).forEach((record) => {
+      (revenueByMonthResult.data || []).forEach((record: any) => {
         const date = new Date(record.payment_date);
         const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
-        const monthLabel = monthNames[date.getMonth()];
         const current = monthlyData.get(monthKey) || 0;
         monthlyData.set(monthKey, current + (Number(record.amount) - Number(record.refund_amount || 0)));
       });
@@ -211,7 +285,7 @@ export function useDashboard() {
 
       // Process payment methods with normalization
       const methodsMap = new Map<string, number>();
-      (paymentMethodsResult.data || []).forEach((record) => {
+      (paymentMethodsResult.data || []).forEach((record: any) => {
         const method = normalizePaymentMethod(record.payment_method);
         methodsMap.set(method, (methodsMap.get(method) || 0) + 1);
       });
@@ -233,7 +307,7 @@ export function useDashboard() {
 
       // Process top products
       const productsMap = new Map<string, number>();
-      (topProductsResult.data || []).forEach((record) => {
+      (topProductsResult.data || []).forEach((record: any) => {
         productsMap.set(record.product_name, (productsMap.get(record.product_name) || 0) + 1);
       });
       const topProducts = Array.from(productsMap.entries())
@@ -243,9 +317,9 @@ export function useDashboard() {
 
       // Process stock alerts
       const stockRecords = stockAlertsResult.data || [];
-      const rupture = new Set(stockRecords.filter((r) => r.quantity === 0).map((r) => r.product_name)).size;
-      const lowStock = new Set(stockRecords.filter((r) => r.quantity > 0 && r.quantity < 5).map((r) => r.product_name)).size;
-      const stagnant = 0; // Would need date tracking to calculate
+      const rupture = new Set(stockRecords.filter((r: any) => r.quantity === 0).map((r: any) => r.product_name)).size;
+      const lowStock = new Set(stockRecords.filter((r: any) => r.quantity > 0 && r.quantity < 5).map((r: any) => r.product_name)).size;
+      const stagnant = 0;
 
       // Process recent uploads
       const recentUploads = ((recentUploadsResult.data || []) as UploadWithPdv[]).map((upload) => ({
@@ -276,14 +350,16 @@ export function useDashboard() {
         stockAlerts: { rupture, lowStock, stagnant },
         recentUploads,
         hasData,
+        globalMetrics,
       };
     },
-    enabled: !!profile?.organization_id,
+    enabled: !!profile?.organization_id || isSuperAdmin,
   });
 
   return {
     data: dashboardQuery.data,
     isLoading: dashboardQuery.isLoading,
     error: dashboardQuery.error,
+    isSuperAdmin,
   };
 }
