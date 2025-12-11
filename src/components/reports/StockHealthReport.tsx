@@ -27,7 +27,9 @@ import {
   PackageX,
   CheckCircle2,
 } from "lucide-react";
+import { useReportFilters } from "@/contexts/ReportFiltersContext";
 import { useReportStockHealth } from "@/hooks/useReportStockHealth";
+import { ReportFilters } from "./ReportFilters";
 import { ReportEmptyState } from "./ReportEmptyState";
 
 const chartConfig = {
@@ -97,7 +99,8 @@ const getTurnoverBadge = (status: string) => {
 };
 
 export function StockHealthReport() {
-  const { data, isLoading } = useReportStockHealth();
+  const { selectedPdv } = useReportFilters();
+  const { data, isLoading } = useReportStockHealth({ selectedPdv });
 
   if (isLoading) {
     return (
@@ -111,23 +114,20 @@ export function StockHealthReport() {
 
   if (!hasData) {
     return (
-      <ReportEmptyState
-        icon={PackageX}
-        title="Sem dados de estoque"
-        description="Faça upload de planilhas de estoque para visualizar a saúde do estoque."
-      />
+      <div className="space-y-6">
+        <ReportFilters showPdvFilter showDateFilter={false} />
+        <ReportEmptyState
+          icon={PackageX}
+          title="Sem dados de estoque"
+          description="Faça upload de planilhas de estoque para visualizar a saúde do estoque."
+        />
+      </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-end">
-        <Button variant="outline" className="gap-2">
-          <Download className="h-4 w-4" />
-          Exportar
-        </Button>
-      </div>
+      <ReportFilters showPdvFilter showDateFilter={false} />
 
       {/* Health Score Card */}
       <Card>

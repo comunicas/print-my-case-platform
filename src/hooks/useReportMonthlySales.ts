@@ -32,13 +32,14 @@ export interface MonthlySalesData {
 interface UseReportMonthlySalesParams {
   startDate: Date | undefined;
   endDate: Date | undefined;
+  selectedPdv?: string;
 }
 
-export function useReportMonthlySales({ startDate, endDate }: UseReportMonthlySalesParams) {
+export function useReportMonthlySales({ startDate, endDate, selectedPdv = "all" }: UseReportMonthlySalesParams) {
   const { profile } = useProfile();
 
   return useQuery({
-    queryKey: ["report-monthly-sales", profile?.organization_id, startDate?.toISOString(), endDate?.toISOString()],
+    queryKey: ["report-monthly-sales", profile?.organization_id, startDate?.toISOString(), endDate?.toISOString(), selectedPdv],
     queryFn: async (): Promise<MonthlySalesData> => {
       if (!startDate || !endDate) {
         return {
@@ -56,12 +57,18 @@ export function useReportMonthlySales({ startDate, endDate }: UseReportMonthlySa
         };
       }
 
-      // Fetch sales records for current period
-      const { data: salesData, error } = await supabase
+      // Build query
+      let query = supabase
         .from("sales_records")
-        .select("amount, refund_amount, payment_date")
+        .select("amount, refund_amount, payment_date, pdv_id")
         .gte("payment_date", startDate.toISOString())
         .lte("payment_date", endDate.toISOString());
+
+      if (selectedPdv !== "all") {
+        query = query.eq("pdv_id", selectedPdv);
+      }
+
+      const { data: salesData, error } = await query;
 
       if (error) throw error;
 
@@ -148,11 +155,17 @@ export function useReportMonthlySales({ startDate, endDate }: UseReportMonthlySa
       const previousStart = new Date(startDate.getTime() - periodLength);
       const previousEnd = new Date(startDate.getTime() - 1);
 
-      const { data: previousSalesData } = await supabase
+      let previousQuery = supabase
         .from("sales_records")
         .select("amount, refund_amount")
         .gte("payment_date", previousStart.toISOString())
         .lte("payment_date", previousEnd.toISOString());
+
+      if (selectedPdv !== "all") {
+        previousQuery = previousQuery.eq("pdv_id", selectedPdv);
+      }
+
+      const { data: previousSalesData } = await previousQuery;
 
       const previousRevenue = previousSalesData?.reduce(
         (acc, sale) => acc + Number(sale.amount) - Number(sale.refund_amount || 0),

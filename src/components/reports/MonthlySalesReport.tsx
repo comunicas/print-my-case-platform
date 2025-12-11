@@ -1,8 +1,4 @@
-import { useState } from "react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -16,18 +12,13 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar } from "recharts";
-import { Download, TrendingUp, TrendingDown, CalendarIcon, Loader2, Calendar as CalendarIconSolid } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { datePresets } from "@/lib/utils/date-presets";
+import { TrendingUp, TrendingDown, Loader2, Calendar } from "lucide-react";
+import { useReportFilters } from "@/contexts/ReportFiltersContext";
 import { useReportMonthlySales } from "@/hooks/useReportMonthlySales";
+import { ReportFilters } from "./ReportFilters";
 import { ReportEmptyState } from "./ReportEmptyState";
+import { formatCurrency } from "@/lib/utils/report-helpers";
 
 const chartConfig = {
   revenue: { label: "Receita", color: "hsl(var(--primary))" },
@@ -35,25 +26,8 @@ const chartConfig = {
 };
 
 export function MonthlySalesReport() {
-  const [startDate, setStartDate] = useState<Date | undefined>(
-    new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-  );
-  const [endDate, setEndDate] = useState<Date | undefined>(new Date());
-
-  const { data, isLoading } = useReportMonthlySales({ startDate, endDate });
-
-  const handlePresetClick = (preset: typeof datePresets[0]) => {
-    const { start, end } = preset.getDates();
-    setStartDate(start);
-    setEndDate(end);
-  };
-
-  const formatPeriod = () => {
-    if (startDate && endDate) {
-      return `${format(startDate, "dd/MM", { locale: ptBR })} - ${format(endDate, "dd/MM/yyyy", { locale: ptBR })}`;
-    }
-    return "";
-  };
+  const { startDate, endDate, selectedPdv, formatPeriod } = useReportFilters();
+  const { data, isLoading } = useReportMonthlySales({ startDate, endDate, selectedPdv });
 
   if (isLoading) {
     return (
@@ -67,90 +41,11 @@ export function MonthlySalesReport() {
 
   return (
     <div className="space-y-6">
-      {/* Filters */}
-      <div className="flex flex-col gap-4">
-        {/* Date Presets */}
-        <div className="flex flex-wrap gap-2">
-          {datePresets.map((preset) => (
-            <Button
-              key={preset.label}
-              variant="outline"
-              size="sm"
-              onClick={() => handlePresetClick(preset)}
-              className="text-xs"
-            >
-              {preset.label}
-            </Button>
-          ))}
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-full sm:w-[180px] justify-start text-left font-normal",
-                  !startDate && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {startDate ? format(startDate, "dd/MM/yyyy", { locale: ptBR }) : "Data inicial"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={startDate}
-                onSelect={(date) => {
-                  setStartDate(date);
-                  if (date && endDate && date > endDate) {
-                    setEndDate(date);
-                  }
-                }}
-                initialFocus
-                className="pointer-events-auto"
-                locale={ptBR}
-              />
-            </PopoverContent>
-          </Popover>
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-full sm:w-[180px] justify-start text-left font-normal",
-                  !endDate && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {endDate ? format(endDate, "dd/MM/yyyy", { locale: ptBR }) : "Data final"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={endDate}
-                onSelect={setEndDate}
-                disabled={(date) => (startDate ? date < startDate : false)}
-                initialFocus
-                className="pointer-events-auto"
-                locale={ptBR}
-              />
-            </PopoverContent>
-          </Popover>
-
-          <Button variant="outline" className="gap-2 sm:ml-auto">
-            <Download className="h-4 w-4" />
-            Exportar
-          </Button>
-        </div>
-      </div>
+      <ReportFilters showPdvFilter showDateFilter />
 
       {!hasData ? (
         <ReportEmptyState
-          icon={CalendarIconSolid}
+          icon={Calendar}
           title="Sem dados de vendas mensais"
           description="Faça upload de planilhas de vendas para visualizar o relatório mensal."
         />
@@ -165,12 +60,7 @@ export function MonthlySalesReport() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {data.totals.totalRevenue.toLocaleString("pt-BR", {
-                    style: "currency",
-                    currency: "BRL",
-                  })}
-                </div>
+                <div className="text-2xl font-bold">{formatCurrency(data.totals.totalRevenue)}</div>
                 <div className={`flex items-center gap-1 text-sm mt-1 ${data.totals.variation >= 0 ? "text-emerald-500" : "text-destructive"}`}>
                   {data.totals.variation >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
                   <span>{data.totals.variation >= 0 ? "+" : ""}{data.totals.variation.toFixed(1)}% vs período anterior</span>
@@ -186,12 +76,7 @@ export function MonthlySalesReport() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {data.totals.avgTicket.toLocaleString("pt-BR", {
-                    style: "currency",
-                    currency: "BRL",
-                  })}
-                </div>
+                <div className="text-2xl font-bold">{formatCurrency(data.totals.avgTicket)}</div>
                 <p className="text-xs text-muted-foreground mt-1">{formatPeriod()}</p>
               </CardContent>
             </Card>
@@ -207,10 +92,7 @@ export function MonthlySalesReport() {
                   Dia {data.totals.bestDay.day}
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {data.totals.bestDay.revenue.toLocaleString("pt-BR", {
-                    style: "currency",
-                    currency: "BRL",
-                  })}
+                  {formatCurrency(data.totals.bestDay.revenue)}
                 </div>
               </CardContent>
             </Card>
@@ -226,10 +108,7 @@ export function MonthlySalesReport() {
                   Dia {data.totals.worstDay.day}
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {data.totals.worstDay.revenue.toLocaleString("pt-BR", {
-                    style: "currency",
-                    currency: "BRL",
-                  })}
+                  {formatCurrency(data.totals.worstDay.revenue)}
                 </div>
               </CardContent>
             </Card>
@@ -259,12 +138,7 @@ export function MonthlySalesReport() {
                     <ChartTooltip
                       content={
                         <ChartTooltipContent
-                          formatter={(value) =>
-                            Number(value).toLocaleString("pt-BR", {
-                              style: "currency",
-                              currency: "BRL",
-                            })
-                          }
+                          formatter={(value) => formatCurrency(Number(value))}
                         />
                       }
                     />
@@ -303,12 +177,7 @@ export function MonthlySalesReport() {
                     <ChartTooltip
                       content={
                         <ChartTooltipContent
-                          formatter={(value) =>
-                            Number(value).toLocaleString("pt-BR", {
-                              style: "currency",
-                              currency: "BRL",
-                            })
-                          }
+                          formatter={(value) => formatCurrency(Number(value))}
                         />
                       }
                     />
@@ -336,12 +205,7 @@ export function MonthlySalesReport() {
                     {data.weeklySummary.map((row) => (
                       <TableRow key={row.week}>
                         <TableCell className="font-medium text-sm">{row.week}</TableCell>
-                        <TableCell className="text-right">
-                          {row.revenue.toLocaleString("pt-BR", {
-                            style: "currency",
-                            currency: "BRL",
-                          })}
-                        </TableCell>
+                        <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
                         <TableCell className="text-right">{row.transactions}</TableCell>
                       </TableRow>
                     ))}

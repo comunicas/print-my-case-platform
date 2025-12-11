@@ -1,14 +1,5 @@
 import { useState } from "react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -26,52 +17,22 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from "recharts";
-import { Download, TrendingUp, TrendingDown, Trophy, AlertTriangle, CalendarIcon, Loader2, ShoppingBag } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { datePresets } from "@/lib/utils/date-presets";
+import { TrendingUp, TrendingDown, Trophy, AlertTriangle, Loader2, ShoppingBag } from "lucide-react";
+import { useReportFilters } from "@/contexts/ReportFiltersContext";
 import { useReportProducts } from "@/hooks/useReportProducts";
-import { usePDVs } from "@/hooks/usePDVs";
+import { ReportFilters } from "./ReportFilters";
 import { ReportEmptyState } from "./ReportEmptyState";
+import { formatCurrency } from "@/lib/utils/report-helpers";
 
 const chartConfig = {
   quantity: { label: "Quantidade", color: "hsl(var(--primary))" },
 };
 
 export function ProductsReport() {
-  const [selectedPdv, setSelectedPdv] = useState("all");
   const [viewMode, setViewMode] = useState<"top" | "bottom">("top");
-  const [startDate, setStartDate] = useState<Date | undefined>(
-    new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-  );
-  const [endDate, setEndDate] = useState<Date | undefined>(new Date());
-
-  const { pdvs } = usePDVs();
+  const { startDate, endDate, selectedPdv, formatPeriod } = useReportFilters();
   const { data, isLoading } = useReportProducts({ startDate, endDate, selectedPdv, viewMode });
-
-  const pdvList = [
-    { id: "all", name: "Todos os PDVs" },
-    ...(pdvs?.map(p => ({ id: p.id, name: p.name })) || []),
-  ];
-
-  const handlePresetClick = (preset: typeof datePresets[0]) => {
-    const { start, end } = preset.getDates();
-    setStartDate(start);
-    setEndDate(end);
-  };
-
-  const formatPeriod = () => {
-    if (startDate && endDate) {
-      return `${format(startDate, "dd/MM", { locale: ptBR })} - ${format(endDate, "dd/MM/yyyy", { locale: ptBR })}`;
-    }
-    return "";
-  };
 
   // Build category chart config dynamically
   const categoryChartConfig: Record<string, { label: string; color: string }> = {};
@@ -90,120 +51,30 @@ export function ProductsReport() {
   const hasData = data && (data.topProducts.length > 0 || data.bottomProducts.length > 0);
   const displayProducts = viewMode === "top" ? data?.topProducts : data?.bottomProducts;
 
+  const viewModeActions = (
+    <div className="flex gap-2">
+      <Button
+        variant={viewMode === "top" ? "default" : "outline"}
+        onClick={() => setViewMode("top")}
+        className="gap-2"
+      >
+        <Trophy className="h-4 w-4" />
+        Mais Vendidos
+      </Button>
+      <Button
+        variant={viewMode === "bottom" ? "default" : "outline"}
+        onClick={() => setViewMode("bottom")}
+        className="gap-2"
+      >
+        <AlertTriangle className="h-4 w-4" />
+        Menos Vendidos
+      </Button>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
-      {/* Filters */}
-      <div className="flex flex-col gap-4">
-        {/* Date Presets */}
-        <div className="flex flex-wrap gap-2">
-          {datePresets.map((preset) => (
-            <Button
-              key={preset.label}
-              variant="outline"
-              size="sm"
-              onClick={() => handlePresetClick(preset)}
-              className="text-xs"
-            >
-              {preset.label}
-            </Button>
-          ))}
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
-          <Select value={selectedPdv} onValueChange={setSelectedPdv}>
-            <SelectTrigger className="w-full sm:w-[200px]">
-              <SelectValue placeholder="Selecione o PDV" />
-            </SelectTrigger>
-            <SelectContent>
-              {pdvList.map((pdv) => (
-                <SelectItem key={pdv.id} value={pdv.id}>
-                  {pdv.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-full sm:w-[180px] justify-start text-left font-normal",
-                  !startDate && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {startDate ? format(startDate, "dd/MM/yyyy", { locale: ptBR }) : "Data inicial"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={startDate}
-                onSelect={(date) => {
-                  setStartDate(date);
-                  if (date && endDate && date > endDate) {
-                    setEndDate(date);
-                  }
-                }}
-                initialFocus
-                className="pointer-events-auto"
-                locale={ptBR}
-              />
-            </PopoverContent>
-          </Popover>
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-full sm:w-[180px] justify-start text-left font-normal",
-                  !endDate && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {endDate ? format(endDate, "dd/MM/yyyy", { locale: ptBR }) : "Data final"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={endDate}
-                onSelect={setEndDate}
-                disabled={(date) => (startDate ? date < startDate : false)}
-                initialFocus
-                className="pointer-events-auto"
-                locale={ptBR}
-              />
-            </PopoverContent>
-          </Popover>
-
-          <div className="flex gap-2">
-            <Button
-              variant={viewMode === "top" ? "default" : "outline"}
-              onClick={() => setViewMode("top")}
-              className="gap-2"
-            >
-              <Trophy className="h-4 w-4" />
-              Mais Vendidos
-            </Button>
-            <Button
-              variant={viewMode === "bottom" ? "default" : "outline"}
-              onClick={() => setViewMode("bottom")}
-              className="gap-2"
-            >
-              <AlertTriangle className="h-4 w-4" />
-              Menos Vendidos
-            </Button>
-          </div>
-
-          <Button variant="outline" className="gap-2 sm:ml-auto">
-            <Download className="h-4 w-4" />
-            Exportar
-          </Button>
-        </div>
-      </div>
+      <ReportFilters showPdvFilter showDateFilter extraActions={viewModeActions} />
 
       {!hasData ? (
         <ReportEmptyState
@@ -236,12 +107,7 @@ export function ProductsReport() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {data.totals.totalRevenue.toLocaleString("pt-BR", {
-                    style: "currency",
-                    currency: "BRL",
-                  })}
-                </div>
+                <div className="text-2xl font-bold">{formatCurrency(data.totals.totalRevenue)}</div>
                 <p className="text-xs text-muted-foreground mt-1">{formatPeriod()}</p>
               </CardContent>
             </Card>
@@ -253,12 +119,7 @@ export function ProductsReport() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {data.totals.avgTicket.toLocaleString("pt-BR", {
-                    style: "currency",
-                    currency: "BRL",
-                  })}
-                </div>
+                <div className="text-2xl font-bold">{formatCurrency(data.totals.avgTicket)}</div>
                 <p className="text-xs text-muted-foreground mt-1">{formatPeriod()}</p>
               </CardContent>
             </Card>
@@ -392,18 +253,8 @@ export function ProductsReport() {
                           </TableCell>
                           <TableCell className="font-medium">{row.name}</TableCell>
                           <TableCell className="text-right">{row.quantity}</TableCell>
-                          <TableCell className="text-right">
-                            {row.revenue.toLocaleString("pt-BR", {
-                              style: "currency",
-                              currency: "BRL",
-                            })}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {row.avgPrice.toLocaleString("pt-BR", {
-                              style: "currency",
-                              currency: "BRL",
-                            })}
-                          </TableCell>
+                          <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(row.avgPrice)}</TableCell>
                           <TableCell className="text-right">
                             <div
                               className={`flex items-center justify-end gap-1 ${
@@ -430,18 +281,8 @@ export function ProductsReport() {
                           </TableCell>
                           <TableCell className="font-medium">{row.name}</TableCell>
                           <TableCell className="text-right">{row.quantity}</TableCell>
-                          <TableCell className="text-right">
-                            {row.revenue.toLocaleString("pt-BR", {
-                              style: "currency",
-                              currency: "BRL",
-                            })}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {row.avgPrice.toLocaleString("pt-BR", {
-                              style: "currency",
-                              currency: "BRL",
-                            })}
-                          </TableCell>
+                          <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(row.avgPrice)}</TableCell>
                           <TableCell className="text-right">
                             <Badge
                               variant={row.daysWithoutSale > 30 ? "destructive" : "secondary"}
