@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { User, Settings as SettingsIcon, Building2, Plug, Camera, Lock, ExternalLink, Key, Cloud, FileSpreadsheet } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { pdvList } from "@/lib/mock-data";
+import { profileFormSchema, passwordFormSchema, organizationFormSchema } from "@/lib/schemas/settings";
 
 // Mock Data
 const mockCurrentUser = {
@@ -91,6 +92,11 @@ export default function Settings() {
   // Preferences state
   const [preferences, setPreferences] = useState(mockPreferences);
 
+  // Error states
+  const [profileErrors, setProfileErrors] = useState<Record<string, string>>({});
+  const [orgErrors, setOrgErrors] = useState<Record<string, string>>({});
+  const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({});
+
   const initials = mockCurrentUser.name
     .split(" ")
     .map((n) => n[0])
@@ -99,6 +105,18 @@ export default function Settings() {
     .slice(0, 2);
 
   const handleSaveProfile = () => {
+    const result = profileFormSchema.safeParse(profileData);
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      result.error.errors.forEach((err) => {
+        if (err.path[0]) {
+          errors[err.path[0] as string] = err.message;
+        }
+      });
+      setProfileErrors(errors);
+      return;
+    }
+    setProfileErrors({});
     toast({
       title: "Perfil atualizado",
       description: "Suas informações foram salvas com sucesso.",
@@ -106,14 +124,18 @@ export default function Settings() {
   };
 
   const handleChangePassword = () => {
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      toast({
-        title: "Erro",
-        description: "As senhas não coincidem.",
-        variant: "destructive",
+    const result = passwordFormSchema.safeParse(passwordData);
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      result.error.errors.forEach((err) => {
+        if (err.path[0]) {
+          errors[err.path[0] as string] = err.message;
+        }
       });
+      setPasswordErrors(errors);
       return;
     }
+    setPasswordErrors({});
     setPasswordDialogOpen(false);
     setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
     toast({
@@ -123,6 +145,18 @@ export default function Settings() {
   };
 
   const handleSaveOrganization = () => {
+    const result = organizationFormSchema.safeParse(orgData);
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      result.error.errors.forEach((err) => {
+        if (err.path[0]) {
+          errors[err.path[0] as string] = err.message;
+        }
+      });
+      setOrgErrors(errors);
+      return;
+    }
+    setOrgErrors({});
     toast({
       title: "Organização atualizada",
       description: "Os dados da organização foram salvos com sucesso.",
@@ -217,8 +251,15 @@ export default function Settings() {
                     <Input
                       id="name"
                       value={profileData.name}
-                      onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
+                      onChange={(e) => {
+                        setProfileData({ ...profileData, name: e.target.value });
+                        if (profileErrors.name) setProfileErrors({ ...profileErrors, name: "" });
+                      }}
+                      className={profileErrors.name ? "border-destructive" : ""}
                     />
+                    {profileErrors.name && (
+                      <p className="text-sm text-destructive">{profileErrors.name}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
@@ -247,9 +288,16 @@ export default function Settings() {
                     <Input
                       id="phone"
                       value={profileData.phone}
-                      onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
+                      onChange={(e) => {
+                        setProfileData({ ...profileData, phone: e.target.value });
+                        if (profileErrors.phone) setProfileErrors({ ...profileErrors, phone: "" });
+                      }}
                       placeholder="(00) 00000-0000"
+                      className={profileErrors.phone ? "border-destructive" : ""}
                     />
+                    {profileErrors.phone && (
+                      <p className="text-sm text-destructive">{profileErrors.phone}</p>
+                    )}
                   </div>
                 </div>
 
@@ -275,7 +323,13 @@ export default function Settings() {
                       Último acesso: {formatLastLogin(mockCurrentUser.lastLogin)}
                     </p>
                   </div>
-                  <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+                  <Dialog open={passwordDialogOpen} onOpenChange={(open) => {
+                    setPasswordDialogOpen(open);
+                    if (!open) {
+                      setPasswordErrors({});
+                      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                    }
+                  }}>
                     <DialogTrigger asChild>
                       <Button variant="outline" className="gap-2">
                         <Lock className="h-4 w-4" />
@@ -296,8 +350,15 @@ export default function Settings() {
                             id="currentPassword"
                             type="password"
                             value={passwordData.currentPassword}
-                            onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                            onChange={(e) => {
+                              setPasswordData({ ...passwordData, currentPassword: e.target.value });
+                              if (passwordErrors.currentPassword) setPasswordErrors({ ...passwordErrors, currentPassword: "" });
+                            }}
+                            className={passwordErrors.currentPassword ? "border-destructive" : ""}
                           />
+                          {passwordErrors.currentPassword && (
+                            <p className="text-sm text-destructive">{passwordErrors.currentPassword}</p>
+                          )}
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="newPassword">Nova senha</Label>
@@ -305,8 +366,15 @@ export default function Settings() {
                             id="newPassword"
                             type="password"
                             value={passwordData.newPassword}
-                            onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                            onChange={(e) => {
+                              setPasswordData({ ...passwordData, newPassword: e.target.value });
+                              if (passwordErrors.newPassword) setPasswordErrors({ ...passwordErrors, newPassword: "" });
+                            }}
+                            className={passwordErrors.newPassword ? "border-destructive" : ""}
                           />
+                          {passwordErrors.newPassword && (
+                            <p className="text-sm text-destructive">{passwordErrors.newPassword}</p>
+                          )}
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="confirmPassword">Confirmar nova senha</Label>
@@ -314,8 +382,15 @@ export default function Settings() {
                             id="confirmPassword"
                             type="password"
                             value={passwordData.confirmPassword}
-                            onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                            onChange={(e) => {
+                              setPasswordData({ ...passwordData, confirmPassword: e.target.value });
+                              if (passwordErrors.confirmPassword) setPasswordErrors({ ...passwordErrors, confirmPassword: "" });
+                            }}
+                            className={passwordErrors.confirmPassword ? "border-destructive" : ""}
                           />
+                          {passwordErrors.confirmPassword && (
+                            <p className="text-sm text-destructive">{passwordErrors.confirmPassword}</p>
+                          )}
                         </div>
                       </div>
                       <DialogFooter>
@@ -566,8 +641,15 @@ export default function Settings() {
                     <Input
                       id="orgName"
                       value={orgData.name}
-                      onChange={(e) => setOrgData({ ...orgData, name: e.target.value })}
+                      onChange={(e) => {
+                        setOrgData({ ...orgData, name: e.target.value });
+                        if (orgErrors.name) setOrgErrors({ ...orgErrors, name: "" });
+                      }}
+                      className={orgErrors.name ? "border-destructive" : ""}
                     />
+                    {orgErrors.name && (
+                      <p className="text-sm text-destructive">{orgErrors.name}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="cnpj">CNPJ</Label>
@@ -579,24 +661,45 @@ export default function Settings() {
                       id="orgEmail"
                       type="email"
                       value={orgData.email}
-                      onChange={(e) => setOrgData({ ...orgData, email: e.target.value })}
+                      onChange={(e) => {
+                        setOrgData({ ...orgData, email: e.target.value });
+                        if (orgErrors.email) setOrgErrors({ ...orgErrors, email: "" });
+                      }}
+                      className={orgErrors.email ? "border-destructive" : ""}
                     />
+                    {orgErrors.email && (
+                      <p className="text-sm text-destructive">{orgErrors.email}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="orgPhone">Telefone</Label>
                     <Input
                       id="orgPhone"
                       value={orgData.phone}
-                      onChange={(e) => setOrgData({ ...orgData, phone: e.target.value })}
+                      onChange={(e) => {
+                        setOrgData({ ...orgData, phone: e.target.value });
+                        if (orgErrors.phone) setOrgErrors({ ...orgErrors, phone: "" });
+                      }}
+                      className={orgErrors.phone ? "border-destructive" : ""}
                     />
+                    {orgErrors.phone && (
+                      <p className="text-sm text-destructive">{orgErrors.phone}</p>
+                    )}
                   </div>
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="address">Endereço</Label>
                     <Input
                       id="address"
                       value={orgData.address}
-                      onChange={(e) => setOrgData({ ...orgData, address: e.target.value })}
+                      onChange={(e) => {
+                        setOrgData({ ...orgData, address: e.target.value });
+                        if (orgErrors.address) setOrgErrors({ ...orgErrors, address: "" });
+                      }}
+                      className={orgErrors.address ? "border-destructive" : ""}
                     />
+                    {orgErrors.address && (
+                      <p className="text-sm text-destructive">{orgErrors.address}</p>
+                    )}
                   </div>
                 </div>
                 <div className="flex justify-end">
