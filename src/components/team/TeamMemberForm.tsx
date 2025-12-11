@@ -16,6 +16,7 @@ interface TeamMemberFormProps {
   onClearError: (field: string) => void;
   idPrefix?: string;
   disabledFields?: string[];
+  showSuperAdminRole?: boolean;
 }
 
 export function TeamMemberForm({
@@ -25,6 +26,7 @@ export function TeamMemberForm({
   onClearError,
   idPrefix = "",
   disabledFields = [],
+  showSuperAdminRole = false,
 }: TeamMemberFormProps) {
   const handleChange = (field: keyof TeamMemberFormData, value: string) => {
     onChange({ ...values, [field]: value });
@@ -80,13 +82,13 @@ export function TeamMemberForm({
             <SelectValue placeholder="Selecione uma função" />
           </SelectTrigger>
           <SelectContent>
-            {(Object.keys(roleLabels) as Array<keyof typeof roleLabels>).map(
-              (role) => (
+            {(Object.keys(roleLabels) as Array<keyof typeof roleLabels>)
+              .filter(role => showSuperAdminRole || role !== 'super_admin')
+              .map((role) => (
                 <SelectItem key={role} value={role}>
                   {roleLabels[role]}
                 </SelectItem>
-              )
-            )}
+              ))}
           </SelectContent>
         </Select>
         {errors.role && (
