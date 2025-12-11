@@ -3,17 +3,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useToast } from "@/hooks/use-toast";
-import { uploadTypeLabels } from "@/lib/schemas/upload";
+import { UploadStatus, UploadType, uploadTypeLabels } from "@/lib/schemas/upload";
 
-export interface UploadWithRelations {
+/** Interface para upload com dados de PDV e uploader (resultado de query com joins) */
+export interface UploadListItem {
   id: string;
   pdv_id: string;
   pdv: { name: string; machine_id: string };
-  type: "sales" | "stock";
+  type: UploadType;
   file_name: string;
   file_url: string | null;
   drive_url: string | null;
-  status: "processing" | "ready" | "error";
+  status: UploadStatus;
   records_count: number | null;
   period: string | null;
   uploaded_by: string;
@@ -25,7 +26,7 @@ export interface UploadWithRelations {
 
 interface CreateUploadData {
   pdv_id: string;
-  type: "sales" | "stock";
+  type: UploadType;
   period: string;
   file?: File;
   drive_url?: string;
@@ -66,7 +67,7 @@ export function useUploads() {
       return uploadsData.map((upload) => ({
         ...upload,
         uploader: profilesMap.get(upload.uploaded_by) || { name: "Usuário" },
-      })) as UploadWithRelations[];
+      })) as UploadListItem[];
     },
     enabled: !!profile?.organization_id,
   });
@@ -142,7 +143,7 @@ export function useUploads() {
       return {
         ...insertedUpload,
         uploader: uploaderProfile || { name: "Usuário" },
-      } as UploadWithRelations;
+      } as UploadListItem;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["uploads"] });

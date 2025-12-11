@@ -1,16 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
+import { UploadStatus, UploadType } from "@/lib/schemas/upload";
 
+/** Interface para detalhes completos de um upload (com dados de PDV e uploader) */
 export interface UploadDetails {
   id: string;
   pdv_id: string;
   pdv: { name: string; machine_id: string };
-  type: "sales" | "stock";
+  type: UploadType;
   file_name: string;
   file_url: string | null;
   drive_url: string | null;
-  status: "processing" | "ready" | "error";
+  status: UploadStatus;
   records_count: number | null;
   period: string | null;
   uploaded_by: string;
@@ -20,7 +22,8 @@ export interface UploadDetails {
   error_message: string | null;
 }
 
-export interface SalesRecordData {
+/** Subset de SalesRecord para exibição em tabelas de preview */
+export interface SalesRecordPreview {
   id: string;
   product_name: string;
   amount: number;
@@ -32,7 +35,8 @@ export interface SalesRecordData {
   transaction_number: string | null;
 }
 
-export interface StockRecordData {
+/** Subset de StockRecord para exibição em tabelas de preview */
+export interface StockRecordPreview {
   id: string;
   slot_number: string;
   product_name: string;
@@ -87,7 +91,7 @@ export function useUploadDetails(uploadId: string | undefined) {
         .order("payment_date", { ascending: false });
 
       if (error) throw error;
-      return data as SalesRecordData[];
+      return data as SalesRecordPreview[];
     },
     enabled: !!uploadId && uploadQuery.data?.type === "sales",
   });
@@ -104,7 +108,7 @@ export function useUploadDetails(uploadId: string | undefined) {
         .order("slot_number", { ascending: true });
 
       if (error) throw error;
-      return data as StockRecordData[];
+      return data as StockRecordPreview[];
     },
     enabled: !!uploadId && uploadQuery.data?.type === "stock",
   });

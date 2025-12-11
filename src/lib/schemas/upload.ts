@@ -1,7 +1,19 @@
 import { z } from "zod";
 import type { Tables } from "@/integrations/supabase/types";
 
-// Tipos base do banco de dados
+/**
+ * Hierarquia de tipos de Upload:
+ * 
+ * - UploadRow: Tipo bruto do banco (Tables<"uploads">)
+ * - Upload: Interface base para uso na aplicação (snake_case, campos flat)
+ * - UploadWithRelations: Extensão com dados do uploader (para listas)
+ * 
+ * Hooks específicos definem interfaces próprias para queries com joins:
+ * - useUploads.ts → UploadListItem (inclui pdv e uploader como objetos)
+ * - useUploadDetails.ts → UploadDetails (inclui pdv e uploader como objetos)
+ */
+
+// Tipos base do banco de dados (correspondem às tabelas do Supabase)
 export type UploadRow = Tables<"uploads">;
 export type SalesRecordRow = Tables<"sales_records">;
 export type StockRecordRow = Tables<"stock_records">;
