@@ -1,15 +1,4 @@
-import { useState } from "react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -24,12 +13,6 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import {
   BarChart,
   Bar,
   XAxis,
@@ -38,66 +21,31 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import { Download, TrendingUp, TrendingDown, Minus, CalendarIcon, Loader2, BarChart3 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { datePresets } from "@/lib/utils/date-presets";
+import { Loader2, BarChart3 } from "lucide-react";
+import { useReportFilters } from "@/contexts/ReportFiltersContext";
 import { useReportSalesUnit } from "@/hooks/useReportSalesUnit";
-import { usePDVs } from "@/hooks/usePDVs";
+import { ReportFilters } from "./ReportFilters";
 import { ReportEmptyState } from "./ReportEmptyState";
+import { getVariationIcon, getVariationColor, formatCurrency } from "@/lib/utils/report-helpers";
 
 const chartConfig = {
   revenue: { label: "Receita", color: "hsl(var(--primary))" },
 };
 
+const chartColors = [
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
+];
+
 export function SalesUnitReport() {
-  const [selectedPdv, setSelectedPdv] = useState("all");
-  const [startDate, setStartDate] = useState<Date | undefined>(
-    new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-  );
-  const [endDate, setEndDate] = useState<Date | undefined>(new Date());
-
-  const { pdvs } = usePDVs();
+  const { startDate, endDate, selectedPdv, formatPeriod } = useReportFilters();
   const { data, isLoading } = useReportSalesUnit({ startDate, endDate, selectedPdv });
-
-  const pdvList = [
-    { id: "all", name: "Todos os PDVs" },
-    ...(pdvs?.map(p => ({ id: p.id, name: p.name })) || []),
-  ];
-
-  const getVariationIcon = (variation: number) => {
-    if (variation > 0) return <TrendingUp className="h-4 w-4 text-emerald-500" />;
-    if (variation < 0) return <TrendingDown className="h-4 w-4 text-destructive" />;
-    return <Minus className="h-4 w-4 text-muted-foreground" />;
-  };
-
-  const getVariationColor = (variation: number) => {
-    if (variation > 0) return "text-emerald-500";
-    if (variation < 0) return "text-destructive";
-    return "text-muted-foreground";
-  };
-
-  const handlePresetClick = (preset: typeof datePresets[0]) => {
-    const { start, end } = preset.getDates();
-    setStartDate(start);
-    setEndDate(end);
-  };
-
-  const formatPeriod = () => {
-    if (startDate && endDate) {
-      return `${format(startDate, "dd/MM", { locale: ptBR })} - ${format(endDate, "dd/MM/yyyy", { locale: ptBR })}`;
-    }
-    return "";
-  };
 
   // Build dynamic chart config for evolution
   const evolutionChartConfig: Record<string, { label: string; color: string }> = {};
-  const chartColors = [
-    "hsl(var(--chart-1))",
-    "hsl(var(--chart-2))",
-    "hsl(var(--chart-3))",
-    "hsl(var(--chart-4))",
-    "hsl(var(--chart-5))",
-  ];
   
   if (data?.evolutionData && data.evolutionData.length > 0) {
     const firstEntry = data.evolutionData[0];
@@ -121,99 +69,7 @@ export function SalesUnitReport() {
 
   return (
     <div className="space-y-6">
-      {/* Filters */}
-      <div className="flex flex-col gap-4">
-        {/* Date Presets */}
-        <div className="flex flex-wrap gap-2">
-          {datePresets.map((preset) => (
-            <Button
-              key={preset.label}
-              variant="outline"
-              size="sm"
-              onClick={() => handlePresetClick(preset)}
-              className="text-xs"
-            >
-              {preset.label}
-            </Button>
-          ))}
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
-          <Select value={selectedPdv} onValueChange={setSelectedPdv}>
-            <SelectTrigger className="w-full sm:w-[200px]">
-              <SelectValue placeholder="Selecione o PDV" />
-            </SelectTrigger>
-            <SelectContent>
-              {pdvList.map((pdv) => (
-                <SelectItem key={pdv.id} value={pdv.id}>
-                  {pdv.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-full sm:w-[180px] justify-start text-left font-normal",
-                  !startDate && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {startDate ? format(startDate, "dd/MM/yyyy", { locale: ptBR }) : "Data inicial"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={startDate}
-                onSelect={(date) => {
-                  setStartDate(date);
-                  if (date && endDate && date > endDate) {
-                    setEndDate(date);
-                  }
-                }}
-                initialFocus
-                className="pointer-events-auto"
-                locale={ptBR}
-              />
-            </PopoverContent>
-          </Popover>
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-full sm:w-[180px] justify-start text-left font-normal",
-                  !endDate && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {endDate ? format(endDate, "dd/MM/yyyy", { locale: ptBR }) : "Data final"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={endDate}
-                onSelect={setEndDate}
-                disabled={(date) => (startDate ? date < startDate : false)}
-                initialFocus
-                className="pointer-events-auto"
-                locale={ptBR}
-              />
-            </PopoverContent>
-          </Popover>
-
-          <Button variant="outline" className="gap-2 sm:ml-auto">
-            <Download className="h-4 w-4" />
-            Exportar
-          </Button>
-        </div>
-      </div>
+      <ReportFilters showPdvFilter showDateFilter />
 
       {!hasData ? (
         <ReportEmptyState
@@ -232,12 +88,7 @@ export function SalesUnitReport() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {data.totals.revenue.toLocaleString("pt-BR", {
-                    style: "currency",
-                    currency: "BRL",
-                  })}
-                </div>
+                <div className="text-2xl font-bold">{formatCurrency(data.totals.revenue)}</div>
                 <p className="text-xs text-muted-foreground mt-1">{formatPeriod()}</p>
               </CardContent>
             </Card>
@@ -263,12 +114,7 @@ export function SalesUnitReport() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {data.totals.avgTicket.toLocaleString("pt-BR", {
-                    style: "currency",
-                    currency: "BRL",
-                  })}
-                </div>
+                <div className="text-2xl font-bold">{formatCurrency(data.totals.avgTicket)}</div>
                 <p className="text-xs text-muted-foreground mt-1">{formatPeriod()}</p>
               </CardContent>
             </Card>
@@ -313,12 +159,7 @@ export function SalesUnitReport() {
                     <ChartTooltip
                       content={
                         <ChartTooltipContent
-                          formatter={(value) =>
-                            Number(value).toLocaleString("pt-BR", {
-                              style: "currency",
-                              currency: "BRL",
-                            })
-                          }
+                          formatter={(value) => formatCurrency(Number(value))}
                         />
                       }
                     />
@@ -351,12 +192,7 @@ export function SalesUnitReport() {
                       <ChartTooltip
                         content={
                           <ChartTooltipContent
-                            formatter={(value) =>
-                              Number(value).toLocaleString("pt-BR", {
-                                style: "currency",
-                                currency: "BRL",
-                              })
-                            }
+                            formatter={(value) => formatCurrency(Number(value))}
                           />
                         }
                       />
@@ -398,30 +234,23 @@ export function SalesUnitReport() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data.salesByPdv.map((row) => (
-                    <TableRow key={row.pdvId}>
-                      <TableCell className="font-medium">{row.pdv}</TableCell>
-                      <TableCell className="text-right">
-                        {row.revenue.toLocaleString("pt-BR", {
-                          style: "currency",
-                          currency: "BRL",
-                        })}
-                      </TableCell>
-                      <TableCell className="text-right">{row.transactions}</TableCell>
-                      <TableCell className="text-right">
-                        {row.avgTicket.toLocaleString("pt-BR", {
-                          style: "currency",
-                          currency: "BRL",
-                        })}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className={`flex items-center justify-end gap-1 ${getVariationColor(row.variation)}`}>
-                          {getVariationIcon(row.variation)}
-                          <span>{row.variation > 0 ? "+" : ""}{row.variation}%</span>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {data.salesByPdv.map((row) => {
+                    const VariationIcon = getVariationIcon(row.variation);
+                    return (
+                      <TableRow key={row.pdvId}>
+                        <TableCell className="font-medium">{row.pdv}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
+                        <TableCell className="text-right">{row.transactions}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(row.avgTicket)}</TableCell>
+                        <TableCell className="text-right">
+                          <div className={`flex items-center justify-end gap-1 ${getVariationColor(row.variation)}`}>
+                            <VariationIcon className="h-4 w-4" />
+                            <span>{row.variation > 0 ? "+" : ""}{row.variation}%</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </CardContent>

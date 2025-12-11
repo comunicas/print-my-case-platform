@@ -2,14 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "./useProfile";
 
-// Classificação de saúde do slot por quantidade
 type SlotHealthCategory = "critical" | "risk" | "good" | "healthy";
 
 function getSlotHealthCategory(quantity: number): SlotHealthCategory {
-  if (quantity === 0) return "critical";  // CRÍTICO
-  if (quantity === 1) return "risk";      // RISCO
-  if (quantity === 2) return "good";      // BOM
-  return "healthy";                        // SAUDÁVEL (3+)
+  if (quantity === 0) return "critical";
+  if (quantity === 1) return "risk";
+  if (quantity === 2) return "good";
+  return "healthy";
 }
 
 export interface StockHealthData {
@@ -44,23 +43,27 @@ export interface StockHealthData {
     totalUnits: number;
     totalActiveSlots: number;
     totalInactiveSlots: number;
-    criticalSlots: number;   // qty = 0
-    riskSlots: number;       // qty = 1
-    goodSlots: number;       // qty = 2
-    healthySlots: number;    // qty >= 3
+    criticalSlots: number;
+    riskSlots: number;
+    goodSlots: number;
+    healthySlots: number;
     criticalAlerts: number;
     warningAlerts: number;
   };
 }
 
-export function useReportStockHealth() {
+interface UseReportStockHealthParams {
+  selectedPdv?: string;
+}
+
+export function useReportStockHealth({ selectedPdv = "all" }: UseReportStockHealthParams = {}) {
   const { profile } = useProfile();
 
   return useQuery({
-    queryKey: ["report-stock-health", profile?.organization_id],
+    queryKey: ["report-stock-health", profile?.organization_id, selectedPdv],
     queryFn: async (): Promise<StockHealthData> => {
-      // Fetch stock records with PDV info
-      const { data: stockData, error: stockError } = await supabase
+      // Build query
+      let query = supabase
         .from("stock_records")
         .select(`
           id,
@@ -73,6 +76,12 @@ export function useReportStockHealth() {
           pdv:pdvs!inner(id, name)
         `);
 
+      if (selectedPdv !== "all") {
+        query = query.eq("pdv_id", selectedPdv);
+      }
+
+      const { data: stockData, error: stockError } = await query;
+
       if (stockError) throw stockError;
 
       // Group by PDV
@@ -81,7 +90,6 @@ export function useReportStockHealth() {
       const productStockMap = new Map<string, number>();
       const inactiveSlotsList: StockHealthData["inactiveSlots"] = [];
 
-      // Category counters
       let criticalSlots = 0;
       let riskSlots = 0;
       let goodSlots = 0;
@@ -90,9 +98,7 @@ export function useReportStockHealth() {
       stockData?.forEach(record => {
         const pdvId = record.pdv_id;
         const pdvName = (record.pdv as { id: string; name: string })?.name || "Desconhecido";
-        const slotKey = `${pdvId}-${record.slot_number}`;
 
-        // Initialize PDV entry
         if (!pdvMap.has(pdvId)) {
           pdvMap.set(pdvId, {
             pdv: pdvName,
@@ -108,7 +114,6 @@ export function useReportStockHealth() {
         if (record.is_active) {
           pdvEntry.activeSlots.add(record.slot_number);
           
-          // Classify slot by category
           const category = getSlotHealthCategory(record.quantity);
           switch (category) {
             case "critical":
@@ -150,11 +155,9 @@ export function useReportStockHealth() {
           });
         }
 
-        // Track product stock
         productStockMap.set(record.product_name, (productStockMap.get(record.product_name) || 0) + record.quantity);
       });
 
-      // Convert to stockByPdv array
       const stockByPdv = Array.from(pdvMap.values()).map(entry => ({
         pdv: entry.pdv,
         units: entry.units,
@@ -162,22 +165,26 @@ export function useReportStockHealth() {
         inactiveSlots: entry.inactiveSlots.size,
       })).sort((a, b) => b.units - a.units);
 
-      // Fetch sales data for turnover calculation (last 30 days)
+      // Fetch sales data for turnover calculation
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      const { data: salesData } = await supabase
+      let salesQuery = supabase
         .from("sales_records")
-        .select("product_name")
+        .select("product_name, pdv_id")
         .gte("payment_date", thirtyDaysAgo.toISOString());
 
-      // Count sales by product
+      if (selectedPdv !== "all") {
+        salesQuery = salesQuery.eq("pdv_id", selectedPdv);
+      }
+
+      const { data: salesData } = await salesQuery;
+
       const productSalesMap = new Map<string, number>();
       salesData?.forEach(sale => {
         productSalesMap.set(sale.product_name, (productSalesMap.get(sale.product_name) || 0) + 1);
       });
 
-      // Calculate turnover (sales / stock)
       const turnoverRanking: StockHealthData["turnoverRanking"] = [];
       productStockMap.forEach((stock, product) => {
         const sales = productSalesMap.get(product) || 0;
@@ -199,7 +206,6 @@ export function useReportStockHealth() {
 
       turnoverRanking.sort((a, b) => b.turnover - a.turnover);
 
-      // Calculate totals
       const totalActiveSlots = criticalSlots + riskSlots + goodSlots + healthySlots;
       const totals = {
         totalUnits: stockByPdv.reduce((acc, curr) => acc + curr.units, 0),
@@ -213,19 +219,12 @@ export function useReportStockHealth() {
         warningAlerts: riskSlots,
       };
 
-      // Calculate health score based on slot category proportions
       let healthScore = 100;
       
       if (totalActiveSlots > 0) {
-        // Weights per category (higher weight = more negative impact)
-        const criticalWeight = 1.0;   // 0 units - maximum impact
-        const riskWeight = 0.5;       // 1 unit - medium impact
-        const goodWeight = 0.1;       // 2 units - minimal impact
-        // healthy (3+) doesn't penalize
-
-        const criticalPenalty = (criticalSlots / totalActiveSlots) * criticalWeight * 100;
-        const riskPenalty = (riskSlots / totalActiveSlots) * riskWeight * 100;
-        const goodPenalty = (goodSlots / totalActiveSlots) * goodWeight * 100;
+        const criticalPenalty = (criticalSlots / totalActiveSlots) * 100;
+        const riskPenalty = (riskSlots / totalActiveSlots) * 50;
+        const goodPenalty = (goodSlots / totalActiveSlots) * 10;
 
         healthScore = 100 - criticalPenalty - riskPenalty - goodPenalty;
       }
@@ -234,9 +233,9 @@ export function useReportStockHealth() {
 
       return {
         healthScore,
-        alerts: alerts.slice(0, 10), // Limit to 10 alerts
+        alerts: alerts.slice(0, 10),
         stockByPdv,
-        turnoverRanking: turnoverRanking.slice(0, 7), // Top 7
+        turnoverRanking: turnoverRanking.slice(0, 7),
         inactiveSlots: inactiveSlotsList.slice(0, 10),
         totals,
       };
