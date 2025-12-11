@@ -22,9 +22,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Users, Search, Pencil, Trash2, Mail, Loader2 } from "lucide-react";
+import { Plus, Users, Search, Pencil, Trash2, Mail, Loader2, Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TeamMemberForm } from "@/components/team/TeamMemberForm";
+import { CreateUserDialog } from "@/components/team/CreateUserDialog";
 import {
   teamMemberFormSchema,
   TeamMemberFormData,
@@ -34,6 +35,7 @@ import {
   statusLabels,
   rolePermissions,
 } from "@/lib/schemas/team";
+import { CreateUserFormData } from "@/lib/schemas/user";
 import {
   Tooltip,
   TooltipContent,
@@ -100,11 +102,12 @@ const formatDate = (dateStr: string): string => {
 };
 
 export function TeamSettings() {
-  const { members, isLoading, isAdmin, updateMember, removeMember } = useTeamMembers();
+  const { members, isLoading, isAdmin, isSuperAdmin, updateMember, removeMember, createUser } = useTeamMembers();
   const { profile } = useProfile();
   const [searchQuery, setSearchQuery] = useState("");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<EditingMember | null>(null);
   const [deletingMember, setDeletingMember] = useState<TeamMember | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -138,8 +141,14 @@ export function TeamSettings() {
     (member) =>
       member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       member.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      roleLabels[member.role].toLowerCase().includes(searchQuery.toLowerCase())
+      roleLabels[member.role].toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (member.organization_name && member.organization_name.toLowerCase().includes(searchQuery.toLowerCase()))
   );
+
+  const handleCreateUser = async (data: CreateUserFormData) => {
+    await createUser.mutateAsync(data);
+    setIsCreateDialogOpen(false);
+  };
 
   const handleOpenEdit = (member: TeamMember) => {
     setEditingMember({
@@ -223,7 +232,12 @@ export function TeamSettings() {
           </p>
         </div>
 
-        {isAdmin && (
+        {isSuperAdmin ? (
+          <Button size="sm" onClick={() => setIsCreateDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Criar Usuário
+          </Button>
+        ) : isAdmin ? (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -237,7 +251,7 @@ export function TeamSettings() {
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-        )}
+        ) : null}
       </div>
 
       {/* Search Bar */}
@@ -306,6 +320,15 @@ export function TeamSettings() {
                     ● {statusLabels[member.status]}
                   </span>
                 </div>
+                {isSuperAdmin && member.organization_name && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Organização</span>
+                    <span className="font-medium flex items-center gap-1">
+                      <Building2 className="h-3 w-3" />
+                      {member.organization_name}
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">Desde</span>
                   <span className="font-medium">{formatDate(member.created_at)}</span>
@@ -422,6 +445,13 @@ export function TeamSettings() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* Create User Dialog (Super Admin only) */}
+      <CreateUserDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        onSubmit={handleCreateUser}
+        isLoading={createUser.isPending}
+      />
     </div>
   );
 }

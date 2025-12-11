@@ -23,6 +23,7 @@ export type Database = {
           email: string | null
           id: string
           name: string
+          owner_id: string | null
           phone: string | null
           plan: string | null
         }
@@ -34,6 +35,7 @@ export type Database = {
           email?: string | null
           id?: string
           name: string
+          owner_id?: string | null
           phone?: string | null
           plan?: string | null
         }
@@ -45,6 +47,7 @@ export type Database = {
           email?: string | null
           id?: string
           name?: string
+          owner_id?: string | null
           phone?: string | null
           plan?: string | null
         }
@@ -423,6 +426,7 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_super_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "super_admin" | "org_admin" | "operator" | "viewer"
