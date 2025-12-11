@@ -5,26 +5,26 @@ export type UploadType = "sales" | "stock";
 
 // Colunas obrigatórias para planilha de Vendas (REVENUE)
 export const SALES_REQUIRED_COLUMNS = [
-  "ID do comerciante",
+  "Comerciante",
   "ID do dispositivo",
   "Número do pedido",
   "Nome do produto",
   "Número da transação",
   "Hora do pagamento",
-  "Valor (BRL)",
-  "Tipo de pagamento",
+  "Valor pago",
+  "Forma de pagamento",
   "Status",
-  "Valor do reembolso (BRL)",
+  "Valor reembolsado",
 ] as const;
 
 // Colunas obrigatórias para planilha de Estoque (REPORT-SLOT)
 export const STOCK_REQUIRED_COLUMNS = [
-  "Número de registro",
+  "Número",
   "Código da máquina",
-  "Número do slot",
-  "Nome do Produto",
-  "Quantidade",
-  "Se deve ativar",
+  "Número do compartimento",
+  "Nome do produto",
+  "Estoque",
+  "Ativado",
 ] as const;
 
 // Interface para resultado da validação
