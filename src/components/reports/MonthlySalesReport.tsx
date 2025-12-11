@@ -1,12 +1,7 @@
 import { useState } from "react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -21,17 +16,17 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar } from "recharts";
-import { Download, TrendingUp, TrendingDown, Calendar } from "lucide-react";
+import { Download, TrendingUp, TrendingDown, CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // Mock data
-const months = [
-  { value: "2024-12", label: "Dezembro 2024" },
-  { value: "2024-11", label: "Novembro 2024" },
-  { value: "2024-10", label: "Outubro 2024" },
-  { value: "2024-09", label: "Setembro 2024" },
-];
-
 const dailySales = Array.from({ length: 31 }, (_, i) => ({
   day: `${i + 1}`,
   revenue: Math.floor(Math.random() * 2000) + 800,
@@ -62,7 +57,10 @@ const chartConfig = {
 };
 
 export function MonthlySalesReport() {
-  const [selectedMonth, setSelectedMonth] = useState("2024-12");
+  const [startDate, setStartDate] = useState<Date | undefined>(
+    new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  );
+  const [endDate, setEndDate] = useState<Date | undefined>(new Date());
 
   const totalRevenue = dailySales.reduce((acc, curr) => acc + curr.revenue, 0);
   const totalTransactions = dailySales.reduce((acc, curr) => acc + curr.transactions, 0);
@@ -77,22 +75,64 @@ export function MonthlySalesReport() {
   return (
     <div className="space-y-6">
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-between">
-        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-          <SelectTrigger className="w-full sm:w-[200px]">
-            <Calendar className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Selecione o mês" />
-          </SelectTrigger>
-          <SelectContent>
-            {months.map((month) => (
-              <SelectItem key={month.value} value={month.value}>
-                {month.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                "w-full sm:w-[180px] justify-start text-left font-normal",
+                !startDate && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {startDate ? format(startDate, "dd/MM/yyyy", { locale: ptBR }) : "Data inicial"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={startDate}
+              onSelect={(date) => {
+                setStartDate(date);
+                if (date && endDate && date > endDate) {
+                  setEndDate(date);
+                }
+              }}
+              initialFocus
+              className="pointer-events-auto"
+              locale={ptBR}
+            />
+          </PopoverContent>
+        </Popover>
 
-        <Button variant="outline" className="gap-2">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                "w-full sm:w-[180px] justify-start text-left font-normal",
+                !endDate && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {endDate ? format(endDate, "dd/MM/yyyy", { locale: ptBR }) : "Data final"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={endDate}
+              onSelect={setEndDate}
+              disabled={(date) => (startDate ? date < startDate : false)}
+              initialFocus
+              className="pointer-events-auto"
+              locale={ptBR}
+            />
+          </PopoverContent>
+        </Popover>
+
+        <Button variant="outline" className="gap-2 sm:ml-auto">
           <Download className="h-4 w-4" />
           Exportar
         </Button>
