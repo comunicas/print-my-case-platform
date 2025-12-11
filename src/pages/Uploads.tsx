@@ -38,14 +38,11 @@ import {
   CheckCircle2,
   Loader2,
   AlertCircle,
-  RefreshCw,
   ExternalLink,
   Eye,
 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 import { UploadDialog } from "@/components/upload/UploadDialog";
 import {
-  Upload,
   UploadType,
   UploadStatus,
   uploadTypeLabels,
@@ -53,117 +50,30 @@ import {
 } from "@/lib/schemas/upload";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-
-const mockPdvs = [
-  { id: "1", name: "Shopping Ibirapuera", deviceId: "1001543" },
-  { id: "2", name: "Shopping Morumbi", deviceId: "1001544" },
-  { id: "3", name: "Shopping Center Norte", deviceId: "1001545" },
-  { id: "4", name: "Shopping Eldorado", deviceId: "1001546" },
-];
-
-const mockUploads: Upload[] = [
-  {
-    id: "1",
-    pdvId: "1",
-    pdvName: "Shopping Ibirapuera",
-    deviceId: "1001543",
-    type: "sales",
-    fileName: "REVENUE.xlsx",
-    status: "ready",
-    recordsCount: 87,
-    period: "Dez 2025",
-    uploadedBy: "João Silva",
-    uploadedAt: new Date("2025-12-09T10:30:00"),
-    processedAt: new Date("2025-12-09T10:32:00"),
-  },
-  {
-    id: "2",
-    pdvId: "1",
-    pdvName: "Shopping Ibirapuera",
-    deviceId: "1001543",
-    type: "stock",
-    fileName: "REPORT-SLOT.xlsx",
-    status: "ready",
-    recordsCount: 86,
-    period: "Dez 2025",
-    uploadedBy: "Maria Santos",
-    uploadedAt: new Date("2025-12-10T09:15:00"),
-    processedAt: new Date("2025-12-10T09:17:00"),
-  },
-  {
-    id: "3",
-    pdvId: "2",
-    pdvName: "Shopping Morumbi",
-    deviceId: "1001544",
-    type: "sales",
-    fileName: "REVENUE_NOV.xlsx",
-    status: "processing",
-    period: "Nov 2025",
-    uploadedBy: "Carlos Oliveira",
-    uploadedAt: new Date("2025-12-10T14:00:00"),
-  },
-  {
-    id: "4",
-    pdvId: "3",
-    pdvName: "Shopping Center Norte",
-    deviceId: "1001545",
-    type: "sales",
-    fileName: "Link do Drive",
-    driveUrl: "https://drive.google.com/spreadsheets/d/abc123",
-    status: "error",
-    period: "Nov 2025",
-    uploadedBy: "Ana Costa",
-    uploadedAt: new Date("2025-12-08T16:45:00"),
-    errorMessage: "Formato de arquivo inválido. Verifique se a planilha possui as colunas obrigatórias.",
-  },
-  {
-    id: "5",
-    pdvId: "4",
-    pdvName: "Shopping Eldorado",
-    deviceId: "1001546",
-    type: "stock",
-    fileName: "REPORT-SLOT_DEZ.xlsx",
-    status: "ready",
-    recordsCount: 120,
-    period: "Dez 2025",
-    uploadedBy: "Pedro Lima",
-    uploadedAt: new Date("2025-12-07T11:20:00"),
-    processedAt: new Date("2025-12-07T11:23:00"),
-  },
-  {
-    id: "6",
-    pdvId: "2",
-    pdvName: "Shopping Morumbi",
-    deviceId: "1001544",
-    type: "stock",
-    fileName: "REPORT-SLOT.xlsx",
-    status: "ready",
-    recordsCount: 95,
-    period: "Nov 2025",
-    uploadedBy: "Fernanda Souza",
-    uploadedAt: new Date("2025-12-05T08:00:00"),
-    processedAt: new Date("2025-12-05T08:02:00"),
-  },
-];
+import { useUploads, UploadWithRelations } from "@/hooks/useUploads";
+import { usePDVs } from "@/hooks/usePDVs";
+import { useProfile } from "@/hooks/useProfile";
 
 export default function Uploads() {
   const navigate = useNavigate();
-  const [uploads, setUploads] = useState<Upload[]>(mockUploads);
+  const { uploads, isLoading, createUpload, deleteUpload } = useUploads();
+  const { pdvs, isLoading: pdvsLoading } = usePDVs();
+  const { isAdmin } = useProfile();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [filterPdv, setFilterPdv] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [deletingUpload, setDeletingUpload] = useState<Upload | null>(null);
-  const { toast } = useToast();
+  const [deletingUpload, setDeletingUpload] = useState<UploadWithRelations | null>(null);
 
   const filteredUploads = uploads.filter((upload) => {
     const matchesSearch =
-      upload.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      upload.pdvName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      upload.file_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      upload.pdv.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       upload.period?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesPdv = filterPdv === "all" || upload.pdvId === filterPdv;
+    const matchesPdv = filterPdv === "all" || upload.pdv_id === filterPdv;
     const matchesType = filterType === "all" || upload.type === filterType;
     const matchesStatus = filterStatus === "all" || upload.status === filterStatus;
 
@@ -177,51 +87,21 @@ export default function Uploads() {
     file?: File;
     driveUrl?: string;
   }) => {
-    const pdv = mockPdvs.find((p) => p.id === data.pdvId);
-    if (!pdv) return;
-
-    const newUpload: Upload = {
-      id: String(Date.now()),
-      pdvId: data.pdvId,
-      pdvName: pdv.name,
-      deviceId: pdv.deviceId,
-      type: data.type,
-      fileName: data.file?.name || "Link do Drive",
-      driveUrl: data.driveUrl,
-      status: "processing",
-      period: data.period,
-      uploadedBy: "Usuário Atual",
-      uploadedAt: new Date(),
-    };
-
-    setUploads([newUpload, ...uploads]);
-    toast({
-      title: "Upload iniciado",
-      description: `Processando ${uploadTypeLabels[data.type].toLowerCase()} de ${pdv.name}`,
-    });
-
-    // Simulate processing completion after 3 seconds
-    setTimeout(() => {
-      setUploads((prev) =>
-        prev.map((u) =>
-          u.id === newUpload.id
-            ? {
-                ...u,
-                status: "ready" as UploadStatus,
-                recordsCount: Math.floor(Math.random() * 100) + 50,
-                processedAt: new Date(),
-              }
-            : u
-        )
-      );
-      toast({
-        title: "Upload concluído",
-        description: `${uploadTypeLabels[data.type]} processado com sucesso.`,
-      });
-    }, 3000);
+    createUpload.mutate(
+      {
+        pdv_id: data.pdvId,
+        type: data.type,
+        period: data.period,
+        file: data.file,
+        drive_url: data.driveUrl,
+      },
+      {
+        onSuccess: () => setIsUploadDialogOpen(false),
+      }
+    );
   };
 
-  const handleOpenDelete = (upload: Upload) => {
+  const handleOpenDelete = (upload: UploadWithRelations) => {
     setDeletingUpload(upload);
     setIsDeleteDialogOpen(true);
   };
@@ -229,42 +109,12 @@ export default function Uploads() {
   const handleDeleteUpload = () => {
     if (!deletingUpload) return;
 
-    setUploads(uploads.filter((u) => u.id !== deletingUpload.id));
-    setIsDeleteDialogOpen(false);
-    toast({
-      title: "Upload excluído",
-      description: `${deletingUpload.fileName} foi removido.`,
+    deleteUpload.mutate(deletingUpload.id, {
+      onSuccess: () => {
+        setIsDeleteDialogOpen(false);
+        setDeletingUpload(null);
+      },
     });
-    setDeletingUpload(null);
-  };
-
-  const handleReprocess = (upload: Upload) => {
-    setUploads((prev) =>
-      prev.map((u) =>
-        u.id === upload.id
-          ? { ...u, status: "processing" as UploadStatus, errorMessage: undefined }
-          : u
-      )
-    );
-    toast({
-      title: "Reprocessando",
-      description: `${upload.fileName} será processado novamente.`,
-    });
-
-    setTimeout(() => {
-      setUploads((prev) =>
-        prev.map((u) =>
-          u.id === upload.id
-            ? {
-                ...u,
-                status: "ready" as UploadStatus,
-                recordsCount: Math.floor(Math.random() * 100) + 50,
-                processedAt: new Date(),
-              }
-            : u
-        )
-      );
-    }, 3000);
   };
 
   const getStatusIcon = (status: UploadStatus) => {
@@ -307,6 +157,18 @@ export default function Uploads() {
     }
   };
 
+  if (isLoading || pdvsLoading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  const activePdvs = pdvs.filter((p) => p.status === "active");
+
   return (
     <AppLayout>
       <div className="space-y-4 md:space-y-6">
@@ -321,7 +183,11 @@ export default function Uploads() {
             </p>
           </div>
 
-          <Button className="w-full sm:w-auto" onClick={() => setIsUploadDialogOpen(true)}>
+          <Button 
+            className="w-full sm:w-auto" 
+            onClick={() => setIsUploadDialogOpen(true)}
+            disabled={activePdvs.length === 0}
+          >
             <Plus className="h-4 w-4 mr-2" />
             Novo Upload
           </Button>
@@ -346,7 +212,7 @@ export default function Uploads() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os PDVs</SelectItem>
-                {mockPdvs.map((pdv) => (
+                {pdvs.map((pdv) => (
                   <SelectItem key={pdv.id} value={pdv.id}>
                     {pdv.name}
                   </SelectItem>
@@ -399,7 +265,7 @@ export default function Uploads() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <h3 className="font-semibold text-sm truncate">
-                          {upload.pdvName}
+                          {upload.pdv.name}
                         </h3>
                         <p className="text-xs text-muted-foreground truncate">
                           {upload.period}
@@ -413,11 +279,11 @@ export default function Uploads() {
                     <div className="flex items-center gap-2 mt-2">
                       <FileSpreadsheet className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                       <span className="text-xs text-muted-foreground truncate">
-                        {upload.fileName}
+                        {upload.file_name}
                       </span>
-                      {upload.driveUrl && (
+                      {upload.drive_url && (
                         <a
-                          href={upload.driveUrl}
+                          href={upload.drive_url}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-primary hover:text-primary/80"
@@ -439,17 +305,17 @@ export default function Uploads() {
                             >
                               {getStatusIcon(upload.status)}
                               {uploadStatusLabels[upload.status]}
-                              {upload.status === "ready" && upload.recordsCount && (
-                                <span className="ml-1">({upload.recordsCount})</span>
+                              {upload.status === "ready" && upload.records_count && (
+                                <span className="ml-1">({upload.records_count})</span>
                               )}
                             </Badge>
                           </TooltipTrigger>
-                          {upload.status === "error" && upload.errorMessage && (
+                          {upload.status === "error" && upload.error_message && (
                             <TooltipContent
                               side="top"
                               className="max-w-xs"
                             >
-                              <p className="text-xs">{upload.errorMessage}</p>
+                              <p className="text-xs">{upload.error_message}</p>
                             </TooltipContent>
                           )}
                         </Tooltip>
@@ -458,23 +324,13 @@ export default function Uploads() {
 
                     <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
                       <span className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(upload.uploadedAt, {
+                        {formatDistanceToNow(new Date(upload.uploaded_at), {
                           addSuffix: true,
                           locale: ptBR,
                         })}
                       </span>
 
                       <div className="flex gap-1">
-                        {upload.status === "error" && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => handleReprocess(upload)}
-                          >
-                            <RefreshCw className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
                         {upload.status === "ready" && (
                           <Button
                             variant="ghost"
@@ -485,14 +341,17 @@ export default function Uploads() {
                             <Eye className="h-3.5 w-3.5" />
                           </Button>
                         )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => handleOpenDelete(upload)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        {isAdmin && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleOpenDelete(upload)}
+                            disabled={deleteUpload.isPending}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -522,8 +381,13 @@ export default function Uploads() {
       <UploadDialog
         open={isUploadDialogOpen}
         onOpenChange={setIsUploadDialogOpen}
-        pdvOptions={mockPdvs}
+        pdvOptions={activePdvs.map((p) => ({
+          id: p.id,
+          name: p.name,
+          machine_id: p.machine_id,
+        }))}
         onSubmit={handleUploadSubmit}
+        isSubmitting={createUpload.isPending}
       />
 
       {/* Delete Dialog */}
@@ -532,16 +396,22 @@ export default function Uploads() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir o upload "{deletingUpload?.fileName}" de{" "}
-              {deletingUpload?.pdvName}? Esta ação não pode ser desfeita.
+              Tem certeza que deseja excluir o upload "{deletingUpload?.file_name}" de{" "}
+              {deletingUpload?.pdv.name}? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteUpload.isPending}>
+              Cancelar
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteUpload}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteUpload.isPending}
             >
+              {deleteUpload.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
