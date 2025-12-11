@@ -281,15 +281,26 @@ export function SalesUnitReport() {
       <div className="grid gap-6 grid-cols-1 xl:grid-cols-2">
         {/* Bar Chart - Revenue by PDV */}
         <Card>
-          <CardHeader>
-            <CardTitle>Receita por PDV</CardTitle>
+          <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
+            <CardTitle className="text-base md:text-lg">Receita por PDV</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
             <ChartContainer config={chartConfig} className="h-[300px] w-full">
-              <BarChart data={salesByPdv} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                <XAxis type="number" tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
-                <YAxis type="category" dataKey="pdv" width={100} />
+              <BarChart data={salesByPdv} layout="vertical" margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} className="stroke-muted" />
+                <XAxis 
+                  type="number" 
+                  className="text-xs" 
+                  tick={{ fill: "hsl(var(--muted-foreground))" }} 
+                  tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} 
+                />
+                <YAxis 
+                  type="category" 
+                  dataKey="pdv" 
+                  width={100} 
+                  className="text-xs" 
+                  tick={{ fill: "hsl(var(--muted-foreground))" }} 
+                />
                 <ChartTooltip
                   content={
                     <ChartTooltipContent
@@ -310,15 +321,23 @@ export function SalesUnitReport() {
 
         {/* Line Chart - Evolution */}
         <Card>
-          <CardHeader>
-            <CardTitle>Evolução por Período</CardTitle>
+          <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
+            <CardTitle className="text-base md:text-lg">Evolução por Período</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
             <ChartContainer config={chartConfig} className="h-[300px] w-full">
-              <LineChart data={evolutionData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+              <LineChart data={evolutionData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis 
+                  dataKey="month" 
+                  className="text-xs" 
+                  tick={{ fill: "hsl(var(--muted-foreground))" }} 
+                />
+                <YAxis 
+                  className="text-xs" 
+                  tick={{ fill: "hsl(var(--muted-foreground))" }} 
+                  tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} 
+                />
                 <ChartTooltip
                   content={
                     <ChartTooltipContent
@@ -343,10 +362,10 @@ export function SalesUnitReport() {
 
       {/* Table */}
       <Card>
-        <CardHeader>
-          <CardTitle>Detalhamento por Unidade</CardTitle>
+        <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
+          <CardTitle className="text-base md:text-lg">Detalhamento por Unidade</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
           <Table>
             <TableHeader>
               <TableRow>

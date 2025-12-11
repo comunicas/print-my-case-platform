@@ -274,24 +274,30 @@ export function ProductsReport() {
       <div className="grid gap-6 grid-cols-1 xl:grid-cols-2">
         {/* Bar Chart - Top/Bottom Products */}
         <Card>
-          <CardHeader>
-            <CardTitle>
+          <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
+            <CardTitle className="text-base md:text-lg">
               {viewMode === "top" ? "Top 8 Produtos" : "Bottom 5 Produtos"}
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
             <ChartContainer config={chartConfig} className="h-[350px] w-full">
               <BarChart
                 data={viewMode === "top" ? topProducts : bottomProducts}
                 layout="vertical"
+                margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
               >
-                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                <XAxis type="number" />
+                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} className="stroke-muted" />
+                <XAxis 
+                  type="number" 
+                  className="text-xs" 
+                  tick={{ fill: "hsl(var(--muted-foreground))" }} 
+                />
                 <YAxis
                   type="category"
                   dataKey="name"
                   width={120}
-                  tick={{ fontSize: 12 }}
+                  className="text-xs"
+                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
                 />
                 <ChartTooltip
                   content={
@@ -312,10 +318,10 @@ export function ProductsReport() {
 
         {/* Pie Chart - Categories */}
         <Card>
-          <CardHeader>
-            <CardTitle>Vendas por Categoria</CardTitle>
+          <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
+            <CardTitle className="text-base md:text-lg">Vendas por Categoria</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
             <ChartContainer config={chartConfig} className="h-[350px] w-full">
               <PieChart>
                 <ChartTooltip
@@ -343,12 +349,12 @@ export function ProductsReport() {
 
       {/* Table */}
       <Card>
-        <CardHeader>
-          <CardTitle>
+        <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
+          <CardTitle className="text-base md:text-lg">
             {viewMode === "top" ? "Produtos Mais Vendidos" : "Produtos com Baixa Performance"}
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
           <Table>
             <TableHeader>
               <TableRow>
