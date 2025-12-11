@@ -24,8 +24,11 @@ export function useTeamMembers() {
   const isSuperAdmin = role === "super_admin";
 
   const teamQuery = useQuery({
-    queryKey: ["team-members", profile?.organization_id, isSuperAdmin],
+    queryKey: ["team-members", profile?.organization_id, isSuperAdmin, isAdmin],
     queryFn: async () => {
+      // Only admins can list team members (RLS enforced)
+      if (!isAdmin) return [];
+      
       // Super admin sees all users, others see only their organization
       let profilesQuery = supabase
         .from("profiles")
@@ -40,6 +43,7 @@ export function useTeamMembers() {
       const { data: profiles, error: profilesError } = await profilesQuery;
 
       if (profilesError) throw profilesError;
+      if (!profiles || profiles.length === 0) return [];
 
       // Then get roles for each profile
       const profileIds = profiles.map(p => p.id);
@@ -69,7 +73,7 @@ export function useTeamMembers() {
 
       return members;
     },
-    enabled: !!profile?.id,
+    enabled: !!profile?.id && isAdmin,
   });
 
   const createUser = useMutation({

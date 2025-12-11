@@ -21,9 +21,11 @@ export function useOrganization() {
   const queryClient = useQueryClient();
 
   const organizationQuery = useQuery({
-    queryKey: ["organization", profile?.organization_id],
+    queryKey: ["organization", profile?.organization_id, isAdmin],
     queryFn: async () => {
       if (!profile?.organization_id) return null;
+      // Only admins can access organization data (RLS enforced)
+      if (!isAdmin) return null;
       
       const { data, error } = await supabase
         .from("organizations")
@@ -31,10 +33,14 @@ export function useOrganization() {
         .eq("id", profile.organization_id)
         .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        // Handle case where user doesn't have access
+        if (error.code === "PGRST116") return null;
+        throw error;
+      }
       return data as Organization | null;
     },
-    enabled: !!profile?.organization_id,
+    enabled: !!profile?.organization_id && isAdmin,
   });
 
   const updateOrganization = useMutation({
