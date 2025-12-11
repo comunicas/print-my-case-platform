@@ -12,7 +12,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -24,7 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Users, Search, Pencil, Trash2, Mail } from "lucide-react";
+import { Plus, Users, Search, Pencil, Trash2, Mail, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TeamMemberForm } from "@/components/team/TeamMemberForm";
 import {
@@ -42,66 +41,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useTeamMembers, TeamMember } from "@/hooks/useTeamMembers";
+import { useProfile } from "@/hooks/useProfile";
 
-interface TeamMember {
+interface EditingMember {
   id: string;
   name: string;
   email: string;
   role: TeamMemberRole;
   status: TeamMemberStatus;
-  createdAt: string;
 }
-
-const mockTeamMembers: TeamMember[] = [
-  {
-    id: "1",
-    name: "Carlos Silva",
-    email: "carlos@printmycase.com",
-    role: "super_admin",
-    status: "active",
-    createdAt: "2024-01-15",
-  },
-  {
-    id: "2",
-    name: "Maria Santos",
-    email: "maria@printmycase.com",
-    role: "org_admin",
-    status: "active",
-    createdAt: "2024-02-20",
-  },
-  {
-    id: "3",
-    name: "João Oliveira",
-    email: "joao@printmycase.com",
-    role: "operator",
-    status: "active",
-    createdAt: "2024-03-10",
-  },
-  {
-    id: "4",
-    name: "Ana Costa",
-    email: "ana@printmycase.com",
-    role: "operator",
-    status: "pending",
-    createdAt: "2024-05-01",
-  },
-  {
-    id: "5",
-    name: "Pedro Ferreira",
-    email: "pedro@printmycase.com",
-    role: "viewer",
-    status: "active",
-    createdAt: "2024-04-15",
-  },
-  {
-    id: "6",
-    name: "Lucia Mendes",
-    email: "lucia@printmycase.com",
-    role: "viewer",
-    status: "inactive",
-    createdAt: "2024-03-25",
-  },
-];
 
 const getRoleBadgeClass = (role: TeamMemberRole): string => {
   switch (role) {
@@ -152,19 +101,13 @@ const formatDate = (dateStr: string): string => {
 };
 
 export default function Team() {
-  const [members, setMembers] = useState<TeamMember[]>(mockTeamMembers);
+  const { members, isLoading, isAdmin, updateMember, removeMember } = useTeamMembers();
+  const { profile } = useProfile();
   const [searchQuery, setSearchQuery] = useState("");
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
+  const [editingMember, setEditingMember] = useState<EditingMember | null>(null);
   const [deletingMember, setDeletingMember] = useState<TeamMember | null>(null);
-  const [newMember, setNewMember] = useState<TeamMemberFormData>({
-    name: "",
-    email: "",
-    role: "operator",
-    status: "pending",
-  });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
@@ -179,17 +122,6 @@ export default function Team() {
         }
       });
       setFormErrors(errors);
-      return false;
-    }
-
-    const isDuplicate = members.some(
-      (m) =>
-        m.email.toLowerCase() === data.email.toLowerCase() &&
-        m.id !== excludeId
-    );
-
-    if (isDuplicate) {
-      setFormErrors({ email: "Este email já está em uso" });
       return false;
     }
 
@@ -210,33 +142,14 @@ export default function Team() {
       roleLabels[member.role].toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleCreateMember = () => {
-    if (!validateForm(newMember)) {
-      return;
-    }
-
-    const member: TeamMember = {
-      id: String(Date.now()),
-      name: newMember.name.trim(),
-      email: newMember.email.trim(),
-      role: newMember.role,
-      status: newMember.status,
-      createdAt: new Date().toISOString().split("T")[0],
-    };
-
-    setMembers([...members, member]);
-    setNewMember({ name: "", email: "", role: "operator", status: "pending" });
-    clearFormErrors();
-    setIsCreateDialogOpen(false);
-
-    toast({
-      title: "Membro adicionado",
-      description: `${member.name} foi adicionado à equipe.`,
-    });
-  };
-
   const handleOpenEdit = (member: TeamMember) => {
-    setEditingMember({ ...member });
+    setEditingMember({
+      id: member.id,
+      name: member.name,
+      email: member.email,
+      role: member.role,
+      status: member.status,
+    });
     clearFormErrors();
     setIsEditDialogOpen(true);
   };
@@ -248,20 +161,17 @@ export default function Team() {
       return;
     }
 
-    const updatedMember = {
-      ...editingMember,
+    updateMember.mutate({
+      userId: editingMember.id,
       name: editingMember.name.trim(),
-      email: editingMember.email.trim(),
-    };
-
-    setMembers(members.map((m) => (m.id === updatedMember.id ? updatedMember : m)));
-    clearFormErrors();
-    setIsEditDialogOpen(false);
-    setEditingMember(null);
-
-    toast({
-      title: "Membro atualizado",
-      description: `${updatedMember.name} foi atualizado com sucesso.`,
+      role: editingMember.role,
+      status: editingMember.status,
+    }, {
+      onSuccess: () => {
+        clearFormErrors();
+        setIsEditDialogOpen(false);
+        setEditingMember(null);
+      }
     });
   };
 
@@ -273,16 +183,35 @@ export default function Team() {
   const handleDeleteMember = () => {
     if (!deletingMember) return;
 
-    setMembers(members.filter((m) => m.id !== deletingMember.id));
-    setIsDeleteDialogOpen(false);
+    // Prevent self-removal
+    if (deletingMember.id === profile?.id) {
+      toast({
+        title: "Ação não permitida",
+        description: "Você não pode remover a si mesmo.",
+        variant: "destructive",
+      });
+      setIsDeleteDialogOpen(false);
+      setDeletingMember(null);
+      return;
+    }
 
-    toast({
-      title: "Membro removido",
-      description: `${deletingMember.name} foi removido da equipe.`,
+    removeMember.mutate(deletingMember.id, {
+      onSuccess: () => {
+        setIsDeleteDialogOpen(false);
+        setDeletingMember(null);
+      }
     });
-
-    setDeletingMember(null);
   };
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -298,41 +227,21 @@ export default function Team() {
             </p>
           </div>
 
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="w-full sm:w-auto">
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar Membro
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Novo Membro</DialogTitle>
-                <DialogDescription>
-                  Adicione um novo membro à equipe.
-                </DialogDescription>
-              </DialogHeader>
-              <TeamMemberForm
-                values={newMember}
-                onChange={setNewMember}
-                errors={formErrors}
-                onClearError={handleClearError}
-                idPrefix="create-"
-              />
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsCreateDialogOpen(false);
-                    clearFormErrors();
-                  }}
-                >
-                  Cancelar
-                </Button>
-                <Button onClick={handleCreateMember}>Adicionar</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          {isAdmin && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button disabled className="w-full sm:w-auto">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar Membro
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Em breve: sistema de convites por email</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
 
         {/* Search Bar */}
@@ -403,27 +312,36 @@ export default function Team() {
                   </div>
                   <div className="flex items-center justify-between text-xs md:text-sm">
                     <span className="text-muted-foreground">Desde</span>
-                    <span className="font-medium">{formatDate(member.createdAt)}</span>
+                    <span className="font-medium">{formatDate(member.created_at)}</span>
                   </div>
-                  <div className="flex gap-2 mt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => handleOpenEdit(member)}
-                    >
-                      <Pencil className="h-4 w-4 mr-2" />
-                      Editar
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => handleOpenDelete(member)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  {isAdmin && (
+                    <div className="flex gap-2 mt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => handleOpenEdit(member)}
+                      >
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Editar
+                      </Button>
+                      {member.id !== profile?.id && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => handleOpenDelete(member)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                  {member.id === profile?.id && (
+                    <Badge variant="outline" className="mt-2 text-xs">
+                      Você
+                    </Badge>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -440,7 +358,7 @@ export default function Team() {
             <p className="text-sm text-muted-foreground mt-1">
               {searchQuery
                 ? "Tente ajustar sua busca."
-                : "Adicione o primeiro membro da equipe."}
+                : "Nenhum membro na organização."}
             </p>
           </div>
         )}
@@ -462,6 +380,7 @@ export default function Team() {
               errors={formErrors}
               onClearError={handleClearError}
               idPrefix="edit-"
+              disabledFields={["email"]}
             />
           )}
           <DialogFooter>
@@ -474,7 +393,13 @@ export default function Team() {
             >
               Cancelar
             </Button>
-            <Button onClick={handleEditMember}>Salvar Alterações</Button>
+            <Button 
+              onClick={handleEditMember}
+              disabled={updateMember.isPending}
+            >
+              {updateMember.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Salvar Alterações
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -485,16 +410,18 @@ export default function Team() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar remoção</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja remover "{deletingMember?.name}" da equipe? Esta
-              ação não pode ser desfeita.
+              Tem certeza que deseja remover "{deletingMember?.name}" da organização? 
+              O usuário perderá acesso ao sistema.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteMember}
+              disabled={removeMember.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
+              {removeMember.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Remover
             </AlertDialogAction>
           </AlertDialogFooter>

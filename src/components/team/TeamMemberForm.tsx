@@ -15,6 +15,7 @@ interface TeamMemberFormProps {
   errors: Record<string, string>;
   onClearError: (field: string) => void;
   idPrefix?: string;
+  disabledFields?: string[];
 }
 
 export function TeamMemberForm({
@@ -23,6 +24,7 @@ export function TeamMemberForm({
   errors,
   onClearError,
   idPrefix = "",
+  disabledFields = [],
 }: TeamMemberFormProps) {
   const handleChange = (field: keyof TeamMemberFormData, value: string) => {
     onChange({ ...values, [field]: value });
@@ -40,6 +42,7 @@ export function TeamMemberForm({
           placeholder="Nome completo"
           value={values.name}
           onChange={(e) => handleChange("name", e.target.value)}
+          disabled={disabledFields.includes("name")}
           className={errors.name ? "border-destructive" : ""}
         />
         {errors.name && (
@@ -55,7 +58,8 @@ export function TeamMemberForm({
           placeholder="email@exemplo.com"
           value={values.email}
           onChange={(e) => handleChange("email", e.target.value)}
-          className={errors.email ? "border-destructive" : ""}
+          disabled={disabledFields.includes("email")}
+          className={`${errors.email ? "border-destructive" : ""} ${disabledFields.includes("email") ? "bg-muted" : ""}`}
         />
         {errors.email && (
           <p className="text-sm text-destructive">{errors.email}</p>
@@ -67,6 +71,7 @@ export function TeamMemberForm({
         <Select
           value={values.role}
           onValueChange={(value) => handleChange("role", value)}
+          disabled={disabledFields.includes("role")}
         >
           <SelectTrigger
             id={`${idPrefix}role`}
@@ -94,6 +99,7 @@ export function TeamMemberForm({
         <Select
           value={values.status}
           onValueChange={(value) => handleChange("status", value)}
+          disabled={disabledFields.includes("status")}
         >
           <SelectTrigger
             id={`${idPrefix}status`}
