@@ -23,85 +23,29 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, MapPin, TrendingUp, Search, Pencil, Trash2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Plus, MapPin, Search, Pencil, Trash2, Loader2 } from "lucide-react";
 import { PDVForm } from "@/components/pdv/PDVForm";
 import { pdvFormSchema, PDVFormData } from "@/lib/schemas/pdv";
+import { usePDVs, PDV } from "@/hooks/usePDVs";
+import { useProfile } from "@/hooks/useProfile";
 
-interface PDV {
+interface EditingPDV {
   id: string;
   name: string;
   location: string;
-  status: "active" | "inactive";
   machineId: string;
-  revenue: string;
-  transactions: number;
+  status: "active" | "inactive";
 }
 
-const mockPDVs: PDV[] = [
-  {
-    id: "1",
-    name: "Shopping Ibirapuera",
-    location: "São Paulo - SP",
-    status: "active",
-    machineId: "PMC-001",
-    revenue: "R$ 12.450",
-    transactions: 342,
-  },
-  {
-    id: "2",
-    name: "Shopping Morumbi",
-    location: "São Paulo - SP",
-    status: "active",
-    machineId: "PMC-002",
-    revenue: "R$ 9.230",
-    transactions: 256,
-  },
-  {
-    id: "3",
-    name: "Shopping Center Norte",
-    location: "São Paulo - SP",
-    status: "inactive",
-    machineId: "PMC-003",
-    revenue: "R$ 0",
-    transactions: 0,
-  },
-  {
-    id: "4",
-    name: "Shopping Eldorado",
-    location: "São Paulo - SP",
-    status: "active",
-    machineId: "PMC-004",
-    revenue: "R$ 15.780",
-    transactions: 428,
-  },
-  {
-    id: "5",
-    name: "Shopping Pátio Paulista",
-    location: "São Paulo - SP",
-    status: "active",
-    machineId: "PMC-005",
-    revenue: "R$ 7.650",
-    transactions: 198,
-  },
-  {
-    id: "6",
-    name: "Shopping Aricanduva",
-    location: "São Paulo - SP",
-    status: "active",
-    machineId: "PMC-006",
-    revenue: "R$ 5.320",
-    transactions: 145,
-  },
-];
-
 export default function PDVs() {
-  const [pdvs, setPdvs] = useState<PDV[]>(mockPDVs);
+  const { pdvs, isLoading, createPDV, updatePDV, deletePDV } = usePDVs();
+  const { isAdmin } = useProfile();
+  
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [editingPdv, setEditingPdv] = useState<PDV | null>(null);
+  const [editingPdv, setEditingPdv] = useState<EditingPDV | null>(null);
   const [deletingPdv, setDeletingPdv] = useState<PDV | null>(null);
   const [newPdv, setNewPdv] = useState<PDVFormData>({
     name: "",
@@ -110,7 +54,6 @@ export default function PDVs() {
     status: "active",
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const { toast } = useToast();
 
   const validateForm = (data: PDVFormData, excludeId?: string): boolean => {
     const result = pdvFormSchema.safeParse(data);
@@ -128,7 +71,7 @@ export default function PDVs() {
 
     const isDuplicate = pdvs.some(
       (p) =>
-        p.machineId.toLowerCase() === data.machineId.toLowerCase() &&
+        p.machine_id.toLowerCase() === data.machineId.toLowerCase() &&
         p.id !== excludeId
     );
 
@@ -151,64 +94,61 @@ export default function PDVs() {
     (pdv) =>
       pdv.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       pdv.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      pdv.machineId.toLowerCase().includes(searchQuery.toLowerCase())
+      pdv.machine_id.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleCreatePdv = () => {
-    if (!validateForm(newPdv)) {
-      return;
-    }
+    if (!validateForm(newPdv)) return;
 
-    const pdv: PDV = {
-      id: String(Date.now()),
-      name: newPdv.name.trim(),
-      location: newPdv.location.trim(),
-      machineId: newPdv.machineId.trim(),
-      status: newPdv.status,
-      revenue: "R$ 0",
-      transactions: 0,
-    };
-
-    setPdvs([...pdvs, pdv]);
-    setNewPdv({ name: "", location: "", machineId: "", status: "active" });
-    clearFormErrors();
-    setIsCreateDialogOpen(false);
-
-    toast({
-      title: "PDV criado",
-      description: `${pdv.name} foi adicionado com sucesso.`,
-    });
+    createPDV.mutate(
+      {
+        name: newPdv.name.trim(),
+        location: newPdv.location.trim(),
+        machine_id: newPdv.machineId.trim(),
+        status: newPdv.status,
+      },
+      {
+        onSuccess: () => {
+          setNewPdv({ name: "", location: "", machineId: "", status: "active" });
+          clearFormErrors();
+          setIsCreateDialogOpen(false);
+        },
+      }
+    );
   };
 
   const handleOpenEdit = (pdv: PDV) => {
-    setEditingPdv({ ...pdv });
+    setEditingPdv({
+      id: pdv.id,
+      name: pdv.name,
+      location: pdv.location,
+      machineId: pdv.machine_id,
+      status: pdv.status,
+    });
     clearFormErrors();
     setIsEditDialogOpen(true);
   };
 
   const handleEditPdv = () => {
     if (!editingPdv) return;
+    if (!validateForm(editingPdv, editingPdv.id)) return;
 
-    if (!validateForm(editingPdv, editingPdv.id)) {
-      return;
-    }
-
-    const updatedPdv = {
-      ...editingPdv,
-      name: editingPdv.name.trim(),
-      location: editingPdv.location.trim(),
-      machineId: editingPdv.machineId.trim(),
-    };
-
-    setPdvs(pdvs.map((p) => (p.id === updatedPdv.id ? updatedPdv : p)));
-    clearFormErrors();
-    setIsEditDialogOpen(false);
-    setEditingPdv(null);
-
-    toast({
-      title: "PDV atualizado",
-      description: `${updatedPdv.name} foi atualizado com sucesso.`,
-    });
+    updatePDV.mutate(
+      {
+        id: editingPdv.id,
+        name: editingPdv.name.trim(),
+        location: editingPdv.location.trim(),
+        machine_id: editingPdv.machineId.trim(),
+        status: editingPdv.status,
+      },
+      {
+        onSuccess: () => {
+          clearFormErrors();
+          setIsEditDialogOpen(false);
+          setEditingPdv(null);
+        },
+      }
+    );
   };
 
   const handleOpenDelete = (pdv: PDV) => {
@@ -219,16 +159,23 @@ export default function PDVs() {
   const handleDeletePdv = () => {
     if (!deletingPdv) return;
 
-    setPdvs(pdvs.filter((p) => p.id !== deletingPdv.id));
-    setIsDeleteDialogOpen(false);
-
-    toast({
-      title: "PDV excluído",
-      description: `${deletingPdv.name} foi removido.`,
+    deletePDV.mutate(deletingPdv.id, {
+      onSuccess: () => {
+        setIsDeleteDialogOpen(false);
+        setDeletingPdv(null);
+      },
     });
-
-    setDeletingPdv(null);
   };
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -244,41 +191,48 @@ export default function PDVs() {
             </p>
           </div>
 
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="w-full sm:w-auto">
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar PDV
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Novo Ponto de Venda</DialogTitle>
-                <DialogDescription>
-                  Adicione um novo PDV para sua organização.
-                </DialogDescription>
-              </DialogHeader>
-              <PDVForm
-                values={newPdv}
-                onChange={setNewPdv}
-                errors={formErrors}
-                onClearError={handleClearError}
-                idPrefix="create-"
-              />
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsCreateDialogOpen(false);
-                    clearFormErrors();
-                  }}
-                >
-                  Cancelar
+          {isAdmin && (
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="w-full sm:w-auto">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Adicionar PDV
                 </Button>
-                <Button onClick={handleCreatePdv}>Criar PDV</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Novo Ponto de Venda</DialogTitle>
+                  <DialogDescription>
+                    Adicione um novo PDV para sua organização.
+                  </DialogDescription>
+                </DialogHeader>
+                <PDVForm
+                  values={newPdv}
+                  onChange={setNewPdv}
+                  errors={formErrors}
+                  onClearError={handleClearError}
+                  idPrefix="create-"
+                />
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsCreateDialogOpen(false);
+                      clearFormErrors();
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button onClick={handleCreatePdv} disabled={createPDV.isPending}>
+                    {createPDV.isPending && (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    )}
+                    Criar PDV
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
 
         {/* Search Bar */}
@@ -319,38 +273,29 @@ export default function PDVs() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-xs md:text-sm">
                     <span className="text-muted-foreground">ID Máquina</span>
-                    <span className="font-medium">{pdv.machineId}</span>
+                    <span className="font-medium">{pdv.machine_id}</span>
                   </div>
-                  <div className="flex items-center justify-between text-xs md:text-sm">
-                    <span className="text-muted-foreground">Faturamento</span>
-                    <span className="font-semibold text-primary flex items-center gap-1">
-                      <TrendingUp className="h-3 w-3" />
-                      {pdv.revenue}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs md:text-sm">
-                    <span className="text-muted-foreground">Transações</span>
-                    <span className="font-medium">{pdv.transactions}</span>
-                  </div>
-                  <div className="flex gap-2 mt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => handleOpenEdit(pdv)}
-                    >
-                      <Pencil className="h-4 w-4 mr-2" />
-                      Editar
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => handleOpenDelete(pdv)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  {isAdmin && (
+                    <div className="flex gap-2 mt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => handleOpenEdit(pdv)}
+                      >
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Editar
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => handleOpenDelete(pdv)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -401,7 +346,12 @@ export default function PDVs() {
             >
               Cancelar
             </Button>
-            <Button onClick={handleEditPdv}>Salvar Alterações</Button>
+            <Button onClick={handleEditPdv} disabled={updatePDV.isPending}>
+              {updatePDV.isPending && (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              )}
+              Salvar Alterações
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -420,8 +370,12 @@ export default function PDVs() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeletePdv}
+              disabled={deletePDV.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
+              {deletePDV.isPending && (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              )}
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
