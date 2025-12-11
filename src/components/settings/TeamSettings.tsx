@@ -399,6 +399,7 @@ export function TeamSettings() {
               onClearError={handleClearError}
               idPrefix="edit-"
               disabledFields={["email"]}
+              showSuperAdminRole={isSuperAdmin}
             />
           )}
           <DialogFooter>
