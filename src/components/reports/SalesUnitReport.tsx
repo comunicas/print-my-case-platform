@@ -38,38 +38,15 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import { Download, TrendingUp, TrendingDown, Minus, CalendarIcon } from "lucide-react";
+import { Download, TrendingUp, TrendingDown, Minus, CalendarIcon, Loader2, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { datePresets, pdvList as mockPdvList } from "@/lib/mock-data";
-
-// Mock data
-const pdvList = [
-  { id: "all", name: "Todos os PDVs" },
-  ...mockPdvList.map(p => ({ id: p.id, name: p.name }))
-];
-
-const salesByPdv = [
-  { pdv: "Eldorado", revenue: 15780, transactions: 428, avgTicket: 36.87, variation: 12 },
-  { pdv: "Ibirapuera", revenue: 12450, transactions: 342, avgTicket: 36.40, variation: 8 },
-  { pdv: "Morumbi", revenue: 9230, transactions: 256, avgTicket: 36.05, variation: -2 },
-  { pdv: "Pátio Paulista", revenue: 7650, transactions: 198, avgTicket: 38.64, variation: 5 },
-];
-
-const evolutionData = [
-  { month: "Jul", Eldorado: 12500, Ibirapuera: 10200, Morumbi: 8100, "Pátio Paulista": 6800 },
-  { month: "Ago", Eldorado: 13200, Ibirapuera: 10800, Morumbi: 8500, "Pátio Paulista": 7100 },
-  { month: "Set", Eldorado: 14100, Ibirapuera: 11200, Morumbi: 8900, "Pátio Paulista": 7300 },
-  { month: "Out", Eldorado: 14800, Ibirapuera: 11800, Morumbi: 9100, "Pátio Paulista": 7500 },
-  { month: "Nov", Eldorado: 15200, Ibirapuera: 12100, Morumbi: 9000, "Pátio Paulista": 7400 },
-  { month: "Dez", Eldorado: 15780, Ibirapuera: 12450, Morumbi: 9230, "Pátio Paulista": 7650 },
-];
+import { datePresets } from "@/lib/mock-data";
+import { useReportSalesUnit } from "@/hooks/useReportSalesUnit";
+import { usePDVs } from "@/hooks/usePDVs";
+import { ReportEmptyState } from "./ReportEmptyState";
 
 const chartConfig = {
   revenue: { label: "Receita", color: "hsl(var(--primary))" },
-  Eldorado: { label: "Eldorado", color: "hsl(var(--chart-1))" },
-  Ibirapuera: { label: "Ibirapuera", color: "hsl(var(--chart-2))" },
-  Morumbi: { label: "Morumbi", color: "hsl(var(--chart-3))" },
-  "Pátio Paulista": { label: "Pátio Paulista", color: "hsl(var(--chart-4))" },
 };
 
 export function SalesUnitReport() {
@@ -79,19 +56,13 @@ export function SalesUnitReport() {
   );
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
 
-  const filteredData = selectedPdv === "all" 
-    ? salesByPdv 
-    : salesByPdv.filter(p => p.pdv.toLowerCase().includes(pdvList.find(pdv => pdv.id === selectedPdv)?.name.split(" ").pop()?.toLowerCase() || ""));
+  const { pdvs } = usePDVs();
+  const { data, isLoading } = useReportSalesUnit({ startDate, endDate, selectedPdv });
 
-  const totals = filteredData.reduce(
-    (acc, curr) => ({
-      revenue: acc.revenue + curr.revenue,
-      transactions: acc.transactions + curr.transactions,
-      avgTicket: 0,
-    }),
-    { revenue: 0, transactions: 0, avgTicket: 0 }
-  );
-  totals.avgTicket = totals.transactions > 0 ? totals.revenue / totals.transactions : 0;
+  const pdvList = [
+    { id: "all", name: "Todos os PDVs" },
+    ...(pdvs?.map(p => ({ id: p.id, name: p.name })) || []),
+  ];
 
   const getVariationIcon = (variation: number) => {
     if (variation > 0) return <TrendingUp className="h-4 w-4 text-emerald-500" />;
@@ -117,6 +88,36 @@ export function SalesUnitReport() {
     }
     return "";
   };
+
+  // Build dynamic chart config for evolution
+  const evolutionChartConfig: Record<string, { label: string; color: string }> = {};
+  const chartColors = [
+    "hsl(var(--chart-1))",
+    "hsl(var(--chart-2))",
+    "hsl(var(--chart-3))",
+    "hsl(var(--chart-4))",
+    "hsl(var(--chart-5))",
+  ];
+  
+  if (data?.evolutionData && data.evolutionData.length > 0) {
+    const firstEntry = data.evolutionData[0];
+    Object.keys(firstEntry).filter(k => k !== "month").forEach((key, index) => {
+      evolutionChartConfig[key] = {
+        label: key,
+        color: chartColors[index % chartColors.length],
+      };
+    });
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const hasData = data && data.salesByPdv.length > 0;
 
   return (
     <div className="space-y-6">
@@ -214,197 +215,219 @@ export function SalesUnitReport() {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Receita Total
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {totals.revenue.toLocaleString("pt-BR", {
-                style: "currency",
-                currency: "BRL",
-              })}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">{formatPeriod()}</p>
-          </CardContent>
-        </Card>
+      {!hasData ? (
+        <ReportEmptyState
+          icon={BarChart3}
+          title="Sem dados de vendas"
+          description="Faça upload de planilhas de vendas para visualizar o relatório por unidade."
+        />
+      ) : (
+        <>
+          {/* KPI Cards */}
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Receita Total
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {data.totals.revenue.toLocaleString("pt-BR", {
+                    style: "currency",
+                    currency: "BRL",
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">{formatPeriod()}</p>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Transações
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {totals.transactions.toLocaleString("pt-BR")}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">{formatPeriod()}</p>
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Transações
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {data.totals.transactions.toLocaleString("pt-BR")}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">{formatPeriod()}</p>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Ticket Médio
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {totals.avgTicket.toLocaleString("pt-BR", {
-                style: "currency",
-                currency: "BRL",
-              })}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">{formatPeriod()}</p>
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Ticket Médio
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {data.totals.avgTicket.toLocaleString("pt-BR", {
+                    style: "currency",
+                    currency: "BRL",
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">{formatPeriod()}</p>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              PDVs Ativos
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{filteredData.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">{formatPeriod()}</p>
-          </CardContent>
-        </Card>
-      </div>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  PDVs Ativos
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{data.totals.activePdvs}</div>
+                <p className="text-xs text-muted-foreground mt-1">{formatPeriod()}</p>
+              </CardContent>
+            </Card>
+          </div>
 
-      {/* Charts Row */}
-      <div className="grid gap-6 grid-cols-1 xl:grid-cols-2">
-        {/* Bar Chart - Revenue by PDV */}
-        <Card>
-          <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
-            <CardTitle className="text-base md:text-lg">Receita por PDV</CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
-            <ChartContainer config={chartConfig} className="h-[300px] w-full">
-              <BarChart data={salesByPdv} layout="vertical" margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} className="stroke-muted" />
-                <XAxis 
-                  type="number" 
-                  className="text-xs" 
-                  tick={{ fill: "hsl(var(--muted-foreground))" }} 
-                  tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} 
-                />
-                <YAxis 
-                  type="category" 
-                  dataKey="pdv" 
-                  width={100} 
-                  className="text-xs" 
-                  tick={{ fill: "hsl(var(--muted-foreground))" }} 
-                />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      formatter={(value) =>
-                        Number(value).toLocaleString("pt-BR", {
-                          style: "currency",
-                          currency: "BRL",
-                        })
+          {/* Charts Row */}
+          <div className="grid gap-6 grid-cols-1 xl:grid-cols-2">
+            {/* Bar Chart - Revenue by PDV */}
+            <Card>
+              <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
+                <CardTitle className="text-base md:text-lg">Receita por PDV</CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
+                <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                  <BarChart data={data.salesByPdv} layout="vertical" margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} className="stroke-muted" />
+                    <XAxis 
+                      type="number" 
+                      className="text-xs" 
+                      tick={{ fill: "hsl(var(--muted-foreground))" }} 
+                      tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} 
+                    />
+                    <YAxis 
+                      type="category" 
+                      dataKey="pdv" 
+                      width={100} 
+                      className="text-xs" 
+                      tick={{ fill: "hsl(var(--muted-foreground))" }} 
+                    />
+                    <ChartTooltip
+                      content={
+                        <ChartTooltipContent
+                          formatter={(value) =>
+                            Number(value).toLocaleString("pt-BR", {
+                              style: "currency",
+                              currency: "BRL",
+                            })
+                          }
+                        />
                       }
                     />
-                  }
-                />
-                <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
+                    <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
 
-        {/* Line Chart - Evolution */}
-        <Card>
-          <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
-            <CardTitle className="text-base md:text-lg">Evolução por Período</CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
-            <ChartContainer config={chartConfig} className="h-[300px] w-full">
-              <LineChart data={evolutionData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis 
-                  dataKey="month" 
-                  className="text-xs" 
-                  tick={{ fill: "hsl(var(--muted-foreground))" }} 
-                />
-                <YAxis 
-                  className="text-xs" 
-                  tick={{ fill: "hsl(var(--muted-foreground))" }} 
-                  tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} 
-                />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      formatter={(value) =>
-                        Number(value).toLocaleString("pt-BR", {
+            {/* Line Chart - Evolution */}
+            <Card>
+              <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
+                <CardTitle className="text-base md:text-lg">Evolução por Período</CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
+                {data.evolutionData.length > 0 ? (
+                  <ChartContainer config={evolutionChartConfig} className="h-[300px] w-full">
+                    <LineChart data={data.evolutionData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis 
+                        dataKey="month" 
+                        className="text-xs" 
+                        tick={{ fill: "hsl(var(--muted-foreground))" }} 
+                      />
+                      <YAxis 
+                        className="text-xs" 
+                        tick={{ fill: "hsl(var(--muted-foreground))" }} 
+                        tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} 
+                      />
+                      <ChartTooltip
+                        content={
+                          <ChartTooltipContent
+                            formatter={(value) =>
+                              Number(value).toLocaleString("pt-BR", {
+                                style: "currency",
+                                currency: "BRL",
+                              })
+                            }
+                          />
+                        }
+                      />
+                      {Object.keys(evolutionChartConfig).map((key, index) => (
+                        <Line
+                          key={key}
+                          type="monotone"
+                          dataKey={key}
+                          stroke={chartColors[index % chartColors.length]}
+                          strokeWidth={2}
+                          dot={false}
+                        />
+                      ))}
+                    </LineChart>
+                  </ChartContainer>
+                ) : (
+                  <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                    Dados insuficientes para evolução
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Table */}
+          <Card>
+            <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
+              <CardTitle className="text-base md:text-lg">Detalhamento por Unidade</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>PDV</TableHead>
+                    <TableHead className="text-right">Receita</TableHead>
+                    <TableHead className="text-right">Transações</TableHead>
+                    <TableHead className="text-right">Ticket Médio</TableHead>
+                    <TableHead className="text-right">Variação</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.salesByPdv.map((row) => (
+                    <TableRow key={row.pdvId}>
+                      <TableCell className="font-medium">{row.pdv}</TableCell>
+                      <TableCell className="text-right">
+                        {row.revenue.toLocaleString("pt-BR", {
                           style: "currency",
                           currency: "BRL",
-                        })
-                      }
-                    />
-                  }
-                />
-                <Line type="monotone" dataKey="Eldorado" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="Ibirapuera" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="Morumbi" stroke="hsl(var(--chart-3))" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="Pátio Paulista" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Table */}
-      <Card>
-        <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
-          <CardTitle className="text-base md:text-lg">Detalhamento por Unidade</CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>PDV</TableHead>
-                <TableHead className="text-right">Receita</TableHead>
-                <TableHead className="text-right">Transações</TableHead>
-                <TableHead className="text-right">Ticket Médio</TableHead>
-                <TableHead className="text-right">Variação</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {salesByPdv.map((row) => (
-                <TableRow key={row.pdv}>
-                  <TableCell className="font-medium">{row.pdv}</TableCell>
-                  <TableCell className="text-right">
-                    {row.revenue.toLocaleString("pt-BR", {
-                      style: "currency",
-                      currency: "BRL",
-                    })}
-                  </TableCell>
-                  <TableCell className="text-right">{row.transactions}</TableCell>
-                  <TableCell className="text-right">
-                    {row.avgTicket.toLocaleString("pt-BR", {
-                      style: "currency",
-                      currency: "BRL",
-                    })}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className={`flex items-center justify-end gap-1 ${getVariationColor(row.variation)}`}>
-                      {getVariationIcon(row.variation)}
-                      <span>{row.variation > 0 ? "+" : ""}{row.variation}%</span>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                        })}
+                      </TableCell>
+                      <TableCell className="text-right">{row.transactions}</TableCell>
+                      <TableCell className="text-right">
+                        {row.avgTicket.toLocaleString("pt-BR", {
+                          style: "currency",
+                          currency: "BRL",
+                        })}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className={`flex items-center justify-end gap-1 ${getVariationColor(row.variation)}`}>
+                          {getVariationIcon(row.variation)}
+                          <span>{row.variation > 0 ? "+" : ""}{row.variation}%</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   );
 }
