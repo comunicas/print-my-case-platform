@@ -252,15 +252,23 @@ export function MonthlySalesReport() {
       <div className="grid gap-6 grid-cols-1 xl:grid-cols-2">
         {/* Area Chart - Daily Sales */}
         <Card className="xl:col-span-2">
-          <CardHeader>
-            <CardTitle>Vendas Diárias</CardTitle>
+          <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
+            <CardTitle className="text-base md:text-lg">Vendas Diárias</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
             <ChartContainer config={chartConfig} className="h-[300px] w-full">
-              <AreaChart data={dailySales}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="day" />
-                <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(1)}k`} />
+              <AreaChart data={dailySales} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis 
+                  dataKey="day" 
+                  className="text-xs" 
+                  tick={{ fill: "hsl(var(--muted-foreground))" }} 
+                />
+                <YAxis 
+                  className="text-xs" 
+                  tick={{ fill: "hsl(var(--muted-foreground))" }} 
+                  tickFormatter={(v) => `R$${(v / 1000).toFixed(1)}k`} 
+                />
                 <ChartTooltip
                   content={
                     <ChartTooltipContent
@@ -278,7 +286,8 @@ export function MonthlySalesReport() {
                   dataKey="revenue"
                   stroke="hsl(var(--primary))"
                   fill="hsl(var(--primary))"
-                  fillOpacity={0.3}
+                  fillOpacity={0.2}
+                  strokeWidth={2}
                 />
               </AreaChart>
             </ChartContainer>
@@ -287,15 +296,23 @@ export function MonthlySalesReport() {
 
         {/* Bar Chart - Weekday Sales */}
         <Card>
-          <CardHeader>
-            <CardTitle>Vendas por Dia da Semana</CardTitle>
+          <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
+            <CardTitle className="text-base md:text-lg">Vendas por Dia da Semana</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
             <ChartContainer config={chartConfig} className="h-[300px] w-full">
-              <BarChart data={weekdaySales}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="day" />
-                <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+              <BarChart data={weekdaySales} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis 
+                  dataKey="day" 
+                  className="text-xs" 
+                  tick={{ fill: "hsl(var(--muted-foreground))" }} 
+                />
+                <YAxis 
+                  className="text-xs" 
+                  tick={{ fill: "hsl(var(--muted-foreground))" }} 
+                  tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} 
+                />
                 <ChartTooltip
                   content={
                     <ChartTooltipContent
@@ -316,10 +333,10 @@ export function MonthlySalesReport() {
 
         {/* Weekly Summary Table */}
         <Card>
-          <CardHeader>
-            <CardTitle>Resumo Semanal</CardTitle>
+          <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
+            <CardTitle className="text-base md:text-lg">Resumo Semanal</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
             <Table>
               <TableHeader>
                 <TableRow>
