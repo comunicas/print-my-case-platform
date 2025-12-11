@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,64 +14,37 @@ import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { User, Settings as SettingsIcon, Building2, Plug, Camera, Lock, ExternalLink, Key, Cloud, FileSpreadsheet } from "lucide-react";
+import { User, Settings as SettingsIcon, Building2, Plug, Camera, Lock, ExternalLink, Key, Cloud, FileSpreadsheet, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { pdvList } from "@/lib/mock-data";
 import { profileFormSchema, passwordFormSchema, organizationFormSchema } from "@/lib/schemas/settings";
-
-// Mock Data
-const mockCurrentUser = {
-  id: "user-1",
-  name: "João Silva",
-  email: "joao@printmycase.com",
-  phone: "(11) 99999-9999",
-  role: "org_admin" as const,
-  avatar: "",
-  lastLogin: "2024-12-10T14:32:00",
-};
-
-const mockOrganization = {
-  id: "org-1",
-  name: "Print My Case SP",
-  cnpj: "12.345.678/0001-90",
-  email: "contato@printmycase.com.br",
-  phone: "(11) 3333-4444",
-  address: "Av. Paulista, 1000 - São Paulo, SP",
-  plan: "professional",
-  planExpiry: "2025-01-15",
-};
-
-const mockPreferences = {
-  theme: "system" as "light" | "dark" | "system",
-  language: "pt-BR" as "pt-BR" | "en" | "es",
-  notifications: {
-    email: true,
-    stockAlerts: true,
-    weeklyReports: false,
-    uploadProcessed: true,
-  },
-  dashboard: {
-    defaultPeriod: "30days" as "today" | "7days" | "30days" | "thisMonth",
-    defaultPdv: "all",
-  },
-};
+import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/hooks/useProfile";
+import { useOrganization } from "@/hooks/useOrganization";
+import { usePreferences } from "@/hooks/usePreferences";
+import { usePDVs } from "@/hooks/usePDVs";
+import { supabase } from "@/integrations/supabase/client";
 
 const roleLabels: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
   super_admin: { label: "Super Admin", variant: "default" },
   org_admin: { label: "Administrador", variant: "default" },
-  pdv_manager: { label: "Gerente PDV", variant: "secondary" },
   operator: { label: "Operador", variant: "secondary" },
   viewer: { label: "Visualizador", variant: "outline" },
 };
 
 export default function Settings() {
   const { theme, setTheme } = useTheme();
+  const { session } = useAuth();
+  const { profile, role, isAdmin, isLoading: profileLoading, updateProfile } = useProfile();
+  const { organization, isLoading: orgLoading, updateOrganization } = useOrganization();
+  const { preferences, isLoading: prefsLoading, updatePreferences } = usePreferences();
+  const { pdvs, isLoading: pdvsLoading } = usePDVs();
+  
   const [activeTab, setActiveTab] = useState("profile");
   
   // Profile state
   const [profileData, setProfileData] = useState({
-    name: mockCurrentUser.name,
-    phone: mockCurrentUser.phone,
+    name: "",
+    phone: "",
   });
   
   // Password dialog state
@@ -81,29 +54,87 @@ export default function Settings() {
     newPassword: "",
     confirmPassword: "",
   });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   
   // Organization state
   const [orgData, setOrgData] = useState({
-    name: mockOrganization.name,
-    email: mockOrganization.email,
-    phone: mockOrganization.phone,
-    address: mockOrganization.address,
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
   });
   
-  // Preferences state
-  const [preferences, setPreferences] = useState(mockPreferences);
+  // Preferences state (nested structure for UI)
+  const [localPreferences, setLocalPreferences] = useState({
+    theme: "system" as string,
+    language: "pt-BR" as string,
+    notifications: {
+      email: true,
+      stockAlerts: true,
+      weeklyReports: false,
+      uploadProcessed: true,
+    },
+    dashboard: {
+      defaultPeriod: "30days" as string,
+      defaultPdv: "all",
+    },
+  });
 
   // Error states
   const [profileErrors, setProfileErrors] = useState<Record<string, string>>({});
   const [orgErrors, setOrgErrors] = useState<Record<string, string>>({});
   const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({});
 
-  const initials = mockCurrentUser.name
-    .split(" ")
+  // Initialize form data when profile loads
+  useEffect(() => {
+    if (profile) {
+      setProfileData({
+        name: profile.name || "",
+        phone: profile.phone || "",
+      });
+    }
+  }, [profile]);
+
+  // Initialize organization data
+  useEffect(() => {
+    if (organization) {
+      setOrgData({
+        name: organization.name || "",
+        email: organization.email || "",
+        phone: organization.phone || "",
+        address: organization.address || "",
+      });
+    }
+  }, [organization]);
+
+  // Initialize preferences data
+  useEffect(() => {
+    if (preferences) {
+      setLocalPreferences({
+        theme: preferences.theme || "system",
+        language: preferences.language || "pt-BR",
+        notifications: {
+          email: preferences.email_notifications ?? true,
+          stockAlerts: preferences.stock_alerts ?? true,
+          weeklyReports: preferences.weekly_reports ?? false,
+          uploadProcessed: preferences.upload_notifications ?? true,
+        },
+        dashboard: {
+          defaultPeriod: preferences.default_period || "30days",
+          defaultPdv: preferences.default_pdv || "all",
+        },
+      });
+    }
+  }, [preferences]);
+
+  const isLoading = profileLoading || orgLoading || prefsLoading;
+
+  const initials = profile?.name
+    ?.split(" ")
     .map((n) => n[0])
     .join("")
     .toUpperCase()
-    .slice(0, 2);
+    .slice(0, 2) || "??";
 
   const handleSaveProfile = () => {
     const result = profileFormSchema.safeParse(profileData);
@@ -118,13 +149,14 @@ export default function Settings() {
       return;
     }
     setProfileErrors({});
-    toast({
-      title: "Perfil atualizado",
-      description: "Suas informações foram salvas com sucesso.",
+    
+    updateProfile.mutate({
+      name: profileData.name.trim(),
+      phone: profileData.phone || null,
     });
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     const result = passwordFormSchema.safeParse(passwordData);
     if (!result.success) {
       const errors: Record<string, string> = {};
@@ -136,16 +168,44 @@ export default function Settings() {
       setPasswordErrors(errors);
       return;
     }
+    
     setPasswordErrors({});
-    setPasswordDialogOpen(false);
-    setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
-    toast({
-      title: "Senha alterada",
-      description: "Sua senha foi atualizada com sucesso.",
-    });
+    setIsChangingPassword(true);
+    
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: passwordData.newPassword,
+      });
+      
+      if (error) throw error;
+      
+      setPasswordDialogOpen(false);
+      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      toast({
+        title: "Senha alterada",
+        description: "Sua senha foi atualizada com sucesso.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao alterar senha",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   const handleSaveOrganization = () => {
+    if (!isAdmin) {
+      toast({
+        title: "Permissão negada",
+        description: "Apenas administradores podem editar a organização.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     const result = organizationFormSchema.safeParse(orgData);
     if (!result.success) {
       const errors: Record<string, string> = {};
@@ -158,16 +218,25 @@ export default function Settings() {
       return;
     }
     setOrgErrors({});
-    toast({
-      title: "Organização atualizada",
-      description: "Os dados da organização foram salvos com sucesso.",
+    
+    updateOrganization.mutate({
+      name: orgData.name.trim(),
+      email: orgData.email.trim(),
+      phone: orgData.phone || null,
+      address: orgData.address || null,
     });
   };
 
   const handleSavePreferences = () => {
-    toast({
-      title: "Preferências salvas",
-      description: "Suas preferências foram atualizadas.",
+    updatePreferences.mutate({
+      theme: localPreferences.theme,
+      language: localPreferences.language,
+      email_notifications: localPreferences.notifications.email,
+      stock_alerts: localPreferences.notifications.stockAlerts,
+      weekly_reports: localPreferences.notifications.weeklyReports,
+      upload_notifications: localPreferences.notifications.uploadProcessed,
+      default_period: localPreferences.dashboard.defaultPeriod,
+      default_pdv: localPreferences.dashboard.defaultPdv === "all" ? null : localPreferences.dashboard.defaultPdv,
     });
   };
 
@@ -181,6 +250,16 @@ export default function Settings() {
       minute: "2-digit",
     });
   };
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -227,13 +306,13 @@ export default function Settings() {
                 {/* Avatar */}
                 <div className="flex items-center gap-4">
                   <Avatar className="h-20 w-20">
-                    <AvatarImage src={mockCurrentUser.avatar} />
+                    <AvatarImage src={profile?.avatar_url || ""} />
                     <AvatarFallback className="text-lg bg-primary/10 text-primary">
                       {initials}
                     </AvatarFallback>
                   </Avatar>
                   <div className="space-y-1">
-                    <Button variant="outline" size="sm" className="gap-2">
+                    <Button variant="outline" size="sm" className="gap-2" disabled>
                       <Camera className="h-4 w-4" />
                       Alterar foto
                     </Button>
@@ -267,7 +346,7 @@ export default function Settings() {
                     <div className="flex items-center gap-2">
                       <Input
                         id="email"
-                        value={mockCurrentUser.email}
+                        value={profile?.email || ""}
                         disabled
                         className="flex-1"
                       />
@@ -279,8 +358,8 @@ export default function Settings() {
                   <div className="space-y-2">
                     <Label htmlFor="role">Função</Label>
                     <div className="flex items-center h-10">
-                      <Badge variant={roleLabels[mockCurrentUser.role]?.variant || "default"}>
-                        {roleLabels[mockCurrentUser.role]?.label || mockCurrentUser.role}
+                      <Badge variant={roleLabels[role || "viewer"]?.variant || "outline"}>
+                        {roleLabels[role || "viewer"]?.label || role}
                       </Badge>
                     </div>
                   </div>
@@ -303,7 +382,13 @@ export default function Settings() {
                 </div>
 
                 <div className="flex justify-end">
-                  <Button onClick={handleSaveProfile}>Salvar Alterações</Button>
+                  <Button 
+                    onClick={handleSaveProfile}
+                    disabled={updateProfile.isPending}
+                  >
+                    {updateProfile.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                    Salvar Alterações
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -321,7 +406,9 @@ export default function Settings() {
                   <div className="space-y-1">
                     <p className="font-medium">Senha</p>
                     <p className="text-sm text-muted-foreground">
-                      Último acesso: {formatLastLogin(mockCurrentUser.lastLogin)}
+                      Último acesso: {session?.user?.last_sign_in_at 
+                        ? formatLastLogin(session.user.last_sign_in_at) 
+                        : "Primeiro acesso"}
                     </p>
                   </div>
                   <Dialog open={passwordDialogOpen} onOpenChange={(open) => {
@@ -398,7 +485,10 @@ export default function Settings() {
                         <Button variant="outline" onClick={() => setPasswordDialogOpen(false)}>
                           Cancelar
                         </Button>
-                        <Button onClick={handleChangePassword}>Salvar</Button>
+                        <Button onClick={handleChangePassword} disabled={isChangingPassword}>
+                          {isChangingPassword && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                          Salvar
+                        </Button>
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
@@ -461,9 +551,9 @@ export default function Settings() {
                 <div className="space-y-2">
                   <Label htmlFor="language">Idioma</Label>
                   <Select
-                    value={preferences.language}
-                    onValueChange={(value: "pt-BR" | "en" | "es") =>
-                      setPreferences({ ...preferences, language: value })
+                    value={localPreferences.language}
+                    onValueChange={(value) =>
+                      setLocalPreferences({ ...localPreferences, language: value })
                     }
                   >
                     <SelectTrigger className="w-full md:w-[200px]">
@@ -496,11 +586,11 @@ export default function Settings() {
                     </p>
                   </div>
                   <Switch
-                    checked={preferences.notifications.email}
+                    checked={localPreferences.notifications.email}
                     onCheckedChange={(checked) =>
-                      setPreferences({
-                        ...preferences,
-                        notifications: { ...preferences.notifications, email: checked },
+                      setLocalPreferences({
+                        ...localPreferences,
+                        notifications: { ...localPreferences.notifications, email: checked },
                       })
                     }
                   />
@@ -514,11 +604,11 @@ export default function Settings() {
                     </p>
                   </div>
                   <Switch
-                    checked={preferences.notifications.stockAlerts}
+                    checked={localPreferences.notifications.stockAlerts}
                     onCheckedChange={(checked) =>
-                      setPreferences({
-                        ...preferences,
-                        notifications: { ...preferences.notifications, stockAlerts: checked },
+                      setLocalPreferences({
+                        ...localPreferences,
+                        notifications: { ...localPreferences.notifications, stockAlerts: checked },
                       })
                     }
                   />
@@ -532,11 +622,11 @@ export default function Settings() {
                     </p>
                   </div>
                   <Switch
-                    checked={preferences.notifications.weeklyReports}
+                    checked={localPreferences.notifications.weeklyReports}
                     onCheckedChange={(checked) =>
-                      setPreferences({
-                        ...preferences,
-                        notifications: { ...preferences.notifications, weeklyReports: checked },
+                      setLocalPreferences({
+                        ...localPreferences,
+                        notifications: { ...localPreferences.notifications, weeklyReports: checked },
                       })
                     }
                   />
@@ -550,11 +640,11 @@ export default function Settings() {
                     </p>
                   </div>
                   <Switch
-                    checked={preferences.notifications.uploadProcessed}
+                    checked={localPreferences.notifications.uploadProcessed}
                     onCheckedChange={(checked) =>
-                      setPreferences({
-                        ...preferences,
-                        notifications: { ...preferences.notifications, uploadProcessed: checked },
+                      setLocalPreferences({
+                        ...localPreferences,
+                        notifications: { ...localPreferences.notifications, uploadProcessed: checked },
                       })
                     }
                   />
@@ -575,11 +665,11 @@ export default function Settings() {
                   <div className="space-y-2">
                     <Label htmlFor="defaultPeriod">Período padrão</Label>
                     <Select
-                      value={preferences.dashboard.defaultPeriod}
-                      onValueChange={(value: "today" | "7days" | "30days" | "thisMonth") =>
-                        setPreferences({
-                          ...preferences,
-                          dashboard: { ...preferences.dashboard, defaultPeriod: value },
+                      value={localPreferences.dashboard.defaultPeriod}
+                      onValueChange={(value) =>
+                        setLocalPreferences({
+                          ...localPreferences,
+                          dashboard: { ...localPreferences.dashboard, defaultPeriod: value },
                         })
                       }
                     >
@@ -597,11 +687,11 @@ export default function Settings() {
                   <div className="space-y-2">
                     <Label htmlFor="defaultPdv">PDV padrão</Label>
                     <Select
-                      value={preferences.dashboard.defaultPdv}
+                      value={localPreferences.dashboard.defaultPdv}
                       onValueChange={(value) =>
-                        setPreferences({
-                          ...preferences,
-                          dashboard: { ...preferences.dashboard, defaultPdv: value },
+                        setLocalPreferences({
+                          ...localPreferences,
+                          dashboard: { ...localPreferences.dashboard, defaultPdv: value },
                         })
                       }
                     >
@@ -610,7 +700,7 @@ export default function Settings() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Todos os PDVs</SelectItem>
-                        {pdvList.map((pdv) => (
+                        {pdvs.map((pdv) => (
                           <SelectItem key={pdv.id} value={pdv.id}>
                             {pdv.name}
                           </SelectItem>
@@ -620,7 +710,13 @@ export default function Settings() {
                   </div>
                 </div>
                 <div className="flex justify-end">
-                  <Button onClick={handleSavePreferences}>Salvar Preferências</Button>
+                  <Button 
+                    onClick={handleSavePreferences}
+                    disabled={updatePreferences.isPending}
+                  >
+                    {updatePreferences.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                    Salvar Preferências
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -646,6 +742,7 @@ export default function Settings() {
                         setOrgData({ ...orgData, name: e.target.value });
                         if (orgErrors.name) setOrgErrors({ ...orgErrors, name: "" });
                       }}
+                      disabled={!isAdmin}
                       className={orgErrors.name ? "border-destructive" : ""}
                     />
                     {orgErrors.name && (
@@ -654,7 +751,7 @@ export default function Settings() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="cnpj">CNPJ</Label>
-                    <Input id="cnpj" value={mockOrganization.cnpj} disabled />
+                    <Input id="cnpj" value={organization?.cnpj || "Não informado"} disabled />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="orgEmail">Email comercial</Label>
@@ -666,6 +763,7 @@ export default function Settings() {
                         setOrgData({ ...orgData, email: e.target.value });
                         if (orgErrors.email) setOrgErrors({ ...orgErrors, email: "" });
                       }}
+                      disabled={!isAdmin}
                       className={orgErrors.email ? "border-destructive" : ""}
                     />
                     {orgErrors.email && (
@@ -681,6 +779,7 @@ export default function Settings() {
                         setOrgData({ ...orgData, phone: value });
                         if (orgErrors.phone) setOrgErrors({ ...orgErrors, phone: "" });
                       }}
+                      disabled={!isAdmin}
                       className={orgErrors.phone ? "border-destructive" : ""}
                     />
                     {orgErrors.phone && (
@@ -696,6 +795,7 @@ export default function Settings() {
                         setOrgData({ ...orgData, address: e.target.value });
                         if (orgErrors.address) setOrgErrors({ ...orgErrors, address: "" });
                       }}
+                      disabled={!isAdmin}
                       className={orgErrors.address ? "border-destructive" : ""}
                     />
                     {orgErrors.address && (
@@ -703,9 +803,22 @@ export default function Settings() {
                     )}
                   </div>
                 </div>
-                <div className="flex justify-end">
-                  <Button onClick={handleSaveOrganization}>Salvar Alterações</Button>
-                </div>
+                {!isAdmin && (
+                  <p className="text-sm text-muted-foreground">
+                    Apenas administradores podem editar dados da organização.
+                  </p>
+                )}
+                {isAdmin && (
+                  <div className="flex justify-end">
+                    <Button 
+                      onClick={handleSaveOrganization}
+                      disabled={updateOrganization.isPending}
+                    >
+                      {updateOrganization.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                      Salvar Alterações
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -722,10 +835,12 @@ export default function Settings() {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">Plano atual:</span>
-                      <Badge>Profissional</Badge>
+                      <Badge>{organization?.plan || "Gratuito"}</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Próximo vencimento: 15/01/2025
+                      {organization?.active_since 
+                        ? `Ativo desde: ${new Date(organization.active_since).toLocaleDateString("pt-BR")}` 
+                        : "—"}
                     </p>
                   </div>
                 </div>
@@ -750,20 +865,30 @@ export default function Settings() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {pdvList.slice(0, 5).map((pdv) => (
-                    <div
-                      key={pdv.id}
-                      className="flex items-center justify-between p-3 rounded-lg border"
-                    >
-                      <div>
-                        <p className="font-medium">{pdv.name}</p>
-                        <p className="text-sm text-muted-foreground">{pdv.code}</p>
+                {pdvsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : pdvs.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4">
+                    Nenhum PDV cadastrado.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {pdvs.filter(p => p.status === "active").slice(0, 5).map((pdv) => (
+                      <div
+                        key={pdv.id}
+                        className="flex items-center justify-between p-3 rounded-lg border"
+                      >
+                        <div>
+                          <p className="font-medium">{pdv.name}</p>
+                          <p className="text-sm text-muted-foreground">{pdv.machine_id}</p>
+                        </div>
+                        <Badge variant="secondary">Ativo</Badge>
                       </div>
-                      <Badge variant="secondary">Ativo</Badge>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
                 <Button variant="link" className="mt-4 px-0" asChild>
                   <a href="/pdvs">Ver todos os PDVs →</a>
                 </Button>
@@ -802,16 +927,16 @@ export default function Settings() {
                   Backend (Lovable Cloud)
                 </CardTitle>
                 <CardDescription>
-                  Conecte ao banco de dados para persistência de dados
+                  Banco de dados para persistência de dados
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline">Não configurado</Badge>
+                    <Badge className="bg-green-500 hover:bg-green-600">Conectado</Badge>
                   </div>
-                  <Button disabled className="gap-2">
-                    Configurar
+                  <Button variant="outline" disabled className="gap-2">
+                    Configurado
                   </Button>
                 </div>
               </CardContent>
@@ -835,8 +960,7 @@ export default function Settings() {
                     </p>
                   </div>
                   <Button disabled className="gap-2">
-                    <Key className="h-4 w-4" />
-                    Gerar Chave API
+                    Gerar Chave
                   </Button>
                 </div>
               </CardContent>
