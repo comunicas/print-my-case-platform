@@ -125,6 +125,21 @@ export function useUploads() {
         .eq("id", user.id)
         .single();
 
+      // Trigger spreadsheet processing in background (don't await)
+      if (file_url) {
+        supabase.functions.invoke("process-spreadsheet", {
+          body: { uploadId: insertedUpload.id },
+        }).then((result) => {
+          console.log("Spreadsheet processing result:", result);
+          // Invalidate queries to refresh data after processing
+          queryClient.invalidateQueries({ queryKey: ["uploads"] });
+          queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+        }).catch((err) => {
+          console.error("Spreadsheet processing error:", err);
+          queryClient.invalidateQueries({ queryKey: ["uploads"] });
+        });
+      }
+
       return {
         ...insertedUpload,
         uploader: uploaderProfile || { name: "Usuário" },

@@ -1,1 +1,4 @@
 project_id = "xksuhebsnodtyvwhlzlm"
+
+[functions.process-spreadsheet]
+verify_jwt = true
