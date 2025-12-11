@@ -1,5 +1,12 @@
 import { z } from "zod";
+import type { Tables } from "@/integrations/supabase/types";
 
+// Tipos base do banco de dados
+export type UploadRow = Tables<"uploads">;
+export type SalesRecordRow = Tables<"sales_records">;
+export type StockRecordRow = Tables<"stock_records">;
+
+// Tipos de status e tipo do upload (correspondendo aos enums do banco)
 export type UploadStatus = "processing" | "ready" | "error";
 export type UploadType = "sales" | "stock";
 
@@ -35,44 +42,58 @@ export interface ColumnValidationResult {
   totalRows: number;
 }
 
+// Interface estendida para uso na aplicação (com dados de joins)
 export interface Upload {
   id: string;
-  pdvId: string;
-  pdvName: string;
-  deviceId: string;
+  pdv_id: string;
+  pdv_name?: string;
   type: UploadType;
-  fileName: string;
-  fileUrl?: string;
-  driveUrl?: string;
-  status: UploadStatus;
-  recordsCount?: number;
-  period?: string;
-  uploadedBy: string;
-  uploadedAt: Date;
-  processedAt?: Date;
-  errorMessage?: string;
+  file_name: string;
+  file_url: string | null;
+  drive_url: string | null;
+  status: UploadStatus | null;
+  records_count: number | null;
+  period: string | null;
+  uploaded_by: string;
+  uploaded_at: string | null;
+  processed_at: string | null;
+  error_message: string | null;
 }
 
+// Interface para uso em listas com informações do uploader
+export interface UploadWithRelations extends Upload {
+  uploader_name?: string;
+  uploader_email?: string;
+}
+
+// Interface de registro de vendas para uso na aplicação
 export interface SalesRecord {
-  merchantId: string;
-  deviceId: string;
-  orderNumber: string;
-  productName: string;
-  transactionNumber: string;
-  paymentDate: Date;
+  id: string;
+  upload_id: string;
+  pdv_id: string;
+  merchant_id: string | null;
+  device_id: string;
+  order_number: string;
+  product_name: string;
+  transaction_number: string | null;
+  payment_date: string;
   amount: number;
-  paymentMethod: string;
-  status: string;
-  refundAmount: number;
+  payment_method: string | null;
+  status: string | null;
+  refund_amount: number | null;
 }
 
+// Interface de registro de estoque para uso na aplicação
 export interface StockRecord {
-  recordNumber: string;
-  deviceId: string;
-  slotNumber: string;
-  productName: string;
+  id: string;
+  upload_id: string;
+  pdv_id: string;
+  record_number: string | null;
+  device_id: string;
+  slot_number: string;
+  product_name: string;
   quantity: number;
-  isActive: boolean;
+  is_active: boolean | null;
 }
 
 export const uploadTypeLabels: Record<UploadType, string> = {

@@ -28,6 +28,29 @@ export interface DashboardData {
   hasData: boolean;
 }
 
+// Tipos para queries com joins
+interface SalesRecordWithPdv {
+  pdv_id: string;
+  amount: number;
+  refund_amount: number | null;
+  pdv: { name: string } | null;
+}
+
+interface StockRecordWithPdv {
+  pdv_id: string;
+  quantity: number;
+  pdv: { name: string } | null;
+}
+
+interface UploadWithPdv {
+  id: string;
+  type: "sales" | "stock";
+  status: string | null;
+  uploaded_at: string | null;
+  records_count: number | null;
+  pdv: { name: string } | null;
+}
+
 const PAYMENT_COLORS: Record<string, string> = {
   "Pix": "hsl(var(--chart-1))",
   "Cartão": "hsl(var(--chart-2))",
@@ -179,7 +202,7 @@ export function useDashboard() {
 
       // Process sales by PDV
       const pdvSalesMap = new Map<string, number>();
-      (salesByPdvResult.data || []).forEach((record: any) => {
+      ((salesByPdvResult.data || []) as SalesRecordWithPdv[]).forEach((record) => {
         const pdvName = record.pdv?.name || "Desconhecido";
         const current = pdvSalesMap.get(pdvName) || 0;
         pdvSalesMap.set(pdvName, current + (Number(record.amount) - Number(record.refund_amount || 0)));
@@ -202,7 +225,7 @@ export function useDashboard() {
 
       // Process stock by PDV
       const stockMap = new Map<string, number>();
-      (stockByPdvResult.data || []).forEach((record: any) => {
+      ((stockByPdvResult.data || []) as StockRecordWithPdv[]).forEach((record) => {
         const pdvName = record.pdv?.name || "Desconhecido";
         stockMap.set(pdvName, (stockMap.get(pdvName) || 0) + Number(record.quantity));
       });
@@ -225,12 +248,12 @@ export function useDashboard() {
       const stagnant = 0; // Would need date tracking to calculate
 
       // Process recent uploads
-      const recentUploads = (recentUploadsResult.data || []).map((upload: any) => ({
+      const recentUploads = ((recentUploadsResult.data || []) as UploadWithPdv[]).map((upload) => ({
         id: upload.id,
-        type: upload.type as "sales" | "stock",
+        type: upload.type,
         pdv: upload.pdv?.name || "Desconhecido",
         status: upload.status || "processing",
-        date: upload.uploaded_at,
+        date: upload.uploaded_at || "",
         records: upload.records_count || 0,
       }));
 
