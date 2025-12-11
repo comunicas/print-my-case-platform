@@ -40,7 +40,7 @@ import {
 } from "recharts";
 import { Download, TrendingUp, TrendingDown, Minus, CalendarIcon, Loader2, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { datePresets } from "@/lib/mock-data";
+import { datePresets } from "@/lib/utils/date-presets";
 import { useReportSalesUnit } from "@/hooks/useReportSalesUnit";
 import { usePDVs } from "@/hooks/usePDVs";
 import { ReportEmptyState } from "./ReportEmptyState";

@@ -129,8 +129,7 @@ export function useUploads() {
       if (file_url) {
         supabase.functions.invoke("process-spreadsheet", {
           body: { uploadId: insertedUpload.id },
-        }).then((result) => {
-          console.log("Spreadsheet processing result:", result);
+        }).then(() => {
           // Invalidate queries to refresh data after processing
           queryClient.invalidateQueries({ queryKey: ["uploads"] });
           queryClient.invalidateQueries({ queryKey: ["dashboard"] });
