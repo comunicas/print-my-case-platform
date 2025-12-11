@@ -25,7 +25,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar } from "recharts";
 import { Download, TrendingUp, TrendingDown, CalendarIcon, Loader2, Calendar as CalendarIconSolid } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { datePresets } from "@/lib/mock-data";
+import { datePresets } from "@/lib/utils/date-presets";
 import { useReportMonthlySales } from "@/hooks/useReportMonthlySales";
 import { ReportEmptyState } from "./ReportEmptyState";
 

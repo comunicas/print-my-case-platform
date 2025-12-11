@@ -35,7 +35,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from "recharts";
 import { Download, TrendingUp, TrendingDown, Trophy, AlertTriangle, CalendarIcon, Loader2, ShoppingBag } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { datePresets } from "@/lib/mock-data";
+import { datePresets } from "@/lib/utils/date-presets";
 import { useReportProducts } from "@/hooks/useReportProducts";
 import { usePDVs } from "@/hooks/usePDVs";
 import { ReportEmptyState } from "./ReportEmptyState";
