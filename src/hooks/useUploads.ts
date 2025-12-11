@@ -75,15 +75,17 @@ export function useUploads() {
   const createUpload = useMutation({
     mutationFn: async (data: CreateUploadData) => {
       if (!user?.id) throw new Error("Usuário não autenticado");
+      if (!profile?.organization_id) throw new Error("Organização não encontrada");
 
       let file_url: string | null = null;
       let file_name = "Link do Drive";
 
       // Upload file to storage if provided
+      // Use organization-scoped path: {organization_id}/{user_id}/{timestamp}_{filename}
       if (data.file) {
         file_name = data.file.name;
         const timestamp = Date.now();
-        const filePath = `${user.id}/${timestamp}_${data.file.name}`;
+        const filePath = `${profile.organization_id}/${user.id}/${timestamp}_${data.file.name}`;
 
         const { error: uploadError } = await supabase.storage
           .from("uploads")
