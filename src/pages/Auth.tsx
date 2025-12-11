@@ -42,13 +42,14 @@ type AuthMode = "login" | "forgot" | "reset";
 export default function Auth() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user, signIn, signUp, resetPassword, updatePassword, loading: authLoading } = useAuth();
+  const { user, session, signIn, signUp, resetPassword, updatePassword, loading: authLoading } = useAuth();
   const { toast } = useToast();
   
   const [mode, setMode] = useState<AuthMode>("login");
   const [isLoading, setIsLoading] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
   const [passwordUpdated, setPasswordUpdated] = useState(false);
+  const [waitingForSession, setWaitingForSession] = useState(false);
   
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [signupData, setSignupData] = useState({ name: "", email: "", password: "", confirmPassword: "" });
@@ -65,8 +66,19 @@ export default function Auth() {
     const modeParam = searchParams.get("mode");
     if (modeParam === "reset") {
       setMode("reset");
+      // If no session yet, wait for Supabase to process URL tokens
+      if (!session) {
+        setWaitingForSession(true);
+      }
     }
-  }, [searchParams]);
+  }, [searchParams, session]);
+
+  useEffect(() => {
+    // When session is established and we were waiting, stop waiting
+    if (session && waitingForSession) {
+      setWaitingForSession(false);
+    }
+  }, [session, waitingForSession]);
 
   useEffect(() => {
     // Only redirect if user is logged in AND not in reset mode
@@ -318,6 +330,16 @@ export default function Auth() {
 
   // Reset Password Mode (after clicking email link)
   if (mode === "reset") {
+    // Show loading while waiting for Supabase to establish session from URL tokens
+    if (waitingForSession || (searchParams.get("mode") === "reset" && !session)) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+          <p className="text-muted-foreground">Validando link de recuperação...</p>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
         <div className="w-full max-w-md">
