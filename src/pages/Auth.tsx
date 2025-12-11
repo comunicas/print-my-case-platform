@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Mail, Lock, User, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { z } from "zod";
+import { PasswordStrengthIndicator } from "@/components/ui/password-strength";
 
 const loginSchema = z.object({
   email: z.string().email("Email inválido"),
@@ -18,7 +19,7 @@ const loginSchema = z.object({
 const signupSchema = z.object({
   name: z.string().min(2, "Nome deve ter no mínimo 2 caracteres"),
   email: z.string().email("Email inválido"),
-  password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
+  password: z.string().min(8, "Senha deve ter no mínimo 8 caracteres"),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "As senhas não coincidem",
@@ -30,7 +31,7 @@ const resetEmailSchema = z.object({
 });
 
 const newPasswordSchema = z.object({
-  password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
+  password: z.string().min(8, "Senha deve ter no mínimo 8 caracteres"),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "As senhas não coincidem",
@@ -406,6 +407,9 @@ export default function Auth() {
                     {newPasswordErrors.password && (
                       <p className="text-sm text-destructive">{newPasswordErrors.password}</p>
                     )}
+                    {newPasswordData.password && (
+                      <PasswordStrengthIndicator password={newPasswordData.password} />
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -605,6 +609,9 @@ export default function Auth() {
                     </div>
                     {signupErrors.password && (
                       <p className="text-sm text-destructive">{signupErrors.password}</p>
+                    )}
+                    {signupData.password && (
+                      <PasswordStrengthIndicator password={signupData.password} />
                     )}
                   </div>
 

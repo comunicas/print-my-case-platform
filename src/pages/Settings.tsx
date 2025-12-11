@@ -16,6 +16,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { User, Settings as SettingsIcon, Building2, Plug, Camera, Lock, ExternalLink, Key, Cloud, FileSpreadsheet, Loader2, MapPin, Users } from "lucide-react";
+import { PasswordStrengthIndicator } from "@/components/ui/password-strength";
 import { PDVsSettings } from "@/components/settings/PDVsSettings";
 import { TeamSettings } from "@/components/settings/TeamSettings";
 import { toast } from "@/hooks/use-toast";
@@ -479,6 +480,9 @@ export default function Settings() {
                           />
                           {passwordErrors.newPassword && (
                             <p className="text-sm text-destructive">{passwordErrors.newPassword}</p>
+                          )}
+                          {passwordData.newPassword && (
+                            <PasswordStrengthIndicator password={passwordData.newPassword} />
                           )}
                         </div>
                         <div className="space-y-2">
