@@ -13,7 +13,7 @@ export interface DashboardData {
   };
   revenueByMonth: { month: string; revenue: number }[];
   salesByPdv: { pdv: string; revenue: number }[];
-  paymentMethods: { method: string; value: number; fill: string }[];
+  paymentMethods: { method: string; value: number; count: number; fill: string }[];
   stockByPdv: { pdv: string; units: number }[];
   topProducts: { product: string; quantity: number }[];
   stockAlerts: { rupture: number; lowStock: number; stagnant: number };
@@ -30,11 +30,21 @@ export interface DashboardData {
 
 const PAYMENT_COLORS: Record<string, string> = {
   "Pix": "hsl(var(--chart-1))",
-  "Crédito": "hsl(var(--chart-2))",
+  "Cartão": "hsl(var(--chart-2))",
   "Débito": "hsl(var(--chart-3))",
   "Dinheiro": "hsl(var(--chart-4))",
   "Outro": "hsl(var(--chart-5))",
 };
+
+function normalizePaymentMethod(method: string | null): string {
+  if (!method) return "Outro";
+  const lower = method.toLowerCase();
+  if (lower.includes("pix")) return "Pix";
+  if (lower.includes("crédito") || lower.includes("credit") || lower.includes("pos") || lower.includes("cartão")) return "Cartão";
+  if (lower.includes("débito") || lower.includes("debit")) return "Débito";
+  if (lower.includes("dinheiro") || lower.includes("cash") || lower.includes("espécie")) return "Dinheiro";
+  return "Outro";
+}
 
 export function useDashboard() {
   const { profile } = useProfile();
@@ -176,16 +186,17 @@ export function useDashboard() {
       });
       const salesByPdv = Array.from(pdvSalesMap.entries()).map(([pdv, revenue]) => ({ pdv, revenue }));
 
-      // Process payment methods
+      // Process payment methods with normalization
       const methodsMap = new Map<string, number>();
       (paymentMethodsResult.data || []).forEach((record) => {
-        const method = record.payment_method || "Outro";
+        const method = normalizePaymentMethod(record.payment_method);
         methodsMap.set(method, (methodsMap.get(method) || 0) + 1);
       });
       const totalMethods = Array.from(methodsMap.values()).reduce((a, b) => a + b, 0);
       const paymentMethods = Array.from(methodsMap.entries()).map(([method, count]) => ({
         method,
         value: totalMethods > 0 ? Math.round((count / totalMethods) * 100) : 0,
+        count,
         fill: PAYMENT_COLORS[method] || PAYMENT_COLORS["Outro"],
       }));
 
