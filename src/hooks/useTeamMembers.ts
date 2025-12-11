@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "./useProfile";
 import { useToast } from "@/hooks/use-toast";
+import { CreateUserFormData } from "@/lib/schemas/user";
 
 export interface TeamMember {
   id: string;
@@ -12,21 +13,31 @@ export interface TeamMember {
   status: "active" | "pending" | "inactive";
   role: "super_admin" | "org_admin" | "operator" | "viewer";
   created_at: string;
+  organization_name?: string;
 }
 
 export function useTeamMembers() {
-  const { profile, isAdmin } = useProfile();
+  const { profile, role, isAdmin } = useProfile();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  const isSuperAdmin = role === "super_admin";
 
   const teamQuery = useQuery({
-    queryKey: ["team-members", profile?.organization_id],
+    queryKey: ["team-members", profile?.organization_id, isSuperAdmin],
     queryFn: async () => {
-      // First get profiles in the organization
-      const { data: profiles, error: profilesError } = await supabase
+      // Super admin sees all users, others see only their organization
+      let profilesQuery = supabase
         .from("profiles")
-        .select("*")
+        .select("*, organizations(name)")
         .order("name");
+      
+      // Non-super-admin only see their organization members
+      if (!isSuperAdmin && profile?.organization_id) {
+        profilesQuery = profilesQuery.eq("organization_id", profile.organization_id);
+      }
+
+      const { data: profiles, error: profilesError } = await profilesQuery;
 
       if (profilesError) throw profilesError;
 
@@ -42,6 +53,7 @@ export function useTeamMembers() {
       // Combine profiles with roles
       const members: TeamMember[] = profiles.map(profile => {
         const userRole = roles.find(r => r.user_id === profile.id);
+        const orgData = profile.organizations as { name: string } | null;
         return {
           id: profile.id,
           name: profile.name,
@@ -51,12 +63,42 @@ export function useTeamMembers() {
           status: profile.status as "active" | "pending" | "inactive",
           role: (userRole?.role as TeamMember["role"]) ?? "viewer",
           created_at: profile.created_at ?? new Date().toISOString(),
+          organization_name: orgData?.name,
         };
       });
 
       return members;
     },
-    enabled: !!profile?.organization_id,
+    enabled: !!profile?.id,
+  });
+
+  const createUser = useMutation({
+    mutationFn: async (data: CreateUserFormData) => {
+      if (!isSuperAdmin) throw new Error("Apenas super_admin pode criar usuários");
+      
+      const { data: result, error } = await supabase.functions.invoke("create-user", {
+        body: data,
+      });
+
+      if (error) throw error;
+      if (result.error) throw new Error(result.error);
+      
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["team-members"] });
+      toast({
+        title: "Usuário criado",
+        description: "O novo usuário foi criado com sucesso.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao criar usuário",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   const updateMember = useMutation({
@@ -150,7 +192,9 @@ export function useTeamMembers() {
     isLoading: teamQuery.isLoading,
     error: teamQuery.error,
     isAdmin,
+    isSuperAdmin,
     updateMember,
     removeMember,
+    createUser,
   };
 }
