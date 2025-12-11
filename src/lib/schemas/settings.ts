@@ -6,9 +6,9 @@ export const profileFormSchema = z.object({
 });
 
 export const passwordFormSchema = z.object({
-  currentPassword: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
-  newPassword: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
-  confirmPassword: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
+  currentPassword: z.string().min(1, "Senha atual é obrigatória"),
+  newPassword: z.string().min(8, "Senha deve ter pelo menos 8 caracteres"),
+  confirmPassword: z.string().min(8, "Senha deve ter pelo menos 8 caracteres"),
 }).refine((data) => data.newPassword === data.confirmPassword, {
   message: "As senhas não coincidem",
   path: ["confirmPassword"],
