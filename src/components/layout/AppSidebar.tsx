@@ -23,8 +23,8 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
-  { icon: Upload, label: "Uploads", href: "/uploads" },
   { icon: BarChart3, label: "Relatórios", href: "/reports" },
+  { icon: Upload, label: "Uploads", href: "/uploads" },
 ];
 
 interface AppSidebarProps {
