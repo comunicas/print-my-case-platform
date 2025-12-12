@@ -2,7 +2,6 @@ import {
   LayoutDashboard,
   Upload,
   BarChart3,
-  Settings,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -25,7 +24,6 @@ const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
   { icon: Upload, label: "Uploads", href: "/uploads" },
   { icon: BarChart3, label: "Relatórios", href: "/reports" },
-  { icon: Settings, label: "Configurações", href: "/settings" },
 ];
 
 interface MobileSidebarProps {

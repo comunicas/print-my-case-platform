@@ -1,4 +1,4 @@
-import { Bell, ChevronDown, Menu, User, LogOut, Sun, Moon } from "lucide-react";
+import { Bell, ChevronDown, Menu, User, LogOut, Sun, Moon, Settings } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -97,9 +97,13 @@ export function AppHeader({ isMobile, onMenuClick }: AppHeaderProps) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem onClick={() => navigate("/settings")}>
+            <DropdownMenuItem onClick={() => navigate("/settings?tab=perfil")}>
               <User className="mr-2 h-4 w-4" />
               Meu Perfil
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/settings")}>
+              <Settings className="mr-2 h-4 w-4" />
+              Configurações
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive" onClick={handleSignOut}>
