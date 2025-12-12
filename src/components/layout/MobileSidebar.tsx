@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   Upload,
@@ -43,21 +42,19 @@ interface MobileSidebarProps {
   onOpenChange: (open: boolean) => void;
   activeItem: string;
   onNavigate: (href: string) => void;
+  reportsExpanded: boolean;
+  onReportsExpandedChange: (expanded: boolean) => void;
 }
 
-const STORAGE_KEY = 'sidebar-reports-expanded';
-
-export function MobileSidebar({ open, onOpenChange, activeItem, onNavigate }: MobileSidebarProps) {
+export function MobileSidebar({ 
+  open, 
+  onOpenChange, 
+  activeItem, 
+  onNavigate,
+  reportsExpanded,
+  onReportsExpandedChange,
+}: MobileSidebarProps) {
   const isReportsActive = activeItem.startsWith("/reports");
-  const [reportsOpen, setReportsOpen] = useState(() => {
-    if (isReportsActive) return true;
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved !== null ? saved === 'true' : false;
-  });
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, String(reportsOpen));
-  }, [reportsOpen]);
 
   const handleNavClick = (href: string) => {
     onNavigate(href);
@@ -86,8 +83,11 @@ export function MobileSidebar({ open, onOpenChange, activeItem, onNavigate }: Mo
   };
 
   const renderReportsMenu = () => {
+    // Auto-expand when navigating to reports
+    const effectiveReportsExpanded = isReportsActive || reportsExpanded;
+
     return (
-      <Collapsible open={reportsOpen} onOpenChange={setReportsOpen}>
+      <Collapsible open={effectiveReportsExpanded} onOpenChange={onReportsExpandedChange}>
         <CollapsibleTrigger asChild>
           <button
             className={cn(
@@ -102,7 +102,7 @@ export function MobileSidebar({ open, onOpenChange, activeItem, onNavigate }: Mo
             <ChevronDown
               className={cn(
                 "h-4 w-4 transition-transform duration-200",
-                reportsOpen && "rotate-180"
+                effectiveReportsExpanded && "rotate-180"
               )}
             />
           </button>

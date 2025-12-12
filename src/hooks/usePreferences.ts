@@ -14,6 +14,8 @@ export interface Preferences {
   upload_notifications: boolean;
   default_period: string;
   default_pdv: string | null;
+  sidebar_collapsed: boolean;
+  sidebar_reports_expanded: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -54,12 +56,16 @@ export function usePreferences() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["preferences", user?.id] });
-      toast({
-        title: "Preferências salvas",
-        description: "Suas preferências foram atualizadas.",
-      });
+      // Don't show toast for sidebar preference updates
+      const isSidebarUpdate = 'sidebar_collapsed' in variables || 'sidebar_reports_expanded' in variables;
+      if (!isSidebarUpdate) {
+        toast({
+          title: "Preferências salvas",
+          description: "Suas preferências foram atualizadas.",
+        });
+      }
     },
     onError: (error) => {
       toast({
