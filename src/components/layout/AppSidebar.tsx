@@ -134,8 +134,11 @@ export function AppSidebar({ collapsed, onToggle, activeItem, onNavigate }: AppS
         <CollapsibleContent>
           <div className="ml-4 mt-1 space-y-1">
             {reportSubItems.map((subItem) => {
-              const isSubActive = activeItem === subItem.href || 
-                (activeItem.startsWith("/reports") && activeItem.includes(subItem.href.split("=")[1]));
+              const activeTab = activeItem.startsWith("/reports")
+                ? new URLSearchParams(activeItem.split("?")[1]).get("tab") || "unit"
+                : null;
+              const subItemTab = subItem.href.split("=")[1];
+              const isSubActive = activeTab === subItemTab;
               
               return (
                 <button
