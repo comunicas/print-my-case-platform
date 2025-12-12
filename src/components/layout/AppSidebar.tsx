@@ -76,7 +76,12 @@ export function AppSidebar({ collapsed, onToggle, activeItem, onNavigate }: AppS
         )}
       >
         <Icon className="h-5 w-5 flex-shrink-0" />
-        {!collapsed && <span>{item.label}</span>}
+        <span className={cn(
+          "transition-all duration-200",
+          collapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100 w-auto"
+        )}>
+          {item.label}
+        </span>
       </button>
     );
 
@@ -132,7 +137,12 @@ export function AppSidebar({ collapsed, onToggle, activeItem, onNavigate }: AppS
             )}
           >
             <BarChart3 className="h-5 w-5 flex-shrink-0" />
-            <span className="flex-1 text-left">Relatórios</span>
+            <span className={cn(
+              "flex-1 text-left transition-all duration-200",
+              collapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
+            )}>
+              Relatórios
+            </span>
             <ChevronDown
               className={cn(
                 "h-4 w-4 transition-transform duration-200",
@@ -181,20 +191,23 @@ export function AppSidebar({ collapsed, onToggle, activeItem, onNavigate }: AppS
         )}
       >
         {/* Logo Section */}
-        <div className="h-16 flex items-center justify-center border-b border-sidebar-border px-4">
-          {collapsed ? (
-            <img
-              src="/icon-printmycase.png"
-              alt="Print My Case"
-              className="h-8 w-8 object-contain"
-            />
-          ) : (
-            <img
-              src="/logo-printmycase.png"
-              alt="Print My Case"
-              className="h-10 object-contain"
-            />
-          )}
+        <div className="h-16 flex items-center justify-center border-b border-sidebar-border px-4 relative">
+          <img
+            src="/icon-printmycase.png"
+            alt="Print My Case"
+            className={cn(
+              "h-8 w-8 object-contain transition-all duration-300 absolute",
+              collapsed ? "opacity-100 scale-100" : "opacity-0 scale-75"
+            )}
+          />
+          <img
+            src="/logo-printmycase.png"
+            alt="Print My Case"
+            className={cn(
+              "h-10 object-contain transition-all duration-300",
+              collapsed ? "opacity-0 scale-75" : "opacity-100 scale-100"
+            )}
+          />
         </div>
 
         {/* Navigation */}
@@ -212,14 +225,16 @@ export function AppSidebar({ collapsed, onToggle, activeItem, onNavigate }: AppS
             onClick={onToggle}
             className="w-full flex items-center justify-center gap-2 text-sidebar-foreground hover:bg-sidebar-accent/50"
           >
-            {collapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <>
-                <ChevronLeft className="h-4 w-4" />
-                <span>Recolher</span>
-              </>
-            )}
+            <ChevronLeft className={cn(
+              "h-4 w-4 transition-transform duration-300",
+              collapsed && "rotate-180"
+            )} />
+            <span className={cn(
+              "transition-all duration-200",
+              collapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100 w-auto"
+            )}>
+              Recolher
+            </span>
           </Button>
         </div>
       </aside>
