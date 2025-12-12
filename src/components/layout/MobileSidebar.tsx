@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   Upload,
@@ -45,9 +45,19 @@ interface MobileSidebarProps {
   onNavigate: (href: string) => void;
 }
 
+const STORAGE_KEY = 'sidebar-reports-expanded';
+
 export function MobileSidebar({ open, onOpenChange, activeItem, onNavigate }: MobileSidebarProps) {
   const isReportsActive = activeItem.startsWith("/reports");
-  const [reportsOpen, setReportsOpen] = useState(isReportsActive);
+  const [reportsOpen, setReportsOpen] = useState(() => {
+    if (isReportsActive) return true;
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved !== null ? saved === 'true' : false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, String(reportsOpen));
+  }, [reportsOpen]);
 
   const handleNavClick = (href: string) => {
     onNavigate(href);
