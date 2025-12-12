@@ -102,6 +102,8 @@ export type Database = {
           email_notifications: boolean | null
           id: string
           language: string | null
+          sidebar_collapsed: boolean | null
+          sidebar_reports_expanded: boolean | null
           stock_alerts: boolean | null
           theme: string | null
           updated_at: string | null
@@ -116,6 +118,8 @@ export type Database = {
           email_notifications?: boolean | null
           id?: string
           language?: string | null
+          sidebar_collapsed?: boolean | null
+          sidebar_reports_expanded?: boolean | null
           stock_alerts?: boolean | null
           theme?: string | null
           updated_at?: string | null
@@ -130,6 +134,8 @@ export type Database = {
           email_notifications?: boolean | null
           id?: string
           language?: string | null
+          sidebar_collapsed?: boolean | null
+          sidebar_reports_expanded?: boolean | null
           stock_alerts?: boolean | null
           theme?: string | null
           updated_at?: string | null

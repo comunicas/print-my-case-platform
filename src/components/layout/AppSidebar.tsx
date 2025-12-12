@@ -1,10 +1,8 @@
-import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   Upload,
   BarChart3,
   ChevronLeft,
-  ChevronRight,
   ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -44,21 +42,19 @@ interface AppSidebarProps {
   onToggle: () => void;
   activeItem: string;
   onNavigate: (href: string) => void;
+  reportsExpanded: boolean;
+  onReportsExpandedChange: (expanded: boolean) => void;
 }
 
-const STORAGE_KEY = 'sidebar-reports-expanded';
-
-export function AppSidebar({ collapsed, onToggle, activeItem, onNavigate }: AppSidebarProps) {
+export function AppSidebar({ 
+  collapsed, 
+  onToggle, 
+  activeItem, 
+  onNavigate,
+  reportsExpanded,
+  onReportsExpandedChange,
+}: AppSidebarProps) {
   const isReportsActive = activeItem.startsWith("/reports");
-  const [reportsOpen, setReportsOpen] = useState(() => {
-    if (isReportsActive) return true;
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved !== null ? saved === 'true' : false;
-  });
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, String(reportsOpen));
-  }, [reportsOpen]);
 
   const renderNavItem = (item: NavItem) => {
     const Icon = item.icon;
@@ -125,8 +121,11 @@ export function AppSidebar({ collapsed, onToggle, activeItem, onNavigate }: AppS
       );
     }
 
+    // Auto-expand when navigating to reports
+    const effectiveReportsExpanded = isReportsActive || reportsExpanded;
+
     return (
-      <Collapsible open={reportsOpen} onOpenChange={setReportsOpen}>
+      <Collapsible open={effectiveReportsExpanded} onOpenChange={onReportsExpandedChange}>
         <CollapsibleTrigger asChild>
           <button
             className={cn(
@@ -146,7 +145,7 @@ export function AppSidebar({ collapsed, onToggle, activeItem, onNavigate }: AppS
             <ChevronDown
               className={cn(
                 "h-4 w-4 transition-transform duration-200",
-                reportsOpen && "rotate-180"
+                effectiveReportsExpanded && "rotate-180"
               )}
             />
           </button>

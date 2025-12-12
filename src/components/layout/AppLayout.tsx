@@ -1,25 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
 import { MobileSidebar } from "./MobileSidebar";
 import { useBreakpoint } from "@/hooks/use-mobile";
-
-const SIDEBAR_STORAGE_KEY = 'sidebar-collapsed';
+import { useSidebarPreferences } from "@/hooks/useSidebarPreferences";
 
 interface AppLayoutProps {
   children: React.ReactNode;
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY);
-    return saved === 'true';
-  });
-
-  useEffect(() => {
-    localStorage.setItem(SIDEBAR_STORAGE_KEY, String(sidebarCollapsed));
-  }, [sidebarCollapsed]);
+  const { collapsed: sidebarCollapsed, updateCollapsed, reportsExpanded, updateReportsExpanded } = useSidebarPreferences();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -44,6 +36,8 @@ export function AppLayout({ children }: AppLayoutProps) {
           onOpenChange={setMobileMenuOpen}
           activeItem={location.pathname}
           onNavigate={handleNavigate}
+          reportsExpanded={reportsExpanded}
+          onReportsExpandedChange={updateReportsExpanded}
         />
       )}
 
@@ -51,9 +45,11 @@ export function AppLayout({ children }: AppLayoutProps) {
       {!isMobile && (
         <AppSidebar
           collapsed={effectiveCollapsed}
-          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onToggle={() => updateCollapsed(!sidebarCollapsed)}
           activeItem={location.pathname}
           onNavigate={handleNavigate}
+          reportsExpanded={reportsExpanded}
+          onReportsExpandedChange={updateReportsExpanded}
         />
       )}
 
