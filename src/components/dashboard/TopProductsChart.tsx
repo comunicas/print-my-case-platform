@@ -35,17 +35,17 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between px-4 md:px-6 pt-4 md:pt-6">
+    <Card className="flex flex-col">
+      <CardHeader className="flex flex-row items-center justify-between px-4 md:px-6 pt-4 md:pt-6 pb-3">
         <CardTitle className="text-base md:text-lg">Top 10 Produtos</CardTitle>
         <Button variant="ghost" size="sm" onClick={handleExport} className="gap-1.5">
           <Download className="h-4 w-4" />
           <span className="hidden sm:inline">Exportar</span>
         </Button>
       </CardHeader>
-      <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
+      <CardContent className="flex-1 flex flex-col px-4 md:px-6 pb-4 md:pb-6">
         {data.length > 0 ? (
-          <ChartContainer config={chartConfig} className="h-[350px] w-full">
+          <ChartContainer config={chartConfig} className="flex-1 min-h-[300px] w-full">
             <BarChart 
               data={data} 
               layout="vertical" 
@@ -95,7 +95,7 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
             </BarChart>
           </ChartContainer>
         ) : (
-          <div className="h-[350px] flex items-center justify-center text-muted-foreground">
+          <div className="flex-1 min-h-[300px] flex items-center justify-center text-muted-foreground">
             Nenhum dado de produtos disponível
           </div>
         )}

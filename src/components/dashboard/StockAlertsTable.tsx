@@ -53,7 +53,7 @@ export function StockAlertsTable({ data, maxCapacity = 7 }: StockAlertsTableProp
   }
 
   return (
-    <Card>
+    <Card className="flex flex-col">
       <CardHeader className="px-4 md:px-6 pt-4 md:pt-6 pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base md:text-lg flex items-center gap-2">
@@ -62,7 +62,7 @@ export function StockAlertsTable({ data, maxCapacity = 7 }: StockAlertsTableProp
           </CardTitle>
         </div>
       </CardHeader>
-      <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
+      <CardContent className="flex-1 px-4 md:px-6 pb-4 md:pb-6">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
