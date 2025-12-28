@@ -102,10 +102,3 @@ export function getExactProductKey(productName: string): string {
   return `${brand}:${model}`;
 }
 
-/**
- * Cria uma chave única para agrupar produtos (alias para getExactProductKey)
- * @deprecated Use getExactProductKey para maior clareza
- */
-export function getProductKey(productName: string): string {
-  return getExactProductKey(productName);
-}

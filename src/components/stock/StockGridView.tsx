@@ -1,15 +1,14 @@
 import { useState, useMemo } from 'react';
-import { Search, Maximize2, X } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { Maximize2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SlotStack, EmptySlot } from './SlotStack';
 import { StockLegend } from './StockLegend';
 import { SlotDetailModal } from './SlotDetailModal';
 import { ProductDetailModal } from './ProductDetailModal';
-import { BrandLogo } from '@/components/ui/BrandLogo';
 import { SlotData } from '@/lib/stockUtils';
 import { GRID_LAYOUT, COLUMN_HEADERS } from '@/lib/stockGridUtils';
 import { KNOWN_BRANDS } from '@/lib/brandAssets';
+import { useStockFilters } from '@/contexts/StockFiltersContext';
 import { cn } from '@/lib/utils';
 
 interface StockGridViewProps {
@@ -19,8 +18,7 @@ interface StockGridViewProps {
 }
 
 export function StockGridView({ slots, brands = KNOWN_BRANDS, isLoading }: StockGridViewProps) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
+  const { searchTerm, brandFilter } = useStockFilters();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<SlotData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -36,9 +34,10 @@ export function StockGridView({ slots, brands = KNOWN_BRANDS, isLoading }: Stock
     return map;
   }, [slots]);
 
-  // Filtra slots pelo termo de busca e marca
+  // Filtra slots pelo termo de busca e marca (usando contexto global)
   const highlightedSlots = useMemo(() => {
     const highlighted = new Set<string>();
+    const selectedBrand = brandFilter === 'all' ? null : brandFilter;
     
     if (!searchTerm && !selectedBrand) return highlighted;
     
@@ -55,9 +54,9 @@ export function StockGridView({ slots, brands = KNOWN_BRANDS, isLoading }: Stock
     }
     
     return highlighted;
-  }, [slots, searchTerm, selectedBrand]);
+  }, [slots, searchTerm, brandFilter]);
 
-  const hasFilter = searchTerm !== '' || selectedBrand !== null;
+  const hasFilter = searchTerm !== '' || brandFilter !== 'all';
 
   const handleSlotClick = (slotData: SlotData) => {
     setSelectedSlot(slotData);
@@ -89,63 +88,15 @@ export function StockGridView({ slots, brands = KNOWN_BRANDS, isLoading }: Stock
       'space-y-4',
       isFullscreen && 'fixed inset-0 z-50 bg-background p-6 overflow-auto'
     )}>
-      {/* Header com filtros */}
-      <div className="flex flex-wrap gap-3 items-center justify-between">
-        <div className="flex flex-wrap gap-2 items-center">
-          {/* Filtro por marca (logos clicáveis) */}
-          <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg">
-            <Button
-              variant={selectedBrand === null ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setSelectedBrand(null)}
-              className="h-8 px-3 text-xs"
-            >
-              Todos
-            </Button>
-            {brands.map((brand) => (
-              <Button
-                key={brand}
-                variant={selectedBrand === brand ? "secondary" : "ghost"}
-                size="sm"
-                onClick={() => setSelectedBrand(selectedBrand === brand ? null : brand)}
-                className="h-8 w-8 p-0"
-              >
-                <BrandLogo brand={brand} size="sm" showTooltip={false} />
-              </Button>
-            ))}
-          </div>
-          
-          {/* Busca */}
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar modelo..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8 w-[180px] h-8"
-            />
-          </div>
-        </div>
-
-        <div className="flex gap-2">
-          {hasFilter && (
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => { setSearchTerm(''); setSelectedBrand(null); }}
-            >
-              <X className="h-4 w-4 mr-1" />
-              Limpar
-            </Button>
-          )}
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => setIsFullscreen(!isFullscreen)}
-          >
-            {isFullscreen ? <X className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-          </Button>
-        </div>
+      {/* Header com botão fullscreen */}
+      <div className="flex justify-end">
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={() => setIsFullscreen(!isFullscreen)}
+        >
+          {isFullscreen ? <X className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+        </Button>
       </div>
 
       {/* Grid da máquina */}

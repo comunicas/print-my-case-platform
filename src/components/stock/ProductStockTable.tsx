@@ -14,6 +14,7 @@ import { Progress } from '@/components/ui/progress';
 import { ProductDisplay } from '@/components/ui/ProductDisplay';
 import { ProductStock, SalesIndex, ProductStatus } from '@/lib/stockUtils';
 import { MAX_CAPACITY } from '@/lib/stockGridUtils';
+import { statusLabels, statusColors, salesIndexLabels, salesIndexColors } from '@/lib/stockLabels';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ProductStockTableProps {
@@ -23,32 +24,6 @@ interface ProductStockTableProps {
 
 type SortField = 'model' | 'quantity' | 'sales' | 'slots' | 'status';
 type SortDirection = 'asc' | 'desc';
-
-const salesIndexLabels: Record<SalesIndex, string> = {
-  high: 'Alta',
-  medium: 'Média',
-  low: 'Baixa',
-  none: 'Nenhuma',
-};
-
-const salesIndexColors: Record<SalesIndex, string> = {
-  high: 'bg-green-500/10 text-green-600 border-green-500/20',
-  medium: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
-  low: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
-  none: 'bg-muted text-muted-foreground border-border',
-};
-
-const statusLabels: Record<ProductStatus, string> = {
-  ok: 'Ok',
-  redistribute: 'Redistribuir',
-  restock: 'Repor!',
-};
-
-const statusColors: Record<ProductStatus, string> = {
-  ok: 'bg-green-500/10 text-green-600 border-green-500/20',
-  redistribute: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
-  restock: 'bg-destructive/10 text-destructive border-destructive/20',
-};
 
 export function ProductStockTable({ products, isLoading }: ProductStockTableProps) {
   const [sortField, setSortField] = useState<SortField>('quantity');
