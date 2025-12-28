@@ -528,6 +528,10 @@ export type Database = {
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      target_user_is_super_admin: {
+        Args: { _target_user_id: string }
+        Returns: boolean
+      }
       user_can_access_pdv: {
         Args: { _pdv_id: string; _user_id: string }
         Returns: boolean
