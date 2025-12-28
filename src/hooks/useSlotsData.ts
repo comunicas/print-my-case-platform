@@ -20,7 +20,10 @@ export function useSlotsData({ pdvId }: UseSlotsDataParams = {}) {
         .order('uploaded_at', { ascending: false });
       
       if (pdvId && pdvId !== 'all') {
-        uploadsQuery = uploadsQuery.eq('pdv_id', pdvId);
+        uploadsQuery = uploadsQuery.eq('pdv_id', pdvId).limit(1);
+      } else {
+        // Limitar para evitar carregar histórico desnecessário
+        uploadsQuery = uploadsQuery.limit(50);
       }
       
       const { data: uploads, error: uploadsError } = await uploadsQuery;
