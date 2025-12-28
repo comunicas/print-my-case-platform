@@ -11,7 +11,7 @@ import {
   extractUniqueBrands,
 } from '@/lib/stockUtils';
 import { GRID_LAYOUT } from '@/lib/stockGridUtils';
-import { extractModelFromProductName } from '@/lib/productNormalization';
+import type { ProductSuggestion } from '@/components/stock/ProductSearchAutocomplete';
 
 export function useProductStock() {
   const filters = useStockFilters();
@@ -48,9 +48,17 @@ export function useProductStock() {
   }, [salesData]);
   
   // Agrega produtos e aplica filtros
-  const { products, kpis, brands } = useMemo(() => {
+  const { products, kpis, brands, suggestions } = useMemo(() => {
     const allProducts = aggregateProductStock(slots, salesByProduct);
     const uniqueBrands = extractUniqueBrands(slots);
+    
+    // Cria lista de sugestões para autocomplete
+    const productSuggestions = allProducts.map(p => ({
+      productKey: p.productKey,
+      brand: p.brand,
+      model: p.model,
+      totalSold: p.totalSold,
+    })).sort((a, b) => b.totalSold - a.totalSold); // Ordena por vendas
     
     // Aplica filtros
     let filtered = allProducts;
@@ -88,6 +96,7 @@ export function useProductStock() {
       products: filtered,
       kpis: calculateStockKPIs(allProducts, totalSlots),
       brands: uniqueBrands,
+      suggestions: productSuggestions,
     };
   }, [slots, salesByProduct, filters]);
   
@@ -96,6 +105,7 @@ export function useProductStock() {
     kpis,
     brands,
     slots,
+    suggestions,
     isLoading: slotsLoading || salesLoading,
   };
 }
