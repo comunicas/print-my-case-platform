@@ -10,13 +10,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { SlotData } from '@/lib/stockUtils';
-import { MAX_CAPACITY, getSlotStatus, getBlockColorClass } from '@/lib/stockGridUtils';
+import { MAX_CAPACITY, getBlockColorClass } from '@/lib/stockGridUtils';
 import { statusLabels, statusColors } from '@/lib/stockLabels';
 import { cn } from '@/lib/utils';
 import { Package, MapPin } from 'lucide-react';
 import { useMemo } from 'react';
 import { ProductSalesHistoryChart } from './ProductSalesHistoryChart';
-import { useStockFilters } from '@/contexts/StockFiltersContext';
 import { extractBrandFromProductName, extractModelFromProductName } from '@/lib/productNormalization';
 
 interface ProductDetailModalProps {
@@ -24,11 +23,10 @@ interface ProductDetailModalProps {
   slots: SlotData[];
   isOpen: boolean;
   onClose: () => void;
+  pdvId?: string;
 }
 
-export function ProductDetailModal({ productName, slots, isOpen, onClose }: ProductDetailModalProps) {
-  const { selectedPdv } = useStockFilters();
-  
+export function ProductDetailModal({ productName, slots, isOpen, onClose, pdvId }: ProductDetailModalProps) {
   // Filtra e agrega dados do produto
   const productData = useMemo(() => {
     if (!productName) return null;
@@ -107,7 +105,7 @@ export function ProductDetailModal({ productName, slots, isOpen, onClose }: Prod
           <div className="p-4 bg-muted/30 rounded-lg">
             <ProductSalesHistoryChart 
               productName={productName} 
-              pdvId={selectedPdv}
+              pdvId={pdvId}
             />
           </div>
 
