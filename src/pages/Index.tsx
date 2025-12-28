@@ -233,8 +233,10 @@ export default function Index() {
         {/* Quick Stats */}
         {data?.quickStats && (
           <QuickStats 
-            peakHour={data.quickStats.peakHour} 
-            bestDay={data.quickStats.bestDay} 
+            peakTimeRange={data.quickStats.peakTimeRange}
+            peakTimeRangeRevenue={data.quickStats.peakTimeRangeRevenue}
+            bestDay={data.quickStats.bestDay}
+            bestDayRevenue={data.quickStats.bestDayRevenue}
           />
         )}
 

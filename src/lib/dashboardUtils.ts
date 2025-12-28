@@ -53,8 +53,10 @@ export interface StockByBrandData {
 }
 
 export interface QuickStatsData {
-  peakHour: string | null;
+  peakTimeRange: string | null;
+  peakTimeRangeRevenue: number | null;
   bestDay: string | null;
+  bestDayRevenue: number | null;
 }
 
 export interface LowStockItem {
@@ -217,7 +219,7 @@ export function getStockByBrand(slots: { brand: string; quantity: number }[]): S
  */
 export function getQuickStats(sales: SaleRecord[]): QuickStatsData {
   if (sales.length === 0) {
-    return { peakHour: null, bestDay: null };
+    return { peakTimeRange: null, peakTimeRangeRevenue: null, bestDay: null, bestDayRevenue: null };
   }
   
   // Agrupa por faixa horária (3h) em vez de hora individual
@@ -244,27 +246,29 @@ export function getQuickStats(sales: SaleRecord[]): QuickStatsData {
   }
   
   // Encontra faixa de pico
-  let peakRange: string | null = null;
-  let maxRangeRevenue = 0;
+  let peakTimeRange: string | null = null;
+  let peakTimeRangeRevenue = 0;
   for (const [, data] of byRange.entries()) {
-    if (data.revenue > maxRangeRevenue) {
-      maxRangeRevenue = data.revenue;
-      peakRange = data.label;
+    if (data.revenue > peakTimeRangeRevenue) {
+      peakTimeRangeRevenue = data.revenue;
+      peakTimeRange = data.label;
     }
   }
   
   let bestDay: number | null = null;
-  let maxDayRevenue = 0;
+  let bestDayRevenue = 0;
   for (const [day, revenue] of byDay.entries()) {
-    if (revenue > maxDayRevenue) {
-      maxDayRevenue = revenue;
+    if (revenue > bestDayRevenue) {
+      bestDayRevenue = revenue;
       bestDay = day;
     }
   }
   
   return {
-    peakHour: peakRange,
+    peakTimeRange,
+    peakTimeRangeRevenue: peakTimeRangeRevenue > 0 ? peakTimeRangeRevenue : null,
     bestDay: bestDay !== null ? DAY_NAMES[bestDay] : null,
+    bestDayRevenue: bestDayRevenue > 0 ? bestDayRevenue : null,
   };
 }
 
