@@ -1,6 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "./useProfile";
+import {
+  getSalesByDay,
+  getSalesByHourAndDay,
+  getTopProducts,
+  getQuickStats,
+  SaleRecord,
+  SalesByDayData,
+  HeatmapCell,
+  TopProductData,
+  QuickStatsData,
+} from "@/lib/dashboardUtils";
 
 export interface DashboardData {
   kpis: {
@@ -32,6 +43,12 @@ export interface DashboardData {
     totalRevenueGlobal: number;
     totalTransactionsGlobal: number;
   };
+  // New processed data for charts
+  salesRecords: SaleRecord[];
+  salesByDay: SalesByDayData[];
+  salesByHourAndDay: HeatmapCell[];
+  topProductsChart: TopProductData[];
+  quickStats: QuickStatsData;
 }
 
 interface SalesRecordWithPdv {
@@ -76,18 +93,25 @@ function normalizePaymentMethod(method: string | null): string {
 
 interface UseDashboardParams {
   selectedOrganizationId?: string | "all";
+  dateRange?: { from: Date; to: Date };
 }
 
-export function useDashboard({ selectedOrganizationId }: UseDashboardParams = {}) {
+export function useDashboard({ selectedOrganizationId, dateRange }: UseDashboardParams = {}) {
   const { profile, role } = useProfile();
   const isSuperAdmin = role === "super_admin";
 
   const dashboardQuery = useQuery({
-    queryKey: ["dashboard", profile?.organization_id, selectedOrganizationId, isSuperAdmin],
+    queryKey: ["dashboard", profile?.organization_id, selectedOrganizationId, isSuperAdmin, dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
     queryFn: async (): Promise<DashboardData> => {
       const now = new Date();
-      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+      // Use dateRange if provided, otherwise default to 30 days
+      const startDate = dateRange?.from || new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const endDate = dateRange?.to || now;
+      
+      // Calculate previous period for comparison
+      const periodDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
+      const previousStartDate = new Date(startDate.getTime() - periodDays * 24 * 60 * 60 * 1000);
+      const previousEndDate = new Date(startDate.getTime() - 1);
 
       // Determine which PDVs to query based on role and filter
       let pdvIds: string[] | null = null;
@@ -106,17 +130,26 @@ export function useDashboard({ selectedOrganizationId }: UseDashboardParams = {}
         }
       }
 
-      // Build base queries
+      // Build base queries - use startDate/endDate for current period
       let currentSalesQuery = supabase
         .from("sales_records")
         .select("amount, refund_amount")
-        .gte("payment_date", thirtyDaysAgo.toISOString());
+        .gte("payment_date", startDate.toISOString())
+        .lte("payment_date", endDate.toISOString());
 
       let previousSalesQuery = supabase
         .from("sales_records")
         .select("amount, refund_amount")
-        .gte("payment_date", sixtyDaysAgo.toISOString())
-        .lt("payment_date", thirtyDaysAgo.toISOString());
+        .gte("payment_date", previousStartDate.toISOString())
+        .lte("payment_date", previousEndDate.toISOString());
+
+      // Query for full sales records (for charts)
+      let fullSalesRecordsQuery = supabase
+        .from("sales_records")
+        .select("id, payment_date, amount, refund_amount, product_name, payment_method, pdv_id")
+        .gte("payment_date", startDate.toISOString())
+        .lte("payment_date", endDate.toISOString())
+        .order("payment_date", { ascending: true });
 
       let revenueByMonthQuery = supabase
         .from("sales_records")
@@ -126,12 +159,14 @@ export function useDashboard({ selectedOrganizationId }: UseDashboardParams = {}
       let salesByPdvQuery = supabase
         .from("sales_records")
         .select("pdv_id, amount, refund_amount, pdv:pdvs(name)")
-        .gte("payment_date", thirtyDaysAgo.toISOString());
+        .gte("payment_date", startDate.toISOString())
+        .lte("payment_date", endDate.toISOString());
 
       let paymentMethodsQuery = supabase
         .from("sales_records")
         .select("payment_method")
-        .gte("payment_date", thirtyDaysAgo.toISOString());
+        .gte("payment_date", startDate.toISOString())
+        .lte("payment_date", endDate.toISOString());
 
       let stockByPdvQuery = supabase
         .from("stock_records")
@@ -141,7 +176,8 @@ export function useDashboard({ selectedOrganizationId }: UseDashboardParams = {}
       let topProductsQuery = supabase
         .from("sales_records")
         .select("product_name")
-        .gte("payment_date", thirtyDaysAgo.toISOString());
+        .gte("payment_date", startDate.toISOString())
+        .lte("payment_date", endDate.toISOString());
 
       let stockAlertsQuery = supabase
         .from("stock_records")
@@ -164,6 +200,7 @@ export function useDashboard({ selectedOrganizationId }: UseDashboardParams = {}
         const filterIds = pdvIds.length > 0 ? pdvIds : ["no-match"];
         currentSalesQuery = currentSalesQuery.in("pdv_id", filterIds);
         previousSalesQuery = previousSalesQuery.in("pdv_id", filterIds);
+        fullSalesRecordsQuery = fullSalesRecordsQuery.in("pdv_id", filterIds);
         revenueByMonthQuery = revenueByMonthQuery.in("pdv_id", filterIds);
         salesByPdvQuery = salesByPdvQuery.in("pdv_id", filterIds);
         paymentMethodsQuery = paymentMethodsQuery.in("pdv_id", filterIds);
@@ -187,6 +224,7 @@ export function useDashboard({ selectedOrganizationId }: UseDashboardParams = {}
       const [
         currentSalesResult,
         previousSalesResult,
+        fullSalesRecordsResult,
         revenueByMonthResult,
         salesByPdvResult,
         paymentMethodsResult,
@@ -198,6 +236,7 @@ export function useDashboard({ selectedOrganizationId }: UseDashboardParams = {}
       ] = await Promise.all([
         currentSalesQuery,
         previousSalesQuery,
+        fullSalesRecordsQuery,
         revenueByMonthQuery,
         salesByPdvQuery,
         paymentMethodsQuery,
@@ -214,7 +253,7 @@ export function useDashboard({ selectedOrganizationId }: UseDashboardParams = {}
         const [orgsResult, globalPdvsResult, globalSalesResult] = await Promise.all([
           supabase.from("organizations").select("id", { count: "exact", head: true }),
           supabase.from("pdvs").select("id", { count: "exact", head: true }).eq("status", "active"),
-          supabase.from("sales_records").select("amount, refund_amount").gte("payment_date", thirtyDaysAgo.toISOString()),
+          supabase.from("sales_records").select("amount, refund_amount").gte("payment_date", startDate.toISOString()).lte("payment_date", endDate.toISOString()),
         ]);
         
         const globalSalesData = globalSalesResult.data || [];
@@ -333,6 +372,24 @@ export function useDashboard({ selectedOrganizationId }: UseDashboardParams = {}
 
       const hasData = currentSales.length > 0 || stockRecords.length > 0;
 
+      // Process full sales records for charts
+      const salesRecordsRaw = fullSalesRecordsResult.data || [];
+      const salesRecordsForCharts: SaleRecord[] = salesRecordsRaw.map((r: any) => ({
+        id: r.id,
+        payment_date: r.payment_date,
+        amount: Number(r.amount),
+        refund_amount: r.refund_amount ? Number(r.refund_amount) : null,
+        product_name: r.product_name,
+        payment_method: r.payment_method,
+        pdv_id: r.pdv_id,
+      }));
+
+      // Calculate chart data using dashboardUtils functions
+      const salesByDay = getSalesByDay(salesRecordsForCharts);
+      const salesByHourAndDay = getSalesByHourAndDay(salesRecordsForCharts);
+      const topProductsChart = getTopProducts(salesRecordsForCharts, 10);
+      const quickStats = getQuickStats(salesRecordsForCharts);
+
       return {
         kpis: {
           totalRevenue,
@@ -351,6 +408,12 @@ export function useDashboard({ selectedOrganizationId }: UseDashboardParams = {}
         recentUploads,
         hasData,
         globalMetrics,
+        // New chart data
+        salesRecords: salesRecordsForCharts,
+        salesByDay,
+        salesByHourAndDay,
+        topProductsChart,
+        quickStats,
       };
     },
     enabled: !!profile?.organization_id || isSuperAdmin,
