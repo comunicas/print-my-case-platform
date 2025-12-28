@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { SlotStack, EmptySlot } from './SlotStack';
 import { StockLegend } from './StockLegend';
+import { SlotDetailModal } from './SlotDetailModal';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { SlotData } from '@/lib/stockUtils';
 import { GRID_LAYOUT, COLUMN_HEADERS } from '@/lib/stockGridUtils';
@@ -20,6 +21,8 @@ export function StockGridView({ slots, brands = KNOWN_BRANDS, isLoading }: Stock
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<SlotData | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Mapeia slots por número para acesso rápido
   const slotMap = useMemo(() => {
@@ -52,6 +55,16 @@ export function StockGridView({ slots, brands = KNOWN_BRANDS, isLoading }: Stock
   }, [slots, searchTerm, selectedBrand]);
 
   const hasFilter = searchTerm !== '' || selectedBrand !== null;
+
+  const handleSlotClick = (slotData: SlotData) => {
+    setSelectedSlot(slotData);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedSlot(null);
+  };
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-64 text-muted-foreground">Carregando...</div>;
@@ -175,6 +188,7 @@ export function StockGridView({ slots, brands = KNOWN_BRANDS, isLoading }: Stock
                           isActive={slotData.isActive}
                           isHighlighted={isHighlighted}
                           isFiltered={isFiltered}
+                          onClick={() => handleSlotClick(slotData)}
                         />
                       </div>
                     );
@@ -188,6 +202,13 @@ export function StockGridView({ slots, brands = KNOWN_BRANDS, isLoading }: Stock
 
       {/* Legenda */}
       <StockLegend brands={brands} />
+
+      {/* Modal de detalhes */}
+      <SlotDetailModal
+        slot={selectedSlot}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+      />
     </div>
   );
 
