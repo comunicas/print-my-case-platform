@@ -25,29 +25,39 @@ const AMOUNT_MAX = 10000000; // 10 million (reasonable max for a single transact
 const QUANTITY_MIN = 0;
 const QUANTITY_MAX = 100000; // reasonable max for stock quantity
 
-// Column mapping for sales spreadsheet (REVENUE.xlsx)
-const SALES_COLUMN_MAP: Record<string, string> = {
-  "Comerciante": "merchant_id",
-  "ID do dispositivo": "device_id",
-  "Número do pedido": "order_number",
-  "Nome do produto": "product_name",
-  "Número da transação": "transaction_number",
-  "Hora do pagamento": "payment_date",
-  "Valor pago": "amount",
-  "Forma de pagamento": "payment_method",
-  "Status": "status",
-  "Valor reembolsado": "refund_amount",
+// Column mapping for sales spreadsheet (REVENUE.xlsx) - PT and EN aliases
+const SALES_COLUMN_MAP: Record<string, string[]> = {
+  "merchant_id": ["Comerciante", "Merchant"],
+  "device_id": ["ID do dispositivo", "Device ID"],
+  "order_number": ["Número do pedido", "Order ID"],
+  "product_name": ["Nome do produto", "Product Name"],
+  "transaction_number": ["Número da transação", "Transaction ID"],
+  "payment_date": ["Hora do pagamento", "Payment Time"],
+  "amount": ["Valor pago", "Payment Amount"],
+  "payment_method": ["Forma de pagamento", "Payment Method"],
+  "status": ["Status"],
+  "refund_amount": ["Valor reembolsado", "Refund Amount"],
 };
 
-// Column mapping for stock spreadsheet (REPORT-SLOT.xlsx)
-const STOCK_COLUMN_MAP: Record<string, string> = {
-  "Número": "record_number",
-  "Código da máquina": "device_id",
-  "Número do compartimento": "slot_number",
-  "Nome do produto": "product_name",
-  "Estoque": "quantity",
-  "Ativado": "is_active",
+// Column mapping for stock spreadsheet (REPORT-SLOT.xlsx) - PT and EN aliases
+const STOCK_COLUMN_MAP: Record<string, string[]> = {
+  "record_number": ["Número", "ID"],
+  "device_id": ["Código da máquina", "Machine Code"],
+  "slot_number": ["Número do compartimento", "Slot Number"],
+  "product_name": ["Nome do produto", "Product Name"],
+  "quantity": ["Estoque", "Stock"],
+  "is_active": ["Ativado", "Enabled"],
 };
+
+// Helper function to get column value by checking multiple aliases
+function getColumnValue(row: Record<string, unknown>, aliases: string[]): unknown {
+  for (const alias of aliases) {
+    if (row[alias] !== undefined) {
+      return row[alias];
+    }
+  }
+  return undefined;
+}
 
 // Extract brand from product name (inline - cannot import from src)
 function extractBrandFromProduct(productName: string): string {
@@ -248,8 +258,8 @@ function mapSalesRow(row: Record<string, unknown>, pdvId: string, uploadId: stri
     upload_id: uploadId,
   };
   
-  for (const [xlsCol, dbCol] of Object.entries(SALES_COLUMN_MAP)) {
-    const value = row[xlsCol];
+  for (const [dbCol, aliases] of Object.entries(SALES_COLUMN_MAP)) {
+    const value = getColumnValue(row, aliases);
     
     switch (dbCol) {
       case "payment_date":
@@ -280,8 +290,6 @@ function mapSalesRow(row: Record<string, unknown>, pdvId: string, uploadId: stri
       case "status":
         mapped[dbCol] = sanitizeString(value, FIELD_LIMITS.status);
         break;
-      default:
-        mapped[dbCol] = sanitizeString(value, 255);
     }
   }
   
@@ -294,8 +302,8 @@ function mapStockRow(row: Record<string, unknown>, pdvId: string, uploadId: stri
     upload_id: uploadId,
   };
   
-  for (const [xlsCol, dbCol] of Object.entries(STOCK_COLUMN_MAP)) {
-    const value = row[xlsCol];
+  for (const [dbCol, aliases] of Object.entries(STOCK_COLUMN_MAP)) {
+    const value = getColumnValue(row, aliases);
     
     switch (dbCol) {
       case "quantity":
@@ -316,8 +324,6 @@ function mapStockRow(row: Record<string, unknown>, pdvId: string, uploadId: stri
       case "record_number":
         mapped[dbCol] = sanitizeString(value, FIELD_LIMITS.record_number);
         break;
-      default:
-        mapped[dbCol] = sanitizeString(value, 255);
     }
   }
   
