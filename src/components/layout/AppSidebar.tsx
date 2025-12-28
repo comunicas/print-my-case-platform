@@ -183,7 +183,7 @@ export function AppSidebar({
     <TooltipProvider delayDuration={0}>
       <aside
         className={cn(
-          "h-screen bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300 flex-shrink-0",
+          "sticky top-0 h-screen bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300 flex-shrink-0 overflow-hidden",
           collapsed ? "w-16" : "w-64"
         )}
       >
@@ -208,14 +208,14 @@ export function AppSidebar({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 py-4 px-2 space-y-1">
+        <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
           {renderNavItem(navItems[0])}
           {renderStockMenu()}
           {renderNavItem(navItems[1])}
         </nav>
 
         {/* Collapse Toggle */}
-        <div className="p-2 border-t border-sidebar-border">
+        <div className="p-2 border-t border-sidebar-border mt-auto flex-shrink-0">
           <Button
             variant="ghost"
             size="sm"
