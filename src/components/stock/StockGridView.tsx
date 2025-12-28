@@ -13,12 +13,13 @@ import { cn } from '@/lib/utils';
 
 interface StockGridViewProps {
   slots: SlotData[];
+  filteredSlots?: SlotData[];
   brands?: string[];
   isLoading?: boolean;
 }
 
-export function StockGridView({ slots, brands = KNOWN_BRANDS, isLoading }: StockGridViewProps) {
-  const { searchTerm, brandFilter } = useStockFilters();
+export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isLoading }: StockGridViewProps) {
+  const { searchTerm, brandFilter, statusFilter, salesIndexFilter } = useStockFilters();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<SlotData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -34,29 +35,13 @@ export function StockGridView({ slots, brands = KNOWN_BRANDS, isLoading }: Stock
     return map;
   }, [slots]);
 
-  // Filtra slots pelo termo de busca e marca (usando contexto global)
-  const highlightedSlots = useMemo(() => {
-    const highlighted = new Set<string>();
-    const selectedBrand = brandFilter === 'all' ? null : brandFilter;
-    
-    if (!searchTerm && !selectedBrand) return highlighted;
-    
-    for (const slot of slots) {
-      const matchesSearch = !searchTerm || 
-        slot.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        slot.productName.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesBrand = !selectedBrand || slot.brand === selectedBrand;
-      
-      if (matchesSearch && matchesBrand) {
-        highlighted.add(slot.slot);
-      }
-    }
-    
-    return highlighted;
-  }, [slots, searchTerm, brandFilter]);
+  // Set de slots filtrados para verificação rápida
+  const filteredSlotNumbers = useMemo(() => {
+    if (!filteredSlots) return null;
+    return new Set(filteredSlots.map(s => s.slot));
+  }, [filteredSlots]);
 
-  const hasFilter = searchTerm !== '' || brandFilter !== 'all';
+  const hasFilter = searchTerm !== '' || brandFilter !== 'all' || statusFilter !== 'all' || salesIndexFilter !== 'all';
 
   const handleSlotClick = (slotData: SlotData) => {
     setSelectedSlot(slotData);
@@ -141,8 +126,10 @@ export function StockGridView({ slots, brands = KNOWN_BRANDS, isLoading }: Stock
                         );
                       }
                       
-                      const isHighlighted = hasFilter && highlightedSlots.has(slotNumber);
-                      const isFiltered = hasFilter && !highlightedSlots.has(slotNumber);
+                      // Verifica se o slot está nos slots filtrados
+                      const isInFilteredSlots = !filteredSlotNumbers || filteredSlotNumbers.has(slotNumber);
+                      const isHighlighted = hasFilter && isInFilteredSlots;
+                      const isFiltered = hasFilter && !isInFilteredSlots;
                       
                       return (
                         <div key={slotNumber} className="w-[52px] sm:w-[60px] md:w-[72px] flex items-center justify-center">
