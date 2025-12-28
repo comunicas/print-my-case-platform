@@ -15,6 +15,7 @@ import { slotStatusLabels } from '@/lib/stockLabels';
 import { cn } from '@/lib/utils';
 import { Package } from 'lucide-react';
 import { useProductModal } from '@/contexts/ProductModalContext';
+import { useStockFilters } from '@/contexts/StockFiltersContext';
 
 interface SlotDetailModalProps {
   slot: SlotData | null;
@@ -24,6 +25,7 @@ interface SlotDetailModalProps {
 
 export function SlotDetailModal({ slot, isOpen, onClose }: SlotDetailModalProps) {
   const { openProductModal } = useProductModal();
+  const { selectedPdv } = useStockFilters();
   
   if (!slot) return null;
 
@@ -34,7 +36,7 @@ export function SlotDetailModal({ slot, isOpen, onClose }: SlotDetailModalProps)
   const handleViewProduct = () => {
     if (slot.productName) {
       onClose();
-      openProductModal(slot.productName);
+      openProductModal(slot.productName, selectedPdv !== 'all' ? selectedPdv : undefined);
     }
   };
 
