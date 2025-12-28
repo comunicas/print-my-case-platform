@@ -81,7 +81,15 @@ export function useTeamMembers() {
       if (!isSuperAdmin) throw new Error("Apenas super_admin pode criar usuários");
       
       const { data: result, error } = await supabase.functions.invoke("create-user", {
-        body: data,
+        body: {
+          name: data.name,
+          email: data.email,
+          password: data.password,
+          createNewOrganization: data.createNewOrganization,
+          organizationId: data.organizationId,
+          organizationName: data.organizationName,
+          role: data.role,
+        },
       });
 
       if (error) throw error;
@@ -89,11 +97,13 @@ export function useTeamMembers() {
       
       return result;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
+      const roleLabel = result.user?.role === 'org_admin' ? 'administrador' : 
+                        result.user?.role === 'operator' ? 'operador' : 'visualizador';
       toast({
         title: "Usuário criado",
-        description: "O novo usuário foi criado com sucesso.",
+        description: `${result.user?.name} foi criado como ${roleLabel} em ${result.user?.organization?.name}.`,
       });
     },
     onError: (error) => {
