@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { subDays, startOfDay, endOfDay } from "date-fns";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -21,15 +21,7 @@ import { useOrganizations } from "@/hooks/useOrganizations";
 import { useSlotsData } from "@/hooks/useSlotsData";
 import { formatCurrency } from "@/lib/utils";
 import { calculateTrend } from "@/lib/trendUtils";
-import { 
-  getSalesByDay, 
-  getSalesByHourAndDay, 
-  getTopProducts, 
-  getStockByBrand, 
-  getQuickStats,
-  getLowStockItems,
-  SaleRecord
-} from "@/lib/dashboardUtils";
+import { getStockByBrand, getLowStockItems } from "@/lib/dashboardUtils";
 
 // Dashboard Components
 import { DateRangeFilter, DateRange } from "@/components/dashboard/DateRangeFilter";
@@ -51,56 +43,35 @@ export default function Index() {
   });
   
   const { organizations, isSuperAdmin } = useOrganizations();
-  const { data, isLoading } = useDashboard({ selectedOrganizationId: selectedOrgId });
+  const { data, isLoading } = useDashboard({ 
+    selectedOrganizationId: selectedOrgId,
+    dateRange: { from: dateRange.from, to: dateRange.to }
+  });
   const { data: slotsData } = useSlotsData({});
 
-  // Process sales data for the selected date range
-  const processedData = useMemo(() => {
-    if (!data) return null;
-    
-    // Mock sales records from dashboard data for processing
-    // In a real implementation, this would come from a dedicated hook
-    const salesRecords: SaleRecord[] = [];
-    
-    // Use top products and revenue data to create mock records for charts
-    const salesByDay = getSalesByDay(salesRecords);
-    const salesByHourAndDay = getSalesByHourAndDay(salesRecords);
-    const topProducts = getTopProducts(salesRecords, 10);
-    const quickStats = getQuickStats(salesRecords);
-    
-    // Process stock data
-    const stockByBrand = slotsData ? getStockByBrand(
-      slotsData.filter(s => s.isActive).map(s => ({ brand: s.brand, quantity: s.quantity }))
-    ) : [];
-    
-    // Calculate sales by product for low stock items
-    const salesByProduct = new Map<string, number>();
-    data.topProducts?.forEach(p => {
-      salesByProduct.set(p.product, p.quantity);
-    });
-    
-    // Get low stock items
-    const lowStockItems = slotsData ? getLowStockItems(
-      slotsData.filter(s => s.isActive).map(s => ({
-        slotNumber: s.slot,
-        productName: s.productName,
-        brand: s.brand,
-        quantity: s.quantity,
-        pdvName: s.pdvName,
-      })),
-      salesByProduct,
-      1
-    ) : [];
-    
-    return {
-      salesByDay,
-      salesByHourAndDay,
-      topProducts,
-      stockByBrand,
-      quickStats,
-      lowStockItems,
-    };
-  }, [data, slotsData, dateRange]);
+  // Process stock data (not dependent on sales date range)
+  const stockByBrand = slotsData ? getStockByBrand(
+    slotsData.filter(s => s.isActive).map(s => ({ brand: s.brand, quantity: s.quantity }))
+  ) : [];
+  
+  // Calculate sales by product for low stock items
+  const salesByProduct = new Map<string, number>();
+  data?.topProducts?.forEach(p => {
+    salesByProduct.set(p.product, p.quantity);
+  });
+  
+  // Get low stock items
+  const lowStockItems = slotsData ? getLowStockItems(
+    slotsData.filter(s => s.isActive).map(s => ({
+      slotNumber: s.slot,
+      productName: s.productName,
+      brand: s.brand,
+      quantity: s.quantity,
+      pdvName: s.pdvName,
+    })),
+    salesByProduct,
+    1
+  ) : [];
 
   if (isLoading) {
     return (
@@ -140,7 +111,7 @@ export default function Index() {
   );
 
   // Count critical stock
-  const criticalStockCount = processedData?.lowStockItems.length || 0;
+  const criticalStockCount = lowStockItems.length;
 
   return (
     <AppLayout>
@@ -257,10 +228,10 @@ export default function Index() {
         </div>
 
         {/* Quick Stats */}
-        {processedData?.quickStats && (
+        {data?.quickStats && (
           <QuickStats 
-            peakHour={processedData.quickStats.peakHour} 
-            bestDay={processedData.quickStats.bestDay} 
+            peakHour={data.quickStats.peakHour} 
+            bestDay={data.quickStats.bestDay} 
           />
         )}
 
@@ -269,18 +240,18 @@ export default function Index() {
           <>
             {/* Row 1: Sales by Day + Heatmap */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <SalesByDayChart data={processedData?.salesByDay || []} />
-              <SalesHeatmapChart data={processedData?.salesByHourAndDay || []} />
+              <SalesByDayChart data={data?.salesByDay || []} />
+              <SalesHeatmapChart data={data?.salesByHourAndDay || []} />
             </div>
 
             {/* Row 2: Top Products + Stock by Brand */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <TopProductsChart data={processedData?.topProducts || []} />
-              <StockByBrandChart data={processedData?.stockByBrand || []} />
+              <TopProductsChart data={data?.topProductsChart || []} />
+              <StockByBrandChart data={stockByBrand} />
             </div>
 
             {/* Stock Alerts Table */}
-            <StockAlertsTable data={processedData?.lowStockItems || []} />
+            <StockAlertsTable data={lowStockItems} />
           </>
         )}
       </div>
