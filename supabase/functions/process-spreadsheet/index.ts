@@ -59,6 +59,49 @@ function getColumnValue(row: Record<string, unknown>, aliases: string[]): unknow
   return undefined;
 }
 
+// Detect and log which columns are present and their language
+function detectColumns(
+  headers: string[], 
+  columnMap: Record<string, string[]>,
+  type: string
+): void {
+  console.log(`\n=== Column Detection for ${type.toUpperCase()} ===`);
+  console.log(`Headers found in file (${headers.length}): ${JSON.stringify(headers)}`);
+  
+  const detected: { dbCol: string; alias: string; language: string }[] = [];
+  const missing: string[] = [];
+  
+  for (const [dbCol, aliases] of Object.entries(columnMap)) {
+    const [ptAlias, enAlias] = aliases;
+    
+    if (enAlias && headers.includes(enAlias)) {
+      detected.push({ dbCol, alias: enAlias, language: "EN" });
+    } else if (headers.includes(ptAlias)) {
+      detected.push({ dbCol, alias: ptAlias, language: "PT" });
+    } else {
+      missing.push(dbCol);
+    }
+  }
+  
+  // Log detected columns
+  console.log(`Columns detected (${detected.length}):`);
+  detected.forEach(({ dbCol, alias, language }) => {
+    console.log(`  ✓ ${dbCol}: "${alias}" (${language})`);
+  });
+  
+  // Log missing columns
+  if (missing.length > 0) {
+    console.warn(`Missing columns (${missing.length}): ${missing.join(", ")}`);
+  }
+  
+  // Determine predominant language
+  const enCount = detected.filter(d => d.language === "EN").length;
+  const ptCount = detected.filter(d => d.language === "PT").length;
+  const predominantLang = enCount > ptCount ? "ENGLISH" : enCount < ptCount ? "PORTUGUESE" : "MIXED";
+  console.log(`Language summary: EN=${enCount}, PT=${ptCount} → Spreadsheet is in ${predominantLang}`);
+  console.log(`=== End Column Detection ===\n`);
+}
+
 // Extract brand from product name (inline - cannot import from src)
 function extractBrandFromProduct(productName: string): string {
   const upper = (productName || "").toUpperCase().trim();
@@ -486,6 +529,13 @@ Deno.serve(async (req) => {
     const rows = XLSX.utils.sheet_to_json(worksheet) as Record<string, unknown>[];
 
     console.log(`Parsed ${rows.length} rows from sheet "${sheetName}"`);
+
+    // Detect and log column information
+    if (rows.length > 0) {
+      const headers = Object.keys(rows[0]);
+      const columnMap = upload.type === "sales" ? SALES_COLUMN_MAP : STOCK_COLUMN_MAP;
+      detectColumns(headers, columnMap, upload.type);
+    }
 
     if (rows.length === 0) {
       await supabase
