@@ -105,6 +105,14 @@ export function useTeamMembers() {
     },
   });
 
+  // Helper para verificar se pode atribuir um role
+  const canAssignRole = (newRole: TeamMember["role"]): boolean => {
+    if (newRole === "super_admin" || newRole === "org_admin") {
+      return isSuperAdmin;
+    }
+    return isAdmin;
+  };
+
   const updateMember = useMutation({
     mutationFn: async (data: { 
       userId: string; 
@@ -113,6 +121,11 @@ export function useTeamMembers() {
       status: TeamMember["status"];
     }) => {
       if (!isAdmin) throw new Error("Permissão negada");
+      
+      // Validação de hierarquia de roles
+      if (!canAssignRole(data.role)) {
+        throw new Error("Você não tem permissão para atribuir este role");
+      }
       
       // Update profile (name and status)
       const { error: profileError } = await supabase
@@ -197,6 +210,7 @@ export function useTeamMembers() {
     error: teamQuery.error,
     isAdmin,
     isSuperAdmin,
+    canAssignRole,
     updateMember,
     removeMember,
     createUser,
