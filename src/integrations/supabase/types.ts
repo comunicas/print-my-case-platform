@@ -293,6 +293,64 @@ export type Database = {
           },
         ]
       }
+      stock_history: {
+        Row: {
+          active_slots: number
+          brand: string
+          created_at: string | null
+          id: string
+          organization_id: string
+          pdv_id: string
+          snapshot_date: string
+          total_quantity: number
+          upload_id: string | null
+        }
+        Insert: {
+          active_slots?: number
+          brand: string
+          created_at?: string | null
+          id?: string
+          organization_id: string
+          pdv_id: string
+          snapshot_date?: string
+          total_quantity?: number
+          upload_id?: string | null
+        }
+        Update: {
+          active_slots?: number
+          brand?: string
+          created_at?: string | null
+          id?: string
+          organization_id?: string
+          pdv_id?: string
+          snapshot_date?: string
+          total_quantity?: number
+          upload_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_history_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_history_pdv_id_fkey"
+            columns: ["pdv_id"]
+            isOneToOne: false
+            referencedRelation: "pdvs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_history_upload_id_fkey"
+            columns: ["upload_id"]
+            isOneToOne: false
+            referencedRelation: "uploads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_records: {
         Row: {
           device_id: string

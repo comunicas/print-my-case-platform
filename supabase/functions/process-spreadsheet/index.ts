@@ -49,6 +49,30 @@ const STOCK_COLUMN_MAP: Record<string, string> = {
   "Ativado": "is_active",
 };
 
+// Extract brand from product name (inline - cannot import from src)
+function extractBrandFromProduct(productName: string): string {
+  const upper = (productName || "").toUpperCase().trim();
+  
+  const knownBrands = ["APPLE", "SAMSUNG", "XIAOMI", "MOTOROLA", "REALME"];
+  for (const brand of knownBrands) {
+    if (upper.startsWith(brand + " ") || upper === brand) {
+      return brand;
+    }
+  }
+  
+  // Detect by product line
+  if (upper.includes("IPHONE") || upper.includes("MACBOOK") || upper.includes("IPAD") || upper.includes("AIRPODS")) {
+    return "APPLE";
+  }
+  if (upper.includes("GALAXY")) return "SAMSUNG";
+  if (upper.includes("REDMI") || upper.includes("POCO") || upper.includes("MI ")) {
+    return "XIAOMI";
+  }
+  if (upper.includes("MOTO ") || upper.includes("MOTOROLA")) return "MOTOROLA";
+  
+  return "OUTROS";
+}
+
 /**
  * Sanitize and truncate string value to max length
  * Removes potentially dangerous characters and ensures length limits
@@ -545,6 +569,62 @@ Deno.serve(async (req) => {
         }
         
         recordsInserted += chunk.length;
+      }
+      
+      // Generate stock history snapshot
+      if (recordsInserted > 0) {
+        console.log("Generating stock history snapshot...");
+        
+        // Get organization_id from PDV
+        const { data: pdvData } = await supabase
+          .from("pdvs")
+          .select("organization_id")
+          .eq("id", pdvId)
+          .single();
+        
+        if (pdvData?.organization_id) {
+          // Group by brand
+          const brandTotals: Record<string, { quantity: number; activeSlots: number }> = {};
+          
+          for (const record of validRecords) {
+            if (!record) continue;
+            const brand = extractBrandFromProduct(record.product_name as string);
+            if (!brandTotals[brand]) {
+              brandTotals[brand] = { quantity: 0, activeSlots: 0 };
+            }
+            brandTotals[brand].quantity += (record.quantity as number) || 0;
+            if (record.is_active) {
+              brandTotals[brand].activeSlots += 1;
+            }
+          }
+          
+          // Insert snapshots (UPSERT to avoid duplicates on same day)
+          const today = new Date().toISOString().split('T')[0];
+          const snapshots = Object.entries(brandTotals).map(([brand, data]) => ({
+            pdv_id: pdvId,
+            organization_id: pdvData.organization_id,
+            snapshot_date: today,
+            brand: brand,
+            total_quantity: data.quantity,
+            active_slots: data.activeSlots,
+            upload_id: uploadId,
+          }));
+          
+          // UPSERT: update if snapshot for same day/brand already exists
+          const { error: historyError } = await supabase
+            .from("stock_history")
+            .upsert(snapshots, { 
+              onConflict: 'pdv_id,snapshot_date,brand',
+              ignoreDuplicates: false 
+            });
+          
+          if (historyError) {
+            console.error("Error saving stock history:", historyError);
+            // Don't fail the upload because of this
+          } else {
+            console.log(`Saved ${snapshots.length} stock history snapshots`);
+          }
+        }
       }
     }
 
