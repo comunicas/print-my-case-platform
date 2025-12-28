@@ -1,6 +1,7 @@
 import { format, getDay, getHours } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { extractBrandFromProductName } from "./productNormalization";
+import { getBrandChartColor } from "./brandAssets";
 
 // Types
 export interface SaleRecord {
@@ -58,15 +59,6 @@ export interface LowStockItem {
 
 // Constants
 const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-
-const BRAND_COLORS: Record<string, string> = {
-  "APPLE": "hsl(var(--chart-1))",
-  "SAMSUNG": "hsl(var(--chart-2))",
-  "XIAOMI": "hsl(var(--chart-3))",
-  "MOTOROLA": "hsl(var(--chart-4))",
-  "REALME": "hsl(var(--chart-5))",
-  "OUTROS": "hsl(var(--muted-foreground))",
-};
 
 /**
  * Agrupa vendas por dia
@@ -196,7 +188,7 @@ export function getStockByBrand(slots: { brand: string; quantity: number }[]): S
     .map(([brand, quantity]) => ({
       brand,
       quantity,
-      fill: BRAND_COLORS[brand] || BRAND_COLORS["OUTROS"],
+      fill: getBrandChartColor(brand),
     }))
     .sort((a, b) => b.quantity - a.quantity);
 }

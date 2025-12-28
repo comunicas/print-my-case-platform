@@ -6,18 +6,11 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from "recharts";
 import { TopProductData, exportToExcel } from "@/lib/dashboardUtils";
 import { formatCurrency } from "@/lib/utils";
+import { getBrandChartColor } from "@/lib/brandAssets";
 
 interface TopProductsChartProps {
   data: TopProductData[];
 }
-
-const CHART_COLORS = [
-  "hsl(var(--chart-1))",
-  "hsl(var(--chart-2))",
-  "hsl(var(--chart-3))",
-  "hsl(var(--chart-4))",
-  "hsl(var(--chart-5))",
-];
 
 const chartConfig = {
   revenue: { label: "Receita" },
@@ -92,10 +85,10 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
                 }
               />
               <Bar dataKey="revenue" radius={[0, 4, 4, 0]}>
-                {data.map((_, index) => (
+                {data.map((product, index) => (
                   <Cell 
                     key={`cell-${index}`} 
-                    fill={index === 0 ? "hsl(var(--chart-2))" : CHART_COLORS[index % CHART_COLORS.length]} 
+                    fill={getBrandChartColor(product.brand)} 
                   />
                 ))}
               </Bar>
