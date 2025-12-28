@@ -31,8 +31,8 @@ const navItems: NavItem[] = [
 ];
 
 const stockSubItems = [
-  { label: "Tabela", href: "/reports?tab=tabela" },
-  { label: "Mapa", href: "/reports?tab=mapa" },
+  { label: "Tabela", href: "/estoque?tab=tabela" },
+  { label: "Mapa", href: "/estoque?tab=mapa" },
 ];
 
 interface MobileSidebarProps {
@@ -52,7 +52,7 @@ export function MobileSidebar({
   stockExpanded,
   onStockExpandedChange,
 }: MobileSidebarProps) {
-  const isStockActive = activeItem.startsWith("/reports");
+  const isStockActive = activeItem.startsWith("/estoque");
 
   const handleNavClick = (href: string) => {
     onNavigate(href);
@@ -108,7 +108,7 @@ export function MobileSidebar({
         <CollapsibleContent>
           <div className="ml-4 mt-1 space-y-1">
             {stockSubItems.map((subItem) => {
-              const activeTab = activeItem.startsWith("/reports")
+              const activeTab = activeItem.startsWith("/estoque")
                 ? new URLSearchParams(activeItem.split("?")[1]).get("tab") || "tabela"
                 : null;
               const subItemTab = subItem.href.split("=")[1];

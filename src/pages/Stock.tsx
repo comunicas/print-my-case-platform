@@ -74,7 +74,7 @@ function StockContent() {
   );
 }
 
-export default function Reports() {
+export default function Stock() {
   return (
     <AppLayout>
       <StockFiltersProvider>

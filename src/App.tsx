@@ -9,7 +9,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Uploads from "./pages/Uploads";
 import UploadDetails from "./pages/UploadDetails";
-import Reports from "./pages/Reports";
+import Stock from "./pages/Stock";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -29,7 +29,8 @@ const App = () => (
               <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
               <Route path="/uploads" element={<ProtectedRoute><Uploads /></ProtectedRoute>} />
               <Route path="/uploads/:id" element={<ProtectedRoute><UploadDetails /></ProtectedRoute>} />
-              <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+              <Route path="/estoque" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
+              <Route path="/reports" element={<Navigate to="/estoque" replace />} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               {/* Redirects for old routes */}
               <Route path="/pdvs" element={<Navigate to="/settings?tab=pdvs" replace />} />
