@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { MAX_CAPACITY, getBlockColorClass, getSlotBorderClass } from '@/lib/stockGridUtils';
+import { MAX_CAPACITY, getBlockColorClass } from '@/lib/stockGridUtils';
 
 interface SlotStackProps {
   slot: string;
@@ -24,8 +24,10 @@ export function SlotStack({
   isFiltered = false,
   onClick,
 }: SlotStackProps) {
-  // Cria array de blocos de baixo para cima (índice 0 = base)
   const blocks = Array.from({ length: MAX_CAPACITY }, (_, i) => i);
+  
+  // Trunca o modelo para caber no slot
+  const truncatedModel = model.length > 12 ? model.substring(0, 11) + '…' : model;
   
   return (
     <Tooltip>
@@ -33,25 +35,25 @@ export function SlotStack({
         <div
           onClick={onClick}
           className={cn(
-            'flex flex-col items-center gap-0.5 p-1 rounded-md cursor-pointer transition-all',
-            'hover:scale-105 hover:shadow-md',
-            isHighlighted && 'ring-2 ring-primary',
+            'flex flex-col items-center gap-0.5 p-1.5 rounded-lg cursor-pointer transition-all w-16',
+            'hover:scale-105 hover:shadow-md hover:bg-muted/50',
+            isHighlighted && 'ring-2 ring-primary bg-primary/5',
             isFiltered && 'opacity-30',
             !isActive && 'opacity-50'
           )}
         >
           {/* Logo da marca no topo */}
-          <div className="mb-1">
+          <div className="mb-0.5">
             <BrandLogo brand={brand} size="xs" showTooltip={false} />
           </div>
           
-          {/* Blocos empilhados (de cima para baixo visualmente) */}
+          {/* Blocos empilhados */}
           <div className="flex flex-col-reverse gap-0.5">
             {blocks.map((index) => (
               <div
                 key={index}
                 className={cn(
-                  'w-6 h-2 rounded-sm transition-colors',
+                  'w-10 h-2 rounded-sm transition-colors',
                   getBlockColorClass(index, quantity, isActive)
                 )}
               />
@@ -59,8 +61,13 @@ export function SlotStack({
           </div>
           
           {/* Número do slot */}
-          <span className="text-[10px] text-muted-foreground font-medium mt-1">
+          <span className="text-[10px] text-muted-foreground font-semibold mt-0.5">
             {slot}
+          </span>
+          
+          {/* Nome do modelo */}
+          <span className="text-[8px] text-muted-foreground/70 font-medium leading-tight text-center w-full truncate">
+            {truncatedModel}
           </span>
         </div>
       </TooltipTrigger>
@@ -82,6 +89,6 @@ export function SlotStack({
 // Componente para slot vazio (sem produto)
 export function EmptySlot() {
   return (
-    <div className="w-8 h-[60px]" /> // Espaço vazio mantendo layout
+    <div className="w-16 h-[100px]" />
   );
 }
