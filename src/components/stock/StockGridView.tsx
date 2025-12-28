@@ -122,63 +122,67 @@ export function StockGridView({ slots, brands = KNOWN_BRANDS, isLoading }: Stock
       </div>
 
       {/* Grid da máquina */}
-      <div className="overflow-x-auto">
-        <div className="inline-block min-w-max">
+      <div className="overflow-x-auto flex justify-center">
+        <div className="inline-block">
           {/* Cabeçalho de colunas */}
-          <div className="flex items-center mb-2">
-            <div className="w-8" /> {/* Espaço para labels dos andares */}
+          <div className="flex items-center mb-3 pl-10">
             {COLUMN_HEADERS.map((col) => (
-              <div key={col} className="w-10 text-center text-xs text-muted-foreground font-medium">
+              <div key={col} className="w-[72px] text-center text-sm text-muted-foreground font-semibold">
                 {col}
               </div>
             ))}
           </div>
 
           {/* Linhas (andares) */}
-          {GRID_LAYOUT.map((floor) => (
-            <div key={floor.floor} className="flex items-center mb-1">
-              {/* Label do andar */}
-              <div className="w-8 text-xs text-muted-foreground font-medium text-right pr-2">
-                {floor.label}
-              </div>
-              
-              {/* Slots do andar */}
-              {floor.slots.map((slotNumber, colIndex) => {
-                if (slotNumber === null) {
-                  return <div key={`empty-${colIndex}`} className="w-10 h-[70px]" />;
-                }
+          <div className="space-y-3">
+            {GRID_LAYOUT.map((floor) => (
+              <div key={floor.floor} className="flex items-start">
+                {/* Label do andar */}
+                <div className="w-10 text-sm text-muted-foreground font-semibold text-right pr-3 pt-6">
+                  {floor.label}
+                </div>
                 
-                const slotData = slotMap.get(slotNumber);
-                
-                if (!slotData) {
-                  return (
-                    <div key={slotNumber} className="w-10 flex items-center justify-center">
-                      <div className="w-8 h-[60px] bg-muted/30 rounded-md flex items-center justify-center">
-                        <span className="text-[9px] text-muted-foreground">{slotNumber}</span>
+                {/* Slots do andar */}
+                <div className="flex">
+                  {floor.slots.map((slotNumber, colIndex) => {
+                    if (slotNumber === null) {
+                      return <div key={`empty-${colIndex}`} className="w-[72px] h-[100px]" />;
+                    }
+                    
+                    const slotData = slotMap.get(slotNumber);
+                    
+                    if (!slotData) {
+                      return (
+                        <div key={slotNumber} className="w-[72px] flex items-center justify-center">
+                          <div className="w-16 h-[100px] bg-muted/30 rounded-lg flex flex-col items-center justify-center gap-1">
+                            <div className="w-10 h-14 bg-muted/20 rounded" />
+                            <span className="text-[10px] text-muted-foreground font-medium">{slotNumber}</span>
+                          </div>
+                        </div>
+                      );
+                    }
+                    
+                    const isHighlighted = hasFilter && highlightedSlots.has(slotNumber);
+                    const isFiltered = hasFilter && !highlightedSlots.has(slotNumber);
+                    
+                    return (
+                      <div key={slotNumber} className="w-[72px] flex items-center justify-center">
+                        <SlotStack
+                          slot={slotData.slot}
+                          brand={slotData.brand}
+                          model={slotData.model}
+                          quantity={slotData.quantity}
+                          isActive={slotData.isActive}
+                          isHighlighted={isHighlighted}
+                          isFiltered={isFiltered}
+                        />
                       </div>
-                    </div>
-                  );
-                }
-                
-                const isHighlighted = hasFilter && highlightedSlots.has(slotNumber);
-                const isFiltered = hasFilter && !highlightedSlots.has(slotNumber);
-                
-                return (
-                  <div key={slotNumber} className="w-10 flex items-center justify-center">
-                    <SlotStack
-                      slot={slotData.slot}
-                      brand={slotData.brand}
-                      model={slotData.model}
-                      quantity={slotData.quantity}
-                      isActive={slotData.isActive}
-                      isHighlighted={isHighlighted}
-                      isFiltered={isFiltered}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          ))}
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
