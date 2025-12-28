@@ -36,6 +36,20 @@ export const SALES_REQUIRED_COLUMNS = [
   "Valor reembolsado",
 ] as const;
 
+// Mapeamento de colunas inglês → português para Vendas
+export const SALES_COLUMN_ALIASES: Record<string, string[]> = {
+  "Comerciante": ["Merchant", "Comerciante"],
+  "ID do dispositivo": ["Device ID", "ID do dispositivo"],
+  "Número do pedido": ["Order ID", "Número do pedido"],
+  "Nome do produto": ["Product Name", "Nome do produto"],
+  "Número da transação": ["Transaction ID", "Número da transação"],
+  "Hora do pagamento": ["Payment Time", "Hora do pagamento"],
+  "Valor pago": ["Payment Amount", "Valor pago"],
+  "Forma de pagamento": ["Payment Method", "Forma de pagamento"],
+  "Status": ["Status"],
+  "Valor reembolsado": ["Refund Amount", "Valor reembolsado"],
+};
+
 // Colunas obrigatórias para planilha de Estoque (REPORT-SLOT)
 export const STOCK_REQUIRED_COLUMNS = [
   "Número",
@@ -45,6 +59,16 @@ export const STOCK_REQUIRED_COLUMNS = [
   "Estoque",
   "Ativado",
 ] as const;
+
+// Mapeamento de colunas inglês → português para Estoque
+export const STOCK_COLUMN_ALIASES: Record<string, string[]> = {
+  "Número": ["ID", "Número"],
+  "Código da máquina": ["Machine Code", "Código da máquina"],
+  "Número do compartimento": ["Slot Number", "Número do compartimento"],
+  "Nome do produto": ["Product Name", "Nome do produto"],
+  "Estoque": ["Stock", "Estoque"],
+  "Ativado": ["Enabled", "Ativado"],
+};
 
 // Interface para resultado da validação
 export interface ColumnValidationResult {
