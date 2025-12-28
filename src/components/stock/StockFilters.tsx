@@ -37,10 +37,10 @@ export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockF
   const { pdvs = [] } = usePDVs();
 
   return (
-    <div className="flex flex-wrap gap-3 items-center">
+    <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 items-stretch sm:items-center">
       {/* PDV Select */}
       <Select value={selectedPdv} onValueChange={setSelectedPdv}>
-        <SelectTrigger className="w-[180px]">
+        <SelectTrigger className="w-full sm:w-[180px]">
           <SelectValue placeholder="Selecionar PDV" />
         </SelectTrigger>
         <SelectContent>
@@ -54,16 +54,18 @@ export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockF
       </Select>
 
       {/* Search with Autocomplete */}
-      <ProductSearchAutocomplete
-        suggestions={suggestions}
-        value={searchTerm}
-        onChange={setSearchTerm}
-        placeholder="Buscar modelo..."
-      />
+      <div className="w-full sm:w-auto sm:flex-1 sm:max-w-xs">
+        <ProductSearchAutocomplete
+          suggestions={suggestions}
+          value={searchTerm}
+          onChange={setSearchTerm}
+          placeholder="Buscar modelo..."
+        />
+      </div>
 
       {/* Brand Filter */}
       <Select value={brandFilter} onValueChange={setBrandFilter}>
-        <SelectTrigger className="w-[160px]">
+        <SelectTrigger className="w-full sm:w-[160px]">
           <SelectValue placeholder="Marca" />
         </SelectTrigger>
         <SelectContent>
@@ -81,7 +83,7 @@ export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockF
 
       {/* Status Filter */}
       <Select value={statusFilter} onValueChange={setStatusFilter}>
-        <SelectTrigger className="w-[150px]">
+        <SelectTrigger className="w-full sm:w-[150px]">
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
@@ -109,7 +111,7 @@ export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockF
 
       {/* Sales Index Filter */}
       <Select value={salesIndexFilter} onValueChange={setSalesIndexFilter}>
-        <SelectTrigger className="w-[140px]">
+        <SelectTrigger className="w-full sm:w-[140px]">
           <SelectValue placeholder="Vendas" />
         </SelectTrigger>
         <SelectContent>
@@ -123,7 +125,7 @@ export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockF
 
       {/* Clear Filters */}
       {hasActiveFilters && (
-        <Button variant="ghost" size="sm" onClick={clearFilters}>
+        <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full sm:w-auto">
           <X className="h-4 w-4 mr-1" />
           Limpar
         </Button>

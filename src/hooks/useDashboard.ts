@@ -231,6 +231,8 @@ export function useDashboard({ selectedOrganizationId, dateRange }: UseDashboard
       };
     },
     enabled: !!profile?.id || isSuperAdmin,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
   });
 
   return {

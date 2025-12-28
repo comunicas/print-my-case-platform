@@ -24,6 +24,8 @@ export function useOrganizations() {
       return data as Organization[];
     },
     enabled: isSuperAdmin,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes
   });
 
   return {

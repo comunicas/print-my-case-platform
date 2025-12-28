@@ -34,6 +34,8 @@ export function usePDVs() {
       return data as PDV[];
     },
     enabled: !!profile?.organization_id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes
   });
 
   const createPDV = useMutation({
