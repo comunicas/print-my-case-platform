@@ -3,7 +3,7 @@ import { ProductDetailModal } from '@/components/stock/ProductDetailModal';
 import { useSlotsData } from '@/hooks/useSlotsData';
 
 interface ProductModalContextType {
-  openProductModal: (productName: string) => void;
+  openProductModal: (productName: string, pdvId?: string) => void;
   closeProductModal: () => void;
 }
 
@@ -12,16 +12,19 @@ const ProductModalContext = createContext<ProductModalContextType | null>(null);
 export function ProductModalProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   const [productName, setProductName] = useState<string | null>(null);
+  const [pdvId, setPdvId] = useState<string | undefined>(undefined);
   const { data: slots = [] } = useSlotsData();
 
-  const openProductModal = (name: string) => {
+  const openProductModal = (name: string, pdv?: string) => {
     setProductName(name);
+    setPdvId(pdv);
     setIsOpen(true);
   };
 
   const closeProductModal = () => {
     setIsOpen(false);
     setProductName(null);
+    setPdvId(undefined);
   };
 
   return (
@@ -32,6 +35,7 @@ export function ProductModalProvider({ children }: { children: ReactNode }) {
         slots={slots}
         isOpen={isOpen}
         onClose={closeProductModal}
+        pdvId={pdvId}
       />
     </ProductModalContext.Provider>
   );
