@@ -21,28 +21,28 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <AuthProvider>
-        <ProductModalProvider>
-          <TooltipProvider>
+        <TooltipProvider>
+          <ProductModalProvider>
             <Toaster />
             <Sonner />
             <BrowserRouter>
-            <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-              <Route path="/uploads" element={<ProtectedRoute><Uploads /></ProtectedRoute>} />
-              <Route path="/uploads/:id" element={<ProtectedRoute><UploadDetails /></ProtectedRoute>} />
-              <Route path="/estoque" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
-              <Route path="/reports" element={<Navigate to="/estoque" replace />} />
-              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-              {/* Redirects for old routes */}
-              <Route path="/pdvs" element={<Navigate to="/settings?tab=pdvs" replace />} />
-              <Route path="/team" element={<Navigate to="/settings?tab=team" replace />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-          </TooltipProvider>
-        </ProductModalProvider>
+              <Routes>
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+                <Route path="/uploads" element={<ProtectedRoute><Uploads /></ProtectedRoute>} />
+                <Route path="/uploads/:id" element={<ProtectedRoute><UploadDetails /></ProtectedRoute>} />
+                <Route path="/estoque" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
+                <Route path="/reports" element={<Navigate to="/estoque" replace />} />
+                <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                {/* Redirects for old routes */}
+                <Route path="/pdvs" element={<Navigate to="/settings?tab=pdvs" replace />} />
+                <Route path="/team" element={<Navigate to="/settings?tab=team" replace />} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </ProductModalProvider>
+        </TooltipProvider>
       </AuthProvider>
     </ThemeProvider>
   </QueryClientProvider>
