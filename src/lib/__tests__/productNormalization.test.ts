@@ -1,0 +1,231 @@
+import { describe, it, expect } from 'vitest';
+import {
+  extractBrandFromProductName,
+  extractModelFromProductName,
+  normalizeProductName,
+  matchesProduct,
+  getExactProductKey,
+} from '../productNormalization';
+
+describe('extractBrandFromProductName', () => {
+  describe('brand at start of name', () => {
+    it('should extract APPLE when at start', () => {
+      expect(extractBrandFromProductName('APPLE iPhone 16')).toBe('APPLE');
+    });
+
+    it('should extract SAMSUNG when at start (case insensitive)', () => {
+      expect(extractBrandFromProductName('Samsung Galaxy S24')).toBe('SAMSUNG');
+    });
+
+    it('should extract XIAOMI when at start', () => {
+      expect(extractBrandFromProductName('XIAOMI Redmi Note 13')).toBe('XIAOMI');
+    });
+
+    it('should extract MOTOROLA when at start', () => {
+      expect(extractBrandFromProductName('MOTOROLA Moto G84')).toBe('MOTOROLA');
+    });
+  });
+
+  describe('detect brand by product line', () => {
+    it('should detect APPLE from iPhone', () => {
+      expect(extractBrandFromProductName('iPhone 16 Pro Max')).toBe('APPLE');
+    });
+
+    it('should detect APPLE from iPad', () => {
+      expect(extractBrandFromProductName('iPad Pro 12.9')).toBe('APPLE');
+    });
+
+    it('should detect APPLE from MacBook', () => {
+      expect(extractBrandFromProductName('MacBook Air M3')).toBe('APPLE');
+    });
+
+    it('should detect SAMSUNG from Galaxy', () => {
+      expect(extractBrandFromProductName('Galaxy S24 Ultra')).toBe('SAMSUNG');
+    });
+
+    it('should detect XIAOMI from Redmi', () => {
+      expect(extractBrandFromProductName('Redmi Note 13 Pro')).toBe('XIAOMI');
+    });
+
+    it('should detect XIAOMI from Poco', () => {
+      expect(extractBrandFromProductName('Poco X6 Pro')).toBe('XIAOMI');
+    });
+
+    it('should detect MOTOROLA from Moto', () => {
+      expect(extractBrandFromProductName('Moto G84 5G')).toBe('MOTOROLA');
+    });
+  });
+
+  describe('unknown brands', () => {
+    it('should return first word for LG', () => {
+      expect(extractBrandFromProductName('LG K62')).toBe('LG');
+    });
+
+    it('should return first word for Nokia', () => {
+      expect(extractBrandFromProductName('Nokia G42 5G')).toBe('NOKIA');
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should return UNKNOWN for empty string', () => {
+      expect(extractBrandFromProductName('')).toBe('UNKNOWN');
+    });
+
+    it('should return UNKNOWN for whitespace only', () => {
+      expect(extractBrandFromProductName('   ')).toBe('UNKNOWN');
+    });
+
+    it('should handle brand name only', () => {
+      expect(extractBrandFromProductName('APPLE')).toBe('APPLE');
+    });
+  });
+});
+
+describe('extractModelFromProductName', () => {
+  it('should remove APPLE from start', () => {
+    expect(extractModelFromProductName('APPLE iPhone 16')).toBe('iPhone 16');
+  });
+
+  it('should remove SAMSUNG from start', () => {
+    expect(extractModelFromProductName('SAMSUNG Galaxy S24')).toBe('Galaxy S24');
+  });
+
+  it('should remove XIAOMI from start', () => {
+    expect(extractModelFromProductName('XIAOMI Redmi Note 13')).toBe('Redmi Note 13');
+  });
+
+  it('should remove MOTOROLA from start', () => {
+    expect(extractModelFromProductName('MOTOROLA Moto G84')).toBe('Moto G84');
+  });
+
+  it('should preserve original case of model', () => {
+    expect(extractModelFromProductName('APPLE iPhone 16 Pro Max')).toBe('iPhone 16 Pro Max');
+  });
+
+  it('should return full name if no known brand at start', () => {
+    expect(extractModelFromProductName('iPhone 16')).toBe('iPhone 16');
+  });
+
+  it('should return full name for unknown brand', () => {
+    expect(extractModelFromProductName('LG K62')).toBe('LG K62');
+  });
+
+  it('should handle whitespace', () => {
+    expect(extractModelFromProductName('  APPLE iPhone 16  ')).toBe('iPhone 16');
+  });
+});
+
+describe('normalizeProductName', () => {
+  it('should convert to lowercase', () => {
+    expect(normalizeProductName('iPhone 16 Pro')).toBe('iphone 16 pro');
+  });
+
+  it('should remove extra spaces', () => {
+    expect(normalizeProductName('iPhone   16   Pro')).toBe('iphone 16 pro');
+  });
+
+  it('should remove special characters', () => {
+    expect(normalizeProductName('iPhone-16_Pro!')).toBe('iphone16pro');
+  });
+
+  it('should trim whitespace', () => {
+    expect(normalizeProductName('  iPhone 16  ')).toBe('iphone 16');
+  });
+
+  it('should handle complex names', () => {
+    expect(normalizeProductName('Galaxy S24+ Ultra (256GB)')).toBe('galaxy s24 ultra 256gb');
+  });
+});
+
+describe('matchesProduct', () => {
+  describe('should match same model', () => {
+    it('with brand prefix on first', () => {
+      expect(matchesProduct('APPLE iPhone 16', 'iPhone 16')).toBe(true);
+    });
+
+    it('with brand prefix on second', () => {
+      expect(matchesProduct('iPhone 16', 'APPLE iPhone 16')).toBe(true);
+    });
+
+    it('with brand prefix on both', () => {
+      expect(matchesProduct('APPLE iPhone 16', 'APPLE iPhone 16')).toBe(true);
+    });
+
+    it('case insensitive', () => {
+      expect(matchesProduct('iphone 16', 'IPHONE 16')).toBe(true);
+    });
+  });
+
+  describe('CRITICAL: should NOT match different models', () => {
+    it('iPhone 15 vs iPhone 15 Pro', () => {
+      expect(matchesProduct('iPhone 15', 'iPhone 15 Pro')).toBe(false);
+    });
+
+    it('iPhone 15 Pro vs iPhone 15 Pro Max', () => {
+      expect(matchesProduct('iPhone 15 Pro', 'iPhone 15 Pro Max')).toBe(false);
+    });
+
+    it('Galaxy S24 vs Galaxy S24 Ultra', () => {
+      expect(matchesProduct('Galaxy S24', 'Galaxy S24 Ultra')).toBe(false);
+    });
+
+    it('Galaxy S24 vs Galaxy S24+', () => {
+      expect(matchesProduct('Galaxy S24', 'Galaxy S24+')).toBe(false);
+    });
+
+    it('Redmi Note 13 vs Redmi Note 13 Pro', () => {
+      expect(matchesProduct('Redmi Note 13', 'Redmi Note 13 Pro')).toBe(false);
+    });
+
+    it('completely different products', () => {
+      expect(matchesProduct('iPhone 16', 'Galaxy S24')).toBe(false);
+    });
+  });
+});
+
+describe('getExactProductKey', () => {
+  it('should create key with brand:model format', () => {
+    expect(getExactProductKey('APPLE iPhone 16')).toBe('APPLE:iphone 16');
+  });
+
+  it('should detect brand from product line', () => {
+    expect(getExactProductKey('iPhone 16')).toBe('APPLE:iphone 16');
+  });
+
+  it('should handle Samsung', () => {
+    expect(getExactProductKey('SAMSUNG Galaxy S24')).toBe('SAMSUNG:galaxy s24');
+  });
+
+  it('should handle Xiaomi aliases', () => {
+    expect(getExactProductKey('Redmi Note 13')).toBe('XIAOMI:redmi note 13');
+  });
+
+  describe('CRITICAL: different keys for different models', () => {
+    it('iPhone 15 vs iPhone 15 Pro', () => {
+      const key1 = getExactProductKey('iPhone 15');
+      const key2 = getExactProductKey('iPhone 15 Pro');
+      expect(key1).not.toBe(key2);
+    });
+
+    it('iPhone 15 Pro vs iPhone 15 Pro Max', () => {
+      const key2 = getExactProductKey('iPhone 15 Pro');
+      const key3 = getExactProductKey('iPhone 15 Pro Max');
+      expect(key2).not.toBe(key3);
+    });
+
+    it('all three iPhone 15 variants have different keys', () => {
+      const key1 = getExactProductKey('iPhone 15');
+      const key2 = getExactProductKey('iPhone 15 Pro');
+      const key3 = getExactProductKey('iPhone 15 Pro Max');
+      expect(new Set([key1, key2, key3]).size).toBe(3);
+    });
+  });
+
+  it('should normalize spaces in model', () => {
+    expect(getExactProductKey('iPhone  16   Pro')).toBe('APPLE:iphone 16 pro');
+  });
+
+  it('should trim whitespace', () => {
+    expect(getExactProductKey('  iPhone 16  ')).toBe('APPLE:iphone 16');
+  });
+});
