@@ -13,6 +13,8 @@ import { MAX_CAPACITY, getSlotStatus, getBlockColorClass } from '@/lib/stockGrid
 import { cn } from '@/lib/utils';
 import { Package, MapPin, TrendingUp } from 'lucide-react';
 import { useMemo } from 'react';
+import { ProductSalesHistoryChart } from './ProductSalesHistoryChart';
+import { useStockFilters } from '@/contexts/StockFiltersContext';
 
 interface ProductDetailModalProps {
   productName: string | null;
@@ -35,6 +37,8 @@ const salesLabels: Record<string, { label: string; variant: 'default' | 'seconda
 };
 
 export function ProductDetailModal({ productName, slots, isOpen, onClose }: ProductDetailModalProps) {
+  const { selectedPdv } = useStockFilters();
+  
   // Agrega dados do produto
   const productData = useMemo<ProductStock | null>(() => {
     if (!productName) return null;
@@ -98,6 +102,14 @@ export function ProductDetailModal({ productName, slots, isOpen, onClose }: Prod
                 {salesInfo.label}
               </Badge>
             </div>
+          </div>
+
+          {/* Histórico de Vendas */}
+          <div className="p-4 bg-muted/30 rounded-lg">
+            <ProductSalesHistoryChart 
+              productName={productName} 
+              pdvId={selectedPdv}
+            />
           </div>
 
           {/* Status Geral */}
