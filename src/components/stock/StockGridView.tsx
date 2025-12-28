@@ -99,25 +99,25 @@ export function StockGridView({ slots, brands = KNOWN_BRANDS, isLoading }: Stock
         </Button>
       </div>
 
-      {/* Grid da máquina - com escala em mobile */}
+      {/* Grid da máquina - responsivo */}
       <div className="overflow-x-auto pb-4">
         <div className="flex justify-center min-w-fit">
-          <div className="inline-block transform scale-[0.65] sm:scale-[0.8] md:scale-90 lg:scale-100 origin-top">
+          <div className="inline-block">
             {/* Cabeçalho de colunas */}
-            <div className="flex items-center mb-3 pl-10">
+            <div className="flex items-center mb-2 sm:mb-3 pl-6 sm:pl-8 md:pl-10">
               {COLUMN_HEADERS.map((col) => (
-                <div key={col} className="w-[72px] text-center text-sm text-muted-foreground font-semibold">
+                <div key={col} className="w-[52px] sm:w-[60px] md:w-[72px] text-center text-xs sm:text-sm text-muted-foreground font-semibold">
                   {col}
                 </div>
               ))}
             </div>
 
             {/* Linhas (andares) */}
-            <div className="space-y-3">
+            <div className="space-y-1.5 sm:space-y-2 md:space-y-3">
               {GRID_LAYOUT.map((floor) => (
                 <div key={floor.floor} className="flex items-start">
                   {/* Label do andar */}
-                  <div className="w-10 text-sm text-muted-foreground font-semibold text-right pr-3 pt-6">
+                  <div className="w-6 sm:w-8 md:w-10 text-xs sm:text-sm text-muted-foreground font-semibold text-right pr-1.5 sm:pr-2 md:pr-3 pt-4 sm:pt-5 md:pt-6">
                     {floor.label}
                   </div>
                   
@@ -125,17 +125,17 @@ export function StockGridView({ slots, brands = KNOWN_BRANDS, isLoading }: Stock
                   <div className="flex">
                     {floor.slots.map((slotNumber, colIndex) => {
                       if (slotNumber === null) {
-                        return <div key={`empty-${colIndex}`} className="w-[72px] h-[100px]" />;
+                        return <div key={`empty-${colIndex}`} className="w-[52px] sm:w-[60px] md:w-[72px] h-[70px] sm:h-[85px] md:h-[100px]" />;
                       }
                       
                       const slotData = slotMap.get(slotNumber);
                       
                       if (!slotData) {
                         return (
-                          <div key={slotNumber} className="w-[72px] flex items-center justify-center">
-                            <div className="w-16 h-[100px] bg-muted/30 rounded-lg flex flex-col items-center justify-center gap-1">
-                              <div className="w-10 h-14 bg-muted/20 rounded" />
-                              <span className="text-[10px] text-muted-foreground font-medium">{slotNumber}</span>
+                          <div key={slotNumber} className="w-[52px] sm:w-[60px] md:w-[72px] flex items-center justify-center">
+                            <div className="w-12 sm:w-14 md:w-16 h-[70px] sm:h-[85px] md:h-[100px] bg-muted/30 rounded-lg flex flex-col items-center justify-center gap-1">
+                              <div className="w-7 sm:w-8 md:w-10 h-10 sm:h-12 md:h-14 bg-muted/20 rounded" />
+                              <span className="text-[8px] sm:text-[10px] text-muted-foreground font-medium">{slotNumber}</span>
                             </div>
                           </div>
                         );
@@ -145,7 +145,7 @@ export function StockGridView({ slots, brands = KNOWN_BRANDS, isLoading }: Stock
                       const isFiltered = hasFilter && !highlightedSlots.has(slotNumber);
                       
                       return (
-                        <div key={slotNumber} className="w-[72px] flex items-center justify-center">
+                        <div key={slotNumber} className="w-[52px] sm:w-[60px] md:w-[72px] flex items-center justify-center">
                           <SlotStack
                             slot={slotData.slot}
                             brand={slotData.brand}

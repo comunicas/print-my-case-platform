@@ -35,7 +35,8 @@ export function SlotStack({
         <div
           onClick={onClick}
           className={cn(
-            'flex flex-col items-center gap-0.5 p-1.5 rounded-lg cursor-pointer transition-all w-16',
+            'flex flex-col items-center gap-0.5 p-1 sm:p-1.5 rounded-lg cursor-pointer transition-all',
+            'w-12 sm:w-14 md:w-16',
             'hover:scale-105 hover:shadow-md hover:bg-muted/50',
             isHighlighted && 'ring-2 ring-primary bg-primary/5',
             isFiltered && 'opacity-30',
@@ -48,12 +49,12 @@ export function SlotStack({
           </div>
           
           {/* Blocos empilhados */}
-          <div className="flex flex-col-reverse gap-0.5">
+          <div className="flex flex-col-reverse gap-px sm:gap-0.5">
             {blocks.map((index) => (
               <div
                 key={index}
                 className={cn(
-                  'w-10 h-2 rounded-sm transition-colors',
+                  'w-7 sm:w-8 md:w-10 h-1.5 sm:h-2 rounded-sm transition-colors',
                   getBlockColorClass(index, quantity, isActive)
                 )}
               />
@@ -61,12 +62,12 @@ export function SlotStack({
           </div>
           
           {/* Número do slot */}
-          <span className="text-[10px] text-muted-foreground font-semibold mt-0.5">
+          <span className="text-[8px] sm:text-[10px] text-muted-foreground font-semibold mt-0.5">
             {slot}
           </span>
           
           {/* Nome do modelo */}
-          <span className="text-[8px] text-muted-foreground/70 font-medium leading-tight text-center w-full truncate">
+          <span className="text-[6px] sm:text-[8px] text-muted-foreground/70 font-medium leading-tight text-center w-full truncate">
             {truncatedModel}
           </span>
         </div>
@@ -89,6 +90,6 @@ export function SlotStack({
 // Componente para slot vazio (sem produto)
 export function EmptySlot() {
   return (
-    <div className="w-16 h-[100px]" />
+    <div className="w-12 sm:w-14 md:w-16 h-[70px] sm:h-[85px] md:h-[100px]" />
   );
 }
