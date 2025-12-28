@@ -101,6 +101,7 @@ export function useUserPDVs(userId?: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-pdvs", userId] });
+      queryClient.invalidateQueries({ queryKey: ["team-members"] });
       toast({
         title: "Atribuições atualizadas",
         description: "Os PDVs foram atualizados com sucesso.",
