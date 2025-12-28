@@ -138,16 +138,20 @@ export function useTeamMembers() {
       }
       
       // Update profile (name and status)
-      const { error: profileError } = await supabase
+      const { data: updatedProfile, error: profileError } = await supabase
         .from("profiles")
         .update({ 
           name: data.name, 
           status: data.status,
           updated_at: new Date().toISOString() 
         })
-        .eq("id", data.userId);
+        .eq("id", data.userId)
+        .select();
       
       if (profileError) throw profileError;
+      if (!updatedProfile || updatedProfile.length === 0) {
+        throw new Error("Não foi possível atualizar o perfil. Verifique suas permissões.");
+      }
       
       // First delete existing role then insert new one
       const { error: deleteError } = await supabase
@@ -187,16 +191,20 @@ export function useTeamMembers() {
       if (!isAdmin) throw new Error("Permissão negada");
       
       // Remove from organization (don't delete the user)
-      const { error } = await supabase
+      const { data: updatedProfile, error } = await supabase
         .from("profiles")
         .update({ 
           organization_id: null, 
           status: "inactive",
           updated_at: new Date().toISOString()
         })
-        .eq("id", userId);
+        .eq("id", userId)
+        .select();
 
       if (error) throw error;
+      if (!updatedProfile || updatedProfile.length === 0) {
+        throw new Error("Não foi possível remover o membro. Verifique suas permissões.");
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
