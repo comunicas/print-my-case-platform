@@ -17,6 +17,7 @@ import { Package, MapPin } from 'lucide-react';
 import { useMemo } from 'react';
 import { ProductSalesHistoryChart } from './ProductSalesHistoryChart';
 import { extractBrandFromProductName, extractModelFromProductName } from '@/lib/productNormalization';
+import { usePDVs } from '@/hooks/usePDVs';
 
 interface ProductDetailModalProps {
   productName: string | null;
@@ -27,6 +28,9 @@ interface ProductDetailModalProps {
 }
 
 export function ProductDetailModal({ productName, slots, isOpen, onClose, pdvId }: ProductDetailModalProps) {
+  const { pdvs } = usePDVs();
+  const pdvName = pdvId ? pdvs.find(p => p.id === pdvId)?.name : null;
+
   // Filtra e agrega dados do produto
   const productData = useMemo(() => {
     if (!productName) return null;
@@ -71,8 +75,14 @@ export function ProductDetailModal({ productName, slots, isOpen, onClose, pdvId 
             <BrandLogo brand={productData.brand} size="md" />
             <span>{productData.model}</span>
           </DialogTitle>
-          <DialogDescription>
-            Informações detalhadas do produto e histórico de vendas
+          <DialogDescription className="flex flex-col gap-1">
+            <span>Informações detalhadas do produto e histórico de vendas</span>
+            {pdvName && (
+              <Badge variant="secondary" className="w-fit mt-1">
+                <MapPin className="h-3 w-3 mr-1" />
+                Filtrado por: {pdvName}
+              </Badge>
+            )}
           </DialogDescription>
         </DialogHeader>
 
