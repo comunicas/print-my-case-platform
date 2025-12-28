@@ -14,15 +14,17 @@ import { getSlotStatus, MAX_CAPACITY, getBlockColorClass } from '@/lib/stockGrid
 import { slotStatusLabels } from '@/lib/stockLabels';
 import { cn } from '@/lib/utils';
 import { Package } from 'lucide-react';
+import { useProductModal } from '@/contexts/ProductModalContext';
 
 interface SlotDetailModalProps {
   slot: SlotData | null;
   isOpen: boolean;
   onClose: () => void;
-  onViewProduct?: (productName: string) => void;
 }
 
-export function SlotDetailModal({ slot, isOpen, onClose, onViewProduct }: SlotDetailModalProps) {
+export function SlotDetailModal({ slot, isOpen, onClose }: SlotDetailModalProps) {
+  const { openProductModal } = useProductModal();
+  
   if (!slot) return null;
 
   const status = getSlotStatus(slot.quantity, slot.isActive);
@@ -30,8 +32,9 @@ export function SlotDetailModal({ slot, isOpen, onClose, onViewProduct }: SlotDe
   const percentage = Math.round((slot.quantity / MAX_CAPACITY) * 100);
 
   const handleViewProduct = () => {
-    if (onViewProduct && slot.productName) {
-      onViewProduct(slot.productName);
+    if (slot.productName) {
+      onClose();
+      openProductModal(slot.productName);
     }
   };
 
@@ -130,12 +133,10 @@ export function SlotDetailModal({ slot, isOpen, onClose, onViewProduct }: SlotDe
           <Button variant="outline" onClick={onClose}>
             Fechar
           </Button>
-          {onViewProduct && (
-            <Button onClick={handleViewProduct}>
-              <Package className="h-4 w-4 mr-2" />
-              Ver todos os slots
-            </Button>
-          )}
+          <Button onClick={handleViewProduct}>
+            <Package className="h-4 w-4 mr-2" />
+            Ver detalhes do produto
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

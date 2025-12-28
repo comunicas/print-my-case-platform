@@ -27,6 +27,7 @@ import {
 import { uploadTypeLabels, uploadStatusLabels } from "@/lib/schemas/upload";
 import { useUploadDetails, SalesRecordPreview, StockRecordPreview } from "@/hooks/useUploadDetails";
 import { formatCurrency } from "@/lib/utils";
+import { useProductModal } from "@/contexts/ProductModalContext";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -35,6 +36,7 @@ const UploadDetails = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const { openProductModal } = useProductModal();
 
   const {
     upload,
@@ -265,8 +267,13 @@ const UploadDetails = () => {
                     ) : (
                       paginatedSalesRecords.map((record) => (
                         <TableRow key={record.id}>
-                          <TableCell className="font-medium max-w-[200px] truncate">
-                            {record.product_name}
+                          <TableCell className="font-medium max-w-[200px]">
+                            <button
+                              onClick={() => openProductModal(record.product_name)}
+                              className="truncate block w-full text-left hover:underline focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
+                            >
+                              {record.product_name}
+                            </button>
                           </TableCell>
                           <TableCell className="text-right">
                             {formatCurrency(Number(record.amount))}
@@ -325,8 +332,13 @@ const UploadDetails = () => {
                           <TableCell className="font-medium">
                             {record.slot_number}
                           </TableCell>
-                          <TableCell className="max-w-[250px] truncate">
-                            {record.product_name}
+                          <TableCell className="max-w-[250px]">
+                            <button
+                              onClick={() => openProductModal(record.product_name)}
+                              className="truncate block w-full text-left hover:underline focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
+                            >
+                              {record.product_name}
+                            </button>
                           </TableCell>
                           <TableCell className="text-right">
                             {record.quantity}

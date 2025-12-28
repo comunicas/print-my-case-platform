@@ -16,6 +16,7 @@ import { ProductStock, SalesIndex, ProductStatus } from '@/lib/stockUtils';
 import { MAX_CAPACITY } from '@/lib/stockGridUtils';
 import { statusLabels, statusColors, salesIndexLabels, salesIndexColors } from '@/lib/stockLabels';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useProductModal } from '@/contexts/ProductModalContext';
 
 interface ProductStockTableProps {
   products: ProductStock[];
@@ -31,6 +32,7 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const pageSize = 10;
+  const { openProductModal } = useProductModal();
 
   const sortedProducts = useMemo(() => {
     const sorted = [...products].sort((a, b) => {
@@ -146,11 +148,16 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
               <>
                 <TableRow key={product.productKey}>
                   <TableCell>
-                    <ProductDisplay 
-                      brand={product.brand} 
-                      model={product.model}
-                      logoSize="sm"
-                    />
+                    <button
+                      onClick={() => openProductModal(product.productKey)}
+                      className="text-left hover:underline focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
+                    >
+                      <ProductDisplay 
+                        brand={product.brand} 
+                        model={product.model}
+                        logoSize="sm"
+                      />
+                    </button>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2 min-w-[120px]">

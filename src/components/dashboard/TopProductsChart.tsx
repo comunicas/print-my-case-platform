@@ -7,6 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from "recharts";
 import { TopProductData, exportToExcel } from "@/lib/dashboardUtils";
 import { formatCurrency } from "@/lib/utils";
 import { getBrandChartColor } from "@/lib/brandAssets";
+import { useProductModal } from "@/contexts/ProductModalContext";
 
 interface TopProductsChartProps {
   data: TopProductData[];
@@ -17,6 +18,8 @@ const chartConfig = {
 };
 
 export function TopProductsChart({ data }: TopProductsChartProps) {
+  const { openProductModal } = useProductModal();
+  
   const handleExport = () => {
     exportToExcel(
       data.map((d, idx) => ({
@@ -84,7 +87,16 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
                   />
                 }
               />
-              <Bar dataKey="revenue" radius={[0, 4, 4, 0]}>
+              <Bar 
+                dataKey="revenue" 
+                radius={[0, 4, 4, 0]}
+                onClick={(entry) => {
+                  if (entry?.name) {
+                    openProductModal(entry.name);
+                  }
+                }}
+                className="cursor-pointer"
+              >
                 {data.map((product, index) => (
                   <Cell 
                     key={`cell-${index}`} 
@@ -103,10 +115,15 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
         {/* Badge para o primeiro lugar */}
         {data.length > 0 && (
           <div className="flex items-center justify-center mt-2">
-            <Badge variant="secondary" className="gap-1">
-              <Flame className="h-3.5 w-3.5 text-orange-500" />
-              Mais vendido: {truncateName(data[0].name, 25)}
-            </Badge>
+            <button
+              onClick={() => openProductModal(data[0].name)}
+              className="focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
+            >
+              <Badge variant="secondary" className="gap-1 cursor-pointer hover:bg-secondary/80">
+                <Flame className="h-3.5 w-3.5 text-orange-500" />
+                Mais vendido: {truncateName(data[0].name, 25)}
+              </Badge>
+            </button>
           </div>
         )}
       </CardContent>

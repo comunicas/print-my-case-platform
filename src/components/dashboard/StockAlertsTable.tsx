@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { LowStockItem } from "@/lib/dashboardUtils";
+import { useProductModal } from "@/contexts/ProductModalContext";
 
 interface StockAlertsTableProps {
   data: LowStockItem[];
@@ -31,6 +32,7 @@ const salesIndexLabels: Record<string, { label: string; variant: "default" | "se
 
 export function StockAlertsTable({ data, maxCapacity = 7 }: StockAlertsTableProps) {
   const [page, setPage] = useState(0);
+  const { openProductModal } = useProductModal();
   
   const totalPages = Math.ceil(data.length / ITEMS_PER_PAGE);
   const paginatedData = data.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE);
@@ -82,8 +84,14 @@ export function StockAlertsTable({ data, maxCapacity = 7 }: StockAlertsTableProp
                   <TableCell className="font-medium">
                     <span className="font-mono">{item.slotNumber}</span>
                   </TableCell>
-                  <TableCell className="max-w-[200px] truncate" title={item.productName}>
-                    {item.productName}
+                  <TableCell className="max-w-[200px]">
+                    <button
+                      onClick={() => openProductModal(item.productName)}
+                      className="text-left truncate block w-full hover:underline focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
+                      title={item.productName}
+                    >
+                      {item.productName}
+                    </button>
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
                     <Badge variant="outline" className="text-xs">
