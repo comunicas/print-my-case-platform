@@ -5,12 +5,27 @@ import { extractBrandFromProductName, extractModelFromProductName } from '@/lib/
 
 interface UseSlotsDataParams {
   pdvId?: string;
+  userId?: string;
 }
 
-export function useSlotsData({ pdvId }: UseSlotsDataParams = {}) {
+export function useSlotsData({ pdvId, userId }: UseSlotsDataParams = {}) {
   return useQuery({
-    queryKey: ['slots-data', pdvId],
+    queryKey: ['slots-data', pdvId, userId],
     queryFn: async (): Promise<SlotData[]> => {
+      // Se não há pdvId específico, verificar se usuário tem PDVs atribuídos
+      let allowedPdvIds: string[] | null = null;
+      
+      if ((!pdvId || pdvId === 'all') && userId) {
+        const { data: userPdvs } = await supabase
+          .from('user_pdvs')
+          .select('pdv_id')
+          .eq('user_id', userId);
+        
+        if (userPdvs && userPdvs.length > 0) {
+          allowedPdvIds = userPdvs.map(p => p.pdv_id);
+        }
+      }
+      
       // Busca o upload mais recente de estoque por PDV
       let uploadsQuery = supabase
         .from('uploads')
@@ -21,6 +36,9 @@ export function useSlotsData({ pdvId }: UseSlotsDataParams = {}) {
       
       if (pdvId && pdvId !== 'all') {
         uploadsQuery = uploadsQuery.eq('pdv_id', pdvId).limit(1);
+      } else if (allowedPdvIds && allowedPdvIds.length > 0) {
+        // Filtrar apenas pelos PDVs atribuídos ao usuário
+        uploadsQuery = uploadsQuery.in('pdv_id', allowedPdvIds).limit(50);
       } else {
         // Limitar para evitar carregar histórico desnecessário
         uploadsQuery = uploadsQuery.limit(50);

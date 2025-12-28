@@ -66,7 +66,20 @@ export function useDashboard({ selectedOrganizationId, dateRange }: UseDashboard
           ? selectedOrganizationId 
           : profile?.organization_id;
         
-        if (orgIdToFilter) {
+        // Para usuários não-admin, verificar atribuições específicas primeiro
+        if (!isSuperAdmin && profile?.id) {
+          const { data: userPdvs } = await supabase
+            .from("user_pdvs")
+            .select("pdv_id")
+            .eq("user_id", profile.id);
+          
+          if (userPdvs && userPdvs.length > 0) {
+            pdvIds = userPdvs.map(p => p.pdv_id);
+          }
+        }
+        
+        // Se não tem atribuições específicas, usar organization_id
+        if (pdvIds === null && orgIdToFilter) {
           const { data: pdvs } = await supabase
             .from("pdvs")
             .select("id")
@@ -217,7 +230,7 @@ export function useDashboard({ selectedOrganizationId, dateRange }: UseDashboard
         quickStats,
       };
     },
-    enabled: !!profile?.organization_id || isSuperAdmin,
+    enabled: !!profile?.id || isSuperAdmin,
   });
 
   return {
