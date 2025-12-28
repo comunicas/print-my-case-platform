@@ -54,10 +54,10 @@ export default function Index() {
     slotsData.filter(s => s.isActive).map(s => ({ brand: s.brand, quantity: s.quantity }))
   ) : [];
   
-  // Calculate sales by product for low stock items
+  // Calculate sales by product for low stock items using topProductsChart
   const salesByProduct = new Map<string, number>();
-  data?.topProducts?.forEach(p => {
-    salesByProduct.set(p.product, p.quantity);
+  data?.topProductsChart?.forEach(p => {
+    salesByProduct.set(p.name, p.count);
   });
   
   // Get low stock items

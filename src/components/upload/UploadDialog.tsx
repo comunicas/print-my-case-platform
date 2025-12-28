@@ -44,20 +44,25 @@ interface UploadDialogProps {
   isSubmitting?: boolean;
 }
 
-const periods = [
-  "Dez 2025",
-  "Nov 2025",
-  "Out 2025",
-  "Set 2025",
-  "Ago 2025",
-  "Jul 2025",
-  "Jun 2025",
-  "Mai 2025",
-  "Abr 2025",
-  "Mar 2025",
-  "Fev 2025",
-  "Jan 2025",
-];
+function generatePeriods(): string[] {
+  const months = [
+    "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
+    "Jul", "Ago", "Set", "Out", "Nov", "Dez"
+  ];
+  const periods: string[] = [];
+  const now = new Date();
+  
+  for (let i = 0; i < 12; i++) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const monthName = months[date.getMonth()];
+    const year = date.getFullYear();
+    periods.push(`${monthName} ${year}`);
+  }
+  
+  return periods;
+}
+
+const periods = generatePeriods();
 
 export function UploadDialog({
   open,
