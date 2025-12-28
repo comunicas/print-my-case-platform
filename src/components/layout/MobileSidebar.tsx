@@ -1,7 +1,7 @@
 import {
   LayoutDashboard,
   Upload,
-  BarChart3,
+  Package,
   X,
   ChevronDown,
 } from "lucide-react";
@@ -30,7 +30,7 @@ const navItems: NavItem[] = [
   { icon: Upload, label: "Uploads", href: "/uploads" },
 ];
 
-const reportSubItems = [
+const stockSubItems = [
   { label: "Tabela", href: "/reports?tab=tabela" },
   { label: "Mapa", href: "/reports?tab=mapa" },
 ];
@@ -40,8 +40,8 @@ interface MobileSidebarProps {
   onOpenChange: (open: boolean) => void;
   activeItem: string;
   onNavigate: (href: string) => void;
-  reportsExpanded: boolean;
-  onReportsExpandedChange: (expanded: boolean) => void;
+  stockExpanded: boolean;
+  onStockExpandedChange: (expanded: boolean) => void;
 }
 
 export function MobileSidebar({ 
@@ -49,10 +49,10 @@ export function MobileSidebar({
   onOpenChange, 
   activeItem, 
   onNavigate,
-  reportsExpanded,
-  onReportsExpandedChange,
+  stockExpanded,
+  onStockExpandedChange,
 }: MobileSidebarProps) {
-  const isReportsActive = activeItem.startsWith("/reports");
+  const isStockActive = activeItem.startsWith("/reports");
 
   const handleNavClick = (href: string) => {
     onNavigate(href);
@@ -80,34 +80,34 @@ export function MobileSidebar({
     );
   };
 
-  const renderReportsMenu = () => {
-    // Auto-expand when navigating to reports
-    const effectiveReportsExpanded = isReportsActive || reportsExpanded;
+  const renderStockMenu = () => {
+    // Auto-expand when navigating to stock
+    const effectiveStockExpanded = isStockActive || stockExpanded;
 
     return (
-      <Collapsible open={effectiveReportsExpanded} onOpenChange={onReportsExpandedChange}>
+      <Collapsible open={effectiveStockExpanded} onOpenChange={onStockExpandedChange}>
         <CollapsibleTrigger asChild>
           <button
             className={cn(
               "w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors",
-              isReportsActive
+              isStockActive
                 ? "bg-sidebar-accent text-sidebar-accent-foreground"
                 : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
             )}
           >
-            <BarChart3 className="h-5 w-5 flex-shrink-0" />
-            <span className="flex-1 text-left">Relatórios</span>
+            <Package className="h-5 w-5 flex-shrink-0" />
+            <span className="flex-1 text-left">Estoque</span>
             <ChevronDown
               className={cn(
                 "h-4 w-4 transition-transform duration-200",
-                effectiveReportsExpanded && "rotate-180"
+                effectiveStockExpanded && "rotate-180"
               )}
             />
           </button>
         </CollapsibleTrigger>
         <CollapsibleContent>
           <div className="ml-4 mt-1 space-y-1">
-            {reportSubItems.map((subItem) => {
+            {stockSubItems.map((subItem) => {
               const activeTab = activeItem.startsWith("/reports")
                 ? new URLSearchParams(activeItem.split("?")[1]).get("tab") || "tabela"
                 : null;
@@ -158,7 +158,7 @@ export function MobileSidebar({
 
         <nav className="flex-1 py-4 px-2 space-y-1">
           {renderNavItem(navItems[0])}
-          {renderReportsMenu()}
+          {renderStockMenu()}
           {renderNavItem(navItems[1])}
         </nav>
       </SheetContent>

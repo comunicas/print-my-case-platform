@@ -1,7 +1,7 @@
 import {
   LayoutDashboard,
   Upload,
-  BarChart3,
+  Package,
   ChevronLeft,
   ChevronDown,
 } from "lucide-react";
@@ -30,7 +30,7 @@ const navItems: NavItem[] = [
   { icon: Upload, label: "Uploads", href: "/uploads" },
 ];
 
-const reportSubItems = [
+const stockSubItems = [
   { label: "Tabela", href: "/reports?tab=tabela" },
   { label: "Mapa", href: "/reports?tab=mapa" },
 ];
@@ -40,8 +40,8 @@ interface AppSidebarProps {
   onToggle: () => void;
   activeItem: string;
   onNavigate: (href: string) => void;
-  reportsExpanded: boolean;
-  onReportsExpandedChange: (expanded: boolean) => void;
+  stockExpanded: boolean;
+  onStockExpandedChange: (expanded: boolean) => void;
 }
 
 export function AppSidebar({ 
@@ -49,10 +49,10 @@ export function AppSidebar({
   onToggle, 
   activeItem, 
   onNavigate,
-  reportsExpanded,
-  onReportsExpandedChange,
+  stockExpanded,
+  onStockExpandedChange,
 }: AppSidebarProps) {
-  const isReportsActive = activeItem.startsWith("/reports");
+  const isStockActive = activeItem.startsWith("/reports");
 
   const renderNavItem = (item: NavItem) => {
     const Icon = item.icon;
@@ -93,19 +93,19 @@ export function AppSidebar({
     return <div key={item.href}>{button}</div>;
   };
 
-  const renderReportsMenu = () => {
+  const renderStockMenu = () => {
     if (collapsed) {
       const button = (
         <button
           onClick={() => onNavigate("/reports")}
           className={cn(
             "w-full flex items-center justify-center px-2 py-2.5 rounded-lg text-sm font-medium transition-colors",
-            isReportsActive
+            isStockActive
               ? "bg-sidebar-accent text-sidebar-accent-foreground"
               : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
           )}
         >
-          <BarChart3 className="h-5 w-5 flex-shrink-0" />
+          <Package className="h-5 w-5 flex-shrink-0" />
         </button>
       );
 
@@ -113,44 +113,44 @@ export function AppSidebar({
         <Tooltip>
           <TooltipTrigger asChild>{button}</TooltipTrigger>
           <TooltipContent side="right" className="font-medium">
-            Relatórios
+            Estoque
           </TooltipContent>
         </Tooltip>
       );
     }
 
-    // Auto-expand when navigating to reports
-    const effectiveReportsExpanded = isReportsActive || reportsExpanded;
+    // Auto-expand when navigating to stock
+    const effectiveStockExpanded = isStockActive || stockExpanded;
 
     return (
-      <Collapsible open={effectiveReportsExpanded} onOpenChange={onReportsExpandedChange}>
+      <Collapsible open={effectiveStockExpanded} onOpenChange={onStockExpandedChange}>
         <CollapsibleTrigger asChild>
           <button
             className={cn(
               "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-              isReportsActive
+              isStockActive
                 ? "bg-sidebar-accent text-sidebar-accent-foreground"
                 : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
             )}
           >
-            <BarChart3 className="h-5 w-5 flex-shrink-0" />
+            <Package className="h-5 w-5 flex-shrink-0" />
             <span className={cn(
               "flex-1 text-left transition-all duration-200",
               collapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
             )}>
-              Relatórios
+              Estoque
             </span>
             <ChevronDown
               className={cn(
                 "h-4 w-4 transition-transform duration-200",
-                effectiveReportsExpanded && "rotate-180"
+                effectiveStockExpanded && "rotate-180"
               )}
             />
           </button>
         </CollapsibleTrigger>
         <CollapsibleContent>
           <div className="ml-4 mt-1 space-y-1">
-            {reportSubItems.map((subItem) => {
+            {stockSubItems.map((subItem) => {
               const activeTab = activeItem.startsWith("/reports")
                 ? new URLSearchParams(activeItem.split("?")[1]).get("tab") || "tabela"
                 : null;
@@ -210,7 +210,7 @@ export function AppSidebar({
         {/* Navigation */}
         <nav className="flex-1 py-4 px-2 space-y-1">
           {renderNavItem(navItems[0])}
-          {renderReportsMenu()}
+          {renderStockMenu()}
           {renderNavItem(navItems[1])}
         </nav>
 
