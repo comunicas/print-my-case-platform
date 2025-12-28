@@ -10,14 +10,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { HeatmapCell, getHeatmapPeak, exportToExcel } from "@/lib/dashboardUtils";
+import { HeatmapCell, TIME_RANGES, getHeatmapPeak, exportToExcel } from "@/lib/dashboardUtils";
 import { formatCurrency } from "@/lib/utils";
 
 interface SalesHeatmapChartProps {
   data: HeatmapCell[];
 }
 
-const HOURS = Array.from({ length: 15 }, (_, i) => i + 8); // 8-22
 const DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 export function SalesHeatmapChart({ data }: SalesHeatmapChartProps) {
@@ -25,12 +24,12 @@ export function SalesHeatmapChart({ data }: SalesHeatmapChartProps) {
     const max = Math.max(...data.map(d => d.revenue), 1);
     const peakData = getHeatmapPeak(data);
     
-    // Organiza em grade [hour][day]
+    // Organiza em grade [rangeId][day]
     const gridData: (HeatmapCell | undefined)[][] = [];
-    for (let h = 0; h < HOURS.length; h++) {
-      gridData[h] = [];
+    for (let r = 0; r < TIME_RANGES.length; r++) {
+      gridData[r] = [];
       for (let d = 0; d < 7; d++) {
-        gridData[h][d] = data.find(cell => cell.hour === HOURS[h] && cell.dayOfWeek === d);
+        gridData[r][d] = data.find(cell => cell.rangeId === r && cell.dayOfWeek === d);
       }
     }
     
@@ -49,15 +48,17 @@ export function SalesHeatmapChart({ data }: SalesHeatmapChartProps) {
     return "bg-purple-500 dark:bg-purple-600";
   };
   
-  const isPeakCell = (hour: number, day: number) => {
-    return peak && peak.hour === hour && DAYS[day] === peak.dayName;
+  const isPeakCell = (rangeId: number, day: number) => {
+    if (!peak) return false;
+    const range = TIME_RANGES[rangeId];
+    return range.label === peak.rangeLabel && DAYS[day] === peak.dayName;
   };
   
   const handleExport = () => {
-    const exportData: Record<string, any>[] = HOURS.map(hour => {
-      const row: Record<string, any> = { Horário: `${hour}:00` };
+    const exportData: Record<string, any>[] = TIME_RANGES.map(range => {
+      const row: Record<string, any> = { Horário: range.label };
       DAYS.forEach((day, idx) => {
-        const cell = data.find(c => c.hour === hour && c.dayOfWeek === idx);
+        const cell = data.find(c => c.rangeId === range.id && c.dayOfWeek === idx);
         row[day] = cell?.revenue || 0;
       });
       return row;
@@ -72,7 +73,7 @@ export function SalesHeatmapChart({ data }: SalesHeatmapChartProps) {
           <CardTitle className="text-base md:text-lg">Vendas por Horário</CardTitle>
           {peak && (
             <Badge variant="outline" className="gap-1 text-xs">
-              Pico: {peak.dayName} às {peak.hour}h
+              Pico: {peak.dayName} {peak.rangeLabel}
             </Badge>
           )}
         </div>
@@ -86,8 +87,8 @@ export function SalesHeatmapChart({ data }: SalesHeatmapChartProps) {
           <div className="overflow-x-auto">
             <div className="min-w-[400px]">
               {/* Header - Dias */}
-              <div className="grid grid-cols-8 gap-1.5 mb-1.5">
-                <div className="text-xs text-muted-foreground text-right pr-1">h</div>
+              <div className="grid grid-cols-8 gap-1 mb-1">
+                <div className="text-xs text-muted-foreground text-right pr-1"></div>
                 {DAYS.map(day => (
                   <div key={day} className="text-xs text-muted-foreground text-center font-medium">
                     {day}
@@ -95,15 +96,15 @@ export function SalesHeatmapChart({ data }: SalesHeatmapChartProps) {
                 ))}
               </div>
               
-              {/* Grid */}
+              {/* Grid - 5 faixas horárias */}
               <TooltipProvider>
-                {HOURS.map((hour, hIdx) => (
-                  <div key={hour} className="grid grid-cols-8 gap-1.5 mb-1.5">
-                    <div className="text-xs text-muted-foreground text-right pr-1 leading-7">
-                      {hour}h
+                {TIME_RANGES.map((range, rIdx) => (
+                  <div key={range.id} className="grid grid-cols-8 gap-1 mb-1">
+                    <div className="text-xs text-muted-foreground text-right pr-1 leading-8">
+                      {range.label}
                     </div>
                     {DAYS.map((day, dIdx) => {
-                      const cell = grid[hIdx]?.[dIdx];
+                      const cell = grid[rIdx]?.[dIdx];
                       const revenue = cell?.revenue || 0;
                       const count = cell?.count || 0;
                       
@@ -112,15 +113,15 @@ export function SalesHeatmapChart({ data }: SalesHeatmapChartProps) {
                           <TooltipTrigger asChild>
                             <div
                               className={cn(
-                                "h-7 rounded cursor-default transition-all",
+                                "h-8 rounded cursor-default transition-all",
                                 getCellColor(revenue),
-                                isPeakCell(hour, dIdx) && "ring-2 ring-primary ring-offset-1 ring-offset-background"
+                                isPeakCell(rIdx, dIdx) && "ring-2 ring-primary ring-offset-1 ring-offset-background"
                               )}
                             />
                           </TooltipTrigger>
                           <TooltipContent>
                             <div className="text-xs">
-                              <p className="font-medium">{day} às {hour}h</p>
+                              <p className="font-medium">{day} {range.label}</p>
                               <p>Receita: {formatCurrency(revenue)}</p>
                               <p>Vendas: {count}</p>
                             </div>
@@ -132,23 +133,23 @@ export function SalesHeatmapChart({ data }: SalesHeatmapChartProps) {
                 ))}
               </TooltipProvider>
               
-              {/* Legenda melhorada */}
-              <div className="flex items-center justify-center gap-2 mt-4 text-xs text-muted-foreground">
+              {/* Legenda */}
+              <div className="flex items-center justify-center gap-2 mt-3 text-xs text-muted-foreground">
                 <span>Menos</span>
-                <div className="flex gap-1">
-                  <div className="w-5 h-5 rounded bg-muted/40 border border-border/50" />
-                  <div className="w-5 h-5 rounded bg-purple-100 dark:bg-purple-950/60" />
-                  <div className="w-5 h-5 rounded bg-purple-200 dark:bg-purple-900/70" />
-                  <div className="w-5 h-5 rounded bg-purple-300 dark:bg-purple-800/80" />
-                  <div className="w-5 h-5 rounded bg-purple-400 dark:bg-purple-700" />
-                  <div className="w-5 h-5 rounded bg-purple-500 dark:bg-purple-600" />
+                <div className="flex gap-0.5">
+                  <div className="w-4 h-4 rounded bg-muted/40 border border-border/50" />
+                  <div className="w-4 h-4 rounded bg-purple-100 dark:bg-purple-950/60" />
+                  <div className="w-4 h-4 rounded bg-purple-200 dark:bg-purple-900/70" />
+                  <div className="w-4 h-4 rounded bg-purple-300 dark:bg-purple-800/80" />
+                  <div className="w-4 h-4 rounded bg-purple-400 dark:bg-purple-700" />
+                  <div className="w-4 h-4 rounded bg-purple-500 dark:bg-purple-600" />
                 </div>
                 <span>Mais</span>
               </div>
             </div>
           </div>
         ) : (
-          <div className="flex-1 min-h-[250px] flex items-center justify-center text-muted-foreground">
+          <div className="flex-1 min-h-[150px] flex items-center justify-center text-muted-foreground">
             Nenhum dado disponível
           </div>
         )}

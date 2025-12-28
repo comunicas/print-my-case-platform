@@ -21,8 +21,18 @@ export interface SalesByDayData {
   count: number;
 }
 
+// Time ranges for heatmap (3-hour blocks)
+export const TIME_RANGES = [
+  { id: 0, label: "08h-10h", start: 8, end: 10 },
+  { id: 1, label: "11h-13h", start: 11, end: 13 },
+  { id: 2, label: "14h-16h", start: 14, end: 16 },
+  { id: 3, label: "17h-19h", start: 17, end: 19 },
+  { id: 4, label: "20h-22h", start: 20, end: 22 },
+] as const;
+
 export interface HeatmapCell {
-  hour: number;
+  rangeId: number;
+  rangeLabel: string;
   dayOfWeek: number;
   dayName: string;
   revenue: number;
@@ -85,27 +95,34 @@ export function getSalesByDay(sales: SaleRecord[]): SalesByDayData[] {
 }
 
 /**
- * Agrupa vendas por hora e dia da semana para heatmap
+ * Identifica a faixa horária para uma hora específica
+ */
+function getTimeRangeForHour(hour: number): typeof TIME_RANGES[number] | null {
+  return TIME_RANGES.find(range => hour >= range.start && hour <= range.end) || null;
+}
+
+/**
+ * Agrupa vendas por faixa horária (3h) e dia da semana para heatmap
  */
 export function getSalesByHourAndDay(sales: SaleRecord[]): HeatmapCell[] {
-  const heatmap: HeatmapCell[] = [];
   const dataMap = new Map<string, { revenue: number; count: number }>();
   
-  // Inicializa todas as células (8h-22h, Dom-Sáb)
-  for (let hour = 8; hour <= 22; hour++) {
+  // Inicializa todas as células (5 faixas × 7 dias)
+  for (const range of TIME_RANGES) {
     for (let day = 0; day < 7; day++) {
-      dataMap.set(`${hour}-${day}`, { revenue: 0, count: 0 });
+      dataMap.set(`${range.id}-${day}`, { revenue: 0, count: 0 });
     }
   }
   
-  // Preenche com dados
+  // Preenche com dados agrupando por faixa horária
   for (const sale of sales) {
     const date = new Date(sale.payment_date);
     const hour = getHours(date);
     const day = getDay(date);
+    const range = getTimeRangeForHour(hour);
     
-    if (hour >= 8 && hour <= 22) {
-      const key = `${hour}-${day}`;
+    if (range) {
+      const key = `${range.id}-${day}`;
       const current = dataMap.get(key)!;
       current.revenue += Number(sale.amount) - Number(sale.refund_amount || 0);
       current.count += 1;
@@ -113,11 +130,13 @@ export function getSalesByHourAndDay(sales: SaleRecord[]): HeatmapCell[] {
   }
   
   // Converte para array
-  for (let hour = 8; hour <= 22; hour++) {
+  const heatmap: HeatmapCell[] = [];
+  for (const range of TIME_RANGES) {
     for (let day = 0; day < 7; day++) {
-      const data = dataMap.get(`${hour}-${day}`)!;
+      const data = dataMap.get(`${range.id}-${day}`)!;
       heatmap.push({
-        hour,
+        rangeId: range.id,
+        rangeLabel: range.label,
         dayOfWeek: day,
         dayName: DAY_NAMES[day],
         revenue: data.revenue,
@@ -132,7 +151,7 @@ export function getSalesByHourAndDay(sales: SaleRecord[]): HeatmapCell[] {
 /**
  * Calcula o pico do heatmap
  */
-export function getHeatmapPeak(heatmap: HeatmapCell[]): { hour: number; dayName: string; revenue: number } | null {
+export function getHeatmapPeak(heatmap: HeatmapCell[]): { rangeLabel: string; dayName: string; revenue: number } | null {
   if (heatmap.length === 0) return null;
   
   const peak = heatmap.reduce((max, cell) => 
@@ -142,7 +161,7 @@ export function getHeatmapPeak(heatmap: HeatmapCell[]): { hour: number; dayName:
   if (peak.revenue === 0) return null;
   
   return {
-    hour: peak.hour,
+    rangeLabel: peak.rangeLabel,
     dayName: peak.dayName,
     revenue: peak.revenue,
   };
