@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { usePreferences } from "./usePreferences";
 
 const STORAGE_KEY_COLLAPSED = "sidebar-collapsed";
-const STORAGE_KEY_REPORTS = "sidebar-reports-expanded";
+const STORAGE_KEY_STOCK = "sidebar-reports-expanded"; // Keep same key for backwards compatibility
 
 export function useSidebarPreferences() {
   const { preferences, isLoading, updatePreferences } = usePreferences();
@@ -13,8 +13,8 @@ export function useSidebarPreferences() {
     return saved === "true";
   });
 
-  const [reportsExpanded, setReportsExpanded] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_REPORTS);
+  const [stockExpanded, setStockExpanded] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_STOCK);
     return saved === "true";
   });
 
@@ -22,14 +22,14 @@ export function useSidebarPreferences() {
   useEffect(() => {
     if (preferences) {
       const dbCollapsed = preferences.sidebar_collapsed ?? false;
-      const dbReportsExpanded = preferences.sidebar_reports_expanded ?? false;
+      const dbStockExpanded = preferences.sidebar_reports_expanded ?? false;
       
       setCollapsed(dbCollapsed);
-      setReportsExpanded(dbReportsExpanded);
+      setStockExpanded(dbStockExpanded);
       
       // Update localStorage to match database
       localStorage.setItem(STORAGE_KEY_COLLAPSED, String(dbCollapsed));
-      localStorage.setItem(STORAGE_KEY_REPORTS, String(dbReportsExpanded));
+      localStorage.setItem(STORAGE_KEY_STOCK, String(dbStockExpanded));
     }
   }, [preferences]);
 
@@ -39,17 +39,17 @@ export function useSidebarPreferences() {
     updatePreferences.mutate({ sidebar_collapsed: value });
   }, [updatePreferences]);
 
-  const updateReportsExpanded = useCallback((value: boolean) => {
-    setReportsExpanded(value);
-    localStorage.setItem(STORAGE_KEY_REPORTS, String(value));
+  const updateStockExpanded = useCallback((value: boolean) => {
+    setStockExpanded(value);
+    localStorage.setItem(STORAGE_KEY_STOCK, String(value));
     updatePreferences.mutate({ sidebar_reports_expanded: value });
   }, [updatePreferences]);
 
   return {
     collapsed,
-    reportsExpanded,
+    stockExpanded,
     updateCollapsed,
-    updateReportsExpanded,
+    updateStockExpanded,
     isLoading,
   };
 }

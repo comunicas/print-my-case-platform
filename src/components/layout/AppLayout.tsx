@@ -11,7 +11,7 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const { collapsed: sidebarCollapsed, updateCollapsed, reportsExpanded, updateReportsExpanded } = useSidebarPreferences();
+  const { collapsed: sidebarCollapsed, updateCollapsed, stockExpanded, updateStockExpanded } = useSidebarPreferences();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -22,6 +22,9 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   // Auto-collapse sidebar on tablet
   const effectiveCollapsed = isTablet ? true : sidebarCollapsed;
+
+  // Include search params for correct active tab detection
+  const activeItem = location.pathname + location.search;
 
   const handleNavigate = (href: string) => {
     navigate(href);
@@ -34,10 +37,10 @@ export function AppLayout({ children }: AppLayoutProps) {
         <MobileSidebar
           open={mobileMenuOpen}
           onOpenChange={setMobileMenuOpen}
-          activeItem={location.pathname}
+          activeItem={activeItem}
           onNavigate={handleNavigate}
-          reportsExpanded={reportsExpanded}
-          onReportsExpandedChange={updateReportsExpanded}
+          stockExpanded={stockExpanded}
+          onStockExpandedChange={updateStockExpanded}
         />
       )}
 
@@ -46,10 +49,10 @@ export function AppLayout({ children }: AppLayoutProps) {
         <AppSidebar
           collapsed={effectiveCollapsed}
           onToggle={() => updateCollapsed(!sidebarCollapsed)}
-          activeItem={location.pathname}
+          activeItem={activeItem}
           onNavigate={handleNavigate}
-          reportsExpanded={reportsExpanded}
-          onReportsExpandedChange={updateReportsExpanded}
+          stockExpanded={stockExpanded}
+          onStockExpandedChange={updateStockExpanded}
         />
       )}
 
