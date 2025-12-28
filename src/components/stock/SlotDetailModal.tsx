@@ -3,6 +3,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { SlotData } from '@/lib/stockUtils';
 import { getSlotStatus, MAX_CAPACITY, getBlockColorClass } from '@/lib/stockGridUtils';
+import { slotStatusLabels } from '@/lib/stockLabels';
 import { cn } from '@/lib/utils';
 import { Package } from 'lucide-react';
 
@@ -20,20 +22,11 @@ interface SlotDetailModalProps {
   onViewProduct?: (productName: string) => void;
 }
 
-const statusLabels: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-  full: { label: 'Cheio', variant: 'default' },
-  medium: { label: 'Médio', variant: 'secondary' },
-  low: { label: 'Baixo', variant: 'outline' },
-  critical: { label: 'Crítico', variant: 'destructive' },
-  empty: { label: 'Vazio', variant: 'destructive' },
-  inactive: { label: 'Inativo', variant: 'outline' },
-};
-
 export function SlotDetailModal({ slot, isOpen, onClose, onViewProduct }: SlotDetailModalProps) {
   if (!slot) return null;
 
   const status = getSlotStatus(slot.quantity, slot.isActive);
-  const statusInfo = statusLabels[status] || statusLabels.medium;
+  const statusInfo = slotStatusLabels[status] || slotStatusLabels.medium;
   const percentage = Math.round((slot.quantity / MAX_CAPACITY) * 100);
 
   const handleViewProduct = () => {
@@ -50,6 +43,9 @@ export function SlotDetailModal({ slot, isOpen, onClose, onViewProduct }: SlotDe
             <BrandLogo brand={slot.brand} size="md" />
             <span>{slot.model || slot.productName}</span>
           </DialogTitle>
+          <DialogDescription>
+            Detalhes do slot e estoque atual
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">

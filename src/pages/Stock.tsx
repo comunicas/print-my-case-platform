@@ -54,21 +54,25 @@ function StockContent() {
       {!hasData ? (
         <StockEmptyState />
       ) : (
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="tabela">Tabela</TabsTrigger>
-            <TabsTrigger value="mapa">Mapa</TabsTrigger>
-          </TabsList>
+        <div className="space-y-6">
+          {/* Filtros compartilhados entre as tabs */}
+          <StockFilters brands={brands} suggestions={suggestions} />
 
-          <TabsContent value="tabela" className="space-y-4">
-            <StockFilters brands={brands} suggestions={suggestions} />
-            <ProductStockTable products={products} isLoading={isLoading} />
-          </TabsContent>
+          <Tabs value={activeTab} onValueChange={handleTabChange}>
+            <TabsList>
+              <TabsTrigger value="tabela">Tabela</TabsTrigger>
+              <TabsTrigger value="mapa">Mapa</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="mapa">
-            <StockGridView slots={slots} brands={brands} isLoading={isLoading} />
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="tabela" className="mt-4">
+              <ProductStockTable products={products} isLoading={isLoading} />
+            </TabsContent>
+
+            <TabsContent value="mapa" className="mt-4">
+              <StockGridView slots={slots} brands={brands} isLoading={isLoading} />
+            </TabsContent>
+          </Tabs>
+        </div>
       )}
     </div>
   );
