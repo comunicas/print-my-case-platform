@@ -14,6 +14,7 @@ export interface TeamMember {
   role: "super_admin" | "org_admin" | "operator" | "viewer";
   created_at: string;
   organization_name?: string;
+  pdv_count: number;
 }
 
 export function useTeamMembers() {
@@ -54,7 +55,21 @@ export function useTeamMembers() {
 
       if (rolesError) throw rolesError;
 
-      // Combine profiles with roles
+      // Fetch PDV counts for each user
+      const { data: pdvAssignments, error: pdvError } = await supabase
+        .from("user_pdvs")
+        .select("user_id")
+        .in("user_id", profileIds);
+
+      if (pdvError) throw pdvError;
+
+      // Count PDVs per user
+      const pdvCountMap = new Map<string, number>();
+      pdvAssignments?.forEach(up => {
+        pdvCountMap.set(up.user_id, (pdvCountMap.get(up.user_id) || 0) + 1);
+      });
+
+      // Combine profiles with roles and PDV counts
       const members: TeamMember[] = profiles.map(profile => {
         const userRole = roles.find(r => r.user_id === profile.id);
         const orgData = profile.organizations as { name: string } | null;
@@ -68,6 +83,7 @@ export function useTeamMembers() {
           role: (userRole?.role as TeamMember["role"]) ?? "viewer",
           created_at: profile.created_at ?? new Date().toISOString(),
           organization_name: orgData?.name,
+          pdv_count: pdvCountMap.get(profile.id) || 0,
         };
       });
 

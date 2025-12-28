@@ -339,6 +339,17 @@ export function TeamSettings() {
                     </span>
                   </div>
                 )}
+                {(member.role === "operator" || member.role === "viewer") && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">PDVs</span>
+                    <span className={`font-medium flex items-center gap-1 ${
+                      member.pdv_count === 0 ? 'text-orange-500' : 'text-emerald-600'
+                    }`}>
+                      <MapPin className="h-3 w-3" />
+                      {member.pdv_count === 0 ? 'Nenhum atribuído' : `${member.pdv_count} atribuído(s)`}
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">Desde</span>
                   <span className="font-medium">{formatDate(member.created_at)}</span>
@@ -355,14 +366,30 @@ export function TeamSettings() {
                       Editar
                     </Button>
                     {(member.role === "operator" || member.role === "viewer") && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleOpenPDVsDialog(member)}
-                        title="Gerenciar PDVs"
-                      >
-                        <MapPin className="h-4 w-4" />
-                      </Button>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenPDVsDialog(member)}
+                              className="relative"
+                            >
+                              <MapPin className="h-4 w-4" />
+                              {member.pdv_count > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 bg-primary text-primary-foreground text-[10px] rounded-full h-4 w-4 flex items-center justify-center font-medium">
+                                  {member.pdv_count}
+                                </span>
+                              )}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {member.pdv_count === 0 
+                              ? "Nenhum PDV atribuído - clique para atribuir"
+                              : `${member.pdv_count} PDV(s) atribuído(s) - clique para gerenciar`}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     )}
                     {member.id !== profile?.id && (
                       <Button
