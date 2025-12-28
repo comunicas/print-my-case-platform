@@ -213,19 +213,26 @@ export function getStockByBrand(slots: { brand: string; quantity: number }[]): S
 }
 
 /**
- * Calcula horário de pico e melhor dia da semana
+ * Calcula faixa horária de pico e melhor dia da semana
  */
 export function getQuickStats(sales: SaleRecord[]): QuickStatsData {
   if (sales.length === 0) {
     return { peakHour: null, bestDay: null };
   }
   
-  // Agrupa por hora
-  const byHour = new Map<number, number>();
+  // Agrupa por faixa horária (3h) em vez de hora individual
+  const byRange = new Map<number, { label: string; revenue: number }>();
+  for (const range of TIME_RANGES) {
+    byRange.set(range.id, { label: range.label, revenue: 0 });
+  }
+  
   for (const sale of sales) {
     const hour = getHours(new Date(sale.payment_date));
-    const revenue = Number(sale.amount) - Number(sale.refund_amount || 0);
-    byHour.set(hour, (byHour.get(hour) || 0) + revenue);
+    const range = getTimeRangeForHour(hour);
+    if (range) {
+      const current = byRange.get(range.id)!;
+      current.revenue += Number(sale.amount) - Number(sale.refund_amount || 0);
+    }
   }
   
   // Agrupa por dia da semana
@@ -236,13 +243,13 @@ export function getQuickStats(sales: SaleRecord[]): QuickStatsData {
     byDay.set(day, (byDay.get(day) || 0) + revenue);
   }
   
-  // Encontra pico
-  let peakHour: number | null = null;
-  let maxHourRevenue = 0;
-  for (const [hour, revenue] of byHour.entries()) {
-    if (revenue > maxHourRevenue) {
-      maxHourRevenue = revenue;
-      peakHour = hour;
+  // Encontra faixa de pico
+  let peakRange: string | null = null;
+  let maxRangeRevenue = 0;
+  for (const [, data] of byRange.entries()) {
+    if (data.revenue > maxRangeRevenue) {
+      maxRangeRevenue = data.revenue;
+      peakRange = data.label;
     }
   }
   
@@ -256,7 +263,7 @@ export function getQuickStats(sales: SaleRecord[]): QuickStatsData {
   }
   
   return {
-    peakHour: peakHour !== null ? `${String(peakHour).padStart(2, "0")}:00` : null,
+    peakHour: peakRange,
     bestDay: bestDay !== null ? DAY_NAMES[bestDay] : null,
   };
 }
