@@ -19,6 +19,7 @@ import {
 import { useDashboard } from "@/hooks/useDashboard";
 import { useOrganizations } from "@/hooks/useOrganizations";
 import { useSlotsData } from "@/hooks/useSlotsData";
+import { useStockHistory } from "@/hooks/useStockHistory";
 import { formatCurrency } from "@/lib/utils";
 import { calculateTrend } from "@/lib/trendUtils";
 import { getStockByBrand, getLowStockItems } from "@/lib/dashboardUtils";
@@ -32,6 +33,7 @@ import { SalesHeatmapChart } from "@/components/dashboard/SalesHeatmapChart";
 import { TopProductsChart } from "@/components/dashboard/TopProductsChart";
 import { StockByBrandChart } from "@/components/dashboard/StockByBrandChart";
 import { StockAlertsTable } from "@/components/dashboard/StockAlertsTable";
+import { StockHistoryChart } from "@/components/dashboard/StockHistoryChart";
 
 export default function Index() {
   const navigate = useNavigate();
@@ -48,6 +50,7 @@ export default function Index() {
     dateRange: { from: dateRange.from, to: dateRange.to }
   });
   const { data: slotsData } = useSlotsData({});
+  const { data: stockHistory } = useStockHistory({ days: 90, organizationId: selectedOrgId });
 
   // Process stock data (not dependent on sales date range)
   const stockByBrand = slotsData ? getStockByBrand(
@@ -249,6 +252,14 @@ export default function Index() {
               <TopProductsChart data={data?.topProductsChart || []} />
               <StockByBrandChart data={stockByBrand} />
             </div>
+
+            {/* Stock History Chart */}
+            {stockHistory && stockHistory.chartData.length > 0 && (
+              <StockHistoryChart 
+                data={stockHistory.chartData} 
+                brands={stockHistory.brands} 
+              />
+            )}
 
             {/* Stock Alerts Table */}
             <StockAlertsTable data={lowStockItems} />
