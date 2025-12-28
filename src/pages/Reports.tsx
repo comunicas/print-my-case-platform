@@ -1,21 +1,24 @@
 import { useSearchParams } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SalesUnitReport } from "@/components/reports/SalesUnitReport";
-import { MonthlySalesReport } from "@/components/reports/MonthlySalesReport";
-import { ProductsReport } from "@/components/reports/ProductsReport";
-import { StockHealthReport } from "@/components/reports/StockHealthReport";
-import { ReportFiltersProvider } from "@/contexts/ReportFiltersContext";
+import { StockFiltersProvider } from "@/contexts/StockFiltersContext";
+import { StockKPICards } from "@/components/stock/StockKPICards";
+import { StockFilters } from "@/components/stock/StockFilters";
+import { ProductStockTable } from "@/components/stock/ProductStockTable";
+import { StockGridView } from "@/components/stock/StockGridView";
+import { StockEmptyState } from "@/components/stock/StockEmptyState";
+import { useProductStock } from "@/hooks/useProductStock";
 
-const VALID_TABS = ["unit", "monthly", "products", "stock"] as const;
+const VALID_TABS = ["tabela", "mapa"] as const;
 
-export default function Reports() {
+function StockContent() {
   const [searchParams, setSearchParams] = useSearchParams();
   
-  const currentTab = searchParams.get("tab") || "unit";
+  const currentTab = searchParams.get("tab") || "tabela";
   const activeTab = VALID_TABS.includes(currentTab as typeof VALID_TABS[number]) 
     ? currentTab 
-    : "unit";
+    : "tabela";
 
   const handleTabChange = (value: string) => {
     setSearchParams(prev => {
@@ -25,43 +28,58 @@ export default function Reports() {
     });
   };
 
+  const { products, kpis, brands, slots, isLoading } = useProductStock();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const hasData = slots.length > 0;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">Estoque</h1>
+        <p className="text-muted-foreground">
+          Gestão de inventário das suas máquinas
+        </p>
+      </div>
+
+      <StockKPICards kpis={kpis} isLoading={isLoading} />
+
+      {!hasData ? (
+        <StockEmptyState />
+      ) : (
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="tabela">Tabela</TabsTrigger>
+            <TabsTrigger value="mapa">Mapa</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="tabela" className="space-y-4">
+            <StockFilters brands={brands} />
+            <ProductStockTable products={products} isLoading={isLoading} />
+          </TabsContent>
+
+          <TabsContent value="mapa">
+            <StockGridView slots={slots} brands={brands} isLoading={isLoading} />
+          </TabsContent>
+        </Tabs>
+      )}
+    </div>
+  );
+}
+
+export default function Reports() {
   return (
     <AppLayout>
-      <ReportFiltersProvider>
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Relatórios</h1>
-            <p className="text-muted-foreground">
-              Análises detalhadas do desempenho das suas máquinas
-            </p>
-          </div>
-
-          <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
-              <TabsTrigger value="unit">Vendas por Unidade</TabsTrigger>
-              <TabsTrigger value="monthly">Vendas Mensal</TabsTrigger>
-              <TabsTrigger value="products">Análise de Produtos</TabsTrigger>
-              <TabsTrigger value="stock">Saúde do Estoque</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="unit">
-              <SalesUnitReport />
-            </TabsContent>
-
-            <TabsContent value="monthly">
-              <MonthlySalesReport />
-            </TabsContent>
-
-            <TabsContent value="products">
-              <ProductsReport />
-            </TabsContent>
-
-            <TabsContent value="stock">
-              <StockHealthReport />
-            </TabsContent>
-          </Tabs>
-        </div>
-      </ReportFiltersProvider>
+      <StockFiltersProvider>
+        <StockContent />
+      </StockFiltersProvider>
     </AppLayout>
   );
 }
