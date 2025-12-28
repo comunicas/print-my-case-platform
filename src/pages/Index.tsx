@@ -242,13 +242,13 @@ export default function Index() {
         {hasData && (
           <>
             {/* Row 1: Sales by Day + Heatmap */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
               <SalesByDayChart data={data?.salesByDay || []} />
               <SalesHeatmapChart data={data?.salesByHourAndDay || []} />
             </div>
 
             {/* Row 2: Top Products + Stock by Brand */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
               <TopProductsChart data={data?.topProductsChart || []} />
               <StockByBrandChart data={stockByBrand} />
             </div>
