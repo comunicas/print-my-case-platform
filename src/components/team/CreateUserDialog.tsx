@@ -27,6 +27,9 @@ interface CreateUserDialogProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: CreateUserFormData) => Promise<void>;
   isLoading: boolean;
+  adminOrganizationId?: string | null;
+  adminOrganizationName?: string;
+  isSuperAdmin?: boolean;
 }
 
 const roleLabels: Record<string, string> = {
@@ -45,19 +48,26 @@ export function CreateUserDialog({
   open, 
   onOpenChange, 
   onSubmit, 
-  isLoading 
+  isLoading,
+  adminOrganizationId,
+  adminOrganizationName,
+  isSuperAdmin = false,
 }: CreateUserDialogProps) {
   const { organizations, isLoading: orgsLoading } = useOrganizations();
   
-  const [formData, setFormData] = useState<CreateUserFormData>({
+  // Determina valores iniciais baseado na organização do admin
+  const hasAdminOrg = !!adminOrganizationId;
+  const initialFormData: CreateUserFormData = {
     name: "",
     email: "",
     password: "",
-    createNewOrganization: true,
-    organizationId: undefined,
+    createNewOrganization: isSuperAdmin && !hasAdminOrg, // Super admin sem org pode criar nova
+    organizationId: hasAdminOrg ? adminOrganizationId : undefined,
     organizationName: "",
-    role: "org_admin",
-  });
+    role: "operator", // Default para operator em vez de org_admin
+  };
+
+  const [formData, setFormData] = useState<CreateUserFormData>(initialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleChange = (field: keyof CreateUserFormData, value: string | boolean) => {
@@ -89,34 +99,21 @@ export function CreateUserDialog({
     await onSubmit(result.data);
     
     // Reset form on success
-    setFormData({ 
-      name: "", 
-      email: "", 
-      password: "", 
-      createNewOrganization: true,
-      organizationId: undefined,
-      organizationName: "",
-      role: "org_admin",
-    });
+    setFormData(initialFormData);
     setErrors({});
   };
 
-  const handleOpenChange = (open: boolean) => {
-    if (!open) {
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen) {
       // Reset form when closing
-      setFormData({ 
-        name: "", 
-        email: "", 
-        password: "", 
-        createNewOrganization: true,
-        organizationId: undefined,
-        organizationName: "",
-        role: "org_admin",
-      });
+      setFormData(initialFormData);
       setErrors({});
     }
-    onOpenChange(open);
+    onOpenChange(newOpen);
   };
+  
+  // Não mostra toggle de nova organização se admin tem org definida (a menos que seja super_admin)
+  const showCreateOrgToggle = isSuperAdmin;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -176,24 +173,35 @@ export function CreateUserDialog({
               )}
             </div>
 
-            {/* Toggle: Nova organização ou existente */}
-            <div className="flex items-center justify-between rounded-lg border p-3">
-              <div className="space-y-0.5">
-                <Label htmlFor="createNewOrganization" className="text-base">
-                  Criar nova organização
-                </Label>
+            {/* Toggle: Nova organização ou existente - apenas para super_admin */}
+            {showCreateOrgToggle ? (
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <Label htmlFor="createNewOrganization" className="text-base">
+                    Criar nova organização
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    {formData.createNewOrganization 
+                      ? "Uma nova organização será criada para este usuário" 
+                      : "O usuário será vinculado a uma organização existente"}
+                  </p>
+                </div>
+                <Switch
+                  id="createNewOrganization"
+                  checked={formData.createNewOrganization}
+                  onCheckedChange={(checked) => handleChange("createNewOrganization", checked)}
+                />
+              </div>
+            ) : hasAdminOrg && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                <p className="text-sm font-medium text-foreground">
+                  Organização
+                </p>
                 <p className="text-sm text-muted-foreground">
-                  {formData.createNewOrganization 
-                    ? "Uma nova organização será criada para este usuário" 
-                    : "O usuário será vinculado a uma organização existente"}
+                  O usuário será adicionado à organização: <span className="font-medium text-foreground">{adminOrganizationName || "Sua organização"}</span>
                 </p>
               </div>
-              <Switch
-                id="createNewOrganization"
-                checked={formData.createNewOrganization}
-                onCheckedChange={(checked) => handleChange("createNewOrganization", checked)}
-              />
-            </div>
+            )}
 
             {/* Nome da Organização (se criar nova) */}
             {formData.createNewOrganization && (
