@@ -28,7 +28,7 @@ function StockContent() {
     });
   };
 
-  const { products, kpis, brands, slots, isLoading } = useProductStock();
+  const { products, kpis, brands, slots, suggestions, isLoading } = useProductStock();
 
   if (isLoading) {
     return (
@@ -61,7 +61,7 @@ function StockContent() {
           </TabsList>
 
           <TabsContent value="tabela" className="space-y-4">
-            <StockFilters brands={brands} />
+            <StockFilters brands={brands} suggestions={suggestions} />
             <ProductStockTable products={products} isLoading={isLoading} />
           </TabsContent>
 

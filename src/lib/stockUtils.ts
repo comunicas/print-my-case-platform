@@ -1,4 +1,4 @@
-import { extractBrandFromProductName, extractModelFromProductName, getProductKey } from './productNormalization';
+import { extractBrandFromProductName, extractModelFromProductName, getExactProductKey } from './productNormalization';
 import { MAX_CAPACITY } from './stockGridUtils';
 
 export interface SlotData {
@@ -52,7 +52,7 @@ export function aggregateProductStock(
   for (const slot of slots) {
     if (!slot.isActive) continue;
     
-    const key = getProductKey(slot.productName);
+    const key = getExactProductKey(slot.productName);
     
     if (!productMap.has(key)) {
       const totalSold = findSalesForProduct(slot.productName, salesByProduct);
@@ -95,14 +95,15 @@ export function aggregateProductStock(
 }
 
 /**
- * Encontra vendas para um produto (matching fuzzy)
+ * Encontra vendas para um produto (matching exato pelo modelo)
  */
 function findSalesForProduct(productName: string, salesByProduct: Map<string, number>): number {
-  const model = extractModelFromProductName(productName).toLowerCase();
+  const model = extractModelFromProductName(productName).toLowerCase().trim().replace(/\s+/g, ' ');
   
   for (const [salesProduct, count] of salesByProduct.entries()) {
-    const salesModel = extractModelFromProductName(salesProduct).toLowerCase();
-    if (model.includes(salesModel) || salesModel.includes(model)) {
+    const salesModel = extractModelFromProductName(salesProduct).toLowerCase().trim().replace(/\s+/g, ' ');
+    // Match exato do modelo
+    if (model === salesModel) {
       return count;
     }
   }

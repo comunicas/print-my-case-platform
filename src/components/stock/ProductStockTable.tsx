@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ChevronDown, ChevronUp, Eye } from 'lucide-react';
+import { ChevronDown, ChevronUp, Eye, ShoppingCart } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -14,6 +14,7 @@ import { Progress } from '@/components/ui/progress';
 import { ProductDisplay } from '@/components/ui/ProductDisplay';
 import { ProductStock, SalesIndex, ProductStatus } from '@/lib/stockUtils';
 import { MAX_CAPACITY } from '@/lib/stockGridUtils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ProductStockTableProps {
   products: ProductStock[];
@@ -188,9 +189,29 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className={salesIndexColors[product.salesIndex]}>
-                      {salesIndexLabels[product.salesIndex]}
-                    </Badge>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center gap-2 cursor-help">
+                            <div className="flex items-center gap-1 text-sm font-medium">
+                              <ShoppingCart className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span>{product.totalSold}</span>
+                            </div>
+                            <Badge variant="outline" className={salesIndexColors[product.salesIndex]}>
+                              {salesIndexLabels[product.salesIndex]}
+                            </Badge>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>
+                            {product.totalSold === 0 
+                              ? 'Nenhuma venda registrada' 
+                              : `${product.totalSold} unidade${product.totalSold > 1 ? 's' : ''} vendida${product.totalSold > 1 ? 's' : ''}`
+                            }
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </TableCell>
                   <TableCell>
                     <span className="text-sm">{product.slots.length}</span>

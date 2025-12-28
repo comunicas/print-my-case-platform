@@ -1,5 +1,4 @@
-import { Search, X } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -12,12 +11,14 @@ import { useStockFilters } from '@/contexts/StockFiltersContext';
 import { usePDVs } from '@/hooks/usePDVs';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { KNOWN_BRANDS } from '@/lib/brandAssets';
+import { ProductSearchAutocomplete, ProductSuggestion } from './ProductSearchAutocomplete';
 
 interface StockFiltersProps {
   brands?: string[];
+  suggestions?: ProductSuggestion[];
 }
 
-export function StockFilters({ brands = KNOWN_BRANDS }: StockFiltersProps) {
+export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockFiltersProps) {
   const {
     selectedPdv,
     searchTerm,
@@ -52,16 +53,13 @@ export function StockFilters({ brands = KNOWN_BRANDS }: StockFiltersProps) {
         </SelectContent>
       </Select>
 
-      {/* Search */}
-      <div className="relative flex-1 min-w-[200px] max-w-[300px]">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar modelo..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-9"
-        />
-      </div>
+      {/* Search with Autocomplete */}
+      <ProductSearchAutocomplete
+        suggestions={suggestions}
+        value={searchTerm}
+        onChange={setSearchTerm}
+        placeholder="Buscar modelo..."
+      />
 
       {/* Brand Filter */}
       <Select value={brandFilter} onValueChange={setBrandFilter}>

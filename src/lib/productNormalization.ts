@@ -78,33 +78,34 @@ export function normalizeProductName(name: string): string {
 }
 
 /**
- * Verifica se dois nomes são do mesmo produto (matching fuzzy)
+ * Verifica se dois nomes são do mesmo produto (matching exato por modelo)
  */
 export function matchesProduct(name1: string, name2: string): boolean {
-  const n1 = normalizeProductName(name1);
-  const n2 = normalizeProductName(name2);
-  
-  // Match exato
-  if (n1 === n2) return true;
-  
-  // Extrai modelo de ambos e compara
   const model1 = normalizeProductName(extractModelFromProductName(name1));
   const model2 = normalizeProductName(extractModelFromProductName(name2));
   
-  if (model1 === model2) return true;
-  
-  // Verifica se um contém o outro
-  if (n1.includes(n2) || n2.includes(n1)) return true;
-  if (model1.includes(model2) || model2.includes(model1)) return true;
-  
-  return false;
+  // Match exato do modelo apenas
+  return model1 === model2;
 }
 
 /**
- * Cria uma chave única para agrupar produtos
+ * Cria uma chave única para agrupar produtos (mantém distinção completa do modelo)
+ * Ex: "APPLE iPhone 15 Pro" → "APPLE:iphone 15 pro"
+ * Ex: "APPLE iPhone 15" → "APPLE:iphone 15"
+ */
+export function getExactProductKey(productName: string): string {
+  const brand = extractBrandFromProductName(productName);
+  const model = extractModelFromProductName(productName)
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ');
+  return `${brand}:${model}`;
+}
+
+/**
+ * Cria uma chave única para agrupar produtos (alias para getExactProductKey)
+ * @deprecated Use getExactProductKey para maior clareza
  */
 export function getProductKey(productName: string): string {
-  const brand = extractBrandFromProductName(productName);
-  const model = normalizeProductName(extractModelFromProductName(productName));
-  return `${brand}:${model}`;
+  return getExactProductKey(productName);
 }
