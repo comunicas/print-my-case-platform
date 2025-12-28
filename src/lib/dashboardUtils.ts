@@ -1,0 +1,296 @@
+import { format, getDay, getHours } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { extractBrandFromProductName } from "./productNormalization";
+
+// Types
+export interface SaleRecord {
+  id: string;
+  payment_date: string;
+  amount: number;
+  refund_amount: number | null;
+  product_name: string;
+  payment_method?: string | null;
+  pdv_id: string;
+}
+
+export interface SalesByDayData {
+  date: string;
+  dateDisplay: string;
+  revenue: number;
+  count: number;
+}
+
+export interface HeatmapCell {
+  hour: number;
+  dayOfWeek: number;
+  dayName: string;
+  revenue: number;
+  count: number;
+}
+
+export interface TopProductData {
+  name: string;
+  revenue: number;
+  count: number;
+  brand: string;
+}
+
+export interface StockByBrandData {
+  brand: string;
+  quantity: number;
+  fill: string;
+}
+
+export interface QuickStatsData {
+  peakHour: string | null;
+  bestDay: string | null;
+}
+
+export interface LowStockItem {
+  slotNumber: string;
+  productName: string;
+  brand: string;
+  quantity: number;
+  pdvName?: string;
+  salesCount: number;
+  salesIndex: 'high' | 'medium' | 'low' | 'none';
+}
+
+// Constants
+const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+const BRAND_COLORS: Record<string, string> = {
+  "APPLE": "hsl(var(--chart-1))",
+  "SAMSUNG": "hsl(var(--chart-2))",
+  "XIAOMI": "hsl(var(--chart-3))",
+  "MOTOROLA": "hsl(var(--chart-4))",
+  "REALME": "hsl(var(--chart-5))",
+  "OUTROS": "hsl(var(--muted-foreground))",
+};
+
+/**
+ * Agrupa vendas por dia
+ */
+export function getSalesByDay(sales: SaleRecord[]): SalesByDayData[] {
+  const byDay = new Map<string, { revenue: number; count: number }>();
+  
+  for (const sale of sales) {
+    const date = format(new Date(sale.payment_date), "yyyy-MM-dd");
+    const current = byDay.get(date) || { revenue: 0, count: 0 };
+    current.revenue += Number(sale.amount) - Number(sale.refund_amount || 0);
+    current.count += 1;
+    byDay.set(date, current);
+  }
+  
+  return Array.from(byDay.entries())
+    .map(([date, data]) => ({
+      date,
+      dateDisplay: format(new Date(date), "dd/MM", { locale: ptBR }),
+      revenue: data.revenue,
+      count: data.count,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * Agrupa vendas por hora e dia da semana para heatmap
+ */
+export function getSalesByHourAndDay(sales: SaleRecord[]): HeatmapCell[] {
+  const heatmap: HeatmapCell[] = [];
+  const dataMap = new Map<string, { revenue: number; count: number }>();
+  
+  // Inicializa todas as células (8h-22h, Dom-Sáb)
+  for (let hour = 8; hour <= 22; hour++) {
+    for (let day = 0; day < 7; day++) {
+      dataMap.set(`${hour}-${day}`, { revenue: 0, count: 0 });
+    }
+  }
+  
+  // Preenche com dados
+  for (const sale of sales) {
+    const date = new Date(sale.payment_date);
+    const hour = getHours(date);
+    const day = getDay(date);
+    
+    if (hour >= 8 && hour <= 22) {
+      const key = `${hour}-${day}`;
+      const current = dataMap.get(key)!;
+      current.revenue += Number(sale.amount) - Number(sale.refund_amount || 0);
+      current.count += 1;
+    }
+  }
+  
+  // Converte para array
+  for (let hour = 8; hour <= 22; hour++) {
+    for (let day = 0; day < 7; day++) {
+      const data = dataMap.get(`${hour}-${day}`)!;
+      heatmap.push({
+        hour,
+        dayOfWeek: day,
+        dayName: DAY_NAMES[day],
+        revenue: data.revenue,
+        count: data.count,
+      });
+    }
+  }
+  
+  return heatmap;
+}
+
+/**
+ * Calcula o pico do heatmap
+ */
+export function getHeatmapPeak(heatmap: HeatmapCell[]): { hour: number; dayName: string; revenue: number } | null {
+  if (heatmap.length === 0) return null;
+  
+  const peak = heatmap.reduce((max, cell) => 
+    cell.revenue > max.revenue ? cell : max
+  , heatmap[0]);
+  
+  if (peak.revenue === 0) return null;
+  
+  return {
+    hour: peak.hour,
+    dayName: peak.dayName,
+    revenue: peak.revenue,
+  };
+}
+
+/**
+ * Retorna os 10 produtos mais vendidos por receita
+ */
+export function getTopProducts(sales: SaleRecord[], limit: number = 10): TopProductData[] {
+  const byProduct = new Map<string, { revenue: number; count: number }>();
+  
+  for (const sale of sales) {
+    const name = sale.product_name;
+    const current = byProduct.get(name) || { revenue: 0, count: 0 };
+    current.revenue += Number(sale.amount) - Number(sale.refund_amount || 0);
+    current.count += 1;
+    byProduct.set(name, current);
+  }
+  
+  return Array.from(byProduct.entries())
+    .map(([name, data]) => ({
+      name,
+      revenue: data.revenue,
+      count: data.count,
+      brand: extractBrandFromProductName(name),
+    }))
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, limit);
+}
+
+/**
+ * Agrupa estoque por marca
+ */
+export function getStockByBrand(slots: { brand: string; quantity: number }[]): StockByBrandData[] {
+  const byBrand = new Map<string, number>();
+  
+  for (const slot of slots) {
+    const brand = slot.brand || "OUTROS";
+    byBrand.set(brand, (byBrand.get(brand) || 0) + slot.quantity);
+  }
+  
+  return Array.from(byBrand.entries())
+    .map(([brand, quantity]) => ({
+      brand,
+      quantity,
+      fill: BRAND_COLORS[brand] || BRAND_COLORS["OUTROS"],
+    }))
+    .sort((a, b) => b.quantity - a.quantity);
+}
+
+/**
+ * Calcula horário de pico e melhor dia da semana
+ */
+export function getQuickStats(sales: SaleRecord[]): QuickStatsData {
+  if (sales.length === 0) {
+    return { peakHour: null, bestDay: null };
+  }
+  
+  // Agrupa por hora
+  const byHour = new Map<number, number>();
+  for (const sale of sales) {
+    const hour = getHours(new Date(sale.payment_date));
+    const revenue = Number(sale.amount) - Number(sale.refund_amount || 0);
+    byHour.set(hour, (byHour.get(hour) || 0) + revenue);
+  }
+  
+  // Agrupa por dia da semana
+  const byDay = new Map<number, number>();
+  for (const sale of sales) {
+    const day = getDay(new Date(sale.payment_date));
+    const revenue = Number(sale.amount) - Number(sale.refund_amount || 0);
+    byDay.set(day, (byDay.get(day) || 0) + revenue);
+  }
+  
+  // Encontra pico
+  let peakHour: number | null = null;
+  let maxHourRevenue = 0;
+  for (const [hour, revenue] of byHour.entries()) {
+    if (revenue > maxHourRevenue) {
+      maxHourRevenue = revenue;
+      peakHour = hour;
+    }
+  }
+  
+  let bestDay: number | null = null;
+  let maxDayRevenue = 0;
+  for (const [day, revenue] of byDay.entries()) {
+    if (revenue > maxDayRevenue) {
+      maxDayRevenue = revenue;
+      bestDay = day;
+    }
+  }
+  
+  return {
+    peakHour: peakHour !== null ? `${String(peakHour).padStart(2, "0")}:00` : null,
+    bestDay: bestDay !== null ? DAY_NAMES[bestDay] : null,
+  };
+}
+
+/**
+ * Retorna itens com estoque baixo/crítico
+ */
+export function getLowStockItems(
+  slots: { slotNumber: string; productName: string; brand: string; quantity: number; pdvName?: string }[],
+  salesByProduct: Map<string, number>,
+  threshold: number = 1
+): LowStockItem[] {
+  return slots
+    .filter(slot => slot.quantity <= threshold)
+    .map(slot => {
+      const salesCount = salesByProduct.get(slot.productName) || 0;
+      return {
+        slotNumber: slot.slotNumber,
+        productName: slot.productName,
+        brand: slot.brand,
+        quantity: slot.quantity,
+        pdvName: slot.pdvName,
+        salesCount,
+        salesIndex: getSalesIndex(salesCount),
+      };
+    })
+    .sort((a, b) => a.quantity - b.quantity);
+}
+
+function getSalesIndex(count: number): 'high' | 'medium' | 'low' | 'none' {
+  if (count === 0) return 'none';
+  if (count >= 20) return 'high';
+  if (count >= 5) return 'medium';
+  return 'low';
+}
+
+/**
+ * Exporta dados para Excel
+ */
+export function exportToExcel(data: Record<string, any>[], filename: string) {
+  // Usa a lib xlsx já instalada
+  import('xlsx').then((XLSX) => {
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Dados");
+    XLSX.writeFile(wb, `${filename}.xlsx`);
+  });
+}
