@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // Create client with user's token to verify they are super_admin
+    // Create client with user's token to verify their identity
     const supabaseUser = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -49,31 +49,58 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check if calling user is super_admin
-    const { data: roleData, error: roleError } = await supabaseAdmin
+    // Get caller's role
+    const { data: callerRoleData, error: callerRoleError } = await supabaseAdmin
       .from('user_roles')
       .select('role')
       .eq('user_id', callingUser.id)
-      .eq('role', 'super_admin')
       .single();
 
-    if (roleError || !roleData) {
-      console.error('User is not super_admin:', roleError);
+    if (callerRoleError || !callerRoleData) {
+      console.error('Error getting caller role:', callerRoleError);
       return new Response(
-        JSON.stringify({ error: 'Apenas super_admin pode criar usuários' }),
+        JSON.stringify({ error: 'Não foi possível verificar suas permissões' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    const callerRole = callerRoleData.role;
+    const isCallerSuperAdmin = callerRole === 'super_admin';
+    const isCallerOrgAdmin = callerRole === 'org_admin';
+
+    console.log(`Caller ${callingUser.email} has role: ${callerRole}`);
+
+    // Only super_admin and org_admin can create users
+    if (!isCallerSuperAdmin && !isCallerOrgAdmin) {
+      console.error(`User ${callingUser.email} with role ${callerRole} tried to create user`);
+      return new Response(
+        JSON.stringify({ error: 'Apenas administradores podem criar usuários' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Get caller's organization
+    const { data: callerProfile, error: callerProfileError } = await supabaseAdmin
+      .from('profiles')
+      .select('organization_id')
+      .eq('id', callingUser.id)
+      .single();
+
+    if (callerProfileError) {
+      console.error('Error getting caller profile:', callerProfileError);
+    }
+
+    const callerOrgId = callerProfile?.organization_id;
+
     // Parse request body
-    const { 
+    let { 
       name, 
       email, 
       password, 
-      createNewOrganization = true,
+      createNewOrganization = false,
       organizationId,
       organizationName,
-      role = 'org_admin'
+      role = 'operator'
     } = await req.json();
 
     if (!name || !email || !password) {
@@ -84,13 +111,69 @@ Deno.serve(async (req) => {
     }
 
     // Validate role
-    const validRoles = ['org_admin', 'operator', 'viewer'];
+    const validRoles = ['super_admin', 'org_admin', 'operator', 'viewer'];
     if (!validRoles.includes(role)) {
       return new Response(
         JSON.stringify({ error: 'Role inválido' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // ========== PERMISSION VALIDATION BY CALLER ROLE ==========
+
+    // org_admin restrictions
+    if (isCallerOrgAdmin) {
+      // org_admin cannot create new organizations
+      if (createNewOrganization) {
+        console.warn(`org_admin ${callingUser.email} tried to create new organization`);
+        return new Response(
+          JSON.stringify({ error: 'Você não tem permissão para criar novas organizações' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // org_admin must belong to an organization
+      if (!callerOrgId) {
+        console.error(`org_admin ${callingUser.email} has no organization`);
+        return new Response(
+          JSON.stringify({ error: 'Você precisa estar vinculado a uma organização para criar usuários' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // org_admin can only create users in their own organization
+      if (organizationId && organizationId !== callerOrgId) {
+        console.warn(`org_admin ${callingUser.email} tried to create user in different org: ${organizationId}. Forcing to ${callerOrgId}`);
+      }
+      // Force organization to caller's org
+      organizationId = callerOrgId;
+      createNewOrganization = false;
+
+      // org_admin cannot create super_admin or org_admin
+      if (role === 'super_admin' || role === 'org_admin') {
+        console.warn(`org_admin ${callingUser.email} tried to create user with role: ${role}`);
+        return new Response(
+          JSON.stringify({ error: 'Você só pode criar usuários com permissão de operador ou visualizador' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // super_admin restrictions (minimal)
+    if (isCallerSuperAdmin) {
+      // Only super_admin can create another super_admin (already verified by being here)
+      // super_admin can do everything else
+    }
+
+    // Role assignment validation for both
+    if (role === 'super_admin' && !isCallerSuperAdmin) {
+      return new Response(
+        JSON.stringify({ error: 'Apenas super_admin pode criar outro super_admin' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ========== END PERMISSION VALIDATION ==========
 
     // If linking to existing organization, verify it exists
     let targetOrganizationId = organizationId;
@@ -99,7 +182,7 @@ Deno.serve(async (req) => {
     if (!createNewOrganization) {
       if (!organizationId) {
         return new Response(
-          JSON.stringify({ error: 'organizationId é obrigatório quando createNewOrganization é false' }),
+          JSON.stringify({ error: 'organizationId é obrigatório quando não está criando nova organização' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -122,20 +205,19 @@ Deno.serve(async (req) => {
       console.log(`Linking user to existing organization: ${existingOrg.name} (${existingOrg.id})`);
     }
 
-    console.log(`Creating user: ${email}, role: ${role}, createNewOrg: ${createNewOrganization}`);
+    console.log(`Creating user: ${email}, role: ${role}, createNewOrg: ${createNewOrganization}, targetOrg: ${targetOrganizationId}`);
 
     // Create the new user
     const { data: newUserData, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // Auto-confirm email
+      email_confirm: true,
       user_metadata: { name }
     });
 
     if (createUserError) {
       console.error('Error creating user:', createUserError);
       
-      // Traduzir mensagens de erro comuns
       let errorMessage = createUserError.message;
       if (createUserError.message.includes('already been registered')) {
         errorMessage = 'Este email já está cadastrado no sistema';
@@ -150,7 +232,7 @@ Deno.serve(async (req) => {
     const newUser = newUserData.user;
     console.log(`User created with ID: ${newUser.id}`);
 
-    // Create organization only if requested
+    // Create organization only if requested (only super_admin can do this)
     if (createNewOrganization) {
       const { data: orgData, error: orgError } = await supabaseAdmin
         .from('organizations')
@@ -163,7 +245,6 @@ Deno.serve(async (req) => {
 
       if (orgError) {
         console.error('Error creating organization:', orgError);
-        // Cleanup: delete the user if org creation fails
         await supabaseAdmin.auth.admin.deleteUser(newUser.id);
         return new Response(
           JSON.stringify({ error: 'Erro ao criar organização: ' + orgError.message }),
@@ -176,10 +257,10 @@ Deno.serve(async (req) => {
       console.log(`Organization created with ID: ${orgData.id}`);
     }
 
-    // Update profile with organization_id (profile should be created by trigger)
-    // Wait a bit for the trigger to create the profile
+    // Wait for trigger to create the profile
     await new Promise(resolve => setTimeout(resolve, 500));
 
+    // Update profile with organization_id
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .update({ 
@@ -202,7 +283,7 @@ Deno.serve(async (req) => {
       console.error('Error updating role:', roleUpdateError);
     }
 
-    console.log(`User ${email} setup complete with role ${role}`);
+    console.log(`User ${email} setup complete with role ${role} in org ${targetOrganizationId}`);
 
     return new Response(
       JSON.stringify({
