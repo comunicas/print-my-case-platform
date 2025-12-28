@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { SlotStack, EmptySlot } from './SlotStack';
 import { StockLegend } from './StockLegend';
 import { SlotDetailModal } from './SlotDetailModal';
+import { ProductDetailModal } from './ProductDetailModal';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { SlotData } from '@/lib/stockUtils';
 import { GRID_LAYOUT, COLUMN_HEADERS } from '@/lib/stockGridUtils';
@@ -23,6 +24,8 @@ export function StockGridView({ slots, brands = KNOWN_BRANDS, isLoading }: Stock
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<SlotData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
 
   // Mapeia slots por número para acesso rápido
   const slotMap = useMemo(() => {
@@ -64,6 +67,17 @@ export function StockGridView({ slots, brands = KNOWN_BRANDS, isLoading }: Stock
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedSlot(null);
+  };
+
+  const handleViewProduct = (productName: string) => {
+    setIsModalOpen(false);
+    setSelectedProduct(productName);
+    setIsProductModalOpen(true);
+  };
+
+  const handleCloseProductModal = () => {
+    setIsProductModalOpen(false);
+    setSelectedProduct(null);
   };
 
   if (isLoading) {
@@ -203,11 +217,20 @@ export function StockGridView({ slots, brands = KNOWN_BRANDS, isLoading }: Stock
       {/* Legenda */}
       <StockLegend brands={brands} />
 
-      {/* Modal de detalhes */}
+      {/* Modal de detalhes do slot */}
       <SlotDetailModal
         slot={selectedSlot}
         isOpen={isModalOpen}
         onClose={handleCloseModal}
+        onViewProduct={handleViewProduct}
+      />
+
+      {/* Modal de detalhes do produto */}
+      <ProductDetailModal
+        productName={selectedProduct}
+        slots={slots}
+        isOpen={isProductModalOpen}
+        onClose={handleCloseProductModal}
       />
     </div>
   );
