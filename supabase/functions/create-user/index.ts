@@ -66,7 +66,15 @@ Deno.serve(async (req) => {
     }
 
     // Parse request body
-    const { name, email, password, organizationName } = await req.json();
+    const { 
+      name, 
+      email, 
+      password, 
+      createNewOrganization = true,
+      organizationId,
+      organizationName,
+      role = 'org_admin'
+    } = await req.json();
 
     if (!name || !email || !password) {
       return new Response(
@@ -75,7 +83,46 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Creating user: ${email} for organization: ${organizationName || name}`);
+    // Validate role
+    const validRoles = ['org_admin', 'operator', 'viewer'];
+    if (!validRoles.includes(role)) {
+      return new Response(
+        JSON.stringify({ error: 'Role inválido' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // If linking to existing organization, verify it exists
+    let targetOrganizationId = organizationId;
+    let targetOrganization = null;
+
+    if (!createNewOrganization) {
+      if (!organizationId) {
+        return new Response(
+          JSON.stringify({ error: 'organizationId é obrigatório quando createNewOrganization é false' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { data: existingOrg, error: orgCheckError } = await supabaseAdmin
+        .from('organizations')
+        .select('id, name')
+        .eq('id', organizationId)
+        .single();
+
+      if (orgCheckError || !existingOrg) {
+        console.error('Organization not found:', orgCheckError);
+        return new Response(
+          JSON.stringify({ error: 'Organização não encontrada' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      targetOrganization = existingOrg;
+      console.log(`Linking user to existing organization: ${existingOrg.name} (${existingOrg.id})`);
+    }
+
+    console.log(`Creating user: ${email}, role: ${role}, createNewOrg: ${createNewOrganization}`);
 
     // Create the new user
     const { data: newUserData, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
@@ -96,27 +143,31 @@ Deno.serve(async (req) => {
     const newUser = newUserData.user;
     console.log(`User created with ID: ${newUser.id}`);
 
-    // Create organization for the new user
-    const { data: orgData, error: orgError } = await supabaseAdmin
-      .from('organizations')
-      .insert({
-        name: organizationName || name,
-        owner_id: newUser.id
-      })
-      .select()
-      .single();
+    // Create organization only if requested
+    if (createNewOrganization) {
+      const { data: orgData, error: orgError } = await supabaseAdmin
+        .from('organizations')
+        .insert({
+          name: organizationName || name,
+          owner_id: newUser.id
+        })
+        .select()
+        .single();
 
-    if (orgError) {
-      console.error('Error creating organization:', orgError);
-      // Cleanup: delete the user if org creation fails
-      await supabaseAdmin.auth.admin.deleteUser(newUser.id);
-      return new Response(
-        JSON.stringify({ error: 'Erro ao criar organização: ' + orgError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      if (orgError) {
+        console.error('Error creating organization:', orgError);
+        // Cleanup: delete the user if org creation fails
+        await supabaseAdmin.auth.admin.deleteUser(newUser.id);
+        return new Response(
+          JSON.stringify({ error: 'Erro ao criar organização: ' + orgError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      targetOrganizationId = orgData.id;
+      targetOrganization = orgData;
+      console.log(`Organization created with ID: ${orgData.id}`);
     }
-
-    console.log(`Organization created with ID: ${orgData.id}`);
 
     // Update profile with organization_id (profile should be created by trigger)
     // Wait a bit for the trigger to create the profile
@@ -125,7 +176,7 @@ Deno.serve(async (req) => {
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .update({ 
-        organization_id: orgData.id,
+        organization_id: targetOrganizationId,
         name: name 
       })
       .eq('id', newUser.id);
@@ -134,17 +185,17 @@ Deno.serve(async (req) => {
       console.error('Error updating profile:', profileError);
     }
 
-    // Update user role to org_admin (trigger creates viewer by default)
+    // Update user role (trigger creates viewer by default)
     const { error: roleUpdateError } = await supabaseAdmin
       .from('user_roles')
-      .update({ role: 'org_admin' })
+      .update({ role: role })
       .eq('user_id', newUser.id);
 
     if (roleUpdateError) {
       console.error('Error updating role:', roleUpdateError);
     }
 
-    console.log(`User ${email} setup complete`);
+    console.log(`User ${email} setup complete with role ${role}`);
 
     return new Response(
       JSON.stringify({
@@ -153,7 +204,8 @@ Deno.serve(async (req) => {
           id: newUser.id,
           email: newUser.email,
           name: name,
-          organization: orgData
+          role: role,
+          organization: targetOrganization
         }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
