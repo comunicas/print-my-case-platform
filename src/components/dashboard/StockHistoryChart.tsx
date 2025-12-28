@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
 import { exportToExcel } from "@/lib/dashboardUtils";
+import { getBrandChartColor } from "@/lib/brandAssets";
 
 interface StockHistoryData {
   date: string;
@@ -24,15 +25,6 @@ const PERIOD_OPTIONS = [
   { label: "90d", days: 90 },
 ];
 
-const BRAND_COLORS: Record<string, string> = {
-  "APPLE": "hsl(var(--chart-1))",
-  "SAMSUNG": "hsl(var(--chart-2))",
-  "XIAOMI": "hsl(var(--chart-3))",
-  "MOTOROLA": "hsl(var(--chart-4))",
-  "REALME": "hsl(var(--chart-5))",
-  "OUTROS": "hsl(var(--muted-foreground))",
-};
-
 export function StockHistoryChart({ data, brands }: StockHistoryChartProps) {
   const [selectedPeriod, setSelectedPeriod] = useState(30);
   
@@ -40,7 +32,7 @@ export function StockHistoryChart({ data, brands }: StockHistoryChartProps) {
   const filteredData = data.slice(-selectedPeriod);
   
   const chartConfig = brands.reduce((acc, brand) => {
-    acc[brand] = { label: brand, color: BRAND_COLORS[brand] || BRAND_COLORS["OUTROS"] };
+    acc[brand] = { label: brand, color: getBrandChartColor(brand) };
     return acc;
   }, {} as Record<string, { label: string; color: string }>);
   
@@ -102,7 +94,7 @@ export function StockHistoryChart({ data, brands }: StockHistoryChartProps) {
                   key={brand}
                   type="monotone"
                   dataKey={brand}
-                  stroke={BRAND_COLORS[brand] || BRAND_COLORS["OUTROS"]}
+                  stroke={getBrandChartColor(brand)}
                   strokeWidth={2}
                   dot={false}
                   activeDot={{ r: 4 }}
@@ -114,7 +106,7 @@ export function StockHistoryChart({ data, brands }: StockHistoryChartProps) {
                     payload={brands.map(brand => ({
                       value: brand,
                       type: "line",
-                      color: BRAND_COLORS[brand] || BRAND_COLORS["OUTROS"],
+                      color: getBrandChartColor(brand),
                     }))}
                   />
                 }

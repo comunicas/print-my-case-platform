@@ -19,6 +19,24 @@ export const BRAND_COLORS: Record<string, string> = {
   MOTOROLA: 'hsl(200, 70%, 45%)',
 };
 
+// Cores padronizadas por marca para gráficos (consistente em toda a app)
+export const BRAND_CHART_COLORS: Record<string, string> = {
+  APPLE: 'hsl(271, 81%, 56%)',      // Roxo
+  SAMSUNG: 'hsl(142, 71%, 45%)',    // Verde
+  XIAOMI: 'hsl(221, 83%, 53%)',     // Azul
+  MOTOROLA: 'hsl(38, 92%, 50%)',    // Laranja
+  REALME: 'hsl(340, 75%, 55%)',     // Rosa
+  OUTROS: 'hsl(215, 16%, 47%)',     // Cinza
+};
+
+/**
+ * Retorna a cor do gráfico para uma marca
+ */
+export function getBrandChartColor(brand: string): string {
+  const canonical = getCanonicalBrand(brand);
+  return BRAND_CHART_COLORS[canonical] || BRAND_CHART_COLORS['OUTROS'];
+}
+
 // Aliases para normalização (dados de vendas usam nomes diferentes)
 export const BRAND_ALIASES: Record<string, string> = {
   IPHONE: 'APPLE',

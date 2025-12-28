@@ -37,14 +37,16 @@ export function SalesHeatmapChart({ data }: SalesHeatmapChartProps) {
     return { grid: gridData, maxRevenue: max, peak: peakData };
   }, [data]);
   
+  // Cores com gradiente de luminosidade para melhor visibilidade
   const getCellColor = (revenue: number) => {
-    if (revenue === 0 || maxRevenue === 0) return "bg-muted/30";
+    if (revenue === 0 || maxRevenue === 0) return "bg-muted/40";
     const ratio = revenue / maxRevenue;
-    if (ratio < 0.15) return "bg-chart-1/20";
-    if (ratio < 0.30) return "bg-chart-1/40";
-    if (ratio < 0.50) return "bg-chart-1/60";
-    if (ratio < 0.75) return "bg-chart-1/80";
-    return "bg-chart-1";
+    // Gradiente de cinza claro → roxo escuro para melhor contraste
+    if (ratio < 0.15) return "bg-purple-100 dark:bg-purple-950/60";
+    if (ratio < 0.30) return "bg-purple-200 dark:bg-purple-900/70";
+    if (ratio < 0.50) return "bg-purple-300 dark:bg-purple-800/80";
+    if (ratio < 0.75) return "bg-purple-400 dark:bg-purple-700";
+    return "bg-purple-500 dark:bg-purple-600";
   };
   
   const isPeakCell = (hour: number, day: number) => {
@@ -84,7 +86,7 @@ export function SalesHeatmapChart({ data }: SalesHeatmapChartProps) {
           <div className="overflow-x-auto">
             <div className="min-w-[400px]">
               {/* Header - Dias */}
-              <div className="grid grid-cols-8 gap-1 mb-1">
+              <div className="grid grid-cols-8 gap-1.5 mb-1.5">
                 <div className="text-xs text-muted-foreground text-right pr-1">h</div>
                 {DAYS.map(day => (
                   <div key={day} className="text-xs text-muted-foreground text-center font-medium">
@@ -96,8 +98,8 @@ export function SalesHeatmapChart({ data }: SalesHeatmapChartProps) {
               {/* Grid */}
               <TooltipProvider>
                 {HOURS.map((hour, hIdx) => (
-                  <div key={hour} className="grid grid-cols-8 gap-1 mb-1">
-                    <div className="text-xs text-muted-foreground text-right pr-1 leading-6">
+                  <div key={hour} className="grid grid-cols-8 gap-1.5 mb-1.5">
+                    <div className="text-xs text-muted-foreground text-right pr-1 leading-7">
                       {hour}h
                     </div>
                     {DAYS.map((day, dIdx) => {
@@ -110,9 +112,9 @@ export function SalesHeatmapChart({ data }: SalesHeatmapChartProps) {
                           <TooltipTrigger asChild>
                             <div
                               className={cn(
-                                "h-6 rounded-sm cursor-default transition-all",
+                                "h-7 rounded cursor-default transition-all",
                                 getCellColor(revenue),
-                                isPeakCell(hour, dIdx) && "ring-2 ring-primary ring-offset-1"
+                                isPeakCell(hour, dIdx) && "ring-2 ring-primary ring-offset-1 ring-offset-background"
                               )}
                             />
                           </TooltipTrigger>
@@ -130,16 +132,16 @@ export function SalesHeatmapChart({ data }: SalesHeatmapChartProps) {
                 ))}
               </TooltipProvider>
               
-              {/* Legenda */}
-              <div className="flex items-center justify-center gap-1 mt-4 text-xs text-muted-foreground">
+              {/* Legenda melhorada */}
+              <div className="flex items-center justify-center gap-2 mt-4 text-xs text-muted-foreground">
                 <span>Menos</span>
-                <div className="flex gap-0.5">
-                  <div className="w-4 h-4 rounded-sm bg-muted/30" />
-                  <div className="w-4 h-4 rounded-sm bg-chart-1/20" />
-                  <div className="w-4 h-4 rounded-sm bg-chart-1/40" />
-                  <div className="w-4 h-4 rounded-sm bg-chart-1/60" />
-                  <div className="w-4 h-4 rounded-sm bg-chart-1/80" />
-                  <div className="w-4 h-4 rounded-sm bg-chart-1" />
+                <div className="flex gap-1">
+                  <div className="w-5 h-5 rounded bg-muted/40 border border-border/50" />
+                  <div className="w-5 h-5 rounded bg-purple-100 dark:bg-purple-950/60" />
+                  <div className="w-5 h-5 rounded bg-purple-200 dark:bg-purple-900/70" />
+                  <div className="w-5 h-5 rounded bg-purple-300 dark:bg-purple-800/80" />
+                  <div className="w-5 h-5 rounded bg-purple-400 dark:bg-purple-700" />
+                  <div className="w-5 h-5 rounded bg-purple-500 dark:bg-purple-600" />
                 </div>
                 <span>Mais</span>
               </div>
