@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useTeamMembers, TeamMember } from "@/hooks/useTeamMembers";
 import { useProfile } from "@/hooks/useProfile";
+import { useOrganization } from "@/hooks/useOrganization";
 
 interface EditingMember {
   id: string;
@@ -107,6 +108,7 @@ const formatDate = (dateStr: string): string => {
 export function TeamSettings() {
   const { members, isLoading, isAdmin, isSuperAdmin, updateMember, removeMember, createUser } = useTeamMembers();
   const { profile } = useProfile();
+  const { organization } = useOrganization();
   const [searchQuery, setSearchQuery] = useState("");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -499,6 +501,9 @@ export function TeamSettings() {
         onOpenChange={setIsCreateDialogOpen}
         onSubmit={handleCreateUser}
         isLoading={createUser.isPending}
+        adminOrganizationId={profile?.organization_id}
+        adminOrganizationName={organization?.name}
+        isSuperAdmin={isSuperAdmin}
       />
 
       {/* PDVs Assignment Dialog */}
