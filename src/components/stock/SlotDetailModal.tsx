@@ -3,17 +3,21 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { SlotData } from '@/lib/stockUtils';
 import { getSlotStatus, MAX_CAPACITY, getBlockColorClass } from '@/lib/stockGridUtils';
 import { cn } from '@/lib/utils';
+import { Package } from 'lucide-react';
 
 interface SlotDetailModalProps {
   slot: SlotData | null;
   isOpen: boolean;
   onClose: () => void;
+  onViewProduct?: (productName: string) => void;
 }
 
 const statusLabels: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -25,12 +29,18 @@ const statusLabels: Record<string, { label: string; variant: 'default' | 'second
   inactive: { label: 'Inativo', variant: 'outline' },
 };
 
-export function SlotDetailModal({ slot, isOpen, onClose }: SlotDetailModalProps) {
+export function SlotDetailModal({ slot, isOpen, onClose, onViewProduct }: SlotDetailModalProps) {
   if (!slot) return null;
 
   const status = getSlotStatus(slot.quantity, slot.isActive);
   const statusInfo = statusLabels[status] || statusLabels.medium;
   const percentage = Math.round((slot.quantity / MAX_CAPACITY) * 100);
+
+  const handleViewProduct = () => {
+    if (onViewProduct && slot.productName) {
+      onViewProduct(slot.productName);
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -119,6 +129,18 @@ export function SlotDetailModal({ slot, isOpen, onClose }: SlotDetailModalProps)
             <p className="font-medium">{slot.productName}</p>
           </div>
         </div>
+
+        <DialogFooter className="flex gap-2 sm:gap-2">
+          <Button variant="outline" onClick={onClose}>
+            Fechar
+          </Button>
+          {onViewProduct && (
+            <Button onClick={handleViewProduct}>
+              <Package className="h-4 w-4 mr-2" />
+              Ver todos os slots
+            </Button>
+          )}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
