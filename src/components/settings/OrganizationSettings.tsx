@@ -8,13 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { organizationFormSchema } from "@/lib/schemas/settings";
-import { Tables } from "@/integrations/supabase/types";
+import { Organization } from "@/hooks/useOrganization";
 import { UseMutationResult } from "@tanstack/react-query";
 
 interface OrganizationSettingsProps {
-  organization: Tables<"organizations"> | null;
+  organization: Organization;
   isAdmin: boolean;
-  updateOrganization: UseMutationResult<Tables<"organizations">, Error, Partial<Tables<"organizations">>>;
+  updateOrganization: UseMutationResult<unknown, Error, Partial<Organization>>;
 }
 
 export function OrganizationSettings({ organization, isAdmin, updateOrganization }: OrganizationSettingsProps) {
