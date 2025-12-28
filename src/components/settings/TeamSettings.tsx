@@ -22,7 +22,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Users, Search, Pencil, Trash2, Mail, Loader2, Building2 } from "lucide-react";
+import { Plus, Users, Search, Pencil, Trash2, Mail, Loader2, Building2, MapPin } from "lucide-react";
+import { UserPDVsDialog } from "@/components/team/UserPDVsDialog";
 import { useToast } from "@/hooks/use-toast";
 import { TeamMemberForm } from "@/components/team/TeamMemberForm";
 import { CreateUserDialog } from "@/components/team/CreateUserDialog";
@@ -110,6 +111,8 @@ export function TeamSettings() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isPDVsDialogOpen, setIsPDVsDialogOpen] = useState(false);
+  const [selectedMemberForPDVs, setSelectedMemberForPDVs] = useState<TeamMember | null>(null);
   const [editingMember, setEditingMember] = useState<EditingMember | null>(null);
   const [deletingMember, setDeletingMember] = useState<TeamMember | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -150,6 +153,11 @@ export function TeamSettings() {
   const handleCreateUser = async (data: CreateUserFormData) => {
     await createUser.mutateAsync(data);
     setIsCreateDialogOpen(false);
+  };
+
+  const handleOpenPDVsDialog = (member: TeamMember) => {
+    setSelectedMemberForPDVs(member);
+    setIsPDVsDialogOpen(true);
   };
 
   const handleOpenEdit = (member: TeamMember) => {
@@ -336,7 +344,7 @@ export function TeamSettings() {
                   <span className="font-medium">{formatDate(member.created_at)}</span>
                 </div>
                 {isAdmin && (
-                  <div className="flex gap-2 mt-2">
+                  <div className="flex gap-2 mt-2 flex-wrap">
                     <Button
                       variant="outline"
                       size="sm"
@@ -346,6 +354,16 @@ export function TeamSettings() {
                       <Pencil className="h-4 w-4 mr-2" />
                       Editar
                     </Button>
+                    {(member.role === "operator" || member.role === "viewer") && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenPDVsDialog(member)}
+                        title="Gerenciar PDVs"
+                      >
+                        <MapPin className="h-4 w-4" />
+                      </Button>
+                    )}
                     {member.id !== profile?.id && (
                       <Button
                         variant="outline"
@@ -455,6 +473,16 @@ export function TeamSettings() {
         onSubmit={handleCreateUser}
         isLoading={createUser.isPending}
       />
+
+      {/* PDVs Assignment Dialog */}
+      {selectedMemberForPDVs && (
+        <UserPDVsDialog
+          open={isPDVsDialogOpen}
+          onOpenChange={setIsPDVsDialogOpen}
+          userId={selectedMemberForPDVs.id}
+          userName={selectedMemberForPDVs.name}
+        />
+      )}
     </div>
   );
 }
