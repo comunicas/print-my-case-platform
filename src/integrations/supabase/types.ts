@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          actor_email: string | null
+          actor_id: string | null
+          actor_role: string | null
+          created_at: string | null
+          error_message: string | null
+          event_type: Database["public"]["Enums"]["audit_event_type"]
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          organization_id: string | null
+          organization_name: string | null
+          success: boolean
+          target_email: string | null
+          target_role: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_role?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          event_type: Database["public"]["Enums"]["audit_event_type"]
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          organization_id?: string | null
+          organization_name?: string | null
+          success?: boolean
+          target_email?: string | null
+          target_role?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_role?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          event_type?: Database["public"]["Enums"]["audit_event_type"]
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          organization_id?: string | null
+          organization_name?: string | null
+          success?: boolean
+          target_email?: string | null
+          target_role?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       organizations: {
         Row: {
           active_since: string | null
@@ -539,6 +593,13 @@ export type Database = {
     }
     Enums: {
       app_role: "super_admin" | "org_admin" | "operator" | "viewer"
+      audit_event_type:
+        | "user_creation_attempt"
+        | "user_creation_success"
+        | "user_creation_failed"
+        | "permission_violation"
+        | "organization_creation"
+        | "role_assignment"
       member_status: "active" | "pending" | "inactive"
       pdv_status: "active" | "inactive"
       upload_status: "processing" | "ready" | "error"
@@ -671,6 +732,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["super_admin", "org_admin", "operator", "viewer"],
+      audit_event_type: [
+        "user_creation_attempt",
+        "user_creation_success",
+        "user_creation_failed",
+        "permission_violation",
+        "organization_creation",
+        "role_assignment",
+      ],
       member_status: ["active", "pending", "inactive"],
       pdv_status: ["active", "inactive"],
       upload_status: ["processing", "ready", "error"],
