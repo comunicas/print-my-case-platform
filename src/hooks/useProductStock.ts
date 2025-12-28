@@ -7,12 +7,21 @@ import { useProfile } from './useProfile';
 import { 
   ProductStock, 
   StockKPIs, 
+  SlotData,
   aggregateProductStock, 
   calculateStockKPIs,
   extractUniqueBrands,
+  getSalesIndex,
 } from '@/lib/stockUtils';
 import { GRID_LAYOUT } from '@/lib/stockGridUtils';
 import type { ProductSuggestion } from '@/components/stock/ProductSearchAutocomplete';
+
+// Helper para calcular status de um slot individual
+function getSlotStatus(quantity: number): 'ok' | 'redistribute' | 'restock' {
+  if (quantity <= 2) return 'restock';
+  if (quantity <= 5) return 'redistribute';
+  return 'ok';
+}
 
 export function useProductStock() {
   const filters = useStockFilters();
@@ -52,7 +61,7 @@ export function useProductStock() {
   }, [salesData]);
   
   // Agrega produtos e aplica filtros
-  const { products, kpis, brands, suggestions } = useMemo(() => {
+  const { products, kpis, brands, suggestions, filteredSlots } = useMemo(() => {
     const allProducts = aggregateProductStock(slots, salesByProduct);
     const uniqueBrands = extractUniqueBrands(slots);
     
@@ -64,7 +73,7 @@ export function useProductStock() {
       totalSold: p.totalSold,
     })).sort((a, b) => b.totalSold - a.totalSold); // Ordena por vendas
     
-    // Aplica filtros
+    // Aplica filtros nos produtos (para tabela)
     let filtered = allProducts;
     
     // Filtro de busca por modelo
@@ -91,6 +100,36 @@ export function useProductStock() {
       filtered = filtered.filter(p => p.salesIndex === filters.salesIndexFilter);
     }
     
+    // Aplica filtros nos slots (para mapa) - mesma lógica
+    let slotsFiltered: SlotData[] = slots;
+    
+    // Filtro de busca por modelo
+    if (filters.searchTerm) {
+      const term = filters.searchTerm.toLowerCase();
+      slotsFiltered = slotsFiltered.filter(s => 
+        s.model.toLowerCase().includes(term) ||
+        s.productName.toLowerCase().includes(term)
+      );
+    }
+    
+    // Filtro por marca
+    if (filters.brandFilter && filters.brandFilter !== 'all') {
+      slotsFiltered = slotsFiltered.filter(s => s.brand === filters.brandFilter);
+    }
+    
+    // Filtro por status (baseado em quantidade do slot)
+    if (filters.statusFilter && filters.statusFilter !== 'all') {
+      slotsFiltered = slotsFiltered.filter(s => getSlotStatus(s.quantity) === filters.statusFilter);
+    }
+    
+    // Filtro por índice de vendas (baseado nas vendas do produto)
+    if (filters.salesIndexFilter && filters.salesIndexFilter !== 'all') {
+      slotsFiltered = slotsFiltered.filter(s => {
+        const productSold = salesByProduct.get(s.productName) || 0;
+        return getSalesIndex(productSold) === filters.salesIndexFilter;
+      });
+    }
+    
     // Calcula total de slots disponíveis na máquina
     const totalSlots = GRID_LAYOUT.reduce((acc, floor) => 
       acc + floor.slots.filter(s => s !== null).length, 0
@@ -101,6 +140,7 @@ export function useProductStock() {
       kpis: calculateStockKPIs(allProducts, totalSlots),
       brands: uniqueBrands,
       suggestions: productSuggestions,
+      filteredSlots: slotsFiltered,
     };
   }, [slots, salesByProduct, filters]);
   
@@ -109,6 +149,7 @@ export function useProductStock() {
     kpis,
     brands,
     slots,
+    filteredSlots,
     suggestions,
     isLoading: slotsLoading || salesLoading,
   };

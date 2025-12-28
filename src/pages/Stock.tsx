@@ -28,7 +28,7 @@ function StockContent() {
     });
   };
 
-  const { products, kpis, brands, slots, suggestions, isLoading } = useProductStock();
+  const { products, kpis, brands, slots, filteredSlots, suggestions, isLoading } = useProductStock();
 
   if (isLoading) {
     return (
@@ -69,7 +69,7 @@ function StockContent() {
             </TabsContent>
 
             <TabsContent value="mapa" className="mt-4">
-              <StockGridView slots={slots} brands={brands} isLoading={isLoading} />
+              <StockGridView slots={slots} filteredSlots={filteredSlots} brands={brands} isLoading={isLoading} />
             </TabsContent>
           </Tabs>
         </div>
