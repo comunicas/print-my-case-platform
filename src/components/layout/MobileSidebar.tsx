@@ -31,10 +31,8 @@ const navItems: NavItem[] = [
 ];
 
 const reportSubItems = [
-  { label: "Vendas por Unidade", href: "/reports?tab=unit" },
-  { label: "Vendas Mensal", href: "/reports?tab=monthly" },
-  { label: "Análise de Produtos", href: "/reports?tab=products" },
-  { label: "Saúde do Estoque", href: "/reports?tab=stock" },
+  { label: "Tabela", href: "/reports?tab=tabela" },
+  { label: "Mapa", href: "/reports?tab=mapa" },
 ];
 
 interface MobileSidebarProps {
@@ -111,7 +109,7 @@ export function MobileSidebar({
           <div className="ml-4 mt-1 space-y-1">
             {reportSubItems.map((subItem) => {
               const activeTab = activeItem.startsWith("/reports")
-                ? new URLSearchParams(activeItem.split("?")[1]).get("tab") || "unit"
+                ? new URLSearchParams(activeItem.split("?")[1]).get("tab") || "tabela"
                 : null;
               const subItemTab = subItem.href.split("=")[1];
               const isSubActive = activeTab === subItemTab;
