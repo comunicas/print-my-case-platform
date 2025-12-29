@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { ChevronDown, ChevronUp, Eye, ShoppingCart } from 'lucide-react';
 import {
   Table,
@@ -18,6 +18,7 @@ import { statusLabels, statusColors, salesIndexLabels, salesIndexColors } from '
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useProductModal } from '@/contexts/ProductModalContext';
 import { useStockFilters } from '@/contexts/StockFiltersContext';
+import { cn } from '@/lib/utils';
 
 interface ProductStockTableProps {
   products: ProductStock[];
@@ -32,9 +33,11 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
   const [page, setPage] = useState(0);
+  const [focusedIndex, setFocusedIndex] = useState<number>(-1);
   const pageSize = 10;
   const { openProductModal } = useProductModal();
   const { selectedPdv } = useStockFilters();
+  const rowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
 
   const sortedProducts = useMemo(() => {
     const sorted = [...products].sort((a, b) => {
@@ -87,6 +90,52 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
       <ChevronUp className="h-4 w-4" /> : 
       <ChevronDown className="h-4 w-4" />;
   };
+
+  // Navegação por teclado
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    const maxIndex = paginatedProducts.length - 1;
+    
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setFocusedIndex(prev => prev < maxIndex ? prev + 1 : prev);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setFocusedIndex(prev => prev > 0 ? prev - 1 : 0);
+        break;
+      case 'Enter':
+        if (focusedIndex >= 0 && focusedIndex <= maxIndex) {
+          const product = paginatedProducts[focusedIndex];
+          openProductModal(product.productKey, selectedPdv !== 'all' ? selectedPdv : undefined);
+        }
+        break;
+      case 'Escape':
+        setExpandedProduct(null);
+        setFocusedIndex(-1);
+        break;
+      case 'Home':
+        e.preventDefault();
+        setFocusedIndex(0);
+        break;
+      case 'End':
+        e.preventDefault();
+        setFocusedIndex(maxIndex);
+        break;
+    }
+  }, [focusedIndex, paginatedProducts, openProductModal, selectedPdv]);
+
+  // Mover foco para linha quando índice muda
+  useEffect(() => {
+    if (focusedIndex >= 0 && rowRefs.current[focusedIndex]) {
+      rowRefs.current[focusedIndex]?.focus();
+    }
+  }, [focusedIndex]);
+
+  // Resetar foco quando muda de página
+  useEffect(() => {
+    setFocusedIndex(-1);
+  }, [page]);
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-64 text-muted-foreground">Carregando...</div>;
@@ -145,21 +194,36 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
               <TableHead className="w-[60px]"></TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody>
-            {paginatedProducts.map((product) => (
+          <TableBody onKeyDown={handleKeyDown} role="grid">
+            {paginatedProducts.map((product, index) => (
               <>
-                <TableRow key={product.productKey}>
+                <TableRow 
+                  key={product.productKey}
+                  ref={el => rowRefs.current[index] = el}
+                  tabIndex={focusedIndex === index ? 0 : -1}
+                  className={cn(focusedIndex === index && "ring-2 ring-primary ring-inset")}
+                  onFocus={() => setFocusedIndex(index)}
+                >
                   <TableCell>
-                    <button
-                      onClick={() => openProductModal(product.productKey, selectedPdv !== 'all' ? selectedPdv : undefined)}
-                      className="text-left text-primary hover:underline cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
-                    >
-                      <ProductDisplay 
-                        brand={product.brand} 
-                        model={product.model}
-                        logoSize="sm"
-                      />
-                    </button>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => openProductModal(product.productKey, selectedPdv !== 'all' ? selectedPdv : undefined)}
+                            className="text-left text-primary hover:underline cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
+                          >
+                            <ProductDisplay 
+                              brand={product.brand} 
+                              model={product.model}
+                              logoSize="sm"
+                            />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Clique para ver detalhes</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2 min-w-[120px]">
