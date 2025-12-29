@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Loader2, Settings2, Star, StarOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +42,26 @@ export function PDVFilter({
 }: PDVFilterProps) {
   const { preferences, updatePreferences } = usePreferences();
 
+  // Animation state for the Auto badge
+  const [isAnimatingOut, setIsAnimatingOut] = useState(false);
+  const [shouldShowBadge, setShouldShowBadge] = useState(showAutoAppliedBadge);
+
+  useEffect(() => {
+    if (showAutoAppliedBadge && !shouldShowBadge) {
+      // Badge appearing
+      setShouldShowBadge(true);
+      setIsAnimatingOut(false);
+    } else if (!showAutoAppliedBadge && shouldShowBadge && !isAnimatingOut) {
+      // Badge disappearing - start animation
+      setIsAnimatingOut(true);
+      const timer = setTimeout(() => {
+        setShouldShowBadge(false);
+        setIsAnimatingOut(false);
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [showAutoAppliedBadge, shouldShowBadge, isAnimatingOut]);
+
   const isCurrentDefault = value !== 'all' && value === preferences?.default_pdv;
   const canSaveAsDefault = value !== 'all' && value !== preferences?.default_pdv;
 
@@ -68,13 +89,16 @@ export function PDVFilter({
             ))}
           </SelectContent>
         </Select>
-        {showAutoAppliedBadge && (
+        {shouldShowBadge && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Badge 
                   variant="outline" 
-                  className="absolute -top-2 -right-2 text-[10px] px-1.5 py-0 h-4 bg-primary/10 border-primary/30 text-primary cursor-help"
+                  className={cn(
+                    "absolute -top-2 -right-2 text-[10px] px-1.5 py-0 h-4 bg-primary/10 border-primary/30 text-primary cursor-help",
+                    isAnimatingOut ? "animate-badge-fade-out" : "animate-badge-fade-in"
+                  )}
                 >
                   <Settings2 className="h-2.5 w-2.5 mr-0.5" />
                   Auto
