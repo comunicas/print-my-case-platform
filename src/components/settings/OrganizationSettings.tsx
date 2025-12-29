@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { organizationFormSchema } from "@/lib/schemas/settings";
+import { parseZodErrors } from "@/lib/utils";
 import { Organization } from "@/hooks/useOrganization";
 import { UseMutationResult } from "@tanstack/react-query";
 
@@ -48,13 +49,8 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
     }
     
     const result = organizationFormSchema.safeParse(orgData);
-    if (!result.success) {
-      const errors: Record<string, string> = {};
-      result.error.errors.forEach((err) => {
-        if (err.path[0]) {
-          errors[err.path[0] as string] = err.message;
-        }
-      });
+    const errors = parseZodErrors(result);
+    if (errors) {
       setOrgErrors(errors);
       return;
     }

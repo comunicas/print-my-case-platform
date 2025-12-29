@@ -25,6 +25,13 @@ export const roleLabels: Record<TeamMemberRole, string> = {
   viewer: "Visualizador",
 };
 
+export const roleBadgeVariants: Record<TeamMemberRole, "default" | "secondary" | "outline"> = {
+  super_admin: "default",
+  org_admin: "default",
+  operator: "secondary",
+  viewer: "outline",
+};
+
 export const statusLabels: Record<TeamMemberStatus, string> = {
   active: "Ativo",
   pending: "Pendente",

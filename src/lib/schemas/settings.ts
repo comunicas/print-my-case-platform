@@ -31,7 +31,7 @@ export const preferencesSchema = z.object({
     uploadProcessed: z.boolean(),
   }),
   dashboard: z.object({
-    defaultPeriod: z.enum(["today", "7days", "30days", "thisMonth"]),
+    defaultPeriod: z.enum(["7days", "14days", "30days", "90days"]),
     defaultPdv: z.string(),
   }),
 });
