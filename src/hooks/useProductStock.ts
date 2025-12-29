@@ -27,13 +27,23 @@ export function useProductStock() {
   const filters = useStockFilters();
   const { profile } = useProfile();
   
-  const { data: slots = [], isLoading: slotsLoading } = useSlotsData({ 
+  const { 
+    data: slots = [], 
+    isLoading: slotsLoading,
+    isFetching: slotsFetching,
+    refetch: refetchSlots,
+  } = useSlotsData({ 
     pdvId: filters.selectedPdv,
     userId: profile?.id,
   });
   
   // Busca dados de vendas para calcular índice
-  const { data: salesData = [], isLoading: salesLoading } = useQuery({
+  const { 
+    data: salesData = [], 
+    isLoading: salesLoading,
+    isFetching: salesFetching,
+    refetch: refetchSales,
+  } = useQuery({
     queryKey: ['sales-summary', filters.selectedPdv],
     queryFn: async () => {
       // Use count query to get sales counts without fetching all records
@@ -178,6 +188,10 @@ export function useProductStock() {
     };
   }, [slots, salesByProduct, filters]);
   
+  const refetch = async () => {
+    await Promise.all([refetchSlots(), refetchSales()]);
+  };
+  
   return {
     products,
     kpis,
@@ -186,5 +200,7 @@ export function useProductStock() {
     filteredSlots,
     suggestions,
     isLoading: slotsLoading || salesLoading,
+    isFetching: slotsFetching || salesFetching,
+    refetch,
   };
 }

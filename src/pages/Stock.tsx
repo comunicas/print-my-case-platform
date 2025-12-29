@@ -10,6 +10,9 @@ import { ProductStockTable } from "@/components/stock/ProductStockTable";
 import { StockGridView } from "@/components/stock/StockGridView";
 import { StockEmptyState } from "@/components/stock/StockEmptyState";
 import { useProductStock } from "@/hooks/useProductStock";
+import { PullToRefresh } from "@/components/ui/pull-to-refresh";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { toast } from "sonner";
 
 const VALID_TABS = ["tabela", "mapa"] as const;
 
@@ -29,7 +32,13 @@ function StockContent() {
     });
   };
 
-  const { products, kpis, brands, slots, filteredSlots, suggestions, isLoading } = useProductStock();
+  const isMobile = useIsMobile();
+  const { products, kpis, brands, slots, filteredSlots, suggestions, isLoading, isFetching, refetch } = useProductStock();
+
+  const handleRefresh = async () => {
+    await refetch();
+    toast.success("Estoque atualizado!");
+  };
 
   if (isLoading) {
     return (
@@ -41,7 +50,7 @@ function StockContent() {
 
   const hasData = slots.length > 0;
 
-  return (
+  const content = (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Estoque</h1>
@@ -77,6 +86,20 @@ function StockContent() {
       )}
     </div>
   );
+
+  if (isMobile) {
+    return (
+      <PullToRefresh 
+        onRefresh={handleRefresh} 
+        isRefreshing={isFetching}
+        disabled={isLoading}
+      >
+        {content}
+      </PullToRefresh>
+    );
+  }
+
+  return content;
 }
 
 export default function Stock() {
