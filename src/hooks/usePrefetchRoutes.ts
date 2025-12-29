@@ -79,8 +79,7 @@ export function usePrefetchRoutes() {
       });
     });
   }, [queryClient, profile, debounce]);
-  
-  
+
   // Prefetch Organizations data (super admin only)
   const prefetchOrganizations = useCallback(() => {
     debounce('organizations', () => {
