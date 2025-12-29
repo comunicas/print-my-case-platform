@@ -7,14 +7,18 @@ import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProductModalProvider } from "@/contexts/ProductModalContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import Index from "./pages/Index";
-import Uploads from "./pages/Uploads";
-import UploadDetails from "./pages/UploadDetails";
-import Stock from "./pages/Stock";
-import Settings from "./pages/Settings";
-import Organizations from "./pages/Organizations";
-import Auth from "./pages/Auth";
-import NotFound from "./pages/NotFound";
+import { lazy, Suspense } from "react";
+import { Loader2 } from "lucide-react";
+
+// Lazy load das páginas
+const Index = lazy(() => import("./pages/Index"));
+const Uploads = lazy(() => import("./pages/Uploads"));
+const UploadDetails = lazy(() => import("./pages/UploadDetails"));
+const Stock = lazy(() => import("./pages/Stock"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Organizations = lazy(() => import("./pages/Organizations"));
+const Auth = lazy(() => import("./pages/Auth"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,6 +31,14 @@ const queryClient = new QueryClient({
   },
 });
 
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center h-screen bg-background">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  );
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
@@ -36,21 +48,23 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
-              <Routes>
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-                <Route path="/uploads" element={<ProtectedRoute><Uploads /></ProtectedRoute>} />
-                <Route path="/uploads/:id" element={<ProtectedRoute><UploadDetails /></ProtectedRoute>} />
-                <Route path="/estoque" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
-                <Route path="/reports" element={<Navigate to="/estoque" replace />} />
-                <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-                <Route path="/organizations" element={<ProtectedRoute><Organizations /></ProtectedRoute>} />
-                {/* Redirects for old routes */}
-                <Route path="/pdvs" element={<Navigate to="/settings?tab=pdvs" replace />} />
-                <Route path="/team" element={<Navigate to="/settings?tab=team" replace />} />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+                  <Route path="/uploads" element={<ProtectedRoute><Uploads /></ProtectedRoute>} />
+                  <Route path="/uploads/:id" element={<ProtectedRoute><UploadDetails /></ProtectedRoute>} />
+                  <Route path="/estoque" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
+                  <Route path="/reports" element={<Navigate to="/estoque" replace />} />
+                  <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                  <Route path="/organizations" element={<ProtectedRoute><Organizations /></ProtectedRoute>} />
+                  {/* Redirects for old routes */}
+                  <Route path="/pdvs" element={<Navigate to="/settings?tab=pdvs" replace />} />
+                  <Route path="/team" element={<Navigate to="/settings?tab=team" replace />} />
+                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
             </BrowserRouter>
           </ProductModalProvider>
         </TooltipProvider>
