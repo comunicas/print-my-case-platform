@@ -96,7 +96,7 @@ export function SalesHeatmapChart({ data }: SalesHeatmapChartProps) {
                 ))}
               </div>
               
-              {/* Grid - 5 faixas horárias */}
+              {/* Grid - 8 faixas horárias (2h cada) */}
               <TooltipProvider>
                 {TIME_RANGES.map((range, rIdx) => (
                   <div key={range.id} className="grid grid-cols-8 gap-1 mb-1">
