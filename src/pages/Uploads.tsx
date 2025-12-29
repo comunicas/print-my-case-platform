@@ -41,6 +41,7 @@ import {
   AlertCircle,
   ExternalLink,
   Eye,
+  Settings2,
 } from "lucide-react";
 import { UploadDialog } from "@/components/upload/UploadDialog";
 import {
@@ -65,6 +66,7 @@ export default function Uploads() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterPdv, setFilterPdv] = useState<string>("all");
   const [hasInitializedPrefs, setHasInitializedPrefs] = useState(false);
+  const [pdvWasAutoApplied, setPdvWasAutoApplied] = useState(false);
 
   // Apply default_pdv preference on first load
   useEffect(() => {
@@ -74,11 +76,18 @@ export default function Uploads() {
         const pdvExists = pdvs.some(p => p.id === preferences.default_pdv);
         if (pdvExists) {
           setFilterPdv(preferences.default_pdv);
+          setPdvWasAutoApplied(true);
         }
       }
       setHasInitializedPrefs(true);
     }
   }, [preferences, hasInitializedPrefs, isLoadingPreferences, pdvs, pdvsLoading]);
+
+  const handlePdvChange = (value: string) => {
+    setFilterPdv(value);
+    setPdvWasAutoApplied(false);
+  };
+
   const [filterType, setFilterType] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
@@ -223,19 +232,39 @@ export default function Uploads() {
           </div>
 
           <div className="flex gap-2 flex-wrap">
-            <Select value={filterPdv} onValueChange={setFilterPdv}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="PDV" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os PDVs</SelectItem>
-                {pdvs.map((pdv) => (
-                  <SelectItem key={pdv.id} value={pdv.id}>
-                    {pdv.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="relative">
+              <Select value={filterPdv} onValueChange={handlePdvChange}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="PDV" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os PDVs</SelectItem>
+                  {pdvs.map((pdv) => (
+                    <SelectItem key={pdv.id} value={pdv.id}>
+                      {pdv.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {pdvWasAutoApplied && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge 
+                        variant="outline" 
+                        className="absolute -top-2 -right-2 text-[10px] px-1.5 py-0 h-4 bg-primary/10 border-primary/30 text-primary cursor-help"
+                      >
+                        <Settings2 className="h-2.5 w-2.5 mr-0.5" />
+                        Auto
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Filtro aplicado das suas preferências</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
 
             <Select value={filterType} onValueChange={setFilterType}>
               <SelectTrigger className="w-[130px]">
