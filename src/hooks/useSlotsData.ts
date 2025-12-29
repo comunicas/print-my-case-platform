@@ -90,5 +90,7 @@ export function useSlotsData({ pdvId, userId }: UseSlotsDataParams = {}) {
         isActive: record.is_active ?? true,
       }));
     },
+    staleTime: 5 * 60 * 1000, // 5 minutos
+    placeholderData: (previousData) => previousData,
   });
 }

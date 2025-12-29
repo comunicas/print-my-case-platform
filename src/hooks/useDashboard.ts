@@ -235,8 +235,9 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
       };
     },
     enabled: !!profile?.id || isSuperAdmin,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 2 * 60 * 1000, // 2 minutos
+    gcTime: 10 * 60 * 1000, // 10 minutos
+    placeholderData: (previousData) => previousData,
   });
 
   return {

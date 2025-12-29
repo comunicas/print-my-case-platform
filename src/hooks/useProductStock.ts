@@ -48,6 +48,8 @@ export function useProductStock() {
       if (error) throw error;
       return data || [];
     },
+    staleTime: 5 * 60 * 1000, // 5 minutos
+    placeholderData: (previousData) => previousData,
   });
   
   // Agrupa vendas por produto

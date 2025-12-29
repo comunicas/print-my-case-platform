@@ -40,6 +40,8 @@ export function usePreferences() {
       return data as Preferences | null;
     },
     enabled: !!user?.id,
+    staleTime: 10 * 60 * 1000, // 10 minutos
+    gcTime: 60 * 60 * 1000, // 1 hora
   });
 
   const updatePreferences = useMutation({

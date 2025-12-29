@@ -41,6 +41,8 @@ export function useProfile() {
       return data as Profile | null;
     },
     enabled: !!user?.id,
+    staleTime: 10 * 60 * 1000, // 10 minutos
+    gcTime: 60 * 60 * 1000, // 1 hora
   });
 
   const roleQuery = useQuery({
@@ -58,6 +60,8 @@ export function useProfile() {
       return data as UserRole | null;
     },
     enabled: !!user?.id,
+    staleTime: 10 * 60 * 1000, // 10 minutos
+    gcTime: 60 * 60 * 1000, // 1 hora
   });
 
   const updateProfile = useMutation({
