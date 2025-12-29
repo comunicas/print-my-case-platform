@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { LowStockItem } from "@/lib/dashboardUtils";
 import { useProductModal } from "@/contexts/ProductModalContext";
+import { getExactProductKey } from "@/lib/productNormalization";
 
 interface StockAlertsTableProps {
   data: LowStockItem[];
@@ -86,7 +87,7 @@ export function StockAlertsTable({ data, maxCapacity = 7 }: StockAlertsTableProp
                   </TableCell>
                   <TableCell className="max-w-[200px]">
                     <button
-                      onClick={() => openProductModal(item.productName)}
+                      onClick={() => openProductModal(getExactProductKey(item.productName))}
                       className="text-left truncate block w-full hover:underline focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
                       title={item.productName}
                     >
