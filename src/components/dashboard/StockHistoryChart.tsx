@@ -50,7 +50,7 @@ export function StockHistoryChart({ data, brands }: StockHistoryChartProps) {
   };
 
   return (
-    <Card className="flex flex-col">
+    <Card>
       <CardHeader className="flex flex-row items-center justify-between px-4 md:px-6 pt-4 md:pt-6 pb-3">
         <CardTitle className="text-base md:text-lg">Evolução do Estoque</CardTitle>
         <div className="flex items-center gap-2">
@@ -73,9 +73,9 @@ export function StockHistoryChart({ data, brands }: StockHistoryChartProps) {
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="flex-1 flex flex-col px-4 md:px-6 pb-4 md:pb-6">
+      <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
         {filteredData.length > 0 ? (
-          <ChartContainer config={chartConfig} className="flex-1 min-h-[250px] w-full">
+          <ChartContainer config={chartConfig} className="h-[300px] w-full">
             <LineChart data={filteredData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis 
