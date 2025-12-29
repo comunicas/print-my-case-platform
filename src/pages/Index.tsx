@@ -3,8 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { subDays, startOfDay, endOfDay, startOfMonth } from "date-fns";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   DollarSign, 
@@ -15,10 +22,13 @@ import {
   Upload,
   Building2,
   RefreshCw,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Settings2,
+  Star,
 } from "lucide-react";
 import { useDashboard } from "@/hooks/useDashboard";
 import { useOrganizations } from "@/hooks/useOrganizations";
+import { usePDVs } from "@/hooks/usePDVs";
 import { useSlotsData } from "@/hooks/useSlotsData";
 import { useStockHistory } from "@/hooks/useStockHistory";
 import { usePreferences } from "@/hooks/usePreferences";
@@ -56,7 +66,8 @@ function getDateRangeFromPeriod(period: string | null | undefined): DateRange {
 
 export default function Index() {
   const navigate = useNavigate();
-  const { preferences, isLoading: isLoadingPreferences } = usePreferences();
+  const { preferences, isLoading: isLoadingPreferences, updatePreferences } = usePreferences();
+  const { pdvs = [], isLoading: pdvsLoading } = usePDVs();
   
   // Initialize date range from preferences
   const initialDateRange = useMemo(() => 
@@ -66,14 +77,34 @@ export default function Index() {
   
   const [dateRange, setDateRange] = useState<DateRange>(initialDateRange);
   const [hasInitializedPrefs, setHasInitializedPrefs] = useState(false);
+  const [selectedPdvId, setSelectedPdvId] = useState<string>("all");
+  const [pdvWasAutoApplied, setPdvWasAutoApplied] = useState(false);
   
-  // Update date range when preferences load for the first time
+  // Update date range and PDV when preferences load for the first time
   useEffect(() => {
-    if (preferences && !hasInitializedPrefs && !isLoadingPreferences) {
+    if (preferences && !hasInitializedPrefs && !isLoadingPreferences && !pdvsLoading) {
       setDateRange(getDateRangeFromPeriod(preferences.default_period));
+      if (preferences.default_pdv) {
+        const pdvExists = pdvs.some(p => p.id === preferences.default_pdv);
+        if (pdvExists) {
+          setSelectedPdvId(preferences.default_pdv);
+          setPdvWasAutoApplied(true);
+        }
+      }
       setHasInitializedPrefs(true);
     }
-  }, [preferences, hasInitializedPrefs, isLoadingPreferences]);
+  }, [preferences, hasInitializedPrefs, isLoadingPreferences, pdvs, pdvsLoading]);
+  
+  const handlePdvChange = (value: string) => {
+    setSelectedPdvId(value);
+    setPdvWasAutoApplied(false);
+  };
+
+  const canSaveAsDefault = selectedPdvId !== 'all' && selectedPdvId !== preferences?.default_pdv;
+
+  const handleSaveAsDefault = () => {
+    updatePreferences.mutate({ default_pdv: selectedPdvId });
+  };
   
   // Initialize selected org from preferences (for non-super admins with default PDV)
   const [selectedOrgId, setSelectedOrgId] = useState<string>("all");
@@ -81,10 +112,11 @@ export default function Index() {
   const { organizations, isSuperAdmin, refetch: refetchOrgs, isFetching: isRefetchingOrgs } = useOrganizations();
   const { data, isLoading } = useDashboard({ 
     selectedOrganizationId: selectedOrgId,
+    selectedPdvId: selectedPdvId,
     dateRange: { from: dateRange.from, to: dateRange.to }
   });
-  const { data: slotsData } = useSlotsData({});
-  const { data: stockHistory } = useStockHistory({ days: 90, organizationId: selectedOrgId });
+  const { data: slotsData } = useSlotsData({ pdvId: selectedPdvId !== 'all' ? selectedPdvId : undefined });
+  const { data: stockHistory } = useStockHistory({ days: 90, organizationId: selectedOrgId, pdvId: selectedPdvId !== 'all' ? selectedPdvId : undefined });
 
   // Process stock data (not dependent on sales date range)
   const stockByBrand = slotsData ? getStockByBrand(
@@ -163,11 +195,73 @@ export default function Index() {
           </div>
         </div>
 
-        {/* Date Range Filter */}
-        <DateRangeFilter
-          dateRange={dateRange}
-          onDateRangeChange={setDateRange}
-        />
+        {/* PDV Filter */}
+        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+          <DateRangeFilter
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+          />
+          
+          <div className="flex items-center gap-1">
+            <div className="relative">
+              <Select value={selectedPdvId} onValueChange={handlePdvChange}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Selecionar PDV" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os PDVs</SelectItem>
+                  {pdvs.map((pdv) => (
+                    <SelectItem key={pdv.id} value={pdv.id}>
+                      {pdv.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {pdvWasAutoApplied && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge 
+                        variant="outline" 
+                        className="absolute -top-2 -right-2 text-[10px] px-1.5 py-0 h-4 bg-primary/10 border-primary/30 text-primary cursor-help"
+                      >
+                        <Settings2 className="h-2.5 w-2.5 mr-0.5" />
+                        Auto
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Filtro aplicado das suas preferências</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+            {canSaveAsDefault && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-primary"
+                      onClick={handleSaveAsDefault}
+                      disabled={updatePreferences.isPending}
+                    >
+                      {updatePreferences.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Star className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Salvar como PDV padrão</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
+        </div>
 
         {/* Super Admin Consolidated View */}
         {isSuperAdmin && globalMetrics && (

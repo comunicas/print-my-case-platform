@@ -38,15 +38,16 @@ export interface DashboardData {
 
 interface UseDashboardParams {
   selectedOrganizationId?: string | "all";
+  selectedPdvId?: string | "all";
   dateRange?: { from: Date; to: Date };
 }
 
-export function useDashboard({ selectedOrganizationId, dateRange }: UseDashboardParams = {}) {
+export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange }: UseDashboardParams = {}) {
   const { profile, role } = useProfile();
   const isSuperAdmin = role === "super_admin";
 
   const dashboardQuery = useQuery({
-    queryKey: ["dashboard", profile?.organization_id, selectedOrganizationId, isSuperAdmin, dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
+    queryKey: ["dashboard", profile?.organization_id, selectedOrganizationId, selectedPdvId, isSuperAdmin, dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
     queryFn: async (): Promise<DashboardData> => {
       const now = new Date();
       // Use dateRange if provided, otherwise default to 30 days
@@ -58,10 +59,13 @@ export function useDashboard({ selectedOrganizationId, dateRange }: UseDashboard
       const previousStartDate = new Date(startDate.getTime() - periodDays * 24 * 60 * 60 * 1000);
       const previousEndDate = new Date(startDate.getTime() - 1);
 
-      // Determine which PDVs to query based on role and filter
+      // Determine which PDVs to query based on role and filters
       let pdvIds: string[] | null = null;
       
-      if (!isSuperAdmin || (selectedOrganizationId && selectedOrganizationId !== "all")) {
+      // If a specific PDV is selected, use it directly
+      if (selectedPdvId && selectedPdvId !== "all") {
+        pdvIds = [selectedPdvId];
+      } else if (!isSuperAdmin || (selectedOrganizationId && selectedOrganizationId !== "all")) {
         const orgIdToFilter = selectedOrganizationId && selectedOrganizationId !== "all" 
           ? selectedOrganizationId 
           : profile?.organization_id;

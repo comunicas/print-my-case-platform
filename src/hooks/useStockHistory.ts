@@ -12,11 +12,12 @@ interface StockHistoryData {
 interface UseStockHistoryOptions {
   days?: number;
   organizationId?: string;
+  pdvId?: string;
 }
 
-export function useStockHistory({ days = 90, organizationId }: UseStockHistoryOptions = {}) {
+export function useStockHistory({ days = 90, organizationId, pdvId }: UseStockHistoryOptions = {}) {
   return useQuery({
-    queryKey: ["stock-history", days, organizationId],
+    queryKey: ["stock-history", days, organizationId, pdvId],
     queryFn: async () => {
       const startDate = subDays(new Date(), days).toISOString().split('T')[0];
       
@@ -28,6 +29,10 @@ export function useStockHistory({ days = 90, organizationId }: UseStockHistoryOp
       
       if (organizationId && organizationId !== "all") {
         query = query.eq("organization_id", organizationId);
+      }
+      
+      if (pdvId && pdvId !== "all") {
+        query = query.eq("pdv_id", pdvId);
       }
       
       const { data, error } = await query;
