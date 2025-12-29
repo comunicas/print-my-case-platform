@@ -1,4 +1,28 @@
-import { subDays, startOfMonth, endOfMonth, subMonths, startOfToday, endOfToday } from "date-fns";
+import { subDays, startOfMonth, endOfMonth, subMonths, startOfToday, endOfToday, startOfDay, endOfDay } from "date-fns";
+
+export interface DateRange {
+  from: Date;
+  to: Date;
+}
+
+/**
+ * Converts a period preference string to a DateRange object
+ */
+export function getDateRangeFromPeriod(period: string | null | undefined): DateRange {
+  const today = new Date();
+  
+  switch (period) {
+    case "today":
+      return { from: startOfDay(today), to: endOfDay(today) };
+    case "7days":
+      return { from: startOfDay(subDays(today, 6)), to: endOfDay(today) };
+    case "thisMonth":
+      return { from: startOfMonth(today), to: endOfDay(today) };
+    case "30days":
+    default:
+      return { from: startOfDay(subDays(today, 29)), to: endOfDay(today) };
+  }
+}
 
 export const datePresets = [
   { 
