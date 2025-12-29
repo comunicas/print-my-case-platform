@@ -28,6 +28,7 @@ import { uploadTypeLabels, uploadStatusLabels } from "@/lib/schemas/upload";
 import { useUploadDetails, SalesRecordPreview, StockRecordPreview } from "@/hooks/useUploadDetails";
 import { formatCurrency } from "@/lib/utils";
 import { useProductModal } from "@/contexts/ProductModalContext";
+import { getExactProductKey } from "@/lib/productNormalization";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -269,7 +270,7 @@ const UploadDetails = () => {
                         <TableRow key={record.id}>
                           <TableCell className="font-medium max-w-[200px]">
                             <button
-                              onClick={() => openProductModal(record.product_name)}
+                              onClick={() => openProductModal(getExactProductKey(record.product_name))}
                               className="truncate block w-full text-left hover:underline focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
                             >
                               {record.product_name}
@@ -334,7 +335,7 @@ const UploadDetails = () => {
                           </TableCell>
                           <TableCell className="max-w-[250px]">
                             <button
-                              onClick={() => openProductModal(record.product_name)}
+                              onClick={() => openProductModal(getExactProductKey(record.product_name))}
                               className="truncate block w-full text-left hover:underline focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
                             >
                               {record.product_name}

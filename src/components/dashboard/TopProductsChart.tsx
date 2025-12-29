@@ -8,6 +8,7 @@ import { TopProductData, exportToExcel } from "@/lib/dashboardUtils";
 import { formatCurrency } from "@/lib/utils";
 import { getBrandChartColor } from "@/lib/brandAssets";
 import { useProductModal } from "@/contexts/ProductModalContext";
+import { getExactProductKey } from "@/lib/productNormalization";
 
 interface TopProductsChartProps {
   data: TopProductData[];
@@ -93,7 +94,7 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
                 radius={[0, 4, 4, 0]}
                 onClick={(entry) => {
                   if (entry?.name) {
-                    openProductModal(entry.name);
+                    openProductModal(getExactProductKey(entry.name));
                   }
                 }}
                 className="cursor-pointer"
@@ -117,7 +118,7 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
         {data.length > 0 && (
           <div className="flex items-center justify-center mt-2">
             <button
-              onClick={() => openProductModal(data[0].name)}
+              onClick={() => openProductModal(getExactProductKey(data[0].name))}
               className="focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
             >
               <Badge variant="secondary" className="gap-1 cursor-pointer hover:bg-secondary/80">
