@@ -4,7 +4,6 @@ import { subDays, startOfDay, endOfDay, startOfMonth } from "date-fns";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   DollarSign, 
@@ -58,8 +57,8 @@ function getDateRangeFromPeriod(period: string | null | undefined): DateRange {
 
 export default function Index() {
   const navigate = useNavigate();
-  const { preferences, isLoading: isLoadingPreferences, updatePreferences } = usePreferences();
-  const { pdvs = [], isLoading: pdvsLoading } = usePDVs();
+  const { preferences, isLoading: isLoadingPreferences } = usePreferences();
+  const { organizations, isSuperAdmin, refetch: refetchOrgs, isFetching: isRefetchingOrgs } = useOrganizations();
   
   // Initialize date range from preferences
   const initialDateRange = useMemo(() => 
@@ -71,6 +70,12 @@ export default function Index() {
   const [hasInitializedPrefs, setHasInitializedPrefs] = useState(false);
   const [selectedPdvId, setSelectedPdvId] = useState<string>("all");
   const [pdvWasAutoApplied, setPdvWasAutoApplied] = useState(false);
+  const [selectedOrgId, setSelectedOrgId] = useState<string>("all");
+  
+  // Fetch PDVs filtered by selected organization (for super admins)
+  const { pdvs = [], isLoading: pdvsLoading } = usePDVs({ 
+    organizationId: isSuperAdmin ? selectedOrgId : undefined 
+  });
   
   // Update date range and PDV when preferences load for the first time
   useEffect(() => {
@@ -92,10 +97,13 @@ export default function Index() {
     setPdvWasAutoApplied(false);
   };
   
-  // Initialize selected org from preferences (for non-super admins with default PDV)
-  const [selectedOrgId, setSelectedOrgId] = useState<string>("all");
+  // Reset PDV when organization changes
+  const handleOrgChange = (value: string) => {
+    setSelectedOrgId(value);
+    setSelectedPdvId("all");
+    setPdvWasAutoApplied(false);
+  };
   
-  const { organizations, isSuperAdmin, refetch: refetchOrgs, isFetching: isRefetchingOrgs } = useOrganizations();
   const { data, isLoading } = useDashboard({ 
     selectedOrganizationId: selectedOrgId,
     selectedPdvId: selectedPdvId,
@@ -181,12 +189,42 @@ export default function Index() {
           </div>
         </div>
 
-        {/* PDV Filter */}
+        {/* Filters Bar */}
         <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
           <DateRangeFilter
             dateRange={dateRange}
             onDateRangeChange={setDateRange}
           />
+          
+          {/* Organization Filter - Super Admin only */}
+          {isSuperAdmin && (
+            <div className="flex items-center gap-1">
+              <Select value={selectedOrgId} onValueChange={handleOrgChange}>
+                <SelectTrigger className="w-full sm:w-[200px]">
+                  <Building2 className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="Todas as organizações" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as organizações</SelectItem>
+                  {organizations.map((org) => (
+                    <SelectItem key={org.id} value={org.id}>
+                      {org.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 shrink-0"
+                onClick={() => refetchOrgs()}
+                disabled={isRefetchingOrgs}
+                title="Atualizar lista"
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefetchingOrgs ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+          )}
           
           <PDVFilter
             value={selectedPdvId}
@@ -206,7 +244,7 @@ export default function Index() {
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center md:text-left">
                   <p className="text-xl md:text-2xl font-bold text-foreground">{globalMetrics.totalOrganizations}</p>
                   <p className="text-xs md:text-sm text-muted-foreground">Organizações</p>
@@ -223,35 +261,6 @@ export default function Index() {
                   <p className="text-xl md:text-2xl font-bold text-foreground">{globalMetrics.totalTransactionsGlobal.toLocaleString("pt-BR")}</p>
                   <p className="text-xs md:text-sm text-muted-foreground">Transações Global</p>
                 </div>
-              </div>
-
-              <div className="pt-4 border-t border-border">
-                <div className="flex items-center gap-2">
-                  <Label className="text-sm font-medium">Filtrar por Organização</Label>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={() => refetchOrgs()}
-                    disabled={isRefetchingOrgs}
-                    title="Atualizar lista de organizações"
-                  >
-                    <RefreshCw className={`h-3.5 w-3.5 ${isRefetchingOrgs ? 'animate-spin' : ''}`} />
-                  </Button>
-                </div>
-                <Select value={selectedOrgId} onValueChange={setSelectedOrgId}>
-                  <SelectTrigger className="mt-2 w-full md:w-72 bg-background">
-                    <SelectValue placeholder="Todas as organizações" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as organizações</SelectItem>
-                    {organizations.map((org) => (
-                      <SelectItem key={org.id} value={org.id}>
-                        {org.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
             </CardContent>
           </Card>

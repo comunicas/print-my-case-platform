@@ -17,18 +17,31 @@ export interface PDV {
 export type PDVInsert = Omit<PDV, "id" | "created_at" | "updated_at">;
 export type PDVUpdate = Partial<Omit<PDV, "id" | "organization_id" | "created_at" | "updated_at">>;
 
-export function usePDVs() {
+interface UsePDVsOptions {
+  organizationId?: string;
+}
+
+export function usePDVs(options?: UsePDVsOptions) {
   const { profile, isAdmin } = useProfile();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  const filterOrgId = options?.organizationId;
 
   const pdvsQuery = useQuery({
-    queryKey: ["pdvs", profile?.organization_id],
+    queryKey: ["pdvs", profile?.organization_id, filterOrgId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("pdvs")
         .select("*")
         .order("name");
+      
+      // Se um organizationId específico foi passado, filtrar por ele
+      if (filterOrgId && filterOrgId !== "all") {
+        query = query.eq("organization_id", filterOrgId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       return data as PDV[];
