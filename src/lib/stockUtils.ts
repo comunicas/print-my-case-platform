@@ -1,6 +1,33 @@
 import { extractBrandFromProductName, extractModelFromProductName, getExactProductKey } from './productNormalization';
 import { MAX_CAPACITY } from './stockGridUtils';
 
+/**
+ * Determina o status de um slot individual baseado na quantidade
+ */
+export function getSlotStatus(quantity: number): 'ok' | 'redistribute' | 'restock' {
+  if (quantity <= 2) return 'restock';
+  if (quantity <= 5) return 'redistribute';
+  return 'ok';
+}
+
+/**
+ * Verifica se um produto/slot corresponde ao termo de busca
+ */
+export function matchesSearchFilter(
+  term: string,
+  productName: string,
+  model: string,
+  exactModelMatch: boolean
+): boolean {
+  const modelLower = model.toLowerCase().trim();
+  const productLower = productName.toLowerCase().trim();
+  
+  if (exactModelMatch) {
+    return modelLower === term || productLower === term;
+  }
+  return modelLower.includes(term) || productLower.includes(term);
+}
+
 export interface SlotData {
   id: string;
   slot: string;           // "34"

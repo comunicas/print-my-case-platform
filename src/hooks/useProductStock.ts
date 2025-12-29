@@ -12,16 +12,13 @@ import {
   calculateStockKPIs,
   extractUniqueBrands,
   getSalesIndex,
+  getSlotStatus,
+  matchesSearchFilter,
 } from '@/lib/stockUtils';
 import { GRID_LAYOUT } from '@/lib/stockGridUtils';
 import type { ProductSuggestion } from '@/components/stock/ProductSearchAutocomplete';
 
-// Helper para calcular status de um slot individual
-function getSlotStatus(quantity: number): 'ok' | 'redistribute' | 'restock' {
-  if (quantity <= 2) return 'restock';
-  if (quantity <= 5) return 'redistribute';
-  return 'ok';
-}
+const SALES_QUERY_LIMIT = 5000;
 
 export function useProductStock() {
   const filters = useStockFilters();
@@ -52,7 +49,7 @@ export function useProductStock() {
         .from('sales_records')
         .select('product_name, pdv_id')
         .order('payment_date', { ascending: false })
-        .limit(5000); // Limit to recent sales for performance
+        .limit(SALES_QUERY_LIMIT);
       
       if (filters.selectedPdv && filters.selectedPdv !== 'all') {
         query = query.eq('pdv_id', filters.selectedPdv);
@@ -91,83 +88,38 @@ export function useProductStock() {
     
     // Aplica filtros nos produtos (para tabela)
     let filtered = allProducts;
+    let slotsFiltered: SlotData[] = slots;
     
-    // Filtro de busca por modelo
+    // Filtro de busca por modelo (compartilhado)
     if (filters.searchTerm) {
       const term = filters.searchTerm.toLowerCase().trim();
-      
-      // Verifica se o termo corresponde exatamente a algum modelo existente (seleção do autocomplete)
       const exactModelMatch = productSuggestions.some(s => 
         s.model.toLowerCase().trim() === term
       );
       
-      filtered = filtered.filter(p => {
-        const modelLower = p.model.toLowerCase().trim();
-        const productLower = p.productName.toLowerCase().trim();
-        
-        if (exactModelMatch) {
-          // Match exato - usuário selecionou um produto específico
-          return modelLower === term || productLower === term;
-        } else {
-          // Match parcial - usuário está digitando
-          return modelLower.includes(term) || productLower.includes(term);
-        }
-      });
+      filtered = filtered.filter(p => 
+        matchesSearchFilter(term, p.productName, p.model, exactModelMatch)
+      );
+      slotsFiltered = slotsFiltered.filter(s => 
+        matchesSearchFilter(term, s.productName, s.model, exactModelMatch)
+      );
     }
     
     // Filtro por marca
     if (filters.brandFilter && filters.brandFilter !== 'all') {
       filtered = filtered.filter(p => p.brand === filters.brandFilter);
+      slotsFiltered = slotsFiltered.filter(s => s.brand === filters.brandFilter);
     }
     
     // Filtro por status
     if (filters.statusFilter && filters.statusFilter !== 'all') {
       filtered = filtered.filter(p => p.status === filters.statusFilter);
+      slotsFiltered = slotsFiltered.filter(s => getSlotStatus(s.quantity) === filters.statusFilter);
     }
     
     // Filtro por índice de vendas
     if (filters.salesIndexFilter && filters.salesIndexFilter !== 'all') {
       filtered = filtered.filter(p => p.salesIndex === filters.salesIndexFilter);
-    }
-    
-    // Aplica filtros nos slots (para mapa) - mesma lógica
-    let slotsFiltered: SlotData[] = slots;
-    
-    // Filtro de busca por modelo
-    if (filters.searchTerm) {
-      const term = filters.searchTerm.toLowerCase().trim();
-      
-      // Verifica se o termo corresponde exatamente a algum modelo existente
-      const exactModelMatch = productSuggestions.some(s => 
-        s.model.toLowerCase().trim() === term
-      );
-      
-      slotsFiltered = slotsFiltered.filter(s => {
-        const modelLower = s.model.toLowerCase().trim();
-        const productLower = s.productName.toLowerCase().trim();
-        
-        if (exactModelMatch) {
-          // Match exato
-          return modelLower === term || productLower === term;
-        } else {
-          // Match parcial
-          return modelLower.includes(term) || productLower.includes(term);
-        }
-      });
-    }
-    
-    // Filtro por marca
-    if (filters.brandFilter && filters.brandFilter !== 'all') {
-      slotsFiltered = slotsFiltered.filter(s => s.brand === filters.brandFilter);
-    }
-    
-    // Filtro por status (baseado em quantidade do slot)
-    if (filters.statusFilter && filters.statusFilter !== 'all') {
-      slotsFiltered = slotsFiltered.filter(s => getSlotStatus(s.quantity) === filters.statusFilter);
-    }
-    
-    // Filtro por índice de vendas (baseado nas vendas do produto)
-    if (filters.salesIndexFilter && filters.salesIndexFilter !== 'all') {
       slotsFiltered = slotsFiltered.filter(s => {
         const productSold = salesByProduct.get(s.productName) || 0;
         return getSalesIndex(productSold) === filters.salesIndexFilter;

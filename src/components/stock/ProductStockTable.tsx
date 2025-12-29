@@ -143,6 +143,7 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
   }
 
   return (
+    <TooltipProvider>
     <div className="space-y-4">
       <div className="rounded-md border">
         <Table>
@@ -201,25 +202,23 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                 onFocus={() => setFocusedIndex(index)}
               >
                 <TableCell>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={() => openProductModal(product.productKey, selectedPdv !== 'all' ? selectedPdv : undefined)}
-                          className="text-left text-primary hover:underline cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
-                        >
-                          <ProductDisplay 
-                            brand={product.brand} 
-                            model={product.model}
-                            logoSize="sm"
-                          />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Clique para ver detalhes</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => openProductModal(product.productKey, selectedPdv !== 'all' ? selectedPdv : undefined)}
+                        className="text-left text-primary hover:underline cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
+                      >
+                        <ProductDisplay 
+                          brand={product.brand} 
+                          model={product.model}
+                          logoSize="sm"
+                        />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Clique para ver detalhes</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2 min-w-[120px]">
@@ -233,29 +232,27 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                   </div>
                 </TableCell>
                 <TableCell>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center gap-2 cursor-help">
-                          <div className="flex items-center gap-1 text-sm font-medium">
-                            <ShoppingCart className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span>{product.totalSold}</span>
-                          </div>
-                          <Badge variant="outline" className={salesIndexColors[product.salesIndex]}>
-                            {salesIndexLabels[product.salesIndex]}
-                          </Badge>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-2 cursor-help">
+                        <div className="flex items-center gap-1 text-sm font-medium">
+                          <ShoppingCart className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span>{product.totalSold}</span>
                         </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>
-                          {product.totalSold === 0 
-                            ? 'Nenhuma venda registrada' 
-                            : `${product.totalSold} unidade${product.totalSold > 1 ? 's' : ''} vendida${product.totalSold > 1 ? 's' : ''}`
-                          }
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                        <Badge variant="outline" className={salesIndexColors[product.salesIndex]}>
+                          {salesIndexLabels[product.salesIndex]}
+                        </Badge>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>
+                        {product.totalSold === 0 
+                          ? 'Nenhuma venda registrada' 
+                          : `${product.totalSold} unidade${product.totalSold > 1 ? 's' : ''} vendida${product.totalSold > 1 ? 's' : ''}`
+                        }
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
                 </TableCell>
                 <TableCell>
                   <span className="text-sm">{product.slots.length}</span>
@@ -266,22 +263,20 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={() => openProductModal(product.productKey, selectedPdv !== 'all' ? selectedPdv : undefined)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Ver detalhes</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => openProductModal(product.productKey, selectedPdv !== 'all' ? selectedPdv : undefined)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Ver detalhes</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </TableCell>
               </TableRow>
             ))}
@@ -316,5 +311,6 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
         </div>
       )}
     </div>
+    </TooltipProvider>
   );
 }
