@@ -25,6 +25,7 @@ import {
 import { Plus, MapPin, Search, Pencil, Trash2, Loader2 } from "lucide-react";
 import { PDVForm } from "@/components/pdv/PDVForm";
 import { pdvFormSchema, PDVFormData } from "@/lib/schemas/pdv";
+import { parseZodErrors } from "@/lib/utils";
 import { usePDVs, PDV } from "@/hooks/usePDVs";
 import { useProfile } from "@/hooks/useProfile";
 
@@ -56,14 +57,9 @@ export function PDVsSettings() {
 
   const validateForm = (data: PDVFormData, excludeId?: string): boolean => {
     const result = pdvFormSchema.safeParse(data);
+    const errors = parseZodErrors(result);
 
-    if (!result.success) {
-      const errors: Record<string, string> = {};
-      result.error.errors.forEach((err) => {
-        if (err.path[0]) {
-          errors[err.path[0] as string] = err.message;
-        }
-      });
+    if (errors) {
       setFormErrors(errors);
       return false;
     }

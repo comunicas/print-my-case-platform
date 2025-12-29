@@ -12,6 +12,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useOrganization } from "@/hooks/useOrganization";
 import { usePreferences } from "@/hooks/usePreferences";
 import { usePDVs } from "@/hooks/usePDVs";
+import { TabSkeleton } from "@/components/settings";
 
 // Lazy load das tabs de settings
 const ProfileSettings = lazy(() => import("@/components/settings/ProfileSettings").then(m => ({ default: m.ProfileSettings })));
@@ -20,17 +21,6 @@ const OrganizationSettings = lazy(() => import("@/components/settings/Organizati
 const PDVsSettings = lazy(() => import("@/components/settings/PDVsSettings").then(m => ({ default: m.PDVsSettings })));
 const TeamSettings = lazy(() => import("@/components/settings/TeamSettings").then(m => ({ default: m.TeamSettings })));
 const IntegrationsSettings = lazy(() => import("@/components/settings/IntegrationsSettings").then(m => ({ default: m.IntegrationsSettings })));
-
-// Skeleton para fallback das tabs
-function TabSkeleton() {
-  return (
-    <div className="space-y-4">
-      <Skeleton className="h-8 w-48" />
-      <Skeleton className="h-32 w-full" />
-      <Skeleton className="h-32 w-full" />
-    </div>
-  );
-}
 
 export default function Settings() {
   const [searchParams] = useSearchParams();

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +38,7 @@ import {
   rolePermissions,
 } from "@/lib/schemas/team";
 import { CreateUserFormData } from "@/lib/schemas/user";
+import { parseZodErrors, getInitials } from "@/lib/utils";
 import {
   Tooltip,
   TooltipContent,
@@ -92,17 +94,8 @@ const getStatusColor = (status: TeamMemberStatus): string => {
   }
 };
 
-const getInitials = (name: string): string => {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-};
-
 const formatDate = (dateStr: string): string => {
-  return new Date(dateStr).toLocaleDateString("pt-BR");
+  return format(new Date(dateStr), "dd/MM/yyyy");
 };
 
 export function TeamSettings() {
@@ -122,14 +115,9 @@ export function TeamSettings() {
 
   const validateForm = (data: TeamMemberFormData, excludeId?: string): boolean => {
     const result = teamMemberFormSchema.safeParse(data);
+    const errors = parseZodErrors(result);
 
-    if (!result.success) {
-      const errors: Record<string, string> = {};
-      result.error.errors.forEach((err) => {
-        if (err.path[0]) {
-          errors[err.path[0] as string] = err.message;
-        }
-      });
+    if (errors) {
       setFormErrors(errors);
       return false;
     }
@@ -232,6 +220,7 @@ export function TeamSettings() {
   }
 
   return (
+    <TooltipProvider>
     <div className="space-y-4">
       {/* Header Section */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -250,19 +239,17 @@ export function TeamSettings() {
             Criar Usuário
           </Button>
         ) : isAdmin ? (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button disabled size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Adicionar Membro
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Em breve: sistema de convites por email</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button disabled size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar Membro
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Em breve: sistema de convites por email</p>
+            </TooltipContent>
+          </Tooltip>
         ) : null}
       </div>
 
@@ -293,29 +280,27 @@ export function TeamSettings() {
                     <CardTitle className="text-base font-semibold truncate">
                       {member.name}
                     </CardTitle>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Badge
-                            className={`flex-shrink-0 text-xs cursor-help ${getRoleBadgeClass(member.role)}`}
-                          >
-                            {roleLabels[member.role]}
-                          </Badge>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="max-w-xs">
-                          <div className="space-y-1">
-                            <p className="font-semibold text-sm">{roleLabels[member.role]}</p>
-                            <ul className="text-xs space-y-0.5">
-                              {rolePermissions[member.role].map((permission, index) => (
-                                <li key={index} className="flex items-center gap-1">
-                                  <span className="text-green-500">✓</span> {permission}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge
+                          className={`flex-shrink-0 text-xs cursor-help ${getRoleBadgeClass(member.role)}`}
+                        >
+                          {roleLabels[member.role]}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs">
+                        <div className="space-y-1">
+                          <p className="font-semibold text-sm">{roleLabels[member.role]}</p>
+                          <ul className="text-xs space-y-0.5">
+                            {rolePermissions[member.role].map((permission, index) => (
+                              <li key={index} className="flex items-center gap-1">
+                                <span className="text-green-500">✓</span> {permission}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                     <Mail className="h-3 w-3 flex-shrink-0" />
@@ -368,30 +353,28 @@ export function TeamSettings() {
                       Editar
                     </Button>
                     {(member.role === "operator" || member.role === "viewer") && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleOpenPDVsDialog(member)}
-                              className="relative"
-                            >
-                              <MapPin className="h-4 w-4" />
-                              {member.pdv_count > 0 && (
-                                <span className="absolute -top-1.5 -right-1.5 bg-primary text-primary-foreground text-[10px] rounded-full h-4 w-4 flex items-center justify-center font-medium">
-                                  {member.pdv_count}
-                                </span>
-                              )}
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {member.pdv_count === 0 
-                              ? "Nenhum PDV atribuído - clique para atribuir"
-                              : `${member.pdv_count} PDV(s) atribuído(s) - clique para gerenciar`}
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenPDVsDialog(member)}
+                            className="relative"
+                          >
+                            <MapPin className="h-4 w-4" />
+                            {member.pdv_count > 0 && (
+                              <span className="absolute -top-1.5 -right-1.5 bg-primary text-primary-foreground text-[10px] rounded-full h-4 w-4 flex items-center justify-center font-medium">
+                                {member.pdv_count}
+                              </span>
+                            )}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {member.pdv_count === 0 
+                            ? "Nenhum PDV atribuído - clique para atribuir"
+                            : `${member.pdv_count} PDV(s) atribuído(s) - clique para gerenciar`}
+                        </TooltipContent>
+                      </Tooltip>
                     )}
                     {member.id !== profile?.id && (
                       <Button
@@ -516,5 +499,6 @@ export function TeamSettings() {
         />
       )}
     </div>
+    </TooltipProvider>
   );
 }

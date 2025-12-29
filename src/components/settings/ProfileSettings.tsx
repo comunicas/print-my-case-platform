@@ -12,17 +12,12 @@ import { Camera, Lock, Loader2 } from "lucide-react";
 import { PasswordStrengthIndicator } from "@/components/ui/password-strength";
 import { toast } from "@/hooks/use-toast";
 import { profileFormSchema, passwordFormSchema } from "@/lib/schemas/settings";
+import { roleLabels, roleBadgeVariants, TeamMemberRole } from "@/lib/schemas/team";
+import { parseZodErrors, getInitials } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
 import { Session } from "@supabase/supabase-js";
 import { UseMutationResult } from "@tanstack/react-query";
-
-const roleLabels: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
-  super_admin: { label: "Super Admin", variant: "default" },
-  org_admin: { label: "Administrador", variant: "default" },
-  operator: { label: "Operador", variant: "secondary" },
-  viewer: { label: "Visualizador", variant: "outline" },
-};
 
 interface ProfileSettingsProps {
   profile: Tables<"profiles"> | null;
@@ -56,22 +51,12 @@ export function ProfileSettings({ profile, role, session, updateProfile }: Profi
     }
   }, [profile]);
 
-  const initials = profile?.name
-    ?.split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2) || "??";
+  const initials = getInitials(profile?.name || "??");
 
   const handleSaveProfile = () => {
     const result = profileFormSchema.safeParse(profileData);
-    if (!result.success) {
-      const errors: Record<string, string> = {};
-      result.error.errors.forEach((err) => {
-        if (err.path[0]) {
-          errors[err.path[0] as string] = err.message;
-        }
-      });
+    const errors = parseZodErrors(result);
+    if (errors) {
       setProfileErrors(errors);
       return;
     }
@@ -85,13 +70,8 @@ export function ProfileSettings({ profile, role, session, updateProfile }: Profi
 
   const handleChangePassword = async () => {
     const result = passwordFormSchema.safeParse(passwordData);
-    if (!result.success) {
-      const errors: Record<string, string> = {};
-      result.error.errors.forEach((err) => {
-        if (err.path[0]) {
-          errors[err.path[0] as string] = err.message;
-        }
-      });
+    const errors = parseZodErrors(result);
+    if (errors) {
       setPasswordErrors(errors);
       return;
     }
@@ -200,8 +180,8 @@ export function ProfileSettings({ profile, role, session, updateProfile }: Profi
             <div className="space-y-2">
               <Label htmlFor="role">Função</Label>
               <div className="flex items-center h-10">
-                <Badge variant={roleLabels[role || "viewer"]?.variant || "outline"}>
-                  {roleLabels[role || "viewer"]?.label || role}
+                <Badge variant={roleBadgeVariants[(role as TeamMemberRole) || "viewer"] || "outline"}>
+                  {roleLabels[(role as TeamMemberRole) || "viewer"] || role}
                 </Badge>
               </div>
             </div>
