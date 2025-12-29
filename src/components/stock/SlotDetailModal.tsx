@@ -42,7 +42,7 @@ export function SlotDetailModal({ slot, isOpen, onClose }: SlotDetailModalProps)
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <BrandLogo brand={slot.brand} size="md" />
