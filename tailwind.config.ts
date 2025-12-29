@@ -80,10 +80,20 @@ export default {
             height: "0",
           },
         },
+        "badge-fade-in": {
+          "0%": { opacity: "0", transform: "scale(0.8)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
+        },
+        "badge-fade-out": {
+          "0%": { opacity: "1", transform: "scale(1)" },
+          "100%": { opacity: "0", transform: "scale(0.8)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "badge-fade-in": "badge-fade-in 0.2s ease-out",
+        "badge-fade-out": "badge-fade-out 0.2s ease-out forwards",
       },
     },
   },
