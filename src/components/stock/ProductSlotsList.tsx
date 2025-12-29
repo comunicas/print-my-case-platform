@@ -1,5 +1,6 @@
 import { MapPin } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { SlotData } from '@/lib/stockUtils';
 import { MAX_CAPACITY, getBlockColorClass } from '@/lib/stockGridUtils';
 import { statusLabels, statusColors } from '@/lib/stockLabels';
@@ -8,9 +9,32 @@ import { cn } from '@/lib/utils';
 interface ProductSlotsListProps {
   slots: SlotData[];
   status: 'ok' | 'redistribute' | 'restock';
+  isLoading?: boolean;
 }
 
-export function ProductSlotsList({ slots, status }: ProductSlotsListProps) {
+export function ProductSlotsList({ slots, status, isLoading }: ProductSlotsListProps) {
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-5 w-32" />
+          </div>
+          <Skeleton className="h-6 w-20 rounded-full" />
+        </div>
+        <div className="space-y-3">
+          <Skeleton className="h-5 w-40" />
+          <div className="space-y-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-14 w-full rounded-lg" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Status Geral */}

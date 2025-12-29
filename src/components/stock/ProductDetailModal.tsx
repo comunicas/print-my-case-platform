@@ -23,6 +23,7 @@ import { ProductSlotsList } from './ProductSlotsList';
 import { extractBrandFromProductName, extractModelFromProductName, getExactProductKey } from '@/lib/productNormalization';
 import { usePDVs } from '@/hooks/usePDVs';
 import { useProductAnalytics } from '@/hooks/useProductAnalytics';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ProductDetailModalProps {
   productName: string | null;
@@ -30,6 +31,33 @@ interface ProductDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   pdvId?: string;
+}
+
+// Skeleton loader para quando a modal está carregando
+function ModalSkeleton() {
+  return (
+    <div className="space-y-4">
+      {/* Header skeleton */}
+      <div className="flex items-center gap-3">
+        <Skeleton className="h-10 w-10 rounded-lg" />
+        <Skeleton className="h-6 w-48" />
+      </div>
+      <Skeleton className="h-4 w-64" />
+      
+      {/* Tabs skeleton */}
+      <Skeleton className="h-10 w-full rounded-lg" />
+      
+      {/* Content skeleton */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-20 rounded-lg" />
+        ))}
+      </div>
+      
+      {/* Chart skeleton */}
+      <Skeleton className="h-[200px] w-full rounded-lg" />
+    </div>
+  );
 }
 
 export function ProductDetailModal({ productName, slots, isOpen, onClose, pdvId }: ProductDetailModalProps) {
@@ -72,6 +100,17 @@ export function ProductDetailModal({ productName, slots, isOpen, onClose, pdvId 
       slots: productSlots,
     };
   }, [productName, slots]);
+
+  // Mostra skeleton enquanto carrega os dados do produto
+  if (!productData && isOpen && productName) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
+          <ModalSkeleton />
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   if (!productData) return null;
 
