@@ -4,6 +4,7 @@ import {
   Package,
   ChevronLeft,
   ChevronDown,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -18,16 +19,19 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { useProfile } from "@/hooks/useProfile";
 
 interface NavItem {
   icon: React.ElementType;
   label: string;
   href: string;
+  superAdminOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
   { icon: Upload, label: "Uploads", href: "/uploads" },
+  { icon: Building2, label: "Organizações", href: "/organizations", superAdminOnly: true },
 ];
 
 const stockSubItems = [
@@ -52,7 +56,13 @@ export function AppSidebar({
   stockExpanded,
   onStockExpandedChange,
 }: AppSidebarProps) {
+  const { role } = useProfile();
+  const isSuperAdmin = role === "super_admin";
   const isStockActive = activeItem.startsWith("/estoque");
+
+  const visibleNavItems = navItems.filter(
+    (item) => !item.superAdminOnly || isSuperAdmin
+  );
 
   const renderNavItem = (item: NavItem) => {
     const Icon = item.icon;
@@ -209,9 +219,11 @@ export function AppSidebar({
 
         {/* Navigation */}
         <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
-          {renderNavItem(navItems[0])}
+          {renderNavItem(visibleNavItems[0])} {/* Dashboard */}
           {renderStockMenu()}
-          {renderNavItem(navItems[1])}
+          {renderNavItem(visibleNavItems[1])} {/* Uploads */}
+          {/* Super Admin items */}
+          {visibleNavItems.slice(2).map(renderNavItem)}
         </nav>
 
         {/* Collapse Toggle */}
