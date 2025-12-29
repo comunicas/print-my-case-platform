@@ -80,20 +80,6 @@ export function usePrefetchRoutes() {
     });
   }, [queryClient, profile, debounce]);
   
-  // Prefetch Uploads data
-  const prefetchUploads = useCallback(() => {
-    debounce('uploads', () => {
-      if (!profile?.organization_id) return;
-      
-      const cacheKey = ["uploads", profile.organization_id];
-      const existingData = queryClient.getQueryState(cacheKey);
-      if (existingData?.data && existingData.dataUpdatedAt > Date.now() - 5 * 60 * 1000) return;
-      
-      // Não fazer prefetch para uploads - a query é complexa e requer joins
-      // O prefetch com dados incompletos causa erros de "cannot read property 'name'"
-      // Deixar o carregamento normal acontecer
-    });
-  }, [queryClient, profile, debounce]);
   
   // Prefetch Organizations data (super admin only)
   const prefetchOrganizations = useCallback(() => {
@@ -121,15 +107,13 @@ export function usePrefetchRoutes() {
   // Mapeamento de rotas para funções de prefetch
   const prefetchMap = useMemo(() => ({
     "/": prefetchDashboard,
-    "/uploads": prefetchUploads,
     "/organizations": prefetchOrganizations,
     "/estoque": prefetchStock,
-  }), [prefetchDashboard, prefetchUploads, prefetchOrganizations, prefetchStock]);
+  }), [prefetchDashboard, prefetchOrganizations, prefetchStock]);
   
   return {
     prefetchDashboard,
     prefetchStock,
-    prefetchUploads,
     prefetchOrganizations,
     prefetchMap,
   };
