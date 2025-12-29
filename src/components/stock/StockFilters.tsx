@@ -1,4 +1,4 @@
-import { X, Settings2, Star, Loader2 } from 'lucide-react';
+import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -7,19 +7,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { useStockFilters } from '@/contexts/StockFiltersContext';
 import { usePDVs } from '@/hooks/usePDVs';
-import { usePreferences } from '@/hooks/usePreferences';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { KNOWN_BRANDS } from '@/lib/brandAssets';
 import { ProductSearchAutocomplete, ProductSuggestion } from './ProductSearchAutocomplete';
+import { PDVFilter } from '@/components/ui/PDVFilter';
 
 interface StockFiltersProps {
   brands?: string[];
@@ -44,76 +37,16 @@ export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockF
   } = useStockFilters();
   
   const { pdvs = [] } = usePDVs();
-  const { preferences, updatePreferences } = usePreferences();
-
-  const canSaveAsDefault = selectedPdv !== 'all' && selectedPdv !== preferences?.default_pdv;
-
-  const handleSaveAsDefault = () => {
-    updatePreferences.mutate({ default_pdv: selectedPdv });
-  };
 
   return (
     <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 items-stretch sm:items-center">
       {/* PDV Select */}
-      <div className="flex items-center gap-1">
-        <div className="relative">
-          <Select value={selectedPdv} onValueChange={setSelectedPdv}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Selecionar PDV" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os PDVs</SelectItem>
-              {pdvs.map((pdv) => (
-                <SelectItem key={pdv.id} value={pdv.id}>
-                  {pdv.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {pdvWasAutoApplied && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Badge 
-                    variant="outline" 
-                    className="absolute -top-2 -right-2 text-[10px] px-1.5 py-0 h-4 bg-primary/10 border-primary/30 text-primary cursor-help"
-                  >
-                    <Settings2 className="h-2.5 w-2.5 mr-0.5" />
-                    Auto
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Filtro aplicado das suas preferências</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-        </div>
-        {canSaveAsDefault && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-primary"
-                  onClick={handleSaveAsDefault}
-                  disabled={updatePreferences.isPending}
-                >
-                  {updatePreferences.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Star className="h-4 w-4" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Salvar como PDV padrão</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-      </div>
+      <PDVFilter
+        value={selectedPdv}
+        onChange={setSelectedPdv}
+        pdvs={pdvs}
+        showAutoAppliedBadge={pdvWasAutoApplied}
+      />
 
       {/* Search with Autocomplete */}
       <div className="w-full sm:w-auto sm:flex-1 sm:max-w-xs">
