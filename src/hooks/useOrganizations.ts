@@ -24,13 +24,15 @@ export function useOrganizations() {
       return data as Organization[];
     },
     enabled: isSuperAdmin,
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 30 * 60 * 1000, // 30 minutes
+    staleTime: 2 * 60 * 1000, // 2 minutes (reduced from 10)
+    gcTime: 10 * 60 * 1000, // 10 minutes
   });
 
   return {
     organizations: query.data ?? [],
     isLoading: query.isLoading,
     isSuperAdmin,
+    refetch: query.refetch,
+    isFetching: query.isFetching,
   };
 }
