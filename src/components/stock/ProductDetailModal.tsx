@@ -36,27 +36,30 @@ interface ProductDetailModalProps {
 // Skeleton loader para quando a modal está carregando
 function ModalSkeleton() {
   return (
-    <div className="space-y-4">
-      {/* Header skeleton */}
-      <div className="flex items-center gap-3">
-        <Skeleton className="h-10 w-10 rounded-lg" />
-        <Skeleton className="h-6 w-48" />
-      </div>
-      <Skeleton className="h-4 w-64" />
+    <>
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-3">
+          <Skeleton className="h-10 w-10 rounded-lg" />
+          <Skeleton className="h-6 w-48" />
+        </DialogTitle>
+        <DialogDescription>
+          <Skeleton className="h-4 w-64" />
+        </DialogDescription>
+      </DialogHeader>
       
       {/* Tabs skeleton */}
-      <Skeleton className="h-10 w-full rounded-lg" />
+      <Skeleton className="h-10 w-full rounded-lg mt-4" />
       
       {/* Content skeleton */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="h-20 rounded-lg" />
         ))}
       </div>
       
       {/* Chart skeleton */}
-      <Skeleton className="h-[200px] w-full rounded-lg" />
-    </div>
+      <Skeleton className="h-[200px] w-full rounded-lg mt-4" />
+    </>
   );
 }
 

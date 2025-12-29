@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { Package } from 'lucide-react';
 import { useProductModal } from '@/contexts/ProductModalContext';
 import { useStockFilters } from '@/contexts/StockFiltersContext';
+import { getExactProductKey } from '@/lib/productNormalization';
 
 interface SlotDetailModalProps {
   slot: SlotData | null;
@@ -36,7 +37,8 @@ export function SlotDetailModal({ slot, isOpen, onClose }: SlotDetailModalProps)
   const handleViewProduct = () => {
     if (slot.productName) {
       onClose();
-      openProductModal(slot.productName, selectedPdv !== 'all' ? selectedPdv : undefined);
+      // Usar productKey normalizado para consistência com ProductDetailModal
+      openProductModal(getExactProductKey(slot.productName), selectedPdv !== 'all' ? selectedPdv : undefined);
     }
   };
 
