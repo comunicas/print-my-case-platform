@@ -4,6 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useToast } from "@/hooks/use-toast";
 import { UploadStatus, UploadType, uploadTypeLabels } from "@/lib/schemas/upload";
+import { usePagination, PaginationControls } from "@/hooks/usePaginatedQuery";
+import { parseUploadError, parseDeleteError } from "@/lib/errors/uploadErrors";
 
 /** Interface para upload com dados de PDV e uploader (resultado de query com joins) */
 export interface UploadListItem {
@@ -32,23 +34,41 @@ interface CreateUploadData {
   drive_url?: string;
 }
 
+interface UploadsQueryResult {
+  uploads: UploadListItem[];
+  totalCount: number;
+}
+
+const PAGE_SIZE = 50;
+
 export function useUploads() {
   const { user } = useAuth();
   const { profile, isAdmin } = useProfile();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const pagination = usePagination(PAGE_SIZE);
 
   const uploadsQuery = useQuery({
-    queryKey: ["uploads", profile?.organization_id],
-    queryFn: async () => {
-      // First get uploads with PDV data
+    queryKey: ["uploads", profile?.organization_id, pagination.page, pagination.pageSize],
+    queryFn: async (): Promise<UploadsQueryResult> => {
+      const { from, to } = pagination.getRange();
+
+      // First, get total count for pagination
+      const { count, error: countError } = await supabase
+        .from("uploads")
+        .select("*", { count: "exact", head: true });
+
+      if (countError) throw countError;
+
+      // Get paginated uploads with PDV data
       const { data: uploadsData, error } = await supabase
         .from("uploads")
         .select(`
           *,
           pdv:pdvs(name, machine_id)
         `)
-        .order("uploaded_at", { ascending: false });
+        .order("uploaded_at", { ascending: false })
+        .range(from, to);
 
       if (error) throw error;
 
@@ -64,13 +84,23 @@ export function useUploads() {
       const profilesMap = new Map(profiles?.map((p) => [p.id, p]) || []);
 
       // Merge uploader data
-      return uploadsData.map((upload) => ({
+      const uploads = uploadsData.map((upload) => ({
         ...upload,
         uploader: profilesMap.get(upload.uploaded_by) || { name: "Usuário" },
       })) as UploadListItem[];
+
+      return {
+        uploads,
+        totalCount: count || 0,
+      };
     },
     enabled: !!profile?.organization_id,
   });
+
+  // Update pagination total count when data changes
+  if (uploadsQuery.data && uploadsQuery.data.totalCount !== pagination.totalCount) {
+    pagination.setTotalCount(uploadsQuery.data.totalCount);
+  }
 
   const createUpload = useMutation({
     mutationFn: async (data: CreateUploadData) => {
@@ -81,7 +111,6 @@ export function useUploads() {
       let file_name = "Link do Drive";
 
       // Upload file to storage if provided
-      // Use organization-scoped path: {organization_id}/{user_id}/{timestamp}_{filename}
       if (data.file) {
         file_name = data.file.name;
         const timestamp = Date.now();
@@ -133,7 +162,6 @@ export function useUploads() {
         supabase.functions.invoke("process-spreadsheet", {
           body: { uploadId: insertedUpload.id },
         }).then(() => {
-          // Invalidate queries to refresh data after processing
           queryClient.invalidateQueries({ queryKey: ["uploads"] });
           queryClient.invalidateQueries({ queryKey: ["dashboard"] });
         }).catch((err) => {
@@ -155,9 +183,10 @@ export function useUploads() {
       });
     },
     onError: (error) => {
+      const parsedError = parseUploadError(error);
       toast({
-        title: "Erro no upload",
-        description: error.message,
+        title: parsedError.title,
+        description: parsedError.description,
         variant: "destructive",
       });
     },
@@ -178,18 +207,31 @@ export function useUploads() {
 
       // Delete related records first (sales_records or stock_records)
       if (upload.type === "sales") {
-        await supabase.from("sales_records").delete().eq("upload_id", uploadId);
+        const { error: salesDeleteError } = await supabase
+          .from("sales_records")
+          .delete()
+          .eq("upload_id", uploadId);
+        if (salesDeleteError) throw salesDeleteError;
       } else {
-        await supabase.from("stock_records").delete().eq("upload_id", uploadId);
+        const { error: stockDeleteError } = await supabase
+          .from("stock_records")
+          .delete()
+          .eq("upload_id", uploadId);
+        if (stockDeleteError) throw stockDeleteError;
       }
 
       // Delete file from storage if exists
       if (upload.file_url) {
-        // Extract file path from URL
         const urlParts = upload.file_url.split("/uploads/");
         if (urlParts.length > 1) {
           const filePath = urlParts[1];
-          await supabase.storage.from("uploads").remove([filePath]);
+          const { error: storageError } = await supabase.storage
+            .from("uploads")
+            .remove([filePath]);
+          // Log but don't fail the operation if storage deletion fails
+          if (storageError) {
+            console.warn("Failed to delete file from storage:", storageError);
+          }
         }
       }
 
@@ -207,23 +249,26 @@ export function useUploads() {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       toast({
         title: "Upload excluído",
-        description: `${data.fileName} foi removido.`,
+        description: `${data.fileName} foi removido com sucesso.`,
       });
     },
     onError: (error) => {
+      const parsedError = parseDeleteError(error);
       toast({
-        title: "Erro ao excluir",
-        description: error.message,
+        title: parsedError.title,
+        description: parsedError.description,
         variant: "destructive",
       });
     },
   });
 
   return {
-    uploads: uploadsQuery.data || [],
+    uploads: uploadsQuery.data?.uploads || [],
+    totalCount: uploadsQuery.data?.totalCount || 0,
     isLoading: uploadsQuery.isLoading,
     error: uploadsQuery.error,
     createUpload,
     deleteUpload,
+    pagination,
   };
 }

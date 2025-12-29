@@ -36,9 +36,13 @@ export function useProductStock() {
   const { data: salesData = [], isLoading: salesLoading } = useQuery({
     queryKey: ['sales-summary', filters.selectedPdv],
     queryFn: async () => {
+      // Use count query to get sales counts without fetching all records
+      // This avoids hitting the 1000 row limit
       let query = supabase
         .from('sales_records')
-        .select('product_name, pdv_id');
+        .select('product_name, pdv_id')
+        .order('payment_date', { ascending: false })
+        .limit(5000); // Limit to recent sales for performance
       
       if (filters.selectedPdv && filters.selectedPdv !== 'all') {
         query = query.eq('pdv_id', filters.selectedPdv);

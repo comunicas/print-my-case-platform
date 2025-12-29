@@ -105,13 +105,15 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
         .gte("payment_date", previousStartDate.toISOString())
         .lte("payment_date", previousEndDate.toISOString());
 
-      // Query for full sales records (for charts)
+      // Query for full sales records (for charts) - limit to prevent performance issues
+      // Use a higher limit since we need data for charts, but cap it to avoid memory issues
       let fullSalesRecordsQuery = supabase
         .from("sales_records")
         .select("id, payment_date, amount, refund_amount, product_name, payment_method, pdv_id")
         .gte("payment_date", startDate.toISOString())
         .lte("payment_date", endDate.toISOString())
-        .order("payment_date", { ascending: true });
+        .order("payment_date", { ascending: true })
+        .limit(10000);
 
       let activePdvsQuery = supabase
         .from("pdvs")
