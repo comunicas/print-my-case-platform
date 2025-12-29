@@ -89,28 +89,9 @@ export function usePrefetchRoutes() {
       const existingData = queryClient.getQueryState(cacheKey);
       if (existingData?.data && existingData.dataUpdatedAt > Date.now() - 5 * 60 * 1000) return;
       
-      queryClient.prefetchQuery({
-        queryKey: cacheKey,
-        staleTime: 5 * 60 * 1000,
-        queryFn: async () => {
-          const { data } = await supabase
-            .from("uploads")
-            .select(`
-              id, 
-              pdv_id, 
-              type, 
-              file_name, 
-              status, 
-              uploaded_at,
-              records_count,
-              period,
-              pdvs!inner(id, name)
-            `)
-            .order("uploaded_at", { ascending: false })
-            .limit(50);
-          return data || [];
-        },
-      });
+      // Não fazer prefetch para uploads - a query é complexa e requer joins
+      // O prefetch com dados incompletos causa erros de "cannot read property 'name'"
+      // Deixar o carregamento normal acontecer
     });
   }, [queryClient, profile, debounce]);
   
