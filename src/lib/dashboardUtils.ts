@@ -21,13 +21,16 @@ export interface SalesByDayData {
   count: number;
 }
 
-// Time ranges for heatmap (3-hour blocks)
+// Time ranges for heatmap (2-hour blocks)
 export const TIME_RANGES = [
-  { id: 0, label: "08h-10h", start: 8, end: 10 },
-  { id: 1, label: "11h-13h", start: 11, end: 13 },
-  { id: 2, label: "14h-16h", start: 14, end: 16 },
-  { id: 3, label: "17h-19h", start: 17, end: 19 },
-  { id: 4, label: "20h-22h", start: 20, end: 22 },
+  { id: 0, label: "08h-10h", start: 8, end: 9 },
+  { id: 1, label: "10h-12h", start: 10, end: 11 },
+  { id: 2, label: "12h-14h", start: 12, end: 13 },
+  { id: 3, label: "14h-16h", start: 14, end: 15 },
+  { id: 4, label: "16h-18h", start: 16, end: 17 },
+  { id: 5, label: "18h-20h", start: 18, end: 19 },
+  { id: 6, label: "20h-22h", start: 20, end: 21 },
+  { id: 7, label: "22h-00h", start: 22, end: 23 },
 ] as const;
 
 export interface HeatmapCell {
@@ -98,19 +101,19 @@ export function getSalesByDay(sales: SaleRecord[]): SalesByDayData[] {
 }
 
 /**
- * Identifica a faixa horária para uma hora específica
+ * Identifica a faixa horária para uma hora específica (intervalos de 2h)
  */
 function getTimeRangeForHour(hour: number): typeof TIME_RANGES[number] | null {
-  return TIME_RANGES.find(range => hour >= range.start && hour <= range.end) || null;
+  return TIME_RANGES.find(range => hour >= range.start && hour < range.start + 2) || null;
 }
 
 /**
- * Agrupa vendas por faixa horária (3h) e dia da semana para heatmap
+ * Agrupa vendas por faixa horária (2h) e dia da semana para heatmap
  */
 export function getSalesByHourAndDay(sales: SaleRecord[]): HeatmapCell[] {
   const dataMap = new Map<string, { revenue: number; count: number }>();
   
-  // Inicializa todas as células (5 faixas × 7 dias)
+  // Inicializa todas as células (8 faixas × 7 dias)
   for (const range of TIME_RANGES) {
     for (let day = 0; day < 7; day++) {
       dataMap.set(`${range.id}-${day}`, { revenue: 0, count: 0 });
@@ -223,7 +226,7 @@ export function getQuickStats(sales: SaleRecord[]): QuickStatsData {
     return { peakTimeRange: null, peakTimeRangeRevenue: null, bestDay: null, bestDayRevenue: null };
   }
   
-  // Agrupa por faixa horária (3h) em vez de hora individual
+  // Agrupa por faixa horária (2h) em vez de hora individual
   const byRange = new Map<number, { label: string; revenue: number }>();
   for (const range of TIME_RANGES) {
     byRange.set(range.id, { label: range.label, revenue: 0 });
