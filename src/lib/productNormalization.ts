@@ -54,6 +54,7 @@ export function extractBrandFromProductName(fullName: string): string {
  * Ex: "iPhone 17" → "iPhone 17"
  */
 export function extractModelFromProductName(fullName: string): string {
+  if (!fullName) return '';
   const upper = fullName.toUpperCase().trim();
   
   // Remove marcas conhecidas do início
