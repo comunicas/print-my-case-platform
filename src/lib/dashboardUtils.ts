@@ -1,4 +1,4 @@
-import { format, getDay, getHours } from "date-fns";
+import { format, getDay, getHours, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { extractBrandFromProductName } from "./productNormalization";
 import { getBrandChartColor } from "./brandAssets";
@@ -79,7 +79,8 @@ export function getSalesByDay(sales: SaleRecord[]): SalesByDayData[] {
   const byDay = new Map<string, { revenue: number; count: number }>();
   
   for (const sale of sales) {
-    const date = format(new Date(sale.payment_date), "yyyy-MM-dd");
+    // Extrai a data diretamente da string ISO para evitar problemas de timezone
+    const date = sale.payment_date.split('T')[0];
     const current = byDay.get(date) || { revenue: 0, count: 0 };
     current.revenue += Number(sale.amount) - Number(sale.refund_amount || 0);
     current.count += 1;
@@ -89,7 +90,7 @@ export function getSalesByDay(sales: SaleRecord[]): SalesByDayData[] {
   return Array.from(byDay.entries())
     .map(([date, data]) => ({
       date,
-      dateDisplay: format(new Date(date), "dd/MM", { locale: ptBR }),
+      dateDisplay: format(parseISO(date), "dd/MM", { locale: ptBR }),
       revenue: data.revenue,
       count: data.count,
     }))
@@ -118,7 +119,7 @@ export function getSalesByHourAndDay(sales: SaleRecord[]): HeatmapCell[] {
   
   // Preenche com dados agrupando por faixa horária
   for (const sale of sales) {
-    const date = new Date(sale.payment_date);
+    const date = parseISO(sale.payment_date);
     const hour = getHours(date);
     const day = getDay(date);
     const range = getTimeRangeForHour(hour);
@@ -229,7 +230,7 @@ export function getQuickStats(sales: SaleRecord[]): QuickStatsData {
   }
   
   for (const sale of sales) {
-    const hour = getHours(new Date(sale.payment_date));
+    const hour = getHours(parseISO(sale.payment_date));
     const range = getTimeRangeForHour(hour);
     if (range) {
       const current = byRange.get(range.id)!;
@@ -240,7 +241,7 @@ export function getQuickStats(sales: SaleRecord[]): QuickStatsData {
   // Agrupa por dia da semana
   const byDay = new Map<number, number>();
   for (const sale of sales) {
-    const day = getDay(new Date(sale.payment_date));
+    const day = getDay(parseISO(sale.payment_date));
     const revenue = Number(sale.amount) - Number(sale.refund_amount || 0);
     byDay.set(day, (byDay.get(day) || 0) + revenue);
   }
