@@ -14,6 +14,7 @@ import {
   Loader2,
   Upload,
   Building2,
+  RefreshCw,
   FileSpreadsheet
 } from "lucide-react";
 import { useDashboard } from "@/hooks/useDashboard";
@@ -44,7 +45,7 @@ export default function Index() {
     to: endOfDay(today),
   });
   
-  const { organizations, isSuperAdmin } = useOrganizations();
+  const { organizations, isSuperAdmin, refetch: refetchOrgs, isFetching: isRefetchingOrgs } = useOrganizations();
   const { data, isLoading } = useDashboard({ 
     selectedOrganizationId: selectedOrgId,
     dateRange: { from: dateRange.from, to: dateRange.to }
@@ -165,7 +166,19 @@ export default function Index() {
               </div>
 
               <div className="pt-4 border-t border-border">
-                <Label className="text-sm font-medium">Filtrar por Organização</Label>
+                <div className="flex items-center gap-2">
+                  <Label className="text-sm font-medium">Filtrar por Organização</Label>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => refetchOrgs()}
+                    disabled={isRefetchingOrgs}
+                    title="Atualizar lista de organizações"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${isRefetchingOrgs ? 'animate-spin' : ''}`} />
+                  </Button>
+                </div>
                 <Select value={selectedOrgId} onValueChange={setSelectedOrgId}>
                   <SelectTrigger className="mt-2 w-full md:w-72 bg-background">
                     <SelectValue placeholder="Todas as organizações" />
