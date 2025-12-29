@@ -151,26 +151,33 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
         activePdvsQuery,
       ]);
 
-      // Fetch global metrics for super_admin
+      // Fetch global metrics for super_admin with robust error handling
       let globalMetrics: DashboardData["globalMetrics"] = undefined;
       if (isSuperAdmin) {
-        const [orgsResult, globalPdvsResult, globalSalesResult] = await Promise.all([
-          supabase.from("organizations").select("id", { count: "exact", head: true }),
-          supabase.from("pdvs").select("id", { count: "exact", head: true }).eq("status", "active"),
-          supabase.from("sales_records").select("amount, refund_amount").gte("payment_date", startDate.toISOString()).lte("payment_date", endDate.toISOString()),
-        ]);
-        
-        const globalSalesData = globalSalesResult.data || [];
-        const totalRevenueGlobal = globalSalesData.reduce(
-          (sum: number, r: any) => sum + (Number(r.amount) - Number(r.refund_amount || 0)),
-          0
-        );
-        globalMetrics = {
-          totalOrganizations: orgsResult.count || 0,
-          totalPdvsGlobal: globalPdvsResult.count || 0,
-          totalRevenueGlobal,
-          totalTransactionsGlobal: globalSalesData.length,
-        };
+        try {
+          const [orgsResult, globalPdvsResult, globalSalesResult] = await Promise.all([
+            supabase.from("organizations").select("id", { count: "exact", head: true }),
+            supabase.from("pdvs").select("id", { count: "exact", head: true }).eq("status", "active"),
+            supabase.from("sales_records").select("amount, refund_amount").gte("payment_date", startDate.toISOString()).lte("payment_date", endDate.toISOString()),
+          ]);
+          
+          // Only set global metrics if all queries succeeded
+          if (!orgsResult.error && !globalPdvsResult.error && !globalSalesResult.error) {
+            const globalSalesData = globalSalesResult.data || [];
+            const totalRevenueGlobal = globalSalesData.reduce(
+              (sum: number, r: any) => sum + (Number(r.amount) - Number(r.refund_amount || 0)),
+              0
+            );
+            globalMetrics = {
+              totalOrganizations: orgsResult.count || 0,
+              totalPdvsGlobal: globalPdvsResult.count || 0,
+              totalRevenueGlobal,
+              totalTransactionsGlobal: globalSalesData.length,
+            };
+          }
+        } catch {
+          // Silently handle errors for global metrics - they're optional
+        }
       }
 
       // Calculate KPIs
