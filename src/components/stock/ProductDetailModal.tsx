@@ -20,7 +20,7 @@ import { ProductSalesByDayChart } from './ProductSalesByDayChart';
 import { ProductPDVDistribution } from './ProductPDVDistribution';
 import { ProductPaymentMethods } from './ProductPaymentMethods';
 import { ProductSlotsList } from './ProductSlotsList';
-import { extractBrandFromProductName, extractModelFromProductName } from '@/lib/productNormalization';
+import { extractBrandFromProductName, extractModelFromProductName, getExactProductKey } from '@/lib/productNormalization';
 import { usePDVs } from '@/hooks/usePDVs';
 import { useProductAnalytics } from '@/hooks/useProductAnalytics';
 
@@ -38,15 +38,18 @@ export function ProductDetailModal({ productName, slots, isOpen, onClose, pdvId 
 
   const { data: analytics, isLoading: analyticsLoading } = useProductAnalytics(productName, pdvId);
 
-  // Filtra e agrega dados do produto
+  // Filtra e agrega dados do produto usando productKey para comparação consistente
   const productData = useMemo(() => {
     if (!productName) return null;
     
-    const productSlots = slots.filter(s => s.productName === productName);
+    // Usa getExactProductKey para comparar - productName aqui é o productKey normalizado
+    const productSlots = slots.filter(s => getExactProductKey(s.productName) === productName);
     if (productSlots.length === 0) return null;
     
-    const brand = extractBrandFromProductName(productName);
-    const model = extractModelFromProductName(productName);
+    // Extrai brand e model do primeiro slot (dados originais)
+    const firstSlot = productSlots[0];
+    const brand = firstSlot.brand || extractBrandFromProductName(firstSlot.productName);
+    const model = firstSlot.model || extractModelFromProductName(firstSlot.productName);
     const totalQuantity = productSlots.reduce((sum, s) => sum + s.quantity, 0);
     const maxCapacity = productSlots.length * MAX_CAPACITY;
     const hasLowSlot = productSlots.some(s => s.quantity <= 2);
