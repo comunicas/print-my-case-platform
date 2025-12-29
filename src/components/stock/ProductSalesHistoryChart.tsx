@@ -121,7 +121,7 @@ export function ProductSalesHistoryChart({ productName, pdvId }: ProductSalesHis
         </div>
       </div>
 
-      <ChartContainer config={chartConfig} className="h-[120px] w-full">
+      <ChartContainer config={chartConfig} className="h-[120px] w-full overflow-hidden">
         <AreaChart
           data={historyData.data}
           margin={{ top: 5, right: 5, bottom: 0, left: -20 }}
@@ -173,8 +173,8 @@ export function ProductSalesHistoryChart({ productName, pdvId }: ProductSalesHis
         </AreaChart>
       </ChartContainer>
 
-      <div className="flex items-center justify-between text-sm">
-        <div className="flex gap-4 text-muted-foreground">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-sm">
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground">
           <span>
             Total: <strong className="text-foreground">{totalSales} vendas</strong>
           </span>
