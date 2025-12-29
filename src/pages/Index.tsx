@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { subDays, startOfDay, endOfDay } from "date-fns";
+import { subDays, startOfDay, endOfDay, startOfMonth } from "date-fns";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import { useDashboard } from "@/hooks/useDashboard";
 import { useOrganizations } from "@/hooks/useOrganizations";
 import { useSlotsData } from "@/hooks/useSlotsData";
 import { useStockHistory } from "@/hooks/useStockHistory";
+import { usePreferences } from "@/hooks/usePreferences";
 import { formatCurrency } from "@/lib/utils";
 import { calculateTrend } from "@/lib/trendUtils";
 import { getStockByBrand, getLowStockItems } from "@/lib/dashboardUtils";
@@ -36,14 +37,46 @@ import { StockByBrandChart } from "@/components/dashboard/StockByBrandChart";
 import { StockAlertsTable } from "@/components/dashboard/StockAlertsTable";
 import { StockHistoryChart } from "@/components/dashboard/StockHistoryChart";
 
+// Helper to get date range from period preference
+function getDateRangeFromPeriod(period: string | null | undefined): DateRange {
+  const today = new Date();
+  
+  switch (period) {
+    case "today":
+      return { from: startOfDay(today), to: endOfDay(today) };
+    case "7days":
+      return { from: startOfDay(subDays(today, 6)), to: endOfDay(today) };
+    case "thisMonth":
+      return { from: startOfMonth(today), to: endOfDay(today) };
+    case "30days":
+    default:
+      return { from: startOfDay(subDays(today, 29)), to: endOfDay(today) };
+  }
+}
+
 export default function Index() {
   const navigate = useNavigate();
+  const { preferences, isLoading: isLoadingPreferences } = usePreferences();
+  
+  // Initialize date range from preferences
+  const initialDateRange = useMemo(() => 
+    getDateRangeFromPeriod(preferences?.default_period), 
+    [preferences?.default_period]
+  );
+  
+  const [dateRange, setDateRange] = useState<DateRange>(initialDateRange);
+  const [hasInitializedPrefs, setHasInitializedPrefs] = useState(false);
+  
+  // Update date range when preferences load for the first time
+  useEffect(() => {
+    if (preferences && !hasInitializedPrefs && !isLoadingPreferences) {
+      setDateRange(getDateRangeFromPeriod(preferences.default_period));
+      setHasInitializedPrefs(true);
+    }
+  }, [preferences, hasInitializedPrefs, isLoadingPreferences]);
+  
+  // Initialize selected org from preferences (for non-super admins with default PDV)
   const [selectedOrgId, setSelectedOrgId] = useState<string>("all");
-  const today = new Date();
-  const [dateRange, setDateRange] = useState<DateRange>({
-    from: startOfDay(subDays(today, 29)),
-    to: endOfDay(today),
-  });
   
   const { organizations, isSuperAdmin, refetch: refetchOrgs, isFetching: isRefetchingOrgs } = useOrganizations();
   const { data, isLoading } = useDashboard({ 
