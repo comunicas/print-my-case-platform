@@ -12,6 +12,7 @@ import Uploads from "./pages/Uploads";
 import UploadDetails from "./pages/UploadDetails";
 import Stock from "./pages/Stock";
 import Settings from "./pages/Settings";
+import Organizations from "./pages/Organizations";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -34,6 +35,7 @@ const App = () => (
                 <Route path="/estoque" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
                 <Route path="/reports" element={<Navigate to="/estoque" replace />} />
                 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                <Route path="/organizations" element={<ProtectedRoute><Organizations /></ProtectedRoute>} />
                 {/* Redirects for old routes */}
                 <Route path="/pdvs" element={<Navigate to="/settings?tab=pdvs" replace />} />
                 <Route path="/team" element={<Navigate to="/settings?tab=team" replace />} />
