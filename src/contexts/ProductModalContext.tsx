@@ -1,6 +1,10 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
-import { ProductDetailModal } from '@/components/stock/ProductDetailModal';
+import { createContext, useContext, useState, ReactNode, lazy, Suspense } from 'react';
 import { useSlotsData } from '@/hooks/useSlotsData';
+
+// Lazy load do modal pesado - só carrega quando necessário
+const ProductDetailModal = lazy(() => 
+  import('@/components/stock/ProductDetailModal').then(m => ({ default: m.ProductDetailModal }))
+);
 
 interface ProductModalContextType {
   openProductModal: (productName: string, pdvId?: string) => void;
@@ -30,13 +34,17 @@ export function ProductModalProvider({ children }: { children: ReactNode }) {
   return (
     <ProductModalContext.Provider value={{ openProductModal, closeProductModal }}>
       {children}
-      <ProductDetailModal
-        productName={productName}
-        slots={slots}
-        isOpen={isOpen}
-        onClose={closeProductModal}
-        pdvId={pdvId}
-      />
+      {isOpen && (
+        <Suspense fallback={null}>
+          <ProductDetailModal
+            productName={productName}
+            slots={slots}
+            isOpen={isOpen}
+            onClose={closeProductModal}
+            pdvId={pdvId}
+          />
+        </Suspense>
+      )}
     </ProductModalContext.Provider>
   );
 }
