@@ -72,6 +72,7 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
               <ChartTooltip
                 content={
                   <ChartTooltipContent 
+                    hideLabel={true}
                     formatter={(value, name, item) => {
                       const product = item.payload as TopProductData;
                       return [
