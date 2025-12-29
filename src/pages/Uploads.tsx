@@ -95,6 +95,9 @@ export default function Uploads() {
   const [deletingUpload, setDeletingUpload] = useState<UploadListItem | null>(null);
 
   const filteredUploads = uploads.filter((upload) => {
+    // Proteção contra dados incompletos
+    if (!upload.pdv?.name) return false;
+    
     const matchesSearch =
       upload.file_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       upload.pdv.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
