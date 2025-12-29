@@ -58,6 +58,37 @@ const ChartContainer = React.forwardRef<
 });
 ChartContainer.displayName = "Chart";
 
+// Sanitize color values to prevent CSS injection
+const sanitizeColor = (color: string | undefined): string | null => {
+  if (!color) return null;
+  
+  // Allow only safe color formats: hex, rgb, rgba, hsl, hsla, and CSS color names
+  const hexPattern = /^#[0-9a-fA-F]{3,8}$/;
+  const rgbPattern = /^rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(,\s*[\d.]+\s*)?\)$/;
+  const hslPattern = /^hsla?\(\s*[\d.]+\s*,\s*[\d.]+%?\s*,\s*[\d.]+%?\s*(,\s*[\d.]+\s*)?\)$/;
+  const hslModernPattern = /^hsla?\(\s*[\d.]+\s+[\d.]+%?\s+[\d.]+%?\s*(\/\s*[\d.]+%?\s*)?\)$/;
+  const cssVarPattern = /^var\(--[a-zA-Z0-9-]+\)$/;
+  const colorNamePattern = /^[a-zA-Z]+$/;
+  
+  // Reject any color containing dangerous characters
+  if (/[;{}()<>]/.test(color) && !rgbPattern.test(color) && !hslPattern.test(color) && !hslModernPattern.test(color) && !cssVarPattern.test(color)) {
+    return null;
+  }
+  
+  if (
+    hexPattern.test(color) ||
+    rgbPattern.test(color) ||
+    hslPattern.test(color) ||
+    hslModernPattern.test(color) ||
+    cssVarPattern.test(color) ||
+    colorNamePattern.test(color)
+  ) {
+    return color;
+  }
+  
+  return null;
+};
+
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(([_, config]) => config.theme || config.color);
 
@@ -74,9 +105,11 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
 ${prefix} [data-chart=${id}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
-    const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
+    const rawColor = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
+    const color = sanitizeColor(rawColor);
     return color ? `  --color-${key}: ${color};` : null;
   })
+  .filter(Boolean)
   .join("\n")}
 }
 `,
