@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
+import { useOrganizationName } from "@/hooks/useOrganizationName";
 
 interface AppHeaderProps {
   isMobile?: boolean;
@@ -22,6 +23,7 @@ export function AppHeader({ isMobile, onMenuClick }: AppHeaderProps) {
   const { theme, setTheme } = useTheme();
   const { signOut } = useAuth();
   const { profile, role } = useProfile();
+  const { data: organizationName } = useOrganizationName();
   const navigate = useNavigate();
   
   const initials = profile?.name
@@ -54,7 +56,7 @@ export function AppHeader({ isMobile, onMenuClick }: AppHeaderProps) {
 
         <div className="min-w-0">
           <h2 className="font-semibold text-sm md:text-base truncate max-w-[150px] md:max-w-none text-foreground">
-            Print My Case
+            {organizationName || "Carregando..."}
           </h2>
           <p className="text-xs text-muted-foreground hidden md:block">
             {role ? roleLabels[role] : "Carregando..."}
