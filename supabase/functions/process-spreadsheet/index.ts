@@ -59,47 +59,25 @@ function getColumnValue(row: Record<string, unknown>, aliases: string[]): unknow
   return undefined;
 }
 
-// Detect and log which columns are present and their language
+// Detect columns without verbose logging
 function detectColumns(
   headers: string[], 
   columnMap: Record<string, string[]>,
-  type: string
-): void {
-  console.log(`\n=== Column Detection for ${type.toUpperCase()} ===`);
-  console.log(`Headers found in file (${headers.length}): ${JSON.stringify(headers)}`);
-  
-  const detected: { dbCol: string; alias: string; language: string }[] = [];
+): { detected: number; missing: string[] } {
+  const detected: string[] = [];
   const missing: string[] = [];
   
   for (const [dbCol, aliases] of Object.entries(columnMap)) {
     const [ptAlias, enAlias] = aliases;
     
-    if (enAlias && headers.includes(enAlias)) {
-      detected.push({ dbCol, alias: enAlias, language: "EN" });
-    } else if (headers.includes(ptAlias)) {
-      detected.push({ dbCol, alias: ptAlias, language: "PT" });
+    if ((enAlias && headers.includes(enAlias)) || headers.includes(ptAlias)) {
+      detected.push(dbCol);
     } else {
       missing.push(dbCol);
     }
   }
   
-  // Log detected columns
-  console.log(`Columns detected (${detected.length}):`);
-  detected.forEach(({ dbCol, alias, language }) => {
-    console.log(`  ✓ ${dbCol}: "${alias}" (${language})`);
-  });
-  
-  // Log missing columns
-  if (missing.length > 0) {
-    console.warn(`Missing columns (${missing.length}): ${missing.join(", ")}`);
-  }
-  
-  // Determine predominant language
-  const enCount = detected.filter(d => d.language === "EN").length;
-  const ptCount = detected.filter(d => d.language === "PT").length;
-  const predominantLang = enCount > ptCount ? "ENGLISH" : enCount < ptCount ? "PORTUGUESE" : "MIXED";
-  console.log(`Language summary: EN=${enCount}, PT=${ptCount} → Spreadsheet is in ${predominantLang}`);
-  console.log(`=== End Column Detection ===\n`);
+  return { detected: detected.length, missing };
 }
 
 // Extract brand from product name (inline - cannot import from src)
@@ -237,7 +215,6 @@ function parseAmount(value: unknown): number {
   if (typeof value === "number") {
     // Validate range
     if (value < AMOUNT_MIN || value > AMOUNT_MAX) {
-      console.warn(`Amount out of range: ${value}, clamping to limits`);
       return Math.max(AMOUNT_MIN, Math.min(AMOUNT_MAX, value));
     }
     return value;
@@ -253,7 +230,6 @@ function parseAmount(value: unknown): number {
   
   // Validate range
   if (parsed < AMOUNT_MIN || parsed > AMOUNT_MAX) {
-    console.warn(`Amount out of range: ${parsed}, clamping to limits`);
     return Math.max(AMOUNT_MIN, Math.min(AMOUNT_MAX, parsed));
   }
   
@@ -267,7 +243,6 @@ function parseQuantity(value: unknown): number {
     const qty = Math.floor(value);
     // Validate range
     if (qty < QUANTITY_MIN || qty > QUANTITY_MAX) {
-      console.warn(`Quantity out of range: ${qty}, clamping to limits`);
       return Math.max(QUANTITY_MIN, Math.min(QUANTITY_MAX, qty));
     }
     return qty;
@@ -278,7 +253,6 @@ function parseQuantity(value: unknown): number {
   
   // Validate range
   if (parsed < QUANTITY_MIN || parsed > QUANTITY_MAX) {
-    console.warn(`Quantity out of range: ${parsed}, clamping to limits`);
     return Math.max(QUANTITY_MIN, Math.min(QUANTITY_MAX, parsed));
   }
   
@@ -398,13 +372,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Processing upload: ${uploadId}`);
-
     // === AUTHORIZATION CHECK ===
-    // Verify the calling user is authorized to process this upload
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      console.error("No authorization header provided");
       return new Response(
         JSON.stringify({ success: false, error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -424,14 +394,11 @@ Deno.serve(async (req) => {
     // Verify user is authenticated
     const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
     if (userError || !user) {
-      console.error("User authentication failed:", userError);
       return new Response(
         JSON.stringify({ success: false, error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    console.log(`User authenticated: ${user.id}`);
 
     // Verify user can access this upload (RLS will enforce organization check)
     const { data: uploadCheck, error: accessError } = await supabaseUser
@@ -441,14 +408,11 @@ Deno.serve(async (req) => {
       .single();
 
     if (accessError || !uploadCheck) {
-      console.error("Access denied or upload not found:", accessError);
       return new Response(
         JSON.stringify({ success: false, error: "Upload not found or access denied" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    console.log(`Authorization verified for upload: ${uploadId}`);
     // === END AUTHORIZATION CHECK ===
 
     // Create Supabase client with service role for data processing (RLS bypass)
@@ -462,18 +426,14 @@ Deno.serve(async (req) => {
       .single();
 
     if (uploadError || !upload) {
-      console.error("Upload not found:", uploadError);
       return new Response(
         JSON.stringify({ success: false, error: "Upload not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`Upload found: type=${upload.type}, file_url=${upload.file_url}`);
-
     // 2. Download file from storage
     if (!upload.file_url) {
-      // Update status to error if no file URL
       await supabase
         .from("uploads")
         .update({ status: "error", error_message: "Arquivo não encontrado", processed_at: new Date().toISOString() })
@@ -500,14 +460,12 @@ Deno.serve(async (req) => {
     }
 
     const filePath = urlParts[1];
-    console.log(`Downloading file: ${filePath}`);
 
     const { data: fileData, error: downloadError } = await supabase.storage
       .from("uploads")
       .download(filePath);
 
     if (downloadError || !fileData) {
-      console.error("Download error:", downloadError);
       await supabase
         .from("uploads")
         .update({ status: "error", error_message: "Erro ao baixar arquivo", processed_at: new Date().toISOString() })
@@ -520,7 +478,6 @@ Deno.serve(async (req) => {
     }
 
     // 3. Parse XLSX file
-    console.log("Parsing XLSX file...");
     const arrayBuffer = await fileData.arrayBuffer();
     const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: "array" });
     
@@ -528,13 +485,16 @@ Deno.serve(async (req) => {
     const worksheet = workbook.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json(worksheet) as Record<string, unknown>[];
 
-    console.log(`Parsed ${rows.length} rows from sheet "${sheetName}"`);
-
-    // Detect and log column information
+    // Detect columns (for validation, no verbose logging)
     if (rows.length > 0) {
       const headers = Object.keys(rows[0]);
       const columnMap = upload.type === "sales" ? SALES_COLUMN_MAP : STOCK_COLUMN_MAP;
-      detectColumns(headers, columnMap, upload.type);
+      const { missing } = detectColumns(headers, columnMap);
+      
+      // Log warning only if critical columns are missing
+      if (missing.length > 0 && missing.some(col => ['device_id', 'product_name', 'order_number', 'slot_number'].includes(col))) {
+        console.warn(`Upload ${uploadId}: Missing critical columns: ${missing.join(', ')}`);
+      }
     }
 
     if (rows.length === 0) {
@@ -582,7 +542,6 @@ Deno.serve(async (req) => {
       );
       
       skippedRecords = rows.length - validRecords.length;
-      console.log(`Inserting ${validRecords.length} valid sales records (skipped ${skippedRecords})...`);
 
       // Batch insert (chunks of 500)
       const chunkSize = 500;
@@ -593,7 +552,7 @@ Deno.serve(async (req) => {
           .insert(chunk);
         
         if (insertError) {
-          console.error("Insert error:", insertError);
+          console.error(`Upload ${uploadId}: Insert error`, insertError.message);
           throw new Error(`Erro ao inserir registros: ${insertError.message}`);
         }
         
@@ -609,7 +568,6 @@ Deno.serve(async (req) => {
       );
       
       skippedRecords = rows.length - validRecords.length;
-      console.log(`Inserting ${validRecords.length} valid stock records (skipped ${skippedRecords})...`);
 
       // Batch insert (chunks of 500)
       const chunkSize = 500;
@@ -620,7 +578,7 @@ Deno.serve(async (req) => {
           .insert(chunk);
         
         if (insertError) {
-          console.error("Insert error:", insertError);
+          console.error(`Upload ${uploadId}: Insert error`, insertError.message);
           throw new Error(`Erro ao inserir registros: ${insertError.message}`);
         }
         
@@ -629,8 +587,6 @@ Deno.serve(async (req) => {
       
       // Generate stock history snapshot
       if (recordsInserted > 0) {
-        console.log("Generating stock history snapshot...");
-        
         // Get organization_id from PDV
         const { data: pdvData } = await supabase
           .from("pdvs")
@@ -675,10 +631,8 @@ Deno.serve(async (req) => {
             });
           
           if (historyError) {
-            console.error("Error saving stock history:", historyError);
+            console.error(`Upload ${uploadId}: Stock history error`, historyError.message);
             // Don't fail the upload because of this
-          } else {
-            console.log(`Saved ${snapshots.length} stock history snapshots`);
           }
         }
       }
@@ -695,8 +649,6 @@ Deno.serve(async (req) => {
       })
       .eq("id", uploadId);
 
-    console.log(`Successfully processed ${recordsInserted} records (skipped ${skippedRecords})`);
-
     return new Response(
       JSON.stringify({ 
         success: true, 
@@ -708,7 +660,7 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    console.error("Processing error:", error);
+    console.error("Processing error:", error instanceof Error ? error.message : "Unknown error");
     
     // Try to update upload status to error
     try {
