@@ -88,7 +88,24 @@ export function StockHistoryChart({ data, brands }: StockHistoryChartProps) {
                 className="text-xs" 
                 tick={{ fill: "hsl(var(--muted-foreground))" }} 
               />
-              <ChartTooltip content={<ChartTooltipContent />} />
+              <ChartTooltip 
+                content={
+                  <ChartTooltipContent 
+                    formatter={(value, name) => {
+                      return [
+                        <div key="tooltip" className="flex flex-col gap-0.5">
+                          <span className="font-medium">{name}</span>
+                          <span>{value} unidades</span>
+                        </div>,
+                        ""
+                      ];
+                    }}
+                    labelFormatter={(label) => (
+                      <span className="font-medium text-sm mb-1 block">{label}</span>
+                    )}
+                  />
+                }
+              />
               {brands.map((brand) => (
                 <Line
                   key={brand}

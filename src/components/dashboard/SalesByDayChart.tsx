@@ -76,8 +76,20 @@ export function SalesByDayChart({ data }: SalesByDayChartProps) {
               <ChartTooltip
                 content={
                   <ChartTooltipContent 
-                    formatter={(value, name) => [formatCurrency(Number(value)), "Receita"]}
-                    labelFormatter={(label) => `Dia ${label}`}
+                    hideLabel={true}
+                    formatter={(value, name, item) => {
+                      const entry = item.payload as SalesByDayData;
+                      return [
+                        <div key="tooltip" className="flex flex-col gap-1">
+                          <span className="font-medium">Dia {entry.dateDisplay}</span>
+                          <span>Receita: {formatCurrency(entry.revenue)}</span>
+                          <span className="text-muted-foreground text-sm">
+                            {entry.count} vendas
+                          </span>
+                        </div>,
+                        ""
+                      ];
+                    }}
                   />
                 }
               />
