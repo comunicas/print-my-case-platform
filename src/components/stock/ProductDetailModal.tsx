@@ -4,20 +4,25 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { SlotData } from '@/lib/stockUtils';
-import { MAX_CAPACITY, getBlockColorClass } from '@/lib/stockGridUtils';
-import { statusLabels, statusColors } from '@/lib/stockLabels';
+import { MAX_CAPACITY } from '@/lib/stockGridUtils';
 import { cn } from '@/lib/utils';
-import { Package, MapPin } from 'lucide-react';
+import { Package, MapPin, BarChart3, Clock, TrendingUp } from 'lucide-react';
 import { useMemo } from 'react';
 import { ProductSalesHistoryChart } from './ProductSalesHistoryChart';
+import { ProductAnalyticsKPIs } from './ProductAnalyticsKPIs';
+import { ProductSalesByHourChart } from './ProductSalesByHourChart';
+import { ProductSalesByDayChart } from './ProductSalesByDayChart';
+import { ProductPDVDistribution } from './ProductPDVDistribution';
+import { ProductPaymentMethods } from './ProductPaymentMethods';
+import { ProductSlotsList } from './ProductSlotsList';
 import { extractBrandFromProductName, extractModelFromProductName } from '@/lib/productNormalization';
 import { usePDVs } from '@/hooks/usePDVs';
+import { useProductAnalytics } from '@/hooks/useProductAnalytics';
 
 interface ProductDetailModalProps {
   productName: string | null;
@@ -30,6 +35,8 @@ interface ProductDetailModalProps {
 export function ProductDetailModal({ productName, slots, isOpen, onClose, pdvId }: ProductDetailModalProps) {
   const { pdvs } = usePDVs();
   const pdvName = pdvId ? pdvs.find(p => p.id === pdvId)?.name : null;
+
+  const { data: analytics, isLoading: analyticsLoading } = useProductAnalytics(productName, pdvId);
 
   // Filtra e agrega dados do produto
   const productData = useMemo(() => {
@@ -69,14 +76,14 @@ export function ProductDetailModal({ productName, slots, isOpen, onClose, pdvId 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden">
+      <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <BrandLogo brand={productData.brand} size="md" />
-            <span>{productData.model}</span>
+            <span className="truncate">{productData.model}</span>
           </DialogTitle>
           <DialogDescription className="flex flex-col gap-1">
-            <span>Informações detalhadas do produto e histórico de vendas</span>
+            <span>Análises detalhadas e métricas de performance</span>
             {pdvName && (
               <Badge variant="secondary" className="w-fit mt-1">
                 <MapPin className="h-3 w-3 mr-1" />
@@ -86,117 +93,134 @@ export function ProductDetailModal({ productName, slots, isOpen, onClose, pdvId 
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 overflow-hidden">
-          {/* KPI de Estoque */}
-          <div className="p-4 bg-muted/30 rounded-lg space-y-1">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Package className="h-4 w-4" />
-              <span className="text-sm">Estoque Total</span>
+        <Tabs defaultValue="resumo" className="w-full">
+          <TabsList className="grid grid-cols-4 w-full">
+            <TabsTrigger value="resumo" className="text-xs sm:text-sm">
+              <BarChart3 className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Resumo</span>
+            </TabsTrigger>
+            <TabsTrigger value="vendas" className="text-xs sm:text-sm">
+              <TrendingUp className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Vendas</span>
+            </TabsTrigger>
+            <TabsTrigger value="horarios" className="text-xs sm:text-sm">
+              <Clock className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Horários</span>
+            </TabsTrigger>
+            <TabsTrigger value="estoque" className="text-xs sm:text-sm">
+              <Package className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Estoque</span>
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Aba Resumo */}
+          <TabsContent value="resumo" className="space-y-4 mt-4">
+            <ProductAnalyticsKPIs
+              totalSales={analytics?.totalSales || 0}
+              totalRevenue={analytics?.totalRevenue || 0}
+              averageTicket={analytics?.averageTicket || 0}
+              stockPercentage={percentage}
+              isLoading={analyticsLoading}
+            />
+
+            {/* Barra de estoque */}
+            <div className="p-4 bg-muted/30 rounded-lg space-y-2">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Package className="h-4 w-4" />
+                <span className="text-sm">Estoque Total</span>
+              </div>
+              <p className="text-2xl font-bold">
+                {productData.totalQuantity}
+                <span className="text-sm font-normal text-muted-foreground">/{productData.maxCapacity}</span>
+              </p>
+              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                <div 
+                  className={cn(
+                    'h-full transition-all rounded-full',
+                    percentage <= 20 && 'bg-destructive',
+                    percentage > 20 && percentage <= 50 && 'bg-orange-500',
+                    percentage > 50 && percentage <= 70 && 'bg-yellow-500',
+                    percentage > 70 && 'bg-green-500'
+                  )}
+                  style={{ width: `${percentage}%` }}
+                />
+              </div>
             </div>
-            <p className="text-2xl font-bold">
-              {productData.totalQuantity}
-              <span className="text-sm font-normal text-muted-foreground">/{productData.maxCapacity}</span>
-            </p>
-            <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-2">
-              <div 
-                className={cn(
-                  'h-full transition-all rounded-full',
-                  percentage <= 20 && 'bg-destructive',
-                  percentage > 20 && percentage <= 50 && 'bg-orange-500',
-                  percentage > 50 && percentage <= 70 && 'bg-yellow-500',
-                  percentage > 70 && 'bg-green-500'
-                )}
-                style={{ width: `${percentage}%` }}
+
+            {/* Histórico de Vendas */}
+            <div className="p-4 bg-muted/30 rounded-lg">
+              <ProductSalesHistoryChart 
+                productName={productName} 
+                pdvId={pdvId}
               />
             </div>
-          </div>
+          </TabsContent>
 
-          {/* Histórico de Vendas */}
-          <div className="p-4 bg-muted/30 rounded-lg">
-            <ProductSalesHistoryChart 
-              productName={productName} 
-              pdvId={pdvId}
+          {/* Aba Vendas */}
+          <TabsContent value="vendas" className="space-y-4 mt-4">
+            <div className="p-4 bg-muted/30 rounded-lg">
+              <ProductSalesByDayChart
+                data={analytics?.salesByDayOfWeek || []}
+                bestDay={analytics?.bestDay || null}
+                isLoading={analyticsLoading}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-4 bg-muted/30 rounded-lg">
+                <ProductPDVDistribution
+                  data={analytics?.salesByPDV || []}
+                  isLoading={analyticsLoading}
+                />
+              </div>
+
+              <div className="p-4 bg-muted/30 rounded-lg">
+                <ProductPaymentMethods
+                  data={analytics?.paymentMethods || []}
+                  isLoading={analyticsLoading}
+                />
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Aba Horários */}
+          <TabsContent value="horarios" className="space-y-4 mt-4">
+            <div className="p-4 bg-muted/30 rounded-lg">
+              <ProductSalesByHourChart
+                data={analytics?.salesByHour || []}
+                peakHour={analytics?.peakHour || null}
+                isLoading={analyticsLoading}
+              />
+            </div>
+
+            {analytics?.peakHour && analytics.peakHour.count > 0 && (
+              <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
+                <p className="text-sm">
+                  <span className="font-medium">Dica:</span> O horário de pico de vendas é às{' '}
+                  <strong>{String(analytics.peakHour.hour).padStart(2, '0')}h</strong>. 
+                  Considere garantir estoque adequado neste período.
+                </p>
+              </div>
+            )}
+
+            {analytics?.bestDay && analytics.bestDay.count > 0 && (
+              <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
+                <p className="text-sm">
+                  <span className="font-medium">Insight:</span> O melhor dia para vendas é{' '}
+                  <strong>{analytics.bestDay.dayName}</strong> com {analytics.bestDay.count} vendas.
+                </p>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Aba Estoque */}
+          <TabsContent value="estoque" className="mt-4">
+            <ProductSlotsList
+              slots={productData.slots}
+              status={productData.status}
             />
-          </div>
-
-          {/* Status Geral */}
-          <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-            <div>
-              <p className="text-sm text-muted-foreground">Status Geral</p>
-              <p className="font-medium">{productData.slots.length} slots ativos</p>
-            </div>
-            <Badge variant="outline" className={statusColors[productData.status]}>
-              {statusLabels[productData.status]}
-            </Badge>
-          </div>
-
-          {/* Lista de Slots */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-medium flex items-center gap-2">
-              <MapPin className="h-4 w-4" />
-              Slots com este produto
-            </h4>
-            <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2">
-              {productData.slots
-                .sort((a, b) => a.slot.localeCompare(b.slot, undefined, { numeric: true }))
-                .map((slot) => {
-                  const slotPercentage = Math.round((slot.quantity / MAX_CAPACITY) * 100);
-                  
-                  return (
-                    <div 
-                      key={slot.id}
-                      className="flex items-center gap-3 p-3 bg-muted/20 rounded-lg"
-                    >
-                      {/* Número do slot */}
-                      <div className="w-12 text-center">
-                        <span className="text-sm font-semibold text-muted-foreground">
-                          Slot {slot.slot}
-                        </span>
-                      </div>
-                      
-                      {/* PDV */}
-                      {slot.pdvName && (
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm truncate">{slot.pdvName}</p>
-                        </div>
-                      )}
-                      
-                      {/* Visualização de estoque */}
-                      <div className="flex gap-0.5">
-                        {Array.from({ length: MAX_CAPACITY }).map((_, index) => {
-                          const blockIndex = MAX_CAPACITY - 1 - index;
-                          const isFilled = blockIndex < slot.quantity;
-                          
-                          return (
-                            <div
-                              key={index}
-                              className={cn(
-                                'w-3 h-5 rounded-sm',
-                                isFilled 
-                                  ? getBlockColorClass(blockIndex, slot.quantity, slot.isActive)
-                                  : 'bg-muted/30'
-                              )}
-                            />
-                          );
-                        })}
-                      </div>
-                      
-                      {/* Quantidade */}
-                      <div className="w-16 text-right">
-                        <span className="text-sm font-medium">{slot.quantity}/{MAX_CAPACITY}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Fechar
-          </Button>
-        </DialogFooter>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
