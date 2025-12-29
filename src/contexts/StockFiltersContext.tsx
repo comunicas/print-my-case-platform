@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { usePreferences } from '@/hooks/usePreferences';
 
 interface StockFiltersState {
   selectedPdv: string;
@@ -29,7 +30,19 @@ const defaultState: StockFiltersState = {
 const StockFiltersContext = createContext<StockFiltersContextType | undefined>(undefined);
 
 export function StockFiltersProvider({ children }: { children: ReactNode }) {
+  const { preferences, isLoading: isLoadingPreferences } = usePreferences();
+  const [hasInitializedPrefs, setHasInitializedPrefs] = useState(false);
   const [state, setState] = useState<StockFiltersState>(defaultState);
+
+  // Apply default_pdv preference on first load
+  useEffect(() => {
+    if (preferences && !hasInitializedPrefs && !isLoadingPreferences) {
+      if (preferences.default_pdv) {
+        setState(s => ({ ...s, selectedPdv: preferences.default_pdv! }));
+      }
+      setHasInitializedPrefs(true);
+    }
+  }, [preferences, hasInitializedPrefs, isLoadingPreferences]);
 
   const setSelectedPdv = (pdv: string) => setState(s => ({ ...s, selectedPdv: pdv }));
   const setSearchTerm = (term: string) => setState(s => ({ ...s, searchTerm: term }));

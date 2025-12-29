@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { usePreferences } from "@/hooks/usePreferences";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,9 +60,25 @@ export default function Uploads() {
   const { uploads, isLoading, createUpload, deleteUpload } = useUploads();
   const { pdvs, isLoading: pdvsLoading } = usePDVs();
   const { isAdmin } = useProfile();
+  const { preferences, isLoading: isLoadingPreferences } = usePreferences();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterPdv, setFilterPdv] = useState<string>("all");
+  const [hasInitializedPrefs, setHasInitializedPrefs] = useState(false);
+
+  // Apply default_pdv preference on first load
+  useEffect(() => {
+    if (preferences && !hasInitializedPrefs && !isLoadingPreferences && !pdvsLoading) {
+      if (preferences.default_pdv) {
+        // Validate that the PDV exists in the list
+        const pdvExists = pdvs.some(p => p.id === preferences.default_pdv);
+        if (pdvExists) {
+          setFilterPdv(preferences.default_pdv);
+        }
+      }
+      setHasInitializedPrefs(true);
+    }
+  }, [preferences, hasInitializedPrefs, isLoadingPreferences, pdvs, pdvsLoading]);
   const [filterType, setFilterType] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
