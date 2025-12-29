@@ -42,6 +42,7 @@ import {
   ExternalLink,
   Eye,
   Settings2,
+  Star,
 } from "lucide-react";
 import { UploadDialog } from "@/components/upload/UploadDialog";
 import {
@@ -61,7 +62,7 @@ export default function Uploads() {
   const { uploads, isLoading, createUpload, deleteUpload } = useUploads();
   const { pdvs, isLoading: pdvsLoading } = usePDVs();
   const { isAdmin } = useProfile();
-  const { preferences, isLoading: isLoadingPreferences } = usePreferences();
+  const { preferences, isLoading: isLoadingPreferences, updatePreferences } = usePreferences();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterPdv, setFilterPdv] = useState<string>("all");
@@ -86,6 +87,12 @@ export default function Uploads() {
   const handlePdvChange = (value: string) => {
     setFilterPdv(value);
     setPdvWasAutoApplied(false);
+  };
+
+  const canSaveAsDefault = filterPdv !== 'all' && filterPdv !== preferences?.default_pdv;
+
+  const handleSaveAsDefault = () => {
+    updatePreferences.mutate({ default_pdv: filterPdv });
   };
 
   const [filterType, setFilterType] = useState<string>("all");
@@ -232,34 +239,60 @@ export default function Uploads() {
           </div>
 
           <div className="flex gap-2 flex-wrap">
-            <div className="relative">
-              <Select value={filterPdv} onValueChange={handlePdvChange}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="PDV" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os PDVs</SelectItem>
-                  {pdvs.map((pdv) => (
-                    <SelectItem key={pdv.id} value={pdv.id}>
-                      {pdv.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {pdvWasAutoApplied && (
+            <div className="flex items-center gap-1">
+              <div className="relative">
+                <Select value={filterPdv} onValueChange={handlePdvChange}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="PDV" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os PDVs</SelectItem>
+                    {pdvs.map((pdv) => (
+                      <SelectItem key={pdv.id} value={pdv.id}>
+                        {pdv.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {pdvWasAutoApplied && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge 
+                          variant="outline" 
+                          className="absolute -top-2 -right-2 text-[10px] px-1.5 py-0 h-4 bg-primary/10 border-primary/30 text-primary cursor-help"
+                        >
+                          <Settings2 className="h-2.5 w-2.5 mr-0.5" />
+                          Auto
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Filtro aplicado das suas preferências</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+              {canSaveAsDefault && (
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Badge 
-                        variant="outline" 
-                        className="absolute -top-2 -right-2 text-[10px] px-1.5 py-0 h-4 bg-primary/10 border-primary/30 text-primary cursor-help"
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        onClick={handleSaveAsDefault}
+                        disabled={updatePreferences.isPending}
                       >
-                        <Settings2 className="h-2.5 w-2.5 mr-0.5" />
-                        Auto
-                      </Badge>
+                        {updatePreferences.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Star className="h-4 w-4" />
+                        )}
+                      </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Filtro aplicado das suas preferências</p>
+                      <p>Salvar como PDV padrão</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
