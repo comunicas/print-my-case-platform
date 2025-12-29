@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Check, ChevronsUpDown, Search, ShoppingCart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,11 @@ export function ProductSearchAutocomplete({
 }: ProductSearchAutocompleteProps) {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState(value);
+
+  // Sincronizar com valor externo (para quando clearFilters é chamado)
+  useEffect(() => {
+    setInputValue(value);
+  }, [value]);
 
   // Filtra sugestões baseado no input
   const filteredSuggestions = useMemo(() => {

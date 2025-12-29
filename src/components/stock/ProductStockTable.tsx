@@ -152,7 +152,7 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                   <TableCell>
                     <button
                       onClick={() => openProductModal(product.productKey, selectedPdv !== 'all' ? selectedPdv : undefined)}
-                      className="text-left hover:underline focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
+                      className="text-left text-primary hover:underline cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
                     >
                       <ProductDisplay 
                         brand={product.brand} 
