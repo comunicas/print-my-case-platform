@@ -82,11 +82,11 @@ function StockContent() {
 export default function Stock() {
   return (
     <AppLayout>
-      <ProductModalProvider>
-        <StockFiltersProvider>
+      <StockFiltersProvider>
+        <ProductModalProvider>
           <StockContent />
-        </StockFiltersProvider>
-      </ProductModalProvider>
+        </ProductModalProvider>
+      </StockFiltersProvider>
     </AppLayout>
   );
 }
