@@ -6,6 +6,7 @@ import { KNOWN_BRANDS, BRAND_ALIASES, getCanonicalBrand } from './brandAssets';
  * Ex: "iPhone 17" → "APPLE" (detecta pela linha de produto)
  */
 export function extractBrandFromProductName(fullName: string): string {
+  if (!fullName) return 'UNKNOWN';
   const upper = fullName.toUpperCase().trim();
   
   // Primeiro verifica se começa com uma marca conhecida
