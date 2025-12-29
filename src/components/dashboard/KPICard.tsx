@@ -49,17 +49,17 @@ export function KPICard({
   const TrendIcon = getTrendIcon();
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 md:px-6 pt-4 md:pt-6">
-        <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
+    <Card className="overflow-hidden">
+      <CardHeader className="flex flex-row items-center justify-between pb-1 md:pb-2 px-3 md:px-6 pt-3 md:pt-6">
+        <CardTitle className="text-[10px] md:text-sm font-medium text-muted-foreground truncate pr-2">
           {title}
         </CardTitle>
-        <Icon className={cn("h-4 w-4", variantStyles[variant])} />
+        <Icon className={cn("h-3.5 w-3.5 md:h-4 md:w-4 shrink-0", variantStyles[variant])} />
       </CardHeader>
-      <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
-        <div className="text-lg md:text-2xl font-bold text-foreground">{value}</div>
+      <CardContent className="px-3 md:px-6 pb-3 md:pb-6">
+        <div className="text-base md:text-2xl font-bold text-foreground truncate">{value}</div>
         
-        <div className="flex items-center gap-2 mt-1">
+        <div className="flex items-center gap-1 md:gap-2 mt-0.5 md:mt-1 min-h-[18px]">
           {showTrend && (
             <TooltipProvider>
               <Tooltip>
@@ -67,13 +67,12 @@ export function KPICard({
                   <Badge
                     variant="outline"
                     className={cn(
-                      "cursor-help gap-1 text-xs font-medium",
+                      "cursor-help gap-0.5 md:gap-1 text-[10px] md:text-xs font-medium px-1.5 md:px-2",
                       getTrendColor()
                     )}
                   >
-                    <TrendIcon className="h-3 w-3" />
+                    <TrendIcon className="h-2.5 w-2.5 md:h-3 md:w-3" />
                     {formatTrendBadge(trend.percentage)}
-                    <Info className="h-2.5 w-2.5 ml-0.5 opacity-50" />
                   </Badge>
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs whitespace-pre-line text-left">
@@ -84,11 +83,11 @@ export function KPICard({
           )}
           
           {!showTrend && trend && !trend.hasPreviousData && (
-            <span className="text-xs text-muted-foreground">Sem dados anteriores</span>
+            <span className="text-[10px] md:text-xs text-muted-foreground">Sem dados anteriores</span>
           )}
           
           {subtitle && (
-            <span className="text-xs text-muted-foreground">{subtitle}</span>
+            <span className="text-[10px] md:text-xs text-muted-foreground truncate">{subtitle}</span>
           )}
         </div>
       </CardContent>

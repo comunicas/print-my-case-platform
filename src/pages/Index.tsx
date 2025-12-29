@@ -300,8 +300,8 @@ export default function Index() {
           </Card>
         )}
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        {/* KPI Cards - 2 columns on mobile, 4 on desktop */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
           <KPICard
             title="Receita Total"
             value={formatCurrency(kpis.totalRevenue)}
