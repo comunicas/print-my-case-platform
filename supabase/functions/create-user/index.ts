@@ -216,6 +216,49 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Server-side password strength validation
+    const passwordValidation = {
+      minLength: password.length >= 8,
+      hasUppercase: /[A-Z]/.test(password),
+      hasLowercase: /[a-z]/.test(password),
+      hasNumber: /\d/.test(password),
+      hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+    };
+
+    const passwordScore = Object.values(passwordValidation).filter(Boolean).length;
+    
+    if (passwordScore < 4) {
+      const missingRequirements = [];
+      if (!passwordValidation.minLength) missingRequirements.push('mínimo 8 caracteres');
+      if (!passwordValidation.hasUppercase) missingRequirements.push('letra maiúscula');
+      if (!passwordValidation.hasLowercase) missingRequirements.push('letra minúscula');
+      if (!passwordValidation.hasNumber) missingRequirements.push('número');
+      if (!passwordValidation.hasSpecial) missingRequirements.push('caractere especial');
+
+      await logAuditEvent(supabaseAdmin, {
+        event_type: 'user_creation_failed',
+        actor_id: callingUser.id,
+        actor_email: callingUser.email,
+        actor_role: callerRole,
+        target_email: email,
+        success: false,
+        error_message: 'Senha não atende aos requisitos de segurança',
+        ip_address: ipAddress,
+        user_agent: userAgent,
+        metadata: { 
+          password_score: passwordScore,
+          missing_requirements: missingRequirements
+        }
+      });
+      
+      return new Response(
+        JSON.stringify({ 
+          error: `Senha fraca. Faltam: ${missingRequirements.join(', ')}` 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Validate role
     const validRoles = ['super_admin', 'org_admin', 'operator', 'viewer'];
     if (!validRoles.includes(role)) {
