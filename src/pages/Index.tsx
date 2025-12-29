@@ -1,11 +1,9 @@
 import { useState, useEffect, useMemo, lazy, Suspense, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { subDays, startOfDay, endOfDay, startOfMonth } from "date-fns";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import { 
   DollarSign, 
   ShoppingCart, 
@@ -26,16 +24,18 @@ import { usePreferences } from "@/hooks/usePreferences";
 import { formatCurrency } from "@/lib/utils";
 import { calculateTrend } from "@/lib/trendUtils";
 import { getStockByBrand, getLowStockItems } from "@/lib/dashboardUtils";
+import { getDateRangeFromPeriod, type DateRange } from "@/lib/utils/date-presets";
 import { PDVFilter } from "@/components/ui/PDVFilter";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 
 // Componentes leves carregados diretamente
-import { DateRangeFilter, DateRange } from "@/components/dashboard/DateRangeFilter";
+import { DateRangeFilter } from "@/components/dashboard/DateRangeFilter";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { QuickStats } from "@/components/dashboard/QuickStats";
 import { StockAlertsTable } from "@/components/dashboard/StockAlertsTable";
+import { ChartSkeleton } from "@/components/dashboard/ChartSkeleton";
 
 // Lazy load dos charts pesados (usam recharts)
 const SalesByDayChart = lazy(() => import("@/components/dashboard/SalesByDayChart").then(m => ({ default: m.SalesByDayChart })));
@@ -44,63 +44,27 @@ const TopProductsChart = lazy(() => import("@/components/dashboard/TopProductsCh
 const StockByBrandChart = lazy(() => import("@/components/dashboard/StockByBrandChart").then(m => ({ default: m.StockByBrandChart })));
 const StockHistoryChart = lazy(() => import("@/components/dashboard/StockHistoryChart").then(m => ({ default: m.StockHistoryChart })));
 
-// Skeleton para charts
-function ChartSkeleton() {
-  return (
-    <Card className="flex flex-col">
-      <CardHeader className="px-4 md:px-6 pt-4 md:pt-6 pb-3">
-        <Skeleton className="h-5 w-40" />
-      </CardHeader>
-      <CardContent className="flex-1 px-4 md:px-6 pb-4 md:pb-6">
-        <Skeleton className="h-[250px] w-full" />
-      </CardContent>
-    </Card>
-  );
-}
-
-// Helper to get date range from period preference
-function getDateRangeFromPeriod(period: string | null | undefined): DateRange {
-  const today = new Date();
-  
-  switch (period) {
-    case "today":
-      return { from: startOfDay(today), to: endOfDay(today) };
-    case "7days":
-      return { from: startOfDay(subDays(today, 6)), to: endOfDay(today) };
-    case "thisMonth":
-      return { from: startOfMonth(today), to: endOfDay(today) };
-    case "30days":
-    default:
-      return { from: startOfDay(subDays(today, 29)), to: endOfDay(today) };
-  }
-}
-
 export default function Index() {
   const navigate = useNavigate();
   const { preferences, isLoading: isLoadingPreferences } = usePreferences();
   const { organizations, isSuperAdmin, refetch: refetchOrgs, isFetching: isRefetchingOrgs } = useOrganizations();
   
-  // Initialize date range from preferences
-  const initialDateRange = useMemo(() => 
-    getDateRangeFromPeriod(preferences?.default_period), 
-    [preferences?.default_period]
-  );
-  
-  const [dateRange, setDateRange] = useState<DateRange>(initialDateRange);
-  const [hasInitializedPrefs, setHasInitializedPrefs] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange>(() => getDateRangeFromPeriod("30days"));
   const [selectedPdvId, setSelectedPdvId] = useState<string>("all");
   const [pdvWasAutoApplied, setPdvWasAutoApplied] = useState(false);
   const [selectedOrgId, setSelectedOrgId] = useState<string>("all");
+  const [prefsInitialized, setPrefsInitialized] = useState(false);
   
   // Fetch PDVs filtered by selected organization (for super admins)
   const { pdvs = [], isLoading: pdvsLoading } = usePDVs({ 
     organizationId: isSuperAdmin ? selectedOrgId : undefined 
   });
   
-  // Update date range and PDV when preferences load for the first time
+  // Initialize from preferences once they load
   useEffect(() => {
-    if (preferences && !hasInitializedPrefs && !isLoadingPreferences && !pdvsLoading) {
+    if (!prefsInitialized && preferences && !isLoadingPreferences && !pdvsLoading) {
       setDateRange(getDateRangeFromPeriod(preferences.default_period));
+      
       if (preferences.default_pdv) {
         const pdvExists = pdvs.some(p => p.id === preferences.default_pdv);
         if (pdvExists) {
@@ -108,9 +72,9 @@ export default function Index() {
           setPdvWasAutoApplied(true);
         }
       }
-      setHasInitializedPrefs(true);
+      setPrefsInitialized(true);
     }
-  }, [preferences, hasInitializedPrefs, isLoadingPreferences, pdvs, pdvsLoading]);
+  }, [preferences, prefsInitialized, isLoadingPreferences, pdvs, pdvsLoading]);
   
   const handlePdvChange = (value: string) => {
     setSelectedPdvId(value);
@@ -140,29 +104,38 @@ export default function Index() {
     toast.success("Dashboard atualizado!");
   }, [refetch, refetchSlots, refetchStockHistory]);
 
-  // Process stock data (not dependent on sales date range)
-  const stockByBrand = slotsData ? getStockByBrand(
-    slotsData.filter(s => s.isActive).map(s => ({ brand: s.brand, quantity: s.quantity }))
-  ) : [];
+  // Process stock data with memoization
+  const stockByBrand = useMemo(() => 
+    slotsData 
+      ? getStockByBrand(slotsData.filter(s => s.isActive).map(s => ({ brand: s.brand, quantity: s.quantity }))) 
+      : [],
+    [slotsData]
+  );
   
   // Calculate sales by product for low stock items using topProductsChart
-  const salesByProduct = new Map<string, number>();
-  data?.topProductsChart?.forEach(p => {
-    salesByProduct.set(p.name, p.count);
-  });
+  const salesByProduct = useMemo(() => {
+    const map = new Map<string, number>();
+    data?.topProductsChart?.forEach(p => map.set(p.name, p.count));
+    return map;
+  }, [data?.topProductsChart]);
   
-  // Get low stock items
-  const lowStockItems = slotsData ? getLowStockItems(
-    slotsData.filter(s => s.isActive).map(s => ({
-      slotNumber: s.slot,
-      productName: s.productName,
-      brand: s.brand,
-      quantity: s.quantity,
-      pdvName: s.pdvName,
-    })),
-    salesByProduct,
-    1
-  ) : [];
+  // Get low stock items with memoization
+  const lowStockItems = useMemo(() => 
+    slotsData 
+      ? getLowStockItems(
+          slotsData.filter(s => s.isActive).map(s => ({
+            slotNumber: s.slot,
+            productName: s.productName,
+            brand: s.brand,
+            quantity: s.quantity,
+            pdvName: s.pdvName,
+          })),
+          salesByProduct,
+          1
+        ) 
+      : [],
+    [slotsData, salesByProduct]
+  );
 
   if (isLoading) {
     return (

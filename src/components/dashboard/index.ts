@@ -1,3 +1,4 @@
+export { ChartSkeleton } from './ChartSkeleton';
 export { DateRangeFilter } from './DateRangeFilter';
 export { KPICard } from './KPICard';
 export { QuickStats } from './QuickStats';
