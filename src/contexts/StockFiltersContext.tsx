@@ -108,3 +108,23 @@ export function useStockFilters() {
   }
   return context;
 }
+
+// Hook seguro para uso fora do provider (como em prefetch)
+export function useStockFiltersOptional() {
+  const context = useContext(StockFiltersContext);
+  return context ?? {
+    selectedPdv: 'all',
+    searchTerm: '',
+    brandFilter: 'all',
+    statusFilter: 'all',
+    salesIndexFilter: 'all',
+    setSelectedPdv: () => {},
+    setSearchTerm: () => {},
+    setBrandFilter: () => {},
+    setStatusFilter: () => {},
+    setSalesIndexFilter: () => {},
+    clearFilters: () => {},
+    hasActiveFilters: false,
+    pdvWasAutoApplied: false,
+  };
+}
