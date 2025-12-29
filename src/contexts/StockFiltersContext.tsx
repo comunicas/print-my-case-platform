@@ -17,6 +17,7 @@ interface StockFiltersContextType extends StockFiltersState {
   setSalesIndexFilter: (index: string) => void;
   clearFilters: () => void;
   hasActiveFilters: boolean;
+  pdvWasAutoApplied: boolean;
 }
 
 const defaultState: StockFiltersState = {
@@ -33,18 +34,23 @@ export function StockFiltersProvider({ children }: { children: ReactNode }) {
   const { preferences, isLoading: isLoadingPreferences } = usePreferences();
   const [hasInitializedPrefs, setHasInitializedPrefs] = useState(false);
   const [state, setState] = useState<StockFiltersState>(defaultState);
+  const [pdvWasAutoApplied, setPdvWasAutoApplied] = useState(false);
 
   // Apply default_pdv preference on first load
   useEffect(() => {
     if (preferences && !hasInitializedPrefs && !isLoadingPreferences) {
       if (preferences.default_pdv) {
         setState(s => ({ ...s, selectedPdv: preferences.default_pdv! }));
+        setPdvWasAutoApplied(true);
       }
       setHasInitializedPrefs(true);
     }
   }, [preferences, hasInitializedPrefs, isLoadingPreferences]);
 
-  const setSelectedPdv = (pdv: string) => setState(s => ({ ...s, selectedPdv: pdv }));
+  const setSelectedPdv = (pdv: string) => {
+    setState(s => ({ ...s, selectedPdv: pdv }));
+    setPdvWasAutoApplied(false);
+  };
   const setSearchTerm = (term: string) => setState(s => ({ ...s, searchTerm: term }));
   const setBrandFilter = (brand: string) => setState(s => ({ ...s, brandFilter: brand }));
   const setStatusFilter = (status: string) => setState(s => ({ ...s, statusFilter: status }));
@@ -68,6 +74,7 @@ export function StockFiltersProvider({ children }: { children: ReactNode }) {
       setSalesIndexFilter,
       clearFilters,
       hasActiveFilters,
+      pdvWasAutoApplied,
     }}>
       {children}
     </StockFiltersContext.Provider>
