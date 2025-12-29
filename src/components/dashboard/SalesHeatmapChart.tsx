@@ -99,7 +99,7 @@ export function SalesHeatmapChart({ data }: SalesHeatmapChartProps) {
               {/* Grid - 8 faixas horárias (2h cada) */}
               <TooltipProvider>
                 {TIME_RANGES.map((range, rIdx) => (
-                  <div key={range.id} className="grid grid-cols-8 gap-1 mb-1">
+                  <div key={range.id} className="grid grid-cols-8 gap-1 mb-1 relative">
                     <div className="text-xs text-muted-foreground text-right pr-1 leading-8">
                       {range.label}
                     </div>
@@ -113,7 +113,10 @@ export function SalesHeatmapChart({ data }: SalesHeatmapChartProps) {
                           <TooltipTrigger asChild>
                             <div
                               className={cn(
-                                "h-8 rounded cursor-default transition-all",
+                                "h-8 rounded cursor-default",
+                                "transition-all duration-200 ease-out",
+                                "hover:scale-110 hover:shadow-lg hover:z-10",
+                                "hover:ring-2 hover:ring-foreground/20",
                                 getCellColor(revenue),
                                 isPeakCell(rIdx, dIdx) && "ring-2 ring-primary ring-offset-1 ring-offset-background"
                               )}
