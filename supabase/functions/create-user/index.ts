@@ -38,7 +38,7 @@ async function logAuditEvent(
   event: AuditEvent
 ) {
   try {
-    const { error } = await supabaseAdmin
+    await supabaseAdmin
       .from('audit_logs')
       .insert({
         event_type: event.event_type,
@@ -55,14 +55,8 @@ async function logAuditEvent(
         ip_address: event.ip_address || null,
         user_agent: event.user_agent || null,
       });
-    
-    if (error) {
-      console.error('Error logging audit event:', error);
-    } else {
-      console.log(`Audit log recorded: ${event.event_type} - success: ${event.success}`);
-    }
-  } catch (error) {
-    console.error('Error logging audit event:', error);
+  } catch {
+    // Silent fail for audit logs - don't block main operation
   }
 }
 
@@ -78,7 +72,7 @@ Deno.serve(async (req) => {
                     'unknown';
   const userAgent = req.headers.get('user-agent') || 'unknown';
 
-  // Create Supabase client with service role for admin operations (needed for audit logs even on errors)
+  // Create Supabase client with service role for admin operations
   const supabaseAdmin = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -89,7 +83,6 @@ Deno.serve(async (req) => {
     // Get the authorization header to identify the caller
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      console.error('Missing authorization header');
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -109,7 +102,6 @@ Deno.serve(async (req) => {
     // Get the calling user
     const { data: { user: callingUser }, error: userError } = await supabaseUser.auth.getUser();
     if (userError || !callingUser) {
-      console.error('Error getting user:', userError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -124,8 +116,6 @@ Deno.serve(async (req) => {
       .single();
 
     if (callerRoleError || !callerRoleData) {
-      console.error('Error getting caller role:', callerRoleError);
-      
       await logAuditEvent(supabaseAdmin, {
         event_type: 'permission_violation',
         actor_id: callingUser.id,
@@ -147,12 +137,8 @@ Deno.serve(async (req) => {
     const isCallerSuperAdmin = callerRole === 'super_admin';
     const isCallerOrgAdmin = callerRole === 'org_admin';
 
-    console.log(`Caller ${callingUser.email} has role: ${callerRole}`);
-
     // Only super_admin and org_admin can create users
     if (!isCallerSuperAdmin && !isCallerOrgAdmin) {
-      console.error(`User ${callingUser.email} with role ${callerRole} tried to create user`);
-      
       await logAuditEvent(supabaseAdmin, {
         event_type: 'permission_violation',
         actor_id: callingUser.id,
@@ -172,15 +158,11 @@ Deno.serve(async (req) => {
     }
 
     // Get caller's organization
-    const { data: callerProfile, error: callerProfileError } = await supabaseAdmin
+    const { data: callerProfile } = await supabaseAdmin
       .from('profiles')
       .select('organization_id')
       .eq('id', callingUser.id)
       .single();
-
-    if (callerProfileError) {
-      console.error('Error getting caller profile:', callerProfileError);
-    }
 
     const callerOrgId = callerProfile?.organization_id;
 
@@ -263,8 +245,6 @@ Deno.serve(async (req) => {
     if (isCallerOrgAdmin) {
       // org_admin cannot create new organizations
       if (createNewOrganization) {
-        console.warn(`org_admin ${callingUser.email} tried to create new organization`);
-        
         await logAuditEvent(supabaseAdmin, {
           event_type: 'permission_violation',
           actor_id: callingUser.id,
@@ -289,8 +269,6 @@ Deno.serve(async (req) => {
 
       // org_admin must belong to an organization
       if (!callerOrgId) {
-        console.error(`org_admin ${callingUser.email} has no organization`);
-        
         await logAuditEvent(supabaseAdmin, {
           event_type: 'permission_violation',
           actor_id: callingUser.id,
@@ -312,8 +290,6 @@ Deno.serve(async (req) => {
 
       // org_admin can only create users in their own organization
       if (organizationId && organizationId !== callerOrgId) {
-        console.warn(`org_admin ${callingUser.email} tried to create user in different org: ${organizationId}. Forcing to ${callerOrgId}`);
-        
         await logAuditEvent(supabaseAdmin, {
           event_type: 'permission_violation',
           actor_id: callingUser.id,
@@ -338,8 +314,6 @@ Deno.serve(async (req) => {
 
       // org_admin cannot create super_admin or org_admin
       if (role === 'super_admin' || role === 'org_admin') {
-        console.warn(`org_admin ${callingUser.email} tried to create user with role: ${role}`);
-        
         await logAuditEvent(supabaseAdmin, {
           event_type: 'permission_violation',
           actor_id: callingUser.id,
@@ -363,12 +337,6 @@ Deno.serve(async (req) => {
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-    }
-
-    // super_admin restrictions (minimal)
-    if (isCallerSuperAdmin) {
-      // Only super_admin can create another super_admin (already verified by being here)
-      // super_admin can do everything else
     }
 
     // Role assignment validation for both
@@ -427,8 +395,6 @@ Deno.serve(async (req) => {
         .single();
 
       if (orgCheckError || !existingOrg) {
-        console.error('Organization not found:', orgCheckError);
-        
         await logAuditEvent(supabaseAdmin, {
           event_type: 'user_creation_failed',
           actor_id: callingUser.id,
@@ -450,10 +416,7 @@ Deno.serve(async (req) => {
       }
 
       targetOrganization = existingOrg;
-      console.log(`Linking user to existing organization: ${existingOrg.name} (${existingOrg.id})`);
     }
-
-    console.log(`Creating user: ${email}, role: ${role}, createNewOrg: ${createNewOrganization}, targetOrg: ${targetOrganizationId}`);
 
     // Create the new user
     const { data: newUserData, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
@@ -464,8 +427,6 @@ Deno.serve(async (req) => {
     });
 
     if (createUserError) {
-      console.error('Error creating user:', createUserError);
-      
       let errorMessage = createUserError.message;
       if (createUserError.message.includes('already been registered')) {
         errorMessage = 'Este email já está cadastrado no sistema';
@@ -494,7 +455,6 @@ Deno.serve(async (req) => {
     }
 
     const newUser = newUserData.user;
-    console.log(`User created with ID: ${newUser.id}`);
 
     // Create organization only if requested (only super_admin can do this)
     if (createNewOrganization) {
@@ -508,7 +468,6 @@ Deno.serve(async (req) => {
         .single();
 
       if (orgError) {
-        console.error('Error creating organization:', orgError);
         await supabaseAdmin.auth.admin.deleteUser(newUser.id);
         
         await logAuditEvent(supabaseAdmin, {
@@ -534,7 +493,6 @@ Deno.serve(async (req) => {
 
       targetOrganizationId = orgData.id;
       targetOrganization = orgData;
-      console.log(`Organization created with ID: ${orgData.id}`);
       
       // Log organization creation
       await logAuditEvent(supabaseAdmin, {
@@ -555,7 +513,7 @@ Deno.serve(async (req) => {
     await new Promise(resolve => setTimeout(resolve, 500));
 
     // Update profile with organization_id
-    const { error: profileError } = await supabaseAdmin
+    await supabaseAdmin
       .from('profiles')
       .update({ 
         organization_id: targetOrganizationId,
@@ -563,19 +521,11 @@ Deno.serve(async (req) => {
       })
       .eq('id', newUser.id);
 
-    if (profileError) {
-      console.error('Error updating profile:', profileError);
-    }
-
     // Update user role (trigger creates viewer by default)
     const { error: roleUpdateError } = await supabaseAdmin
       .from('user_roles')
       .update({ role: role })
       .eq('user_id', newUser.id);
-
-    if (roleUpdateError) {
-      console.error('Error updating role:', roleUpdateError);
-    }
 
     // Log role assignment
     await logAuditEvent(supabaseAdmin, {
@@ -593,8 +543,6 @@ Deno.serve(async (req) => {
       user_agent: userAgent,
       metadata: { new_user_id: newUser.id }
     });
-
-    console.log(`User ${email} setup complete with role ${role} in org ${targetOrganizationId}`);
 
     // Log success
     await logAuditEvent(supabaseAdmin, {
@@ -630,7 +578,6 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Unexpected error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
     
     // Log unexpected error
