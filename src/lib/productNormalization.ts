@@ -72,6 +72,7 @@ export function extractModelFromProductName(fullName: string): string {
  * Remove espaços extras, padroniza case, remove caracteres especiais
  */
 export function normalizeProductName(name: string): string {
+  if (!name) return '';
   return name
     .toLowerCase()
     .trim()
@@ -83,6 +84,7 @@ export function normalizeProductName(name: string): string {
  * Verifica se dois nomes são do mesmo produto (matching exato por modelo)
  */
 export function matchesProduct(name1: string, name2: string): boolean {
+  if (!name1 || !name2) return false;
   const model1 = normalizeProductName(extractModelFromProductName(name1));
   const model2 = normalizeProductName(extractModelFromProductName(name2));
   
@@ -96,6 +98,7 @@ export function matchesProduct(name1: string, name2: string): boolean {
  * Ex: "APPLE iPhone 15" → "APPLE:iphone 15"
  */
 export function getExactProductKey(productName: string): string {
+  if (!productName) return 'UNKNOWN:';
   const brand = extractBrandFromProductName(productName);
   const model = extractModelFromProductName(productName)
     .toLowerCase()
