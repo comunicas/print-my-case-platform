@@ -1,22 +1,36 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { User, Settings as SettingsIcon, Building2, Plug, ExternalLink, Cloud, Loader2, MapPin, Users } from "lucide-react";
-import { ProfileSettings } from "@/components/settings/ProfileSettings";
-import { PreferencesSettings } from "@/components/settings/PreferencesSettings";
-import { OrganizationSettings } from "@/components/settings/OrganizationSettings";
-import { IntegrationsSettings } from "@/components/settings/IntegrationsSettings";
-import { PDVsSettings } from "@/components/settings/PDVsSettings";
-import { TeamSettings } from "@/components/settings/TeamSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useOrganization } from "@/hooks/useOrganization";
 import { usePreferences } from "@/hooks/usePreferences";
 import { usePDVs } from "@/hooks/usePDVs";
+
+// Lazy load das tabs de settings
+const ProfileSettings = lazy(() => import("@/components/settings/ProfileSettings").then(m => ({ default: m.ProfileSettings })));
+const PreferencesSettings = lazy(() => import("@/components/settings/PreferencesSettings").then(m => ({ default: m.PreferencesSettings })));
+const OrganizationSettings = lazy(() => import("@/components/settings/OrganizationSettings").then(m => ({ default: m.OrganizationSettings })));
+const PDVsSettings = lazy(() => import("@/components/settings/PDVsSettings").then(m => ({ default: m.PDVsSettings })));
+const TeamSettings = lazy(() => import("@/components/settings/TeamSettings").then(m => ({ default: m.TeamSettings })));
+const IntegrationsSettings = lazy(() => import("@/components/settings/IntegrationsSettings").then(m => ({ default: m.IntegrationsSettings })));
+
+// Skeleton para fallback das tabs
+function TabSkeleton() {
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-8 w-48" />
+      <Skeleton className="h-32 w-full" />
+      <Skeleton className="h-32 w-full" />
+    </div>
+  );
+}
 
 export default function Settings() {
   const [searchParams] = useSearchParams();
@@ -87,31 +101,37 @@ export default function Settings() {
 
           {/* Profile Tab */}
           <TabsContent value="profile" className="space-y-6">
-            <ProfileSettings
-              profile={profile}
-              role={role}
-              session={session}
-              updateProfile={updateProfile}
-            />
+            <Suspense fallback={<TabSkeleton />}>
+              <ProfileSettings
+                profile={profile}
+                role={role}
+                session={session}
+                updateProfile={updateProfile}
+              />
+            </Suspense>
           </TabsContent>
 
           {/* Preferences Tab */}
           <TabsContent value="preferences" className="space-y-6">
-            <PreferencesSettings
-              preferences={preferences}
-              pdvs={pdvs}
-              updatePreferences={updatePreferences}
-            />
+            <Suspense fallback={<TabSkeleton />}>
+              <PreferencesSettings
+                preferences={preferences}
+                pdvs={pdvs}
+                updatePreferences={updatePreferences}
+              />
+            </Suspense>
           </TabsContent>
 
           {/* Organization Tab */}
           <TabsContent value="organization" className="space-y-6">
             {organization && (
-              <OrganizationSettings
-                organization={organization}
-                isAdmin={isAdmin}
-                updateOrganization={updateOrganization}
-              />
+              <Suspense fallback={<TabSkeleton />}>
+                <OrganizationSettings
+                  organization={organization}
+                  isAdmin={isAdmin}
+                  updateOrganization={updateOrganization}
+                />
+              </Suspense>
             )}
 
             {/* Plan & Billing */}
@@ -190,19 +210,25 @@ export default function Settings() {
 
           {/* PDVs Tab */}
           <TabsContent value="pdvs" className="space-y-6">
-            <PDVsSettings />
+            <Suspense fallback={<TabSkeleton />}>
+              <PDVsSettings />
+            </Suspense>
           </TabsContent>
 
           {/* Team Tab */}
           {isAdmin && (
             <TabsContent value="team" className="space-y-6">
-              <TeamSettings />
+              <Suspense fallback={<TabSkeleton />}>
+                <TeamSettings />
+              </Suspense>
             </TabsContent>
           )}
 
           {/* Integrations Tab */}
           <TabsContent value="integrations" className="space-y-6">
-            <IntegrationsSettings />
+            <Suspense fallback={<TabSkeleton />}>
+              <IntegrationsSettings />
+            </Suspense>
 
             {/* Backend Status */}
             <Card>
