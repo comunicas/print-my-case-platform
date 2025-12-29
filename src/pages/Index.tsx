@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { subDays, startOfDay, endOfDay, startOfMonth } from "date-fns";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
   DollarSign, 
   ShoppingCart, 
@@ -27,16 +28,32 @@ import { calculateTrend } from "@/lib/trendUtils";
 import { getStockByBrand, getLowStockItems } from "@/lib/dashboardUtils";
 import { PDVFilter } from "@/components/ui/PDVFilter";
 
-// Dashboard Components
+// Componentes leves carregados diretamente
 import { DateRangeFilter, DateRange } from "@/components/dashboard/DateRangeFilter";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { QuickStats } from "@/components/dashboard/QuickStats";
-import { SalesByDayChart } from "@/components/dashboard/SalesByDayChart";
-import { SalesHeatmapChart } from "@/components/dashboard/SalesHeatmapChart";
-import { TopProductsChart } from "@/components/dashboard/TopProductsChart";
-import { StockByBrandChart } from "@/components/dashboard/StockByBrandChart";
 import { StockAlertsTable } from "@/components/dashboard/StockAlertsTable";
-import { StockHistoryChart } from "@/components/dashboard/StockHistoryChart";
+
+// Lazy load dos charts pesados (usam recharts)
+const SalesByDayChart = lazy(() => import("@/components/dashboard/SalesByDayChart").then(m => ({ default: m.SalesByDayChart })));
+const SalesHeatmapChart = lazy(() => import("@/components/dashboard/SalesHeatmapChart").then(m => ({ default: m.SalesHeatmapChart })));
+const TopProductsChart = lazy(() => import("@/components/dashboard/TopProductsChart").then(m => ({ default: m.TopProductsChart })));
+const StockByBrandChart = lazy(() => import("@/components/dashboard/StockByBrandChart").then(m => ({ default: m.StockByBrandChart })));
+const StockHistoryChart = lazy(() => import("@/components/dashboard/StockHistoryChart").then(m => ({ default: m.StockHistoryChart })));
+
+// Skeleton para charts
+function ChartSkeleton() {
+  return (
+    <Card className="flex flex-col">
+      <CardHeader className="px-4 md:px-6 pt-4 md:pt-6 pb-3">
+        <Skeleton className="h-5 w-40" />
+      </CardHeader>
+      <CardContent className="flex-1 px-4 md:px-6 pb-4 md:pb-6">
+        <Skeleton className="h-[250px] w-full" />
+      </CardContent>
+    </Card>
+  );
+}
 
 // Helper to get date range from period preference
 function getDateRangeFromPeriod(period: string | null | undefined): DateRange {
@@ -327,22 +344,32 @@ export default function Index() {
           <>
             {/* Row 1: Sales by Day + Heatmap */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
-              <SalesByDayChart data={data?.salesByDay || []} />
-              <SalesHeatmapChart data={data?.salesByHourAndDay || []} />
+              <Suspense fallback={<ChartSkeleton />}>
+                <SalesByDayChart data={data?.salesByDay || []} />
+              </Suspense>
+              <Suspense fallback={<ChartSkeleton />}>
+                <SalesHeatmapChart data={data?.salesByHourAndDay || []} />
+              </Suspense>
             </div>
 
             {/* Row 2: Top Products + Stock by Brand */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
-              <TopProductsChart data={data?.topProductsChart || []} />
-              <StockByBrandChart data={stockByBrand} />
+              <Suspense fallback={<ChartSkeleton />}>
+                <TopProductsChart data={data?.topProductsChart || []} />
+              </Suspense>
+              <Suspense fallback={<ChartSkeleton />}>
+                <StockByBrandChart data={stockByBrand} />
+              </Suspense>
             </div>
 
             {/* Stock History Chart */}
             {stockHistory && stockHistory.chartData.length > 0 && (
-              <StockHistoryChart 
-                data={stockHistory.chartData} 
-                brands={stockHistory.brands} 
-              />
+              <Suspense fallback={<ChartSkeleton />}>
+                <StockHistoryChart 
+                  data={stockHistory.chartData} 
+                  brands={stockHistory.brands} 
+                />
+              </Suspense>
             )}
 
             {/* Stock Alerts Table */}
