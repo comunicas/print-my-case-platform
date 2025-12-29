@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo, lazy, Suspense, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { subDays, startOfDay, endOfDay, startOfMonth } from "date-fns";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -27,6 +27,9 @@ import { formatCurrency } from "@/lib/utils";
 import { calculateTrend } from "@/lib/trendUtils";
 import { getStockByBrand, getLowStockItems } from "@/lib/dashboardUtils";
 import { PDVFilter } from "@/components/ui/PDVFilter";
+import { PullToRefresh } from "@/components/ui/pull-to-refresh";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { toast } from "sonner";
 
 // Componentes leves carregados diretamente
 import { DateRangeFilter, DateRange } from "@/components/dashboard/DateRangeFilter";
@@ -121,13 +124,21 @@ export default function Index() {
     setPdvWasAutoApplied(false);
   };
   
-  const { data, isLoading } = useDashboard({ 
+  const isMobile = useIsMobile();
+  
+  const { data, isLoading, isFetching, refetch } = useDashboard({ 
     selectedOrganizationId: selectedOrgId,
     selectedPdvId: selectedPdvId,
     dateRange: { from: dateRange.from, to: dateRange.to }
   });
-  const { data: slotsData } = useSlotsData({ pdvId: selectedPdvId !== 'all' ? selectedPdvId : undefined });
-  const { data: stockHistory } = useStockHistory({ days: 90, organizationId: selectedOrgId, pdvId: selectedPdvId !== 'all' ? selectedPdvId : undefined });
+  const { data: slotsData, refetch: refetchSlots } = useSlotsData({ pdvId: selectedPdvId !== 'all' ? selectedPdvId : undefined });
+  const { data: stockHistory, refetch: refetchStockHistory } = useStockHistory({ days: 90, organizationId: selectedOrgId, pdvId: selectedPdvId !== 'all' ? selectedPdvId : undefined });
+
+  // Pull-to-refresh handler
+  const handleRefresh = useCallback(async () => {
+    await Promise.all([refetch(), refetchSlots(), refetchStockHistory()]);
+    toast.success("Dashboard atualizado!");
+  }, [refetch, refetchSlots, refetchStockHistory]);
 
   // Process stock data (not dependent on sales date range)
   const stockByBrand = slotsData ? getStockByBrand(
@@ -193,9 +204,8 @@ export default function Index() {
   // Count critical stock
   const criticalStockCount = lowStockItems.length;
 
-  return (
-    <AppLayout>
-      <div className="space-y-4 md:space-y-6">
+  const dashboardContent = (
+    <div className="space-y-4 md:space-y-6">
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -376,7 +386,18 @@ export default function Index() {
             <StockAlertsTable data={lowStockItems} />
           </>
         )}
-      </div>
+    </div>
+  );
+
+  return (
+    <AppLayout>
+      {isMobile ? (
+        <PullToRefresh onRefresh={handleRefresh} isRefreshing={isFetching}>
+          {dashboardContent}
+        </PullToRefresh>
+      ) : (
+        dashboardContent
+      )}
     </AppLayout>
   );
 }

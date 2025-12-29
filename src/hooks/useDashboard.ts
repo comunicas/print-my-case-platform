@@ -245,7 +245,9 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
   return {
     data: dashboardQuery.data,
     isLoading: dashboardQuery.isLoading,
+    isFetching: dashboardQuery.isFetching,
     error: dashboardQuery.error,
+    refetch: dashboardQuery.refetch,
     isSuperAdmin,
   };
 }
