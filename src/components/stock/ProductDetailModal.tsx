@@ -69,7 +69,7 @@ export function ProductDetailModal({ productName, slots, isOpen, onClose, pdvId 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <BrandLogo brand={productData.brand} size="md" />
@@ -86,7 +86,7 @@ export function ProductDetailModal({ productName, slots, isOpen, onClose, pdvId 
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-6 overflow-hidden">
           {/* KPI de Estoque */}
           <div className="p-4 bg-muted/30 rounded-lg space-y-1">
             <div className="flex items-center gap-2 text-muted-foreground">
