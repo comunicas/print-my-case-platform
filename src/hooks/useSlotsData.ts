@@ -77,8 +77,10 @@ export function useSlotsData({ pdvId, userId }: UseSlotsDataParams = {}) {
         }
       }
       
-      // Transforma em SlotData com extração de marca
-      return stockRecords.map(record => ({
+      // Transforma em SlotData com extração de marca (filtra registros inválidos)
+      return stockRecords
+        .filter(record => record.product_name)
+        .map(record => ({
         id: record.id,
         slot: record.slot_number,
         productName: record.product_name,
