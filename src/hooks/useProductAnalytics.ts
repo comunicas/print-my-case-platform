@@ -36,11 +36,13 @@ export function useProductAnalytics(productName: string | null, pdvId?: string) 
         throw new Error('Product name is required');
       }
 
-      // Buscar vendas do produto
+      // Buscar vendas do produto (limit to last 10000 records to avoid performance issues)
       let query = supabase
         .from('sales_records')
         .select('*')
-        .ilike('product_name', `%${productName}%`);
+        .ilike('product_name', `%${productName}%`)
+        .order('payment_date', { ascending: false })
+        .limit(10000);
 
       if (pdvId) {
         query = query.eq('pdv_id', pdvId);

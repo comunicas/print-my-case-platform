@@ -55,10 +55,10 @@ import { useUploads, UploadListItem } from "@/hooks/useUploads";
 import { usePDVs } from "@/hooks/usePDVs";
 import { useProfile } from "@/hooks/useProfile";
 import { PDVFilter } from "@/components/ui/PDVFilter";
-
+import { DataPagination } from "@/components/ui/data-pagination";
 export default function Uploads() {
   const navigate = useNavigate();
-  const { uploads, isLoading, createUpload, deleteUpload } = useUploads();
+  const { uploads, isLoading, createUpload, deleteUpload, pagination, totalCount } = useUploads();
   const { pdvs, isLoading: pdvsLoading } = usePDVs();
   const { isAdmin } = useProfile();
   const { preferences, isLoading: isLoadingPreferences } = usePreferences();
@@ -383,6 +383,21 @@ export default function Uploads() {
             </Card>
           ))}
         </div>
+
+        {/* Pagination */}
+        {filteredUploads.length > 0 && totalCount > pagination.pageSize && (
+          <DataPagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            pageSize={pagination.pageSize}
+            totalCount={totalCount}
+            hasNextPage={pagination.hasNextPage}
+            hasPrevPage={pagination.hasPrevPage}
+            onPageChange={pagination.setPage}
+            onPageSizeChange={pagination.setPageSize}
+            pageSizeOptions={[25, 50, 100]}
+          />
+        )}
 
         {/* Empty State */}
         {filteredUploads.length === 0 && (
