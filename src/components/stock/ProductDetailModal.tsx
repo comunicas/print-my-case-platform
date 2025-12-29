@@ -31,6 +31,7 @@ interface ProductDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   pdvId?: string;
+  slotsLoading?: boolean;
 }
 
 // Skeleton loader para quando a modal está carregando
@@ -63,7 +64,7 @@ function ModalSkeleton() {
   );
 }
 
-export function ProductDetailModal({ productName, slots, isOpen, onClose, pdvId }: ProductDetailModalProps) {
+export function ProductDetailModal({ productName, slots, isOpen, onClose, pdvId, slotsLoading }: ProductDetailModalProps) {
   const { pdvs } = usePDVs();
   const pdvName = pdvId ? pdvs.find(p => p.id === pdvId)?.name : null;
 
@@ -104,12 +105,32 @@ export function ProductDetailModal({ productName, slots, isOpen, onClose, pdvId 
     };
   }, [productName, slots]);
 
-  // Mostra skeleton enquanto carrega os dados do produto
-  if (!productData && isOpen && productName) {
+  // Mostra skeleton enquanto carrega os slots
+  if (slotsLoading && isOpen && productName) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <ModalSkeleton />
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Produto não encontrado após carregar
+  if (!productData && isOpen && productName && !slotsLoading) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-muted-foreground" />
+              Produto não encontrado
+            </DialogTitle>
+            <DialogDescription>
+              Não foi possível encontrar dados de estoque para este produto. 
+              Verifique se você tem acesso ao PDV correspondente.
+            </DialogDescription>
+          </DialogHeader>
         </DialogContent>
       </Dialog>
     );
