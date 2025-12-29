@@ -13,7 +13,6 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ProductDisplay } from '@/components/ui/ProductDisplay';
 import { ProductStock, SalesIndex, ProductStatus } from '@/lib/stockUtils';
-import { MAX_CAPACITY } from '@/lib/stockGridUtils';
 import { statusLabels, statusColors, salesIndexLabels, salesIndexColors } from '@/lib/stockLabels';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useProductModal } from '@/contexts/ProductModalContext';
@@ -31,7 +30,6 @@ type SortDirection = 'asc' | 'desc';
 export function ProductStockTable({ products, isLoading }: ProductStockTableProps) {
   const [sortField, setSortField] = useState<SortField>('quantity');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
   const pageSize = 10;
@@ -111,7 +109,6 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
         }
         break;
       case 'Escape':
-        setExpandedProduct(null);
         setFocusedIndex(-1);
         break;
       case 'Home':
@@ -196,111 +193,97 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
           </TableHeader>
           <TableBody onKeyDown={handleKeyDown} role="grid">
             {paginatedProducts.map((product, index) => (
-              <>
-                <TableRow 
-                  key={product.productKey}
-                  ref={el => rowRefs.current[index] = el}
-                  tabIndex={focusedIndex === index ? 0 : -1}
-                  className={cn(focusedIndex === index && "ring-2 ring-primary ring-inset")}
-                  onFocus={() => setFocusedIndex(index)}
-                >
-                  <TableCell>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            onClick={() => openProductModal(product.productKey, selectedPdv !== 'all' ? selectedPdv : undefined)}
-                            className="text-left text-primary hover:underline cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
-                          >
-                            <ProductDisplay 
-                              brand={product.brand} 
-                              model={product.model}
-                              logoSize="sm"
-                            />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Clique para ver detalhes</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2 min-w-[120px]">
-                      <Progress 
-                        value={(product.totalQuantity / product.maxCapacity) * 100} 
-                        className="h-2 w-16"
-                      />
-                      <span className="text-sm font-medium">
-                        {product.totalQuantity}/{product.maxCapacity}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="flex items-center gap-2 cursor-help">
-                            <div className="flex items-center gap-1 text-sm font-medium">
-                              <ShoppingCart className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span>{product.totalSold}</span>
-                            </div>
-                            <Badge variant="outline" className={salesIndexColors[product.salesIndex]}>
-                              {salesIndexLabels[product.salesIndex]}
-                            </Badge>
+              <TableRow 
+                key={product.productKey}
+                ref={el => rowRefs.current[index] = el}
+                tabIndex={focusedIndex === index ? 0 : -1}
+                className={cn(focusedIndex === index && "ring-2 ring-primary ring-inset")}
+                onFocus={() => setFocusedIndex(index)}
+              >
+                <TableCell>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => openProductModal(product.productKey, selectedPdv !== 'all' ? selectedPdv : undefined)}
+                          className="text-left text-primary hover:underline cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
+                        >
+                          <ProductDisplay 
+                            brand={product.brand} 
+                            model={product.model}
+                            logoSize="sm"
+                          />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Clique para ver detalhes</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2 min-w-[120px]">
+                    <Progress 
+                      value={(product.totalQuantity / product.maxCapacity) * 100} 
+                      className="h-2 w-16"
+                    />
+                    <span className="text-sm font-medium">
+                      {product.totalQuantity}/{product.maxCapacity}
+                    </span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-2 cursor-help">
+                          <div className="flex items-center gap-1 text-sm font-medium">
+                            <ShoppingCart className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span>{product.totalSold}</span>
                           </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>
-                            {product.totalSold === 0 
-                              ? 'Nenhuma venda registrada' 
-                              : `${product.totalSold} unidade${product.totalSold > 1 ? 's' : ''} vendida${product.totalSold > 1 ? 's' : ''}`
-                            }
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm">{product.slots.length}</span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={statusColors[product.status]}>
-                      {statusLabels[product.status]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={() => setExpandedProduct(
-                        expandedProduct === product.productKey ? null : product.productKey
-                      )}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-                {expandedProduct === product.productKey && (
-                  <TableRow>
-                    <TableCell colSpan={6} className="bg-muted/30">
-                      <div className="p-4">
-                        <p className="text-sm font-medium mb-2">Detalhes dos Slots:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {product.slots.map((slot) => (
-                            <div 
-                              key={slot.slotNumber}
-                              className="px-3 py-1 rounded-md bg-background border text-sm"
-                            >
-                              Slot {slot.slotNumber}: {slot.quantity}/{MAX_CAPACITY}
-                            </div>
-                          ))}
+                          <Badge variant="outline" className={salesIndexColors[product.salesIndex]}>
+                            {salesIndexLabels[product.salesIndex]}
+                          </Badge>
                         </div>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>
+                          {product.totalSold === 0 
+                            ? 'Nenhuma venda registrada' 
+                            : `${product.totalSold} unidade${product.totalSold > 1 ? 's' : ''} vendida${product.totalSold > 1 ? 's' : ''}`
+                          }
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </TableCell>
+                <TableCell>
+                  <span className="text-sm">{product.slots.length}</span>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className={statusColors[product.status]}>
+                    {statusLabels[product.status]}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => openProductModal(product.productKey, selectedPdv !== 'all' ? selectedPdv : undefined)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Ver detalhes</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </TableCell>
+              </TableRow>
             ))}
           </TableBody>
         </Table>
