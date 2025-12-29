@@ -77,7 +77,10 @@ export function PDVFilter({
     <div className={cn("flex items-center gap-1", className)}>
       <div className="relative">
         <Select value={value} onValueChange={onChange}>
-          <SelectTrigger className={cn("w-full sm:w-[180px]", triggerClassName)}>
+          <SelectTrigger 
+            data-testid="pdv-select-trigger"
+            className={cn("w-full sm:w-[180px]", triggerClassName)}
+          >
             <SelectValue placeholder="Selecionar PDV" />
           </SelectTrigger>
           <SelectContent>
@@ -94,7 +97,8 @@ export function PDVFilter({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Badge 
-                  variant="outline" 
+                  variant="outline"
+                  data-testid="auto-badge"
                   className={cn(
                     "absolute -top-2 -right-2 text-[10px] px-1.5 py-0 h-4 bg-primary/10 border-primary/30 text-primary cursor-help",
                     isAnimatingOut ? "animate-badge-fade-out" : "animate-badge-fade-in"
@@ -120,6 +124,7 @@ export function PDVFilter({
               <Button
                 variant="ghost"
                 size="icon"
+                data-testid="save-default-pdv"
                 className="h-8 w-8 text-muted-foreground hover:text-primary"
                 onClick={handleSaveAsDefault}
                 disabled={updatePreferences.isPending}
@@ -146,6 +151,7 @@ export function PDVFilter({
               <Button
                 variant="ghost"
                 size="icon"
+                data-testid="clear-default-pdv"
                 className="h-8 w-8 text-primary hover:text-destructive"
                 onClick={handleClearDefault}
                 disabled={updatePreferences.isPending}
