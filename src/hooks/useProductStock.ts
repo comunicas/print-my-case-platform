@@ -78,11 +78,25 @@ export function useProductStock() {
     
     // Filtro de busca por modelo
     if (filters.searchTerm) {
-      const term = filters.searchTerm.toLowerCase();
-      filtered = filtered.filter(p => 
-        p.model.toLowerCase().includes(term) ||
-        p.productName.toLowerCase().includes(term)
+      const term = filters.searchTerm.toLowerCase().trim();
+      
+      // Verifica se o termo corresponde exatamente a algum modelo existente (seleção do autocomplete)
+      const exactModelMatch = productSuggestions.some(s => 
+        s.model.toLowerCase().trim() === term
       );
+      
+      filtered = filtered.filter(p => {
+        const modelLower = p.model.toLowerCase().trim();
+        const productLower = p.productName.toLowerCase().trim();
+        
+        if (exactModelMatch) {
+          // Match exato - usuário selecionou um produto específico
+          return modelLower === term || productLower === term;
+        } else {
+          // Match parcial - usuário está digitando
+          return modelLower.includes(term) || productLower.includes(term);
+        }
+      });
     }
     
     // Filtro por marca
@@ -105,11 +119,25 @@ export function useProductStock() {
     
     // Filtro de busca por modelo
     if (filters.searchTerm) {
-      const term = filters.searchTerm.toLowerCase();
-      slotsFiltered = slotsFiltered.filter(s => 
-        s.model.toLowerCase().includes(term) ||
-        s.productName.toLowerCase().includes(term)
+      const term = filters.searchTerm.toLowerCase().trim();
+      
+      // Verifica se o termo corresponde exatamente a algum modelo existente
+      const exactModelMatch = productSuggestions.some(s => 
+        s.model.toLowerCase().trim() === term
       );
+      
+      slotsFiltered = slotsFiltered.filter(s => {
+        const modelLower = s.model.toLowerCase().trim();
+        const productLower = s.productName.toLowerCase().trim();
+        
+        if (exactModelMatch) {
+          // Match exato
+          return modelLower === term || productLower === term;
+        } else {
+          // Match parcial
+          return modelLower.includes(term) || productLower.includes(term);
+        }
+      });
     }
     
     // Filtro por marca
