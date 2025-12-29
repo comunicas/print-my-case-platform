@@ -79,8 +79,8 @@ export function getSalesByDay(sales: SaleRecord[]): SalesByDayData[] {
   const byDay = new Map<string, { revenue: number; count: number }>();
   
   for (const sale of sales) {
-    // Extrai a data diretamente da string ISO para evitar problemas de timezone
-    const date = sale.payment_date.split('T')[0];
+    // Extrai os primeiros 10 caracteres (YYYY-MM-DD) independente do formato
+    const date = sale.payment_date.substring(0, 10);
     const current = byDay.get(date) || { revenue: 0, count: 0 };
     current.revenue += Number(sale.amount) - Number(sale.refund_amount || 0);
     current.count += 1;
