@@ -20,6 +20,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useProfile } from "@/hooks/useProfile";
+import { usePrefetchRoutes } from "@/hooks/usePrefetchRoutes";
 
 interface NavItem {
   icon: React.ElementType;
@@ -57,6 +58,7 @@ export function AppSidebar({
   onStockExpandedChange,
 }: AppSidebarProps) {
   const { role } = useProfile();
+  const { prefetchMap, prefetchStock } = usePrefetchRoutes();
   const isSuperAdmin = role === "super_admin";
   const isStockActive = activeItem.startsWith("/estoque");
 
@@ -67,10 +69,12 @@ export function AppSidebar({
   const renderNavItem = (item: NavItem) => {
     const Icon = item.icon;
     const isActive = activeItem === item.href;
+    const handlePrefetch = prefetchMap[item.href as keyof typeof prefetchMap];
 
     const button = (
       <button
         onClick={() => onNavigate(item.href)}
+        onMouseEnter={handlePrefetch}
         className={cn(
           "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
           collapsed && "justify-center px-2",
@@ -108,6 +112,7 @@ export function AppSidebar({
       const button = (
         <button
           onClick={() => onNavigate("/estoque")}
+          onMouseEnter={prefetchStock}
           className={cn(
             "w-full flex items-center justify-center px-2 py-2.5 rounded-lg text-sm font-medium transition-colors",
             isStockActive
@@ -136,6 +141,7 @@ export function AppSidebar({
       <Collapsible open={effectiveStockExpanded} onOpenChange={onStockExpandedChange}>
         <CollapsibleTrigger asChild>
           <button
+            onMouseEnter={prefetchStock}
             className={cn(
               "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
               isStockActive
@@ -171,6 +177,7 @@ export function AppSidebar({
                 <button
                   key={subItem.href}
                   onClick={() => onNavigate(subItem.href)}
+                  onMouseEnter={prefetchStock}
                   className={cn(
                     "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
                     isSubActive
