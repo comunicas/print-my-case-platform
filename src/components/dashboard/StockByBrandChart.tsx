@@ -45,10 +45,20 @@ export function StockByBrandChart({ data }: StockByBrandChartProps) {
               <ChartTooltip 
                 content={
                   <ChartTooltipContent 
-                    formatter={(value, name) => {
-                      const qty = Number(value);
-                      const pct = Math.round((qty / total) * 100);
-                      return [`${qty} unidades (${pct}%)`, name];
+                    hideLabel={true}
+                    formatter={(value, name, item) => {
+                      const entry = item.payload as StockByBrandData;
+                      const pct = Math.round((entry.quantity / total) * 100);
+                      return [
+                        <div key="tooltip" className="flex flex-col gap-1">
+                          <span className="font-medium">{entry.brand}</span>
+                          <span>{entry.quantity} unidades</span>
+                          <span className="text-muted-foreground text-sm">
+                            {pct}% do estoque total
+                          </span>
+                        </div>,
+                        ""
+                      ];
                     }}
                   />
                 }

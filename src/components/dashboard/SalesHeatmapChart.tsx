@@ -120,10 +120,10 @@ export function SalesHeatmapChart({ data }: SalesHeatmapChartProps) {
                             />
                           </TooltipTrigger>
                           <TooltipContent>
-                            <div className="text-xs">
-                              <p className="font-medium">{day} {range.label}</p>
-                              <p>Receita: {formatCurrency(revenue)}</p>
-                              <p>Vendas: {count}</p>
+                            <div className="flex flex-col gap-1">
+                              <span className="font-medium text-sm">{day} {range.label}</span>
+                              <span className="text-xs">Receita: {formatCurrency(revenue)}</span>
+                              <span className="text-xs text-muted-foreground">{count} vendas</span>
                             </div>
                           </TooltipContent>
                         </Tooltip>
