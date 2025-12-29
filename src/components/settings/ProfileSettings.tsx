@@ -266,7 +266,7 @@ export function ProfileSettings({ profile, role, session, updateProfile }: Profi
                   Alterar Senha
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[425px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
                 <DialogHeader>
                   <DialogTitle>Alterar Senha</DialogTitle>
                   <DialogDescription>
