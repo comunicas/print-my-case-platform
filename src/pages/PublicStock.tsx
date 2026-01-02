@@ -76,6 +76,11 @@ export default function PublicStock() {
     window.open(url, '_blank');
   }, [organization?.pdv_location]);
 
+  const scrollToLocation = useCallback(() => {
+    const locationCard = document.getElementById('location-card');
+    locationCard?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, []);
+
   // Calculate filtered items count for display - must be before early returns
   const filteredItemsCount = useMemo(() => {
     return stock.filter((item) => {
@@ -131,6 +136,17 @@ export default function PublicStock() {
                 {organization.pdv_name || organization.name}
               </h1>
               <p className="text-white/80 text-sm">Catálogo de Produtos</p>
+              
+              {/* Anchor to location */}
+              {organization.pdv_location && (
+                <button
+                  onClick={scrollToLocation}
+                  className="mt-1 flex items-center gap-1 text-white/60 hover:text-white text-xs transition-colors"
+                >
+                  <MapPin className="h-3 w-3" />
+                  <span>Ver localização</span>
+                </button>
+              )}
             </div>
             
             {/* Botões de ação */}
@@ -230,7 +246,7 @@ export default function PublicStock() {
         {/* Location Card */}
         {organization.pdv_location && (
           <div className="container mx-auto px-4 py-6 max-w-2xl">
-            <div className="bg-card border rounded-xl p-4 shadow-sm">
+            <div id="location-card" className="bg-card border rounded-xl p-4 shadow-sm">
               <div className="flex items-start gap-3">
                 <div className="bg-primary/10 p-2 rounded-full">
                   <MapPin className="h-5 w-5 text-primary" />
