@@ -80,6 +80,8 @@ export type Database = {
           owner_id: string | null
           phone: string | null
           plan: string | null
+          public_catalog_enabled: boolean | null
+          public_slug: string | null
         }
         Insert: {
           active_since?: string | null
@@ -92,6 +94,8 @@ export type Database = {
           owner_id?: string | null
           phone?: string | null
           plan?: string | null
+          public_catalog_enabled?: boolean | null
+          public_slug?: string | null
         }
         Update: {
           active_since?: string | null
@@ -104,6 +108,8 @@ export type Database = {
           owner_id?: string | null
           phone?: string | null
           plan?: string | null
+          public_catalog_enabled?: boolean | null
+          public_slug?: string | null
         }
         Relationships: []
       }
@@ -198,6 +204,50 @@ export type Database = {
           weekly_reports?: boolean | null
         }
         Relationships: []
+      }
+      product_requests: {
+        Row: {
+          created_at: string | null
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string
+          id: string
+          message: string | null
+          organization_id: string
+          requested_model: string
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_email?: string | null
+          customer_name: string
+          customer_phone: string
+          id?: string
+          message?: string | null
+          organization_id: string
+          requested_model: string
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string
+          id?: string
+          message?: string | null
+          organization_id?: string
+          requested_model?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       products: {
         Row: {
@@ -572,6 +622,14 @@ export type Database = {
         Returns: boolean
       }
       get_org_user_ids: { Args: { _user_id: string }; Returns: string[] }
+      get_public_organization: {
+        Args: { p_slug: string }
+        Returns: {
+          id: string
+          name: string
+          public_slug: string
+        }[]
+      }
       get_public_stock: {
         Args: { p_org_id: string }
         Returns: {

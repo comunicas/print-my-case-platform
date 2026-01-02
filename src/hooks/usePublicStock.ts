@@ -30,16 +30,14 @@ export function usePublicStock(orgSlug: string | undefined) {
     queryFn: async () => {
       if (!orgSlug) return null;
       
-      // Use raw SQL via RPC since columns aren't in types yet
       const { data, error } = await supabase
-        .rpc("get_public_organization" as never, { p_slug: orgSlug } as never);
+        .rpc("get_public_organization", { p_slug: orgSlug });
       
       if (error) throw error;
       
-      const results = data as unknown as PublicOrganization[];
-      if (!results || results.length === 0) return null;
+      if (!data || data.length === 0) return null;
       
-      return results[0];
+      return data[0] as PublicOrganization;
     },
     enabled: !!orgSlug,
   });
@@ -66,9 +64,8 @@ export function usePublicStock(orgSlug: string | undefined) {
 
   const submitRequestMutation = useMutation({
     mutationFn: async (data: ProductRequestData) => {
-      // Use raw query since types aren't updated yet
       const { error } = await supabase
-        .from("product_requests" as never)
+        .from("product_requests")
         .insert({
           organization_id: data.organization_id,
           customer_name: data.customer_name,
@@ -76,7 +73,7 @@ export function usePublicStock(orgSlug: string | undefined) {
           customer_email: data.customer_email || null,
           requested_model: data.requested_model,
           message: data.message || null,
-        } as never);
+        });
       
       if (error) throw error;
     },
