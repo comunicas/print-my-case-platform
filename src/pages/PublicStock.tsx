@@ -1,10 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { Loader2, Package, MapPin, X } from "lucide-react";
 import { usePublicStock } from "@/hooks/usePublicStock";
 import { PublicStockSearch, PublicStockList, PublicBrandFilter, ProductRequestForm, ProductCodeModal } from "@/components/public";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { extractBrandFromProductName } from "@/lib/productNormalization";
 
 export default function PublicStock() {
@@ -20,7 +21,13 @@ export default function PublicStock() {
     isLoadingStock,
     submitRequest,
     isSubmitting,
+    refetchStock,
+    isRefetching,
   } = usePublicStock(orgSlug);
+
+  const handleRefresh = useCallback(async () => {
+    await refetchStock();
+  }, [refetchStock]);
 
   if (isLoadingOrganization) {
     return (
@@ -101,59 +108,66 @@ export default function PublicStock() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-6 max-w-2xl">
-        {/* Results Counter */}
-        {!isLoadingStock && (
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-muted-foreground">
-              {filteredItemsCount} {filteredItemsCount === 1 ? 'modelo encontrado' : 'modelos encontrados'}
-            </p>
-            {hasActiveFilters && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={clearFilters}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-4 w-4 mr-1" />
-                Limpar filtros
-              </Button>
-            )}
-          </div>
-        )}
+      {/* Pull-to-Refresh Content */}
+      <PullToRefresh 
+        onRefresh={handleRefresh} 
+        isRefreshing={isRefetching}
+        disabled={isLoadingStock}
+      >
+        {/* Main Content */}
+        <main className="container mx-auto px-4 py-6 max-w-2xl">
+          {/* Results Counter */}
+          {!isLoadingStock && (
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm text-muted-foreground">
+                {filteredItemsCount} {filteredItemsCount === 1 ? 'modelo encontrado' : 'modelos encontrados'}
+              </p>
+              {hasActiveFilters && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={clearFilters}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
+          )}
 
-        {/* Stock List */}
-        {isLoadingStock ? (
-          <div className="space-y-2">
-            {[...Array(6)].map((_, i) => (
-              <Skeleton key={i} className="h-14 w-full rounded-lg" />
-            ))}
-          </div>
-        ) : (
-          <PublicStockList 
-            items={stock} 
-            searchTerm={searchTerm} 
-            selectedBrand={selectedBrand}
-            catalogCodeEnabled={catalogCodeEnabled}
-            onProductClick={setSelectedProduct}
+          {/* Stock List */}
+          {isLoadingStock ? (
+            <div className="space-y-2">
+              {[...Array(6)].map((_, i) => (
+                <Skeleton key={i} className="h-14 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : (
+            <PublicStockList 
+              items={stock} 
+              searchTerm={searchTerm} 
+              selectedBrand={selectedBrand}
+              catalogCodeEnabled={catalogCodeEnabled}
+              onProductClick={setSelectedProduct}
+            />
+          )}
+
+          {/* Request Form */}
+          <ProductRequestForm
+            organizationId={organization.id}
+            onSubmit={submitRequest}
+            isSubmitting={isSubmitting}
           />
-        )}
+        </main>
 
-        {/* Request Form */}
-        <ProductRequestForm
-          organizationId={organization.id}
-          onSubmit={submitRequest}
-          isSubmitting={isSubmitting}
-        />
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t bg-card mt-8">
-        <div className="container mx-auto px-4 py-4 text-center text-sm text-muted-foreground">
-          Powered by PrintMyCase
-        </div>
-      </footer>
+        {/* Footer */}
+        <footer className="border-t bg-card mt-8">
+          <div className="container mx-auto px-4 py-4 text-center text-sm text-muted-foreground">
+            Powered by PrintMyCase
+          </div>
+        </footer>
+      </PullToRefresh>
 
       {/* Product Code Modal */}
       {catalogCodeEnabled && (
