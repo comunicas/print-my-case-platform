@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { useParams } from "react-router-dom";
-import { Loader2, Package, MapPin, X, Share2, Copy } from "lucide-react";
+import { Loader2, Package, MapPin, X, Share2, Copy, Navigation } from "lucide-react";
 import { toast } from "sonner";
 import { usePublicStock } from "@/hooks/usePublicStock";
 import { PublicStockSearch, PublicStockList, PublicBrandFilter, ProductRequestForm, ProductCodeModal } from "@/components/public";
@@ -62,6 +62,20 @@ export default function PublicStock() {
     }
   }, []);
 
+  const handleOpenGoogleMaps = useCallback(() => {
+    const address = organization?.pdv_location;
+    if (!address) return;
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+    window.open(url, '_blank');
+  }, [organization?.pdv_location]);
+
+  const handleOpenWaze = useCallback(() => {
+    const address = organization?.pdv_location;
+    if (!address) return;
+    const url = `https://waze.com/ul?q=${encodeURIComponent(address)}`;
+    window.open(url, '_blank');
+  }, [organization?.pdv_location]);
+
   // Calculate filtered items count for display - must be before early returns
   const filteredItemsCount = useMemo(() => {
     return stock.filter((item) => {
@@ -116,10 +130,7 @@ export default function PublicStock() {
               <h1 className="font-bold text-xl">
                 {organization.pdv_name || organization.name}
               </h1>
-              <p className="text-white/80 text-sm flex items-center justify-center gap-1">
-                <MapPin className="h-3 w-3" />
-                {organization.pdv_location || "Catálogo de Produtos"}
-              </p>
+              <p className="text-white/80 text-sm">Catálogo de Produtos</p>
             </div>
             
             {/* Botões de ação */}
@@ -215,6 +226,47 @@ export default function PublicStock() {
             isSubmitting={isSubmitting}
           />
         </main>
+
+        {/* Location Card */}
+        {organization.pdv_location && (
+          <div className="container mx-auto px-4 py-6 max-w-2xl">
+            <div className="bg-card border rounded-xl p-4 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="bg-primary/10 p-2 rounded-full">
+                  <MapPin className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-sm mb-1">Onde nos encontrar</h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    {organization.pdv_location}
+                  </p>
+                </div>
+              </div>
+              
+              {/* Navigation Buttons */}
+              <div className="flex gap-2 mt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleOpenGoogleMaps}
+                  className="flex-1"
+                >
+                  <Navigation className="h-4 w-4 mr-2" />
+                  Google Maps
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleOpenWaze}
+                  className="flex-1"
+                >
+                  <MapPin className="h-4 w-4 mr-2" />
+                  Waze
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <footer className="border-t bg-card mt-8">
