@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { User, Settings as SettingsIcon, Building2, Plug, ExternalLink, Cloud, Loader2, MapPin, Users } from "lucide-react";
+import { User, Settings as SettingsIcon, Building2, Plug, ExternalLink, Cloud, Loader2, MapPin, Users, MessageSquare } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -21,6 +21,7 @@ const OrganizationSettings = lazy(() => import("@/components/settings/Organizati
 const PDVsSettings = lazy(() => import("@/components/settings/PDVsSettings").then(m => ({ default: m.PDVsSettings })));
 const TeamSettings = lazy(() => import("@/components/settings/TeamSettings").then(m => ({ default: m.TeamSettings })));
 const IntegrationsSettings = lazy(() => import("@/components/settings/IntegrationsSettings").then(m => ({ default: m.IntegrationsSettings })));
+const ProductRequestsSettings = lazy(() => import("@/components/settings/ProductRequestsSettings").then(m => ({ default: m.ProductRequestsSettings })));
 
 export default function Settings() {
   const [searchParams] = useSearchParams();
@@ -60,7 +61,7 @@ export default function Settings() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 h-auto">
+          <TabsList className="grid w-full grid-cols-4 md:grid-cols-7 h-auto">
             <TabsTrigger value="profile" className="gap-2 py-2">
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">Perfil</span>
@@ -77,6 +78,12 @@ export default function Settings() {
               <MapPin className="h-4 w-4" />
               <span className="hidden sm:inline">PDVs</span>
             </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="requests" className="gap-2 py-2">
+                <MessageSquare className="h-4 w-4" />
+                <span className="hidden sm:inline">Pedidos</span>
+              </TabsTrigger>
+            )}
             {isAdmin && (
               <TabsTrigger value="team" className="gap-2 py-2">
                 <Users className="h-4 w-4" />
@@ -204,6 +211,15 @@ export default function Settings() {
               <PDVsSettings />
             </Suspense>
           </TabsContent>
+
+          {/* Product Requests Tab */}
+          {isAdmin && (
+            <TabsContent value="requests" className="space-y-6">
+              <Suspense fallback={<TabSkeleton />}>
+                <ProductRequestsSettings />
+              </Suspense>
+            </TabsContent>
+          )}
 
           {/* Team Tab */}
           {isAdmin && (

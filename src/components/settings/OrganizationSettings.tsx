@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Copy, ExternalLink, Upload, X, ImageIcon } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Loader2, Copy, ExternalLink, Upload, X, ImageIcon, ChevronDown } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { organizationFormSchema } from "@/lib/schemas/settings";
 import { parseZodErrors } from "@/lib/utils";
@@ -16,6 +17,7 @@ import { Organization } from "@/hooks/useOrganization";
 import { UseMutationResult } from "@tanstack/react-query";
 import { usePDVs } from "@/hooks/usePDVs";
 import { supabase } from "@/integrations/supabase/client";
+import { PDVCatalogSettings } from "./PDVCatalogSettings";
 
 interface OrganizationSettingsProps {
   organization: Organization;
@@ -39,6 +41,7 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
   const [catalogPdvId, setCatalogPdvId] = useState<string | null>(null);
   const [catalogQrcodeUrl, setCatalogQrcodeUrl] = useState<string | null>(null);
   const [uploadingQrcode, setUploadingQrcode] = useState(false);
+  const [usePerPdvCodes, setUsePerPdvCodes] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { pdvs } = usePDVs({ organizationId: organization?.id });
@@ -518,6 +521,26 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
                             Formatos aceitos: PNG, JPG, WEBP (máx. 2MB)
                           </p>
                         </div>
+
+                        {/* Per-PDV codes section */}
+                        <Separator className="my-4" />
+                        
+                        <Collapsible open={usePerPdvCodes} onOpenChange={setUsePerPdvCodes}>
+                          <CollapsibleTrigger asChild>
+                            <Button variant="ghost" className="w-full justify-between p-0 h-auto hover:bg-transparent">
+                              <div className="text-left">
+                                <p className="text-sm font-medium">Códigos diferentes por PDV</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Configure códigos únicos para cada ponto de venda
+                                </p>
+                              </div>
+                              <ChevronDown className={`h-4 w-4 transition-transform ${usePerPdvCodes ? "rotate-180" : ""}`} />
+                            </Button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="pt-4">
+                            <PDVCatalogSettings organizationId={organization.id} />
+                          </CollapsibleContent>
+                        </Collapsible>
                       </div>
                     )}
                   </div>
