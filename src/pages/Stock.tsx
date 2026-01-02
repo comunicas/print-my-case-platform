@@ -3,7 +3,6 @@ import { Loader2 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StockFiltersProvider } from "@/contexts/StockFiltersContext";
-import { ProductModalProvider } from "@/contexts/ProductModalContext";
 import { StockKPICards } from "@/components/stock/StockKPICards";
 import { StockFilters } from "@/components/stock/StockFilters";
 import { ProductStockTable } from "@/components/stock/ProductStockTable";
@@ -106,9 +105,7 @@ export default function Stock() {
   return (
     <AppLayout>
       <StockFiltersProvider>
-        <ProductModalProvider>
-          <StockContent />
-        </ProductModalProvider>
+        <StockContent />
       </StockFiltersProvider>
     </AppLayout>
   );

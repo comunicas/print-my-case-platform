@@ -55,7 +55,10 @@ export function ProductModalProvider({ children }: { children: ReactNode }) {
 export function useProductModal() {
   const ctx = useContext(ProductModalContext);
   if (!ctx) {
-    throw new Error('useProductModal must be used within a ProductModalProvider');
+    return {
+      openProductModal: () => {},
+      closeProductModal: () => {},
+    };
   }
   return ctx;
 }
