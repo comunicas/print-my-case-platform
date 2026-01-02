@@ -8,6 +8,7 @@ export interface PublicOrganization {
   public_slug: string;
   catalog_code_enabled: boolean;
   catalog_code: string | null;
+  catalog_pdv_id: string | null;
 }
 
 export interface PublicStockItem {
@@ -45,13 +46,14 @@ export function usePublicStock(orgSlug: string | undefined) {
   });
 
   const stockQuery = useQuery({
-    queryKey: ["public-stock", organizationQuery.data?.id],
+    queryKey: ["public-stock", organizationQuery.data?.id, organizationQuery.data?.catalog_pdv_id],
     queryFn: async () => {
       const orgId = organizationQuery.data?.id;
       if (!orgId) return [];
       
+      const pdvId = organizationQuery.data?.catalog_pdv_id || null;
       const { data, error } = await supabase
-        .rpc("get_public_stock", { p_org_id: orgId });
+        .rpc("get_public_stock", { p_org_id: orgId, p_pdv_id: pdvId });
       
       if (error) throw error;
       
