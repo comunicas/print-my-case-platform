@@ -93,8 +93,10 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
     } as Partial<Organization>);
   };
 
+  const CUSTOM_DOMAIN = "https://printmycase.comunicas.com.br";
+  
   const catalogUrl = publicSlug 
-    ? `${window.location.origin}/catalogo/${publicSlug}`
+    ? `${CUSTOM_DOMAIN}/catalogo/${publicSlug}`
     : "";
 
   const handleCopyLink = () => {
