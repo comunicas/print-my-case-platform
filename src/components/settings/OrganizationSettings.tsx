@@ -5,7 +5,9 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { Loader2, Copy, ExternalLink } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { organizationFormSchema } from "@/lib/schemas/settings";
 import { parseZodErrors } from "@/lib/utils";
@@ -26,6 +28,11 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
     address: "",
   });
   const [orgErrors, setOrgErrors] = useState<Record<string, string>>({});
+  
+  // Catalog settings - need to access via casting since types aren't updated
+  const orgAny = organization as Organization & { public_slug?: string; public_catalog_enabled?: boolean };
+  const [catalogEnabled, setCatalogEnabled] = useState(false);
+  const [publicSlug, setPublicSlug] = useState("");
 
   useEffect(() => {
     if (organization) {
@@ -35,8 +42,10 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
         phone: organization.phone || "",
         address: organization.address || "",
       });
+      setCatalogEnabled(orgAny.public_catalog_enabled || false);
+      setPublicSlug(orgAny.public_slug || "");
     }
-  }, [organization]);
+  }, [organization, orgAny.public_catalog_enabled, orgAny.public_slug]);
 
   const handleSaveOrganization = () => {
     if (!isAdmin) {
@@ -62,6 +71,40 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
       phone: orgData.phone || null,
       address: orgData.address || null,
     });
+  };
+
+  const handleSaveCatalog = () => {
+    if (!isAdmin) return;
+    
+    // Validate slug format
+    const slugRegex = /^[a-z0-9-]+$/;
+    if (catalogEnabled && publicSlug && !slugRegex.test(publicSlug)) {
+      toast({
+        title: "Slug inválido",
+        description: "Use apenas letras minúsculas, números e hífens.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    updateOrganization.mutate({
+      public_catalog_enabled: catalogEnabled,
+      public_slug: catalogEnabled ? publicSlug.toLowerCase().trim() : null,
+    } as Partial<Organization>);
+  };
+
+  const catalogUrl = publicSlug 
+    ? `${window.location.origin}/catalogo/${publicSlug}`
+    : "";
+
+  const handleCopyLink = () => {
+    if (catalogUrl) {
+      navigator.clipboard.writeText(catalogUrl);
+      toast({
+        title: "Link copiado!",
+        description: "O link do catálogo foi copiado para a área de transferência.",
+      });
+    }
   };
 
   return (
@@ -170,6 +213,104 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
               Salvar Alterações
             </Button>
           </div>
+        )}
+
+        {isAdmin && (
+          <>
+            <Separator />
+            
+            {/* Catálogo Público */}
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-base font-semibold">Catálogo Público</h3>
+                <p className="text-sm text-muted-foreground">
+                  Permita que clientes vejam a disponibilidade dos seus produtos sem precisar de login.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="catalog-enabled">Ativar catálogo público</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Quando ativo, uma página pública mostrará seu estoque.
+                  </p>
+                </div>
+                <Switch
+                  id="catalog-enabled"
+                  checked={catalogEnabled}
+                  onCheckedChange={setCatalogEnabled}
+                />
+              </div>
+
+              {catalogEnabled && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="public-slug">Slug do catálogo</Label>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <div className="flex">
+                          <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
+                            /catalogo/
+                          </span>
+                          <Input
+                            id="public-slug"
+                            value={publicSlug}
+                            onChange={(e) => setPublicSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                            placeholder="minha-loja"
+                            className="rounded-l-none"
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Apenas letras minúsculas, números e hífens.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {catalogUrl && publicSlug && (
+                    <div className="space-y-2">
+                      <Label>Link do catálogo</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={catalogUrl}
+                          readOnly
+                          className="font-mono text-sm"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={handleCopyLink}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          asChild
+                        >
+                          <a href={catalogUrl} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={handleSaveCatalog}
+                      disabled={updateOrganization.isPending || !publicSlug}
+                    >
+                      {updateOrganization.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                      Salvar Catálogo
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

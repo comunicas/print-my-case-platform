@@ -19,6 +19,7 @@ const Settings = lazy(() => import("./pages/Settings"));
 const Organizations = lazy(() => import("./pages/Organizations"));
 const Auth = lazy(() => import("./pages/Auth"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const PublicStock = lazy(() => import("./pages/PublicStock"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -50,6 +51,8 @@ const App = () => (
             <BrowserRouter>
               <Suspense fallback={<PageLoader />}>
                 <Routes>
+                  {/* Public routes */}
+                  <Route path="/catalogo/:orgSlug" element={<PublicStock />} />
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
                   <Route path="/uploads" element={<ProtectedRoute><Uploads /></ProtectedRoute>} />
