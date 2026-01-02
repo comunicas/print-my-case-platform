@@ -69,12 +69,6 @@ export function PublicStockSearch({ value, onChange, items, variant = "default" 
     setOpen(false);
   };
 
-  const handleClear = () => {
-    setInputValue("");
-    onChange("");
-    setOpen(false);
-  };
-
   return (
     <Popover open={open && filteredSuggestions.length > 0} onOpenChange={setOpen}>
       <PopoverTrigger asChild>

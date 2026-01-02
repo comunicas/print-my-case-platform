@@ -32,15 +32,6 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
   });
   const [orgErrors, setOrgErrors] = useState<Record<string, string>>({});
   
-  // Catalog settings - need to access via casting since types aren't updated
-  const orgAny = organization as Organization & { 
-    public_slug?: string; 
-    public_catalog_enabled?: boolean;
-    catalog_code_enabled?: boolean;
-    catalog_code?: string;
-    catalog_pdv_id?: string;
-    catalog_qrcode_url?: string;
-  };
   const [catalogEnabled, setCatalogEnabled] = useState(false);
   const [publicSlug, setPublicSlug] = useState("");
   const [catalogCodeEnabled, setCatalogCodeEnabled] = useState(false);
@@ -60,14 +51,14 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
         phone: organization.phone || "",
         address: organization.address || "",
       });
-      setCatalogEnabled(orgAny.public_catalog_enabled || false);
-      setPublicSlug(orgAny.public_slug || "");
-      setCatalogCodeEnabled(orgAny.catalog_code_enabled || false);
-      setCatalogCode(orgAny.catalog_code || "");
-      setCatalogPdvId(orgAny.catalog_pdv_id || null);
-      setCatalogQrcodeUrl(orgAny.catalog_qrcode_url || null);
+      setCatalogEnabled(organization.public_catalog_enabled || false);
+      setPublicSlug(organization.public_slug || "");
+      setCatalogCodeEnabled(organization.catalog_code_enabled || false);
+      setCatalogCode(organization.catalog_code || "");
+      setCatalogPdvId(organization.catalog_pdv_id || null);
+      setCatalogQrcodeUrl(organization.catalog_qrcode_url || null);
     }
-  }, [organization, orgAny.public_catalog_enabled, orgAny.public_slug, orgAny.catalog_code_enabled, orgAny.catalog_code, orgAny.catalog_pdv_id, orgAny.catalog_qrcode_url]);
+  }, [organization]);
 
   const handleSaveOrganization = () => {
     if (!isAdmin) {
@@ -136,7 +127,7 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
       catalog_code: catalogCodeEnabled ? catalogCode.trim() : null,
       catalog_pdv_id: catalogPdvId,
       catalog_qrcode_url: catalogCodeEnabled ? catalogQrcodeUrl : null,
-    } as Partial<Organization>);
+    });
   };
 
   const handleQrcodeUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
