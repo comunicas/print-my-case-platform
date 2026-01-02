@@ -110,6 +110,7 @@ export type Database = {
           address: string | null
           catalog_code: string | null
           catalog_code_enabled: boolean | null
+          catalog_modal_text: string | null
           catalog_pdv_id: string | null
           catalog_qrcode_url: string | null
           cnpj: string | null
@@ -128,6 +129,7 @@ export type Database = {
           address?: string | null
           catalog_code?: string | null
           catalog_code_enabled?: boolean | null
+          catalog_modal_text?: string | null
           catalog_pdv_id?: string | null
           catalog_qrcode_url?: string | null
           cnpj?: string | null
@@ -146,6 +148,7 @@ export type Database = {
           address?: string | null
           catalog_code?: string | null
           catalog_code_enabled?: boolean | null
+          catalog_modal_text?: string | null
           catalog_pdv_id?: string | null
           catalog_qrcode_url?: string | null
           cnpj?: string | null
@@ -732,6 +735,7 @@ export type Database = {
         Returns: {
           catalog_code: string
           catalog_code_enabled: boolean
+          catalog_modal_text: string
           catalog_pdv_id: string
           catalog_qrcode_url: string
           id: string

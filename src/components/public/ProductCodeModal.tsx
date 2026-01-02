@@ -10,11 +10,13 @@ interface ProductCodeModalProps {
   code: string;
   productName: string;
   qrcodeUrl: string;
+  modalText?: string | null;
 }
 
 export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps>(
-  ({ isOpen, onClose, code, productName, qrcodeUrl }, ref) => {
+  ({ isOpen, onClose, code, productName, qrcodeUrl, modalText }, ref) => {
     const [copied, setCopied] = useState(false);
+    const displayText = modalText || "🎁 Presente para você: R$ 10 OFF na sua próxima compra!";
 
     const handleCopy = async () => {
       await navigator.clipboard.writeText(code);
@@ -29,7 +31,7 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-center">🎁 Presente para você: R$ 10 OFF na sua próxima compra!</DialogTitle>
+          <DialogTitle className="text-center">{displayText}</DialogTitle>
         </DialogHeader>
         
         <div className="flex flex-col items-center gap-6 py-4">

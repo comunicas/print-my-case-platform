@@ -38,6 +38,7 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
   const [publicSlug, setPublicSlug] = useState("");
   const [catalogCodeEnabled, setCatalogCodeEnabled] = useState(false);
   const [catalogCode, setCatalogCode] = useState("");
+  const [catalogModalText, setCatalogModalText] = useState("");
   const [catalogPdvId, setCatalogPdvId] = useState<string | null>(null);
   const [catalogQrcodeUrl, setCatalogQrcodeUrl] = useState<string | null>(null);
   const [uploadingQrcode, setUploadingQrcode] = useState(false);
@@ -58,6 +59,7 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
       setPublicSlug(organization.public_slug || "");
       setCatalogCodeEnabled(organization.catalog_code_enabled || false);
       setCatalogCode(organization.catalog_code || "");
+      setCatalogModalText(organization.catalog_modal_text || "🎁 Presente para você: R$ 10 OFF na sua próxima compra!");
       setCatalogPdvId(organization.catalog_pdv_id || null);
       setCatalogQrcodeUrl(organization.catalog_qrcode_url || null);
     }
@@ -128,6 +130,7 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
       public_slug: catalogEnabled ? publicSlug.toLowerCase().trim() : null,
       catalog_code_enabled: catalogCodeEnabled,
       catalog_code: catalogCodeEnabled ? catalogCode.trim() : null,
+      catalog_modal_text: catalogCodeEnabled ? catalogModalText.trim() : null,
       catalog_pdv_id: catalogPdvId,
       catalog_qrcode_url: catalogCodeEnabled ? catalogQrcodeUrl : null,
     });
@@ -466,6 +469,19 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
                           />
                           <p className="text-xs text-muted-foreground">
                             Este código será exibido para o cliente.
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="catalog-modal-text">Texto da modal do cupom</Label>
+                          <Input
+                            id="catalog-modal-text"
+                            value={catalogModalText}
+                            onChange={(e) => setCatalogModalText(e.target.value)}
+                            placeholder="🎁 Presente para você: R$ 10 OFF na sua próxima compra!"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Este texto será exibido no topo da modal quando o cliente clicar em um produto.
                           </p>
                         </div>
 

@@ -20,6 +20,7 @@ export interface Organization {
   catalog_code: string | null;
   catalog_pdv_id: string | null;
   catalog_qrcode_url: string | null;
+  catalog_modal_text: string | null;
 }
 
 export function useOrganization() {
