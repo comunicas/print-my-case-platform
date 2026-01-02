@@ -3,9 +3,8 @@ import { useParams } from "react-router-dom";
 import { Loader2, Package, MapPin, X, Share2, Copy, Navigation } from "lucide-react";
 import { toast } from "sonner";
 import { usePublicStock } from "@/hooks/usePublicStock";
-import { PublicStockSearch, PublicStockList, PublicBrandFilter, ProductRequestForm, ProductCodeModal } from "@/components/public";
+import { PublicStockSearch, PublicStockList, PublicStockListSkeleton, PublicBrandFilter, ProductRequestForm, ProductCodeModal } from "@/components/public";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { extractBrandFromProductName } from "@/lib/productNormalization";
 
@@ -222,12 +221,8 @@ export default function PublicStock() {
           )}
 
           {/* Stock List */}
-          {isLoadingStock ? (
-            <div className="space-y-2">
-              {[...Array(6)].map((_, i) => (
-                <Skeleton key={i} className="h-14 w-full rounded-lg" />
-              ))}
-            </div>
+{isLoadingStock ? (
+            <PublicStockListSkeleton count={6} showQrIcon={catalogCodeEnabled} />
           ) : (
             <PublicStockList 
               items={filteredItems}
