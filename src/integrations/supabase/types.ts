@@ -133,6 +133,44 @@ export type Database = {
           },
         ]
       }
+      pdv_catalog_settings: {
+        Row: {
+          catalog_code: string | null
+          catalog_qrcode_url: string | null
+          created_at: string | null
+          id: string
+          is_enabled: boolean | null
+          pdv_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          catalog_code?: string | null
+          catalog_qrcode_url?: string | null
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          pdv_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          catalog_code?: string | null
+          catalog_qrcode_url?: string | null
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          pdv_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pdv_catalog_settings_pdv_id_fkey"
+            columns: ["pdv_id"]
+            isOneToOne: true
+            referencedRelation: "pdvs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pdvs: {
         Row: {
           created_at: string | null
