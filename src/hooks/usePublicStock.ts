@@ -108,5 +108,7 @@ export function usePublicStock(orgSlug: string | undefined) {
     isLoadingStock: stockQuery.isLoading,
     submitRequest: submitRequestMutation.mutate,
     isSubmitting: submitRequestMutation.isPending,
+    refetchStock: stockQuery.refetch,
+    isRefetching: stockQuery.isRefetching,
   };
 }
