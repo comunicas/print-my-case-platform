@@ -4,9 +4,10 @@ import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Loader2, Send } from "lucide-react";
+import { Loader2, Send, CheckCircle2 } from "lucide-react";
 import { productRequestSchema } from "@/lib/schemas/productRequest";
 import { parseZodErrors } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 interface ProductRequestFormProps {
   organizationId: string;
@@ -26,6 +27,7 @@ export function ProductRequestForm({ organizationId, onSubmit, isSubmitting }: P
     requestedModel: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +48,10 @@ export function ProductRequestForm({ organizationId, onSubmit, isSubmitting }: P
       requested_model: formData.requestedModel.trim(),
     });
 
+    // Show success feedback
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 3000);
+
     // Reset form on success
     setFormData({
       customerName: "",
@@ -61,8 +67,10 @@ export function ProductRequestForm({ organizationId, onSubmit, isSubmitting }: P
     }
   };
 
+  const inputClassName = "focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2";
+
   return (
-    <Card>
+    <Card className="mt-6">
       <CardHeader>
         <CardTitle className="text-lg">Não encontrou seu modelo?</CardTitle>
         <CardDescription>
@@ -70,59 +78,77 @@ export function ProductRequestForm({ organizationId, onSubmit, isSubmitting }: P
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+        {showSuccess ? (
+          <div className="flex flex-col items-center justify-center py-8 text-center animate-fade-in">
+            <CheckCircle2 className="h-12 w-12 text-green-500 mb-3" />
+            <p className="font-medium text-lg">Pedido enviado com sucesso!</p>
+            <p className="text-sm text-muted-foreground">Entraremos em contato em breve.</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="customerName">
+                  Nome <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="customerName"
+                  value={formData.customerName}
+                  onChange={(e) => handleChange("customerName", e.target.value)}
+                  placeholder="Seu nome"
+                  className={cn(inputClassName, errors.customerName && "border-destructive")}
+                />
+                {errors.customerName && (
+                  <p className="text-sm text-destructive">{errors.customerName}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="customerPhone">
+                  WhatsApp <span className="text-destructive">*</span>
+                </Label>
+                <PhoneInput
+                  id="customerPhone"
+                  value={formData.customerPhone}
+                  onChange={(value) => handleChange("customerPhone", value)}
+                  placeholder="(00) 00000-0000"
+                  className={cn(inputClassName, errors.customerPhone && "border-destructive")}
+                />
+                {errors.customerPhone && (
+                  <p className="text-sm text-destructive">{errors.customerPhone}</p>
+                )}
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="customerName">Nome *</Label>
+              <Label htmlFor="requestedModel">
+                Modelo desejado <span className="text-destructive">*</span>
+              </Label>
               <Input
-                id="customerName"
-                value={formData.customerName}
-                onChange={(e) => handleChange("customerName", e.target.value)}
-                placeholder="Seu nome"
-                className={errors.customerName ? "border-destructive" : ""}
+                id="requestedModel"
+                value={formData.requestedModel}
+                onChange={(e) => handleChange("requestedModel", e.target.value)}
+                placeholder="Ex: iPhone 15 Pro Max"
+                className={cn(inputClassName, errors.requestedModel && "border-destructive")}
               />
-              {errors.customerName && (
-                <p className="text-sm text-destructive">{errors.customerName}</p>
+              {errors.requestedModel && (
+                <p className="text-sm text-destructive">{errors.requestedModel}</p>
               )}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="customerPhone">WhatsApp *</Label>
-              <PhoneInput
-                id="customerPhone"
-                value={formData.customerPhone}
-                onChange={(value) => handleChange("customerPhone", value)}
-                placeholder="(00) 00000-0000"
-                className={errors.customerPhone ? "border-destructive" : ""}
-              />
-              {errors.customerPhone && (
-                <p className="text-sm text-destructive">{errors.customerPhone}</p>
+
+            <Button 
+              type="submit" 
+              className="w-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 shadow-lg transition-all duration-200" 
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Send className="h-4 w-4 mr-2" />
               )}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="requestedModel">Modelo desejado *</Label>
-            <Input
-              id="requestedModel"
-              value={formData.requestedModel}
-              onChange={(e) => handleChange("requestedModel", e.target.value)}
-              placeholder="Ex: iPhone 15 Pro Max"
-              className={errors.requestedModel ? "border-destructive" : ""}
-            />
-            {errors.requestedModel && (
-              <p className="text-sm text-destructive">{errors.requestedModel}</p>
-            )}
-          </div>
-
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <Send className="h-4 w-4 mr-2" />
-            )}
-            Enviar Pedido
-          </Button>
-        </form>
+              Enviar Pedido
+            </Button>
+          </form>
+        )}
       </CardContent>
     </Card>
   );

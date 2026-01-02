@@ -29,15 +29,15 @@ export function PublicBrandFilter({
   }
 
   const baseButtonClass = isHero
-    ? "px-4 py-2 rounded-full border backdrop-blur-sm bg-white/20 text-white border-white/30 hover:bg-white/30 data-[state=on]:bg-white data-[state=on]:text-purple-700 data-[state=on]:border-white"
+    ? "px-4 py-2 rounded-full border backdrop-blur-md bg-white/30 text-white border-white/40 hover:bg-white/50 transition-all duration-200 data-[state=on]:bg-white data-[state=on]:text-violet-700 data-[state=on]:border-white data-[state=on]:shadow-md data-[state=on]:font-semibold"
     : "px-4 py-2 rounded-full border data-[state=on]:bg-primary data-[state=on]:text-primary-foreground";
 
   const brandButtonClass = isHero
-    ? "px-3 py-2 rounded-full border backdrop-blur-sm bg-white/20 text-white border-white/30 hover:bg-white/30 data-[state=on]:bg-white data-[state=on]:text-purple-700 data-[state=on]:border-white flex items-center gap-2"
+    ? "px-3 py-2 rounded-full border backdrop-blur-md bg-white/30 text-white border-white/40 hover:bg-white/50 transition-all duration-200 data-[state=on]:bg-white data-[state=on]:text-violet-700 data-[state=on]:border-white data-[state=on]:shadow-md data-[state=on]:font-semibold flex items-center gap-2"
     : "px-3 py-2 rounded-full border data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex items-center gap-2";
 
   return (
-    <div className="overflow-x-auto pb-2 -mx-4 px-4">
+    <div className="overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
       <ToggleGroup
         type="single"
         value={selectedBrand || "all"}

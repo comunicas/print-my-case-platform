@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
-import { Loader2, Package, MapPin } from "lucide-react";
+import { Loader2, Package, MapPin, X } from "lucide-react";
 import { usePublicStock } from "@/hooks/usePublicStock";
 import { PublicStockSearch, PublicStockList, PublicBrandFilter, ProductRequestForm, ProductCodeModal } from "@/components/public";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { extractBrandFromProductName } from "@/lib/productNormalization";
 
 export default function PublicStock() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
@@ -40,6 +43,22 @@ export default function PublicStock() {
   }
 
   const catalogCodeEnabled = organization.catalog_code_enabled && !!organization.catalog_code && !!organization.catalog_qrcode_url;
+
+  // Calculate filtered items count for display
+  const filteredItemsCount = useMemo(() => {
+    return stock.filter((item) => {
+      const matchesSearch = item.product_name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesBrand = !selectedBrand || extractBrandFromProductName(item.product_name) === selectedBrand;
+      return matchesSearch && matchesBrand;
+    }).length;
+  }, [stock, searchTerm, selectedBrand]);
+
+  const hasActiveFilters = searchTerm || selectedBrand;
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setSelectedBrand(null);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -84,11 +103,32 @@ export default function PublicStock() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6 max-w-2xl">
+        {/* Results Counter */}
+        {!isLoadingStock && (
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm text-muted-foreground">
+              {filteredItemsCount} {filteredItemsCount === 1 ? 'modelo encontrado' : 'modelos encontrados'}
+            </p>
+            {hasActiveFilters && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={clearFilters}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Limpar filtros
+              </Button>
+            )}
+          </div>
+        )}
 
         {/* Stock List */}
         {isLoadingStock ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="space-y-2">
+            {[...Array(6)].map((_, i) => (
+              <Skeleton key={i} className="h-14 w-full rounded-lg" />
+            ))}
           </div>
         ) : (
           <PublicStockList 
