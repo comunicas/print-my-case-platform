@@ -39,10 +39,10 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
   };
 
   return (
-    <Card className="flex flex-col">
+    <Card data-testid="top-products-chart" className="flex flex-col">
       <CardHeader className="flex flex-row items-center justify-between px-4 md:px-6 pt-4 md:pt-6 pb-3">
         <CardTitle className="text-base md:text-lg">Top 10 Produtos</CardTitle>
-        <Button variant="ghost" size="sm" onClick={handleExport} className="gap-1.5">
+        <Button data-testid="export-top-products" variant="ghost" size="sm" onClick={handleExport} className="gap-1.5">
           <Download className="h-4 w-4" />
           <span className="hidden sm:inline">Exportar</span>
         </Button>
@@ -109,7 +109,7 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
             </BarChart>
           </ChartContainer>
         ) : (
-          <div className="flex-1 min-h-[300px] flex items-center justify-center text-muted-foreground">
+          <div data-testid="top-products-empty" className="flex-1 min-h-[300px] flex items-center justify-center text-muted-foreground">
             Nenhum dado de produtos disponível
           </div>
         )}
@@ -121,7 +121,7 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
               onClick={() => openProductModal(getExactProductKey(data[0].name))}
               className="focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
             >
-              <Badge variant="secondary" className="gap-1 cursor-pointer hover:bg-secondary/80">
+              <Badge data-testid="top-seller-badge" variant="secondary" className="gap-1 cursor-pointer hover:bg-secondary/80">
                 <Flame className="h-3.5 w-3.5 text-orange-500" />
                 Mais vendido: {truncateName(data[0].name, 25)}
               </Badge>

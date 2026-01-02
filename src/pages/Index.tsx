@@ -178,7 +178,7 @@ export default function Index() {
   const criticalStockCount = lowStockItems.length;
 
   const dashboardContent = (
-    <div className="space-y-4 md:space-y-6">
+    <div data-testid="dashboard-page" className="space-y-4 md:space-y-6">
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -190,7 +190,7 @@ export default function Index() {
         </div>
 
         {/* Filters Bar */}
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+        <div data-testid="dashboard-filters" className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
           <DateRangeFilter
             dateRange={dateRange}
             onDateRangeChange={setDateRange}
@@ -236,7 +236,7 @@ export default function Index() {
 
         {/* Super Admin Consolidated View */}
         {isSuperAdmin && globalMetrics && (
-          <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
+          <Card data-testid="global-metrics-card" className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
             <CardHeader className="px-4 md:px-6 pt-4 md:pt-6 pb-3">
               <CardTitle className="flex items-center gap-2 text-base md:text-lg">
                 <Building2 className="h-5 w-5 text-primary" />
@@ -268,7 +268,7 @@ export default function Index() {
 
         {/* Empty State */}
         {!hasData && (
-          <Card>
+          <Card data-testid="dashboard-empty-state">
             <CardContent className="flex flex-col items-center justify-center py-12">
               <FileSpreadsheet className="h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium mb-2">Sem dados ainda</h3>
@@ -284,8 +284,9 @@ export default function Index() {
         )}
 
         {/* KPI Cards - 2 columns on mobile, 4 on desktop */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
+        <div data-testid="kpi-grid" className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
           <KPICard
+            testId="kpi-revenue"
             title="Receita Total"
             value={formatCurrency(kpis.totalRevenue)}
             icon={DollarSign}
@@ -293,17 +294,20 @@ export default function Index() {
             variant="success"
           />
           <KPICard
+            testId="kpi-transactions"
             title="Transações"
             value={kpis.transactions.toLocaleString("pt-BR")}
             icon={ShoppingCart}
             trend={transactionsTrend}
           />
           <KPICard
+            testId="kpi-avg-ticket"
             title="Ticket Médio"
             value={formatCurrency(kpis.avgTicket)}
             icon={TrendingUp}
           />
           <KPICard
+            testId="kpi-critical-stock"
             title="Estoque Crítico"
             value={criticalStockCount.toString()}
             icon={AlertTriangle}
@@ -324,7 +328,7 @@ export default function Index() {
 
         {/* Charts - Only show if there's data */}
         {hasData && (
-          <>
+          <div data-testid="charts-section">
             {/* Row 1: Sales by Day + Heatmap */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
               <Suspense fallback={<ChartSkeleton />}>
@@ -357,7 +361,7 @@ export default function Index() {
 
             {/* Stock Alerts Table */}
             <StockAlertsTable data={lowStockItems} />
-          </>
+          </div>
         )}
     </div>
   );

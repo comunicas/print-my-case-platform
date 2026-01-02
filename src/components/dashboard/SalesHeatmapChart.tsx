@@ -67,17 +67,17 @@ export function SalesHeatmapChart({ data }: SalesHeatmapChartProps) {
   };
 
   return (
-    <Card className="flex flex-col">
+    <Card data-testid="sales-heatmap-chart" className="flex flex-col">
       <CardHeader className="flex flex-row items-center justify-between px-4 md:px-6 pt-4 md:pt-6 pb-3">
         <div className="flex items-center gap-3">
           <CardTitle className="text-base md:text-lg">Vendas por Horário</CardTitle>
           {peak && (
-            <Badge variant="outline" className="gap-1 text-xs">
+            <Badge data-testid="heatmap-peak-badge" variant="outline" className="gap-1 text-xs">
               Pico: {peak.dayName} {peak.rangeLabel}
             </Badge>
           )}
         </div>
-        <Button variant="ghost" size="sm" onClick={handleExport} className="gap-1.5">
+        <Button data-testid="export-heatmap" variant="ghost" size="sm" onClick={handleExport} className="gap-1.5">
           <Download className="h-4 w-4" />
           <span className="hidden sm:inline">Exportar</span>
         </Button>
@@ -85,7 +85,7 @@ export function SalesHeatmapChart({ data }: SalesHeatmapChartProps) {
       <CardContent className="flex-1 flex flex-col px-4 md:px-6 pb-4 md:pb-6">
         {data.length > 0 ? (
           <div className="overflow-x-auto">
-            <div className="min-w-[400px]">
+            <div data-testid="heatmap-grid" className="min-w-[400px]">
               {/* Header - Dias */}
               <div className="grid grid-cols-8 gap-1 mb-1">
                 <div className="text-xs text-muted-foreground text-right pr-1"></div>
@@ -152,7 +152,7 @@ export function SalesHeatmapChart({ data }: SalesHeatmapChartProps) {
             </div>
           </div>
         ) : (
-          <div className="flex-1 min-h-[150px] flex items-center justify-center text-muted-foreground">
+          <div data-testid="heatmap-empty" className="flex-1 min-h-[150px] flex items-center justify-center text-muted-foreground">
             Nenhum dado disponível
           </div>
         )}

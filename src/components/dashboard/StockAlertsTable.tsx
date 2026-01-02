@@ -37,7 +37,7 @@ export function StockAlertsTable({ data, maxCapacity = 7 }: StockAlertsTableProp
 
   if (data.length === 0) {
     return (
-      <Card>
+      <Card data-testid="stock-alerts-ok">
         <CardContent className="flex flex-col items-center justify-center py-12">
           <CheckCircle2 className="h-12 w-12 text-emerald-500 mb-4" />
           <h3 className="text-lg font-medium mb-2">Estoque OK</h3>
@@ -50,7 +50,7 @@ export function StockAlertsTable({ data, maxCapacity = 7 }: StockAlertsTableProp
   }
 
   return (
-    <Card className="flex flex-col">
+    <Card data-testid="stock-alerts-table" className="flex flex-col">
       <CardHeader className="px-4 md:px-6 pt-4 md:pt-6 pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base md:text-lg flex items-center gap-2">
@@ -75,7 +75,7 @@ export function StockAlertsTable({ data, maxCapacity = 7 }: StockAlertsTableProp
             </TableHeader>
             <TableBody>
               {paginatedData.map((item, idx) => (
-                <TableRow key={`${item.slotNumber}-${idx}`}>
+                <TableRow data-testid="stock-alert-row" key={`${item.slotNumber}-${idx}`}>
                   <TableCell className="font-medium">
                     <span className="font-mono">{item.slotNumber}</span>
                   </TableCell>
@@ -141,6 +141,7 @@ export function StockAlertsTable({ data, maxCapacity = 7 }: StockAlertsTableProp
             </span>
             <div className="flex items-center gap-1">
               <Button
+                data-testid="alerts-prev-page"
                 variant="outline"
                 size="sm"
                 onClick={handlePrevPage}
@@ -151,6 +152,7 @@ export function StockAlertsTable({ data, maxCapacity = 7 }: StockAlertsTableProp
                 Anterior
               </Button>
               <Button
+                data-testid="alerts-next-page"
                 variant="outline"
                 size="sm"
                 onClick={handleNextPage}
