@@ -36,7 +36,7 @@ export function ProductSlotsList({ slots, status, isLoading }: ProductSlotsListP
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="slots-list">
       {/* Status Geral */}
       <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
         <div>
