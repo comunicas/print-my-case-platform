@@ -64,7 +64,7 @@ export function PublicStockList({
 
   return (
     <div className="space-y-2">
-      {filteredItems.map((item) => {
+      {filteredItems.map((item, index) => {
         const brand = extractBrandFromProductName(item.product_name);
         const model = extractModelFromProductName(item.product_name);
         const config = statusConfig[item.status];
@@ -73,7 +73,8 @@ export function PublicStockList({
         return (
           <Card 
             key={item.product_name} 
-            className={`transition-colors hover:bg-muted/50 ${isClickable ? 'cursor-pointer' : ''}`}
+            className={`transition-all duration-300 hover:bg-muted/50 animate-fade-in ${isClickable ? 'cursor-pointer' : ''}`}
+            style={{ animationDelay: `${index * 30}ms` }}
             onClick={() => handleClick(item.product_name)}
           >
             <CardContent className="flex items-center justify-between py-3 px-4">
