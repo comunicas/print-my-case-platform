@@ -72,6 +72,8 @@ export type Database = {
         Row: {
           active_since: string | null
           address: string | null
+          catalog_code: string | null
+          catalog_code_enabled: boolean | null
           cnpj: string | null
           created_at: string | null
           email: string | null
@@ -86,6 +88,8 @@ export type Database = {
         Insert: {
           active_since?: string | null
           address?: string | null
+          catalog_code?: string | null
+          catalog_code_enabled?: boolean | null
           cnpj?: string | null
           created_at?: string | null
           email?: string | null
@@ -100,6 +104,8 @@ export type Database = {
         Update: {
           active_since?: string | null
           address?: string | null
+          catalog_code?: string | null
+          catalog_code_enabled?: boolean | null
           cnpj?: string | null
           created_at?: string | null
           email?: string | null
@@ -625,6 +631,8 @@ export type Database = {
       get_public_organization: {
         Args: { p_slug: string }
         Returns: {
+          catalog_code: string
+          catalog_code_enabled: boolean
           id: string
           name: string
           public_slug: string

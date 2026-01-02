@@ -30,9 +30,16 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
   const [orgErrors, setOrgErrors] = useState<Record<string, string>>({});
   
   // Catalog settings - need to access via casting since types aren't updated
-  const orgAny = organization as Organization & { public_slug?: string; public_catalog_enabled?: boolean };
+  const orgAny = organization as Organization & { 
+    public_slug?: string; 
+    public_catalog_enabled?: boolean;
+    catalog_code_enabled?: boolean;
+    catalog_code?: string;
+  };
   const [catalogEnabled, setCatalogEnabled] = useState(false);
   const [publicSlug, setPublicSlug] = useState("");
+  const [catalogCodeEnabled, setCatalogCodeEnabled] = useState(false);
+  const [catalogCode, setCatalogCode] = useState("");
 
   useEffect(() => {
     if (organization) {
@@ -44,8 +51,10 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
       });
       setCatalogEnabled(orgAny.public_catalog_enabled || false);
       setPublicSlug(orgAny.public_slug || "");
+      setCatalogCodeEnabled(orgAny.catalog_code_enabled || false);
+      setCatalogCode(orgAny.catalog_code || "");
     }
-  }, [organization, orgAny.public_catalog_enabled, orgAny.public_slug]);
+  }, [organization, orgAny.public_catalog_enabled, orgAny.public_slug, orgAny.catalog_code_enabled, orgAny.catalog_code]);
 
   const handleSaveOrganization = () => {
     if (!isAdmin) {
@@ -86,10 +95,22 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
       });
       return;
     }
+
+    // Validate code if enabled
+    if (catalogCodeEnabled && !catalogCode.trim()) {
+      toast({
+        title: "Código obrigatório",
+        description: "Informe o código do catálogo.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     updateOrganization.mutate({
       public_catalog_enabled: catalogEnabled,
       public_slug: catalogEnabled ? publicSlug.toLowerCase().trim() : null,
+      catalog_code_enabled: catalogCodeEnabled,
+      catalog_code: catalogCodeEnabled ? catalogCode.trim() : null,
     } as Partial<Organization>);
   };
 
@@ -299,6 +320,48 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
                       </div>
                     </div>
                   )}
+
+                  {/* Código do Catálogo */}
+                  <Separator className="my-4" />
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-sm font-medium">Código do Catálogo</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Exiba um código e QR Code quando o cliente clicar em um produto.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="catalog-code-enabled">Exibir código ao clicar no produto</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Os clientes verão o código e QR code ao selecionar um modelo.
+                        </p>
+                      </div>
+                      <Switch
+                        id="catalog-code-enabled"
+                        checked={catalogCodeEnabled}
+                        onCheckedChange={setCatalogCodeEnabled}
+                      />
+                    </div>
+
+                    {catalogCodeEnabled && (
+                      <div className="space-y-2">
+                        <Label htmlFor="catalog-code">Código do catálogo</Label>
+                        <Input
+                          id="catalog-code"
+                          value={catalogCode}
+                          onChange={(e) => setCatalogCode(e.target.value.toUpperCase())}
+                          placeholder="PMC-001"
+                          className="font-mono"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Este código será exibido junto com um QR Code para o cliente.
+                        </p>
+                      </div>
+                    )}
+                  </div>
 
                   <div className="flex justify-end">
                     <Button

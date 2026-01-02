@@ -2,12 +2,13 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { Loader2, Package } from "lucide-react";
 import { usePublicStock } from "@/hooks/usePublicStock";
-import { PublicStockSearch, PublicStockList, PublicBrandFilter, ProductRequestForm } from "@/components/public";
+import { PublicStockSearch, PublicStockList, PublicBrandFilter, ProductRequestForm, ProductCodeModal } from "@/components/public";
 
 export default function PublicStock() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
   
   const {
     organization,
@@ -37,6 +38,8 @@ export default function PublicStock() {
       </div>
     );
   }
+
+  const catalogCodeEnabled = organization.catalog_code_enabled && !!organization.catalog_code;
 
   return (
     <div className="min-h-screen bg-background">
@@ -75,7 +78,13 @@ export default function PublicStock() {
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <PublicStockList items={stock} searchTerm={searchTerm} selectedBrand={selectedBrand} />
+          <PublicStockList 
+            items={stock} 
+            searchTerm={searchTerm} 
+            selectedBrand={selectedBrand}
+            catalogCodeEnabled={catalogCodeEnabled}
+            onProductClick={setSelectedProduct}
+          />
         )}
 
         {/* Request Form */}
@@ -92,6 +101,16 @@ export default function PublicStock() {
           Powered by PrintMyCase
         </div>
       </footer>
+
+      {/* Product Code Modal */}
+      {catalogCodeEnabled && (
+        <ProductCodeModal
+          isOpen={!!selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+          code={organization.catalog_code!}
+          productName={selectedProduct || ""}
+        />
+      )}
     </div>
   );
 }
