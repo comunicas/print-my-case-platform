@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Search } from "lucide-react";
+import { useDebounce } from "@/hooks/useDebounce";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { BrandLogo } from "@/components/ui/BrandLogo";
@@ -43,8 +44,19 @@ const statusConfig = {
 export function PublicStockSearch({ value, onChange, items, variant = "default" }: PublicStockSearchProps) {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState(value);
+  const debouncedValue = useDebounce(inputValue, 300);
 
   const isHero = variant === "hero";
+
+  // Sync when external value changes (e.g., "Clear filters")
+  useEffect(() => {
+    setInputValue(value);
+  }, [value]);
+
+  // Propagate debounced value to parent
+  useEffect(() => {
+    onChange(debouncedValue);
+  }, [debouncedValue, onChange]);
 
   const filteredSuggestions = useMemo(() => {
     if (!inputValue.trim()) return [];
@@ -56,7 +68,6 @@ export function PublicStockSearch({ value, onChange, items, variant = "default" 
 
   const handleInputChange = (newValue: string) => {
     setInputValue(newValue);
-    onChange(newValue);
     if (newValue.trim()) {
       setOpen(true);
     }
