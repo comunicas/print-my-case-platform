@@ -5,6 +5,9 @@ import {
   normalizeProductName,
   matchesProduct,
   getExactProductKey,
+  getNormalizedModel,
+  filterSalesByProduct,
+  countSalesForProduct,
 } from '../productNormalization';
 
 describe('extractBrandFromProductName', () => {
@@ -227,5 +230,96 @@ describe('getExactProductKey', () => {
 
   it('should trim whitespace', () => {
     expect(getExactProductKey('  iPhone 16  ')).toBe('APPLE:iphone 16');
+  });
+});
+
+describe('getNormalizedModel', () => {
+  it('should normalize model from full product name', () => {
+    expect(getNormalizedModel('APPLE iPhone 16 Pro')).toBe('iphone 16 pro');
+  });
+
+  it('should normalize model without brand prefix', () => {
+    expect(getNormalizedModel('iPhone 16 Pro')).toBe('iphone 16 pro');
+  });
+
+  it('should normalize extra spaces', () => {
+    expect(getNormalizedModel('APPLE iPhone  16   Pro')).toBe('iphone 16 pro');
+  });
+
+  it('should return empty string for empty input', () => {
+    expect(getNormalizedModel('')).toBe('');
+  });
+
+  it('should handle Samsung', () => {
+    expect(getNormalizedModel('SAMSUNG Galaxy S24 Ultra')).toBe('galaxy s24 ultra');
+  });
+});
+
+describe('filterSalesByProduct', () => {
+  const mockSales = [
+    { product_name: 'APPLE iPhone 16', amount: 100 },
+    { product_name: 'iPhone 16', amount: 200 },
+    { product_name: 'APPLE iPhone 16 Pro', amount: 300 },
+    { product_name: 'SAMSUNG Galaxy S24', amount: 400 },
+  ];
+
+  it('should filter sales matching product model exactly', () => {
+    const result = filterSalesByProduct(mockSales, 'APPLE iPhone 16');
+    expect(result).toHaveLength(2);
+    expect(result[0].amount).toBe(100);
+    expect(result[1].amount).toBe(200);
+  });
+
+  it('should NOT include similar but different models', () => {
+    const result = filterSalesByProduct(mockSales, 'iPhone 16');
+    expect(result).toHaveLength(2);
+    // Should NOT include iPhone 16 Pro
+    expect(result.every(s => !s.product_name.includes('Pro'))).toBe(true);
+  });
+
+  it('should handle brand in target name', () => {
+    const result = filterSalesByProduct(mockSales, 'iPhone 16 Pro');
+    expect(result).toHaveLength(1);
+    expect(result[0].amount).toBe(300);
+  });
+
+  it('should return empty array for no matches', () => {
+    const result = filterSalesByProduct(mockSales, 'Nokia 3310');
+    expect(result).toHaveLength(0);
+  });
+
+  it('should return empty array for empty target', () => {
+    const result = filterSalesByProduct(mockSales, '');
+    expect(result).toHaveLength(0);
+  });
+});
+
+describe('countSalesForProduct', () => {
+  const salesMap = new Map<string, number>([
+    ['APPLE iPhone 16', 10],
+    ['iPhone 16 Pro', 5],
+    ['SAMSUNG Galaxy S24', 8],
+  ]);
+
+  it('should count sales matching product model exactly', () => {
+    expect(countSalesForProduct('iPhone 16', salesMap)).toBe(10);
+  });
+
+  it('should count with brand prefix', () => {
+    expect(countSalesForProduct('APPLE iPhone 16', salesMap)).toBe(10);
+  });
+
+  it('should NOT count similar but different models', () => {
+    // iPhone 16 should NOT match iPhone 16 Pro
+    expect(countSalesForProduct('iPhone 16', salesMap)).toBe(10);
+    expect(countSalesForProduct('iPhone 16 Pro', salesMap)).toBe(5);
+  });
+
+  it('should return 0 for no matches', () => {
+    expect(countSalesForProduct('Nokia 3310', salesMap)).toBe(0);
+  });
+
+  it('should return 0 for empty product name', () => {
+    expect(countSalesForProduct('', salesMap)).toBe(0);
   });
 });
