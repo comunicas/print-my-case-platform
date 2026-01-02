@@ -7,6 +7,7 @@ import type { PublicStockItem } from "@/hooks/usePublicStock";
 interface PublicStockListProps {
   items: PublicStockItem[];
   searchTerm: string;
+  selectedBrand: string | null;
 }
 
 const statusConfig = {
@@ -27,10 +28,12 @@ const statusConfig = {
   },
 };
 
-export function PublicStockList({ items, searchTerm }: PublicStockListProps) {
-  const filteredItems = items.filter((item) =>
-    item.product_name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+export function PublicStockList({ items, searchTerm, selectedBrand }: PublicStockListProps) {
+  const filteredItems = items.filter((item) => {
+    const matchesSearch = item.product_name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesBrand = !selectedBrand || extractBrandFromProductName(item.product_name) === selectedBrand;
+    return matchesSearch && matchesBrand;
+  });
 
   if (filteredItems.length === 0) {
     return (

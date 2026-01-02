@@ -2,11 +2,12 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { Loader2, Package } from "lucide-react";
 import { usePublicStock } from "@/hooks/usePublicStock";
-import { PublicStockSearch, PublicStockList, ProductRequestForm } from "@/components/public";
+import { PublicStockSearch, PublicStockList, PublicBrandFilter, ProductRequestForm } from "@/components/public";
 
 export default function PublicStock() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   
   const {
     organization,
@@ -57,9 +58,16 @@ export default function PublicStock() {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-6 space-y-6 max-w-2xl">
+      <main className="container mx-auto px-4 py-6 space-y-4 max-w-2xl">
         {/* Search */}
         <PublicStockSearch value={searchTerm} onChange={setSearchTerm} items={stock} />
+
+        {/* Brand Filter */}
+        <PublicBrandFilter
+          items={stock}
+          selectedBrand={selectedBrand}
+          onBrandChange={setSelectedBrand}
+        />
 
         {/* Stock List */}
         {isLoadingStock ? (
@@ -67,7 +75,7 @@ export default function PublicStock() {
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <PublicStockList items={stock} searchTerm={searchTerm} />
+          <PublicStockList items={stock} searchTerm={searchTerm} selectedBrand={selectedBrand} />
         )}
 
         {/* Request Form */}
