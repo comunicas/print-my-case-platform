@@ -29,7 +29,7 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-center">Informe este código ao vendedor</DialogTitle>
+          <DialogTitle className="text-center">🎁 Presente para você: R$ 10 OFF na sua próxima compra!</DialogTitle>
         </DialogHeader>
         
         <div className="flex flex-col items-center gap-6 py-4">
