@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useSlotsData } from './useSlotsData';
 import { useStockFilters } from '@/contexts/StockFiltersContext';
-import { useProfile } from './useProfile';
+import { useUserAllowedPDVs } from './useUserAllowedPDVs';
 import { 
   ProductStock, 
   StockKPIs, 
@@ -22,7 +22,7 @@ const SALES_QUERY_LIMIT = 5000;
 
 export function useProductStock() {
   const filters = useStockFilters();
-  const { profile } = useProfile();
+  const { allowedPdvIds } = useUserAllowedPDVs();
   
   const { 
     data: slots = [], 
@@ -31,7 +31,7 @@ export function useProductStock() {
     refetch: refetchSlots,
   } = useSlotsData({ 
     pdvId: filters.selectedPdv,
-    userId: profile?.id,
+    allowedPdvIds,
   });
   
   // Busca dados de vendas para calcular índice

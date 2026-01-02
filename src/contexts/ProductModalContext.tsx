@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, ReactNode, lazy, Suspense } from 'react';
 import { useSlotsData } from '@/hooks/useSlotsData';
-import { useProfile } from '@/hooks/useProfile';
+import { useUserAllowedPDVs } from '@/hooks/useUserAllowedPDVs';
 
 // Lazy load do modal pesado - só carrega quando necessário
 const ProductDetailModal = lazy(() => 
@@ -18,8 +18,8 @@ export function ProductModalProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   const [productName, setProductName] = useState<string | null>(null);
   const [pdvId, setPdvId] = useState<string | undefined>(undefined);
-  const { profile } = useProfile();
-  const { data: slots = [], isLoading: slotsLoading } = useSlotsData({ userId: profile?.id });
+  const { allowedPdvIds } = useUserAllowedPDVs();
+  const { data: slots = [], isLoading: slotsLoading } = useSlotsData({ allowedPdvIds });
 
   const openProductModal = (name: string, pdv?: string) => {
     setProductName(name);

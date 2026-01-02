@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "./useProfile";
+import { useUserAllowedPDVs } from "./useUserAllowedPDVs";
 import {
   getSalesByDay,
   getSalesByHourAndDay,
@@ -44,10 +45,11 @@ interface UseDashboardParams {
 
 export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange }: UseDashboardParams = {}) {
   const { profile, role } = useProfile();
+  const { allowedPdvIds: userAllowedPdvIds } = useUserAllowedPDVs();
   const isSuperAdmin = role === "super_admin";
 
   const dashboardQuery = useQuery({
-    queryKey: ["dashboard", profile?.organization_id, selectedOrganizationId, selectedPdvId, isSuperAdmin, dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
+    queryKey: ["dashboard", profile?.organization_id, selectedOrganizationId, selectedPdvId, isSuperAdmin, userAllowedPdvIds, dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
     queryFn: async (): Promise<DashboardData> => {
       const now = new Date();
       // Use dateRange if provided, otherwise default to 30 days
@@ -65,25 +67,16 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
       // If a specific PDV is selected, use it directly
       if (selectedPdvId && selectedPdvId !== "all") {
         pdvIds = [selectedPdvId];
+      } else if (userAllowedPdvIds !== null) {
+        // Usuário com restrições específicas de PDV
+        pdvIds = userAllowedPdvIds;
       } else if (!isSuperAdmin || (selectedOrganizationId && selectedOrganizationId !== "all")) {
+        // Usar todos os PDVs da organização
         const orgIdToFilter = selectedOrganizationId && selectedOrganizationId !== "all" 
           ? selectedOrganizationId 
           : profile?.organization_id;
         
-        // Para usuários não-admin, verificar atribuições específicas primeiro
-        if (!isSuperAdmin && profile?.id) {
-          const { data: userPdvs } = await supabase
-            .from("user_pdvs")
-            .select("pdv_id")
-            .eq("user_id", profile.id);
-          
-          if (userPdvs && userPdvs.length > 0) {
-            pdvIds = userPdvs.map(p => p.pdv_id);
-          }
-        }
-        
-        // Se não tem atribuições específicas, usar organization_id
-        if (pdvIds === null && orgIdToFilter) {
+        if (orgIdToFilter) {
           const { data: pdvs } = await supabase
             .from("pdvs")
             .select("id")
