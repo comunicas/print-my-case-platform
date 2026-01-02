@@ -53,8 +53,12 @@ export default function PublicStock() {
               className="h-10 w-10 object-contain"
             />
             <div>
-              <h1 className="font-semibold text-lg">{organization.name}</h1>
-              <p className="text-sm text-muted-foreground">Catálogo de Produtos</p>
+              <h1 className="font-semibold text-lg">
+                {organization.pdv_name || organization.name}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {organization.pdv_location || "Catálogo de Produtos"}
+              </p>
             </div>
           </div>
         </div>

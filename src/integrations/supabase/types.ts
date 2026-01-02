@@ -651,6 +651,8 @@ export type Database = {
           catalog_qrcode_url: string
           id: string
           name: string
+          pdv_location: string
+          pdv_name: string
           public_slug: string
         }[]
       }
