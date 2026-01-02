@@ -12,8 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ProductDisplay } from '@/components/ui/ProductDisplay';
-import { ProductStock, SalesIndex, ProductStatus } from '@/lib/stockUtils';
-import { statusLabels, statusColors, salesIndexLabels, salesIndexColors } from '@/lib/stockLabels';
+import { ProductStock } from '@/lib/stockUtils';
+import { productActionLabels, productActionColors, salesIndexLabels, salesIndexColors } from '@/lib/stockLabels';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useProductModal } from '@/contexts/ProductModalContext';
 import { useStockFilters } from '@/contexts/StockFiltersContext';
@@ -258,8 +258,8 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                   <span className="text-sm">{product.slots.length}</span>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline" className={statusColors[product.status]}>
-                    {statusLabels[product.status]}
+                  <Badge variant="outline" className={productActionColors[product.status]}>
+                    {productActionLabels[product.status]}
                   </Badge>
                 </TableCell>
                 <TableCell>

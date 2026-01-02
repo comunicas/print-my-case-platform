@@ -10,8 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { SlotData } from '@/lib/stockUtils';
-import { getSlotStatus, MAX_CAPACITY, getBlockColorClass } from '@/lib/stockGridUtils';
-import { slotStatusLabels } from '@/lib/stockLabels';
+import { getSlotVisualStatus, MAX_CAPACITY, getBlockColorClass } from '@/lib/stockGridUtils';
+import { slotVisualLabels } from '@/lib/stockLabels';
 import { cn } from '@/lib/utils';
 import { Package } from 'lucide-react';
 import { useProductModal } from '@/contexts/ProductModalContext';
@@ -30,8 +30,8 @@ export function SlotDetailModal({ slot, isOpen, onClose }: SlotDetailModalProps)
   
   if (!slot) return null;
 
-  const status = getSlotStatus(slot.quantity, slot.isActive);
-  const statusInfo = slotStatusLabels[status] || slotStatusLabels.medium;
+  const status = getSlotVisualStatus(slot.quantity, slot.isActive);
+  const statusInfo = slotVisualLabels[status] || slotVisualLabels.medium;
   const percentage = Math.round((slot.quantity / MAX_CAPACITY) * 100);
 
   const handleViewProduct = () => {

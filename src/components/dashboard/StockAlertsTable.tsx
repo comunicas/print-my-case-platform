@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { LowStockItem } from "@/lib/dashboardUtils";
 import { useProductModal } from "@/contexts/ProductModalContext";
 import { getExactProductKey } from "@/lib/productNormalization";
+import { salesIndexLabels, salesBadgeVariants } from "@/lib/stockLabels";
 
 interface StockAlertsTableProps {
   data: LowStockItem[];
@@ -23,13 +24,6 @@ interface StockAlertsTableProps {
 }
 
 const ITEMS_PER_PAGE = 5;
-
-const salesIndexLabels: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
-  high: { label: "Alta", variant: "default" },
-  medium: { label: "Média", variant: "secondary" },
-  low: { label: "Baixa", variant: "outline" },
-  none: { label: "Nenhuma", variant: "destructive" },
-};
 
 export function StockAlertsTable({ data, maxCapacity = 7 }: StockAlertsTableProps) {
   const [page, setPage] = useState(0);
@@ -103,8 +97,8 @@ export function StockAlertsTable({ data, maxCapacity = 7 }: StockAlertsTableProp
                     {item.salesCount}
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
-                    <Badge variant={salesIndexLabels[item.salesIndex].variant} className="text-xs">
-                      {salesIndexLabels[item.salesIndex].label}
+                    <Badge variant={salesBadgeVariants[item.salesIndex as keyof typeof salesBadgeVariants] || 'outline'} className="text-xs">
+                      {salesIndexLabels[item.salesIndex as keyof typeof salesIndexLabels] || item.salesIndex}
                     </Badge>
                   </TableCell>
                   <TableCell>

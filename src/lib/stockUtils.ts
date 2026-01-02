@@ -1,14 +1,23 @@
-import { extractBrandFromProductName, extractModelFromProductName, getExactProductKey } from './productNormalization';
-import { MAX_CAPACITY } from './stockGridUtils';
+import { extractModelFromProductName, getExactProductKey } from './productNormalization';
+import { MAX_CAPACITY, ProductActionStatus, SalesIndex } from './stockTypes';
+
+// Re-exports para compatibilidade
+export type { ProductActionStatus, SalesIndex };
+export type ProductStatus = ProductActionStatus; // Alias legado
 
 /**
- * Determina o status de um slot individual baseado na quantidade
+ * Determina o status de ação de um slot individual baseado na quantidade
+ * Indica o que deve ser feito: ok, redistribuir ou repor
  */
-export function getSlotStatus(quantity: number): 'ok' | 'redistribute' | 'restock' {
+export function getProductActionStatus(quantity: number): ProductActionStatus {
   if (quantity <= 2) return 'restock';
   if (quantity <= 5) return 'redistribute';
   return 'ok';
 }
+
+// Alias legado - TODO: remover após migração
+/** @deprecated Use getProductActionStatus */
+export const getSlotStatus = getProductActionStatus;
 
 /**
  * Verifica se um produto/slot corresponde ao termo de busca
@@ -51,12 +60,9 @@ export interface ProductStock {
   totalSold: number;
   hasOutOfStock: boolean;
   hasLowStock: boolean;
-  status: ProductStatus;
+  status: ProductActionStatus;
   salesIndex: SalesIndex;
 }
-
-export type ProductStatus = 'ok' | 'redistribute' | 'restock';
-export type SalesIndex = 'high' | 'medium' | 'low' | 'none';
 
 export interface StockKPIs {
   totalProducts: number;
@@ -141,7 +147,7 @@ function findSalesForProduct(productName: string, salesByProduct: Map<string, nu
 /**
  * Determina o status do produto baseado em slots
  */
-export function getProductStatus(product: ProductStock): ProductStatus {
+export function getProductStatus(product: ProductStock): ProductActionStatus {
   const avgQuantity = product.totalQuantity / product.slots.length;
   
   // Se média baixa, precisa repor

@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SlotData } from '@/lib/stockUtils';
 import { MAX_CAPACITY, getBlockColorClass } from '@/lib/stockGridUtils';
-import { statusLabels, statusColors } from '@/lib/stockLabels';
+import { productActionLabels, productActionColors } from '@/lib/stockLabels';
 import { cn } from '@/lib/utils';
 
 interface ProductSlotsListProps {
@@ -43,8 +43,8 @@ export function ProductSlotsList({ slots, status, isLoading }: ProductSlotsListP
           <p className="text-sm text-muted-foreground">Status Geral</p>
           <p className="font-medium">{slots.length} slots ativos</p>
         </div>
-        <Badge variant="outline" className={statusColors[status]}>
-          {statusLabels[status]}
+        <Badge variant="outline" className={productActionColors[status]}>
+          {productActionLabels[status]}
         </Badge>
       </div>
 
