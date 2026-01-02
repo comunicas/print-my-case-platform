@@ -1,4 +1,5 @@
-import { Bell, ChevronDown, Menu, User, LogOut, Sun, Moon, Settings } from "lucide-react";
+import { ChevronDown, Menu, User, LogOut, Sun, Moon, Settings } from "lucide-react";
+import { NotificationsPopover } from "./NotificationsPopover";
 import { useTheme } from "next-themes";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -75,10 +76,7 @@ export function AppHeader({ isMobile, onMenuClick }: AppHeaderProps) {
           <Moon className="absolute h-4 w-4 md:h-5 md:w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 text-muted-foreground" />
         </Button>
 
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
-          <span className="absolute top-1 right-1 h-2 w-2 bg-primary rounded-full" />
-        </Button>
+        <NotificationsPopover />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

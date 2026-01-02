@@ -649,6 +649,37 @@ Deno.serve(async (req) => {
       })
       .eq("id", uploadId);
 
+    // 6. Create notification for the user who uploaded
+    try {
+      // Get organization_id from PDV
+      const { data: pdvInfo } = await supabase
+        .from("pdvs")
+        .select("organization_id")
+        .eq("id", pdvId)
+        .single();
+
+      if (pdvInfo?.organization_id) {
+        const typeLabel = upload.type === "sales" ? "vendas" : "estoque";
+        await supabase
+          .from("notifications")
+          .insert({
+            organization_id: pdvInfo.organization_id,
+            user_id: upload.uploaded_by,
+            type: "upload_processed",
+            title: "Upload processado",
+            message: `Seu arquivo de ${typeLabel} foi processado com ${recordsInserted} registros.`,
+            metadata: { 
+              upload_id: uploadId, 
+              records_count: recordsInserted,
+              type: upload.type 
+            },
+          });
+      }
+    } catch (notifError) {
+      console.error(`Upload ${uploadId}: Failed to create notification`, notifError);
+      // Don't fail the upload because of notification error
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
