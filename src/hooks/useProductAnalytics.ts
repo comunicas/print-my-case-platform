@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { usePDVs } from './usePDVs';
+import { extractModelFromProductName } from '@/lib/productNormalization';
 
 export interface ProductAnalytics {
   // KPIs
@@ -36,11 +37,14 @@ export function useProductAnalytics(productName: string | null, pdvId?: string) 
         throw new Error('Product name is required');
       }
 
-      // Buscar vendas do produto (limit to last 10000 records to avoid performance issues)
+      // Extrair modelo do productKey (ex: "APPLE:iphone 15 pro max" → "iphone 15 pro max")
+      const model = extractModelFromProductName(productName);
+
+      // Buscar vendas do produto usando modelo (não o productKey completo)
       let query = supabase
         .from('sales_records')
         .select('*')
-        .ilike('product_name', `%${productName}%`)
+        .ilike('product_name', `%${model}%`)
         .order('payment_date', { ascending: false })
         .limit(10000);
 
