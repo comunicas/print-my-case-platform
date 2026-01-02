@@ -72,6 +72,19 @@ export interface LowStockItem {
   salesIndex: 'high' | 'medium' | 'low' | 'none';
 }
 
+export interface SalesAmountRecord {
+  amount: number | string;
+  refund_amount?: number | string | null;
+}
+
+export interface KPIData {
+  totalRevenue: number;
+  transactions: number;
+  avgTicket: number;
+  revenueChange: number;
+  transactionsChange: number;
+}
+
 // Constants
 const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -306,6 +319,52 @@ function getSalesIndex(count: number): 'high' | 'medium' | 'low' | 'none' {
   if (count >= 20) return 'high';
   if (count >= 5) return 'medium';
   return 'low';
+}
+
+// ===== KPI CALCULATION FUNCTIONS =====
+
+/**
+ * Calcula a receita total líquida de uma lista de vendas
+ */
+export function calculateTotalRevenue(sales: SalesAmountRecord[]): number {
+  return sales.reduce(
+    (sum, record) => sum + (Number(record.amount) - Number(record.refund_amount || 0)),
+    0
+  );
+}
+
+/**
+ * Calcula a variação percentual entre dois valores
+ */
+export function calculatePercentageChange(current: number, previous: number): number {
+  if (previous === 0) return 0;
+  return ((current - previous) / previous) * 100;
+}
+
+/**
+ * Calcula todos os KPIs do dashboard a partir dos dados de vendas
+ */
+export function calculateKPIs(
+  currentSales: SalesAmountRecord[],
+  previousSales: SalesAmountRecord[]
+): KPIData {
+  const totalRevenue = calculateTotalRevenue(currentSales);
+  const transactions = currentSales.length;
+  const avgTicket = transactions > 0 ? totalRevenue / transactions : 0;
+
+  const previousRevenue = calculateTotalRevenue(previousSales);
+  const previousTransactions = previousSales.length;
+
+  const revenueChange = calculatePercentageChange(totalRevenue, previousRevenue);
+  const transactionsChange = calculatePercentageChange(transactions, previousTransactions);
+
+  return {
+    totalRevenue,
+    transactions,
+    avgTicket,
+    revenueChange,
+    transactionsChange,
+  };
 }
 
 /**

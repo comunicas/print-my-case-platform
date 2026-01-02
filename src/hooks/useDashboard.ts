@@ -7,6 +7,8 @@ import {
   getSalesByHourAndDay,
   getTopProducts,
   getQuickStats,
+  calculateKPIs,
+  calculateTotalRevenue,
   SaleRecord,
   SalesByDayData,
   HeatmapCell,
@@ -157,10 +159,7 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
           // Only set global metrics if all queries succeeded
           if (!orgsResult.error && !globalPdvsResult.error && !globalSalesResult.error) {
             const globalSalesData = globalSalesResult.data || [];
-            const totalRevenueGlobal = globalSalesData.reduce(
-              (sum: number, r: any) => sum + (Number(r.amount) - Number(r.refund_amount || 0)),
-              0
-            );
+            const totalRevenueGlobal = calculateTotalRevenue(globalSalesData);
             globalMetrics = {
               totalOrganizations: orgsResult.count || 0,
               totalPdvsGlobal: globalPdvsResult.count || 0,
@@ -173,30 +172,11 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
         }
       }
 
-      // Calculate KPIs
+      // Calculate KPIs using utility functions
       const currentSales = currentSalesResult.data || [];
       const previousSales = previousSalesResult.data || [];
-
-      const totalRevenue = currentSales.reduce(
-        (sum: number, r: any) => sum + (Number(r.amount) - Number(r.refund_amount || 0)),
-        0
-      );
-      const transactions = currentSales.length;
-      const avgTicket = transactions > 0 ? totalRevenue / transactions : 0;
+      const kpis = calculateKPIs(currentSales, previousSales);
       const activePdvs = activePdvsResult.data?.length || 0;
-
-      const previousRevenue = previousSales.reduce(
-        (sum: number, r: any) => sum + (Number(r.amount) - Number(r.refund_amount || 0)),
-        0
-      );
-      const previousTransactions = previousSales.length;
-
-      const revenueChange = previousRevenue > 0
-        ? ((totalRevenue - previousRevenue) / previousRevenue) * 100
-        : 0;
-      const transactionsChange = previousTransactions > 0
-        ? ((transactions - previousTransactions) / previousTransactions) * 100
-        : 0;
 
       const hasData = currentSales.length > 0;
 
@@ -220,12 +200,8 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
 
       return {
         kpis: {
-          totalRevenue,
-          transactions,
-          avgTicket,
+          ...kpis,
           activePdvs,
-          revenueChange,
-          transactionsChange,
         },
         hasData,
         globalMetrics,
