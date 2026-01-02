@@ -49,7 +49,7 @@ export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockF
       />
 
       {/* Search with Autocomplete */}
-      <div className="w-full sm:w-auto sm:flex-1 sm:max-w-xs">
+      <div className="w-full sm:w-auto sm:flex-1 sm:max-w-xs" data-testid="search-autocomplete">
         <ProductSearchAutocomplete
           suggestions={suggestions}
           value={searchTerm}
@@ -106,7 +106,7 @@ export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockF
 
       {/* Sales Index Filter */}
       <Select value={salesIndexFilter} onValueChange={setSalesIndexFilter}>
-        <SelectTrigger className="w-full sm:w-[140px]">
+        <SelectTrigger className="w-full sm:w-[140px]" data-testid="sales-index-filter">
           <SelectValue placeholder="Vendas" />
         </SelectTrigger>
         <SelectContent>
@@ -120,7 +120,7 @@ export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockF
 
       {/* Clear Filters */}
       {hasActiveFilters && (
-        <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full sm:w-auto">
+        <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full sm:w-auto" data-testid="clear-filters">
           <X className="h-4 w-4 mr-1" />
           Limpar
         </Button>

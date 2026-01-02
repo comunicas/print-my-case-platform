@@ -51,7 +51,7 @@ export function ProductSalesByHourChart({ data, peakHour, isLoading }: ProductSa
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-testid="sales-by-hour-chart">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Clock className="h-4 w-4 text-muted-foreground" />

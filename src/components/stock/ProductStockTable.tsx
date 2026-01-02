@@ -200,6 +200,8 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                 tabIndex={focusedIndex === index ? 0 : -1}
                 className={cn(focusedIndex === index && "ring-2 ring-primary ring-inset")}
                 onFocus={() => setFocusedIndex(index)}
+                data-testid="product-row"
+                data-product-name={product.model}
               >
                 <TableCell>
                   <Tooltip>
@@ -207,6 +209,7 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                       <button
                         onClick={() => openProductModal(product.productKey, selectedPdv !== 'all' ? selectedPdv : undefined)}
                         className="text-left text-primary hover:underline cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
+                        data-testid="product-name"
                       >
                         <ProductDisplay 
                           brand={product.brand} 
@@ -239,7 +242,11 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                           <ShoppingCart className="h-3.5 w-3.5 text-muted-foreground" />
                           <span>{product.totalSold}</span>
                         </div>
-                        <Badge variant="outline" className={salesIndexColors[product.salesIndex]}>
+                        <Badge 
+                          variant="outline" 
+                          className={salesIndexColors[product.salesIndex]}
+                          data-testid={`sales-badge-${product.salesIndex}`}
+                        >
                           {salesIndexLabels[product.salesIndex]}
                         </Badge>
                       </div>
@@ -269,6 +276,7 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                         variant="ghost" 
                         size="icon"
                         onClick={() => openProductModal(product.productKey, selectedPdv !== 'all' ? selectedPdv : undefined)}
+                        data-testid="product-detail-button"
                       >
                         <Eye className="h-4 w-4" />
                       </Button>

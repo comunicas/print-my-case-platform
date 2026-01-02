@@ -93,6 +93,7 @@ export function ProductSearchAutocomplete({
             placeholder={placeholder}
             value={inputValue}
             onValueChange={handleInputChange}
+            data-testid="search-input"
           />
           <CommandList>
             <CommandEmpty>

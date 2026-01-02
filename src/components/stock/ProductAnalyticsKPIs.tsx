@@ -18,6 +18,7 @@ export function ProductAnalyticsKPIs({
 }: ProductAnalyticsKPIsProps) {
   const kpis = [
     {
+      id: 'total-sales',
       label: 'Vendas',
       value: totalSales.toLocaleString('pt-BR'),
       icon: ShoppingCart,
@@ -25,6 +26,7 @@ export function ProductAnalyticsKPIs({
       bgColor: 'bg-blue-500/10',
     },
     {
+      id: 'total-revenue',
       label: 'Receita',
       value: totalRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
       icon: DollarSign,
@@ -32,6 +34,7 @@ export function ProductAnalyticsKPIs({
       bgColor: 'bg-green-500/10',
     },
     {
+      id: 'average-ticket',
       label: 'Ticket Médio',
       value: averageTicket.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
       icon: Receipt,
@@ -39,6 +42,7 @@ export function ProductAnalyticsKPIs({
       bgColor: 'bg-purple-500/10',
     },
     {
+      id: 'stock-level',
       label: 'Ocupação',
       value: `${stockPercentage}%`,
       icon: Package,
@@ -66,6 +70,7 @@ export function ProductAnalyticsKPIs({
         <div
           key={kpi.label}
           className="p-3 bg-muted/30 rounded-lg flex items-start gap-3"
+          data-testid={`kpi-${kpi.id}`}
         >
           <div className={cn('p-2 rounded-lg', kpi.bgColor)}>
             <kpi.icon className={cn('h-4 w-4', kpi.color)} />

@@ -100,7 +100,7 @@ export function ProductSalesHistoryChart({ productName, pdvId }: ProductSalesHis
   const tickInterval = selectedDays <= 7 ? 0 : selectedDays <= 15 ? 2 : 4;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-testid="sales-history-chart">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-muted-foreground">
           <BarChart3 className="h-4 w-4" />

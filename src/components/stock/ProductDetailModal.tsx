@@ -142,7 +142,7 @@ export function ProductDetailModal({ productName, slots, isOpen, onClose, pdvId,
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
+      <DialogContent data-testid="product-detail-modal" className="max-w-[calc(100%-2rem)] sm:max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <BrandLogo brand={productData.brand} size="md" />
@@ -151,7 +151,7 @@ export function ProductDetailModal({ productName, slots, isOpen, onClose, pdvId,
           <DialogDescription className="flex flex-col gap-1">
             <span>Análises detalhadas e métricas de performance</span>
             {pdvName && (
-              <Badge variant="secondary" className="w-fit mt-1">
+              <Badge variant="secondary" className="w-fit mt-1" data-testid="pdv-filter-badge">
                 <MapPin className="h-3 w-3 mr-1" />
                 Filtrado por: {pdvName}
               </Badge>
@@ -161,26 +161,26 @@ export function ProductDetailModal({ productName, slots, isOpen, onClose, pdvId,
 
         <Tabs defaultValue="resumo" className="w-full">
           <TabsList className="grid grid-cols-4 w-full">
-            <TabsTrigger value="resumo" className="text-xs sm:text-sm">
+            <TabsTrigger value="resumo" className="text-xs sm:text-sm" data-testid="tab-resumo">
               <BarChart3 className="h-3.5 w-3.5 sm:mr-1.5" />
               <span className="hidden sm:inline">Resumo</span>
             </TabsTrigger>
-            <TabsTrigger value="vendas" className="text-xs sm:text-sm">
+            <TabsTrigger value="vendas" className="text-xs sm:text-sm" data-testid="tab-vendas">
               <TrendingUp className="h-3.5 w-3.5 sm:mr-1.5" />
               <span className="hidden sm:inline">Vendas</span>
             </TabsTrigger>
-            <TabsTrigger value="horarios" className="text-xs sm:text-sm">
+            <TabsTrigger value="horarios" className="text-xs sm:text-sm" data-testid="tab-horarios">
               <Clock className="h-3.5 w-3.5 sm:mr-1.5" />
               <span className="hidden sm:inline">Horários</span>
             </TabsTrigger>
-            <TabsTrigger value="estoque" className="text-xs sm:text-sm">
+            <TabsTrigger value="estoque" className="text-xs sm:text-sm" data-testid="tab-estoque">
               <Package className="h-3.5 w-3.5 sm:mr-1.5" />
               <span className="hidden sm:inline">Estoque</span>
             </TabsTrigger>
           </TabsList>
 
           {/* Aba Resumo */}
-          <TabsContent value="resumo" className="space-y-4 mt-4">
+          <TabsContent value="resumo" className="space-y-4 mt-4" data-testid="tabcontent-resumo">
             <ProductAnalyticsKPIs
               totalSales={analytics?.totalSales || 0}
               totalRevenue={analytics?.totalRevenue || 0}
@@ -223,7 +223,7 @@ export function ProductDetailModal({ productName, slots, isOpen, onClose, pdvId,
           </TabsContent>
 
           {/* Aba Vendas */}
-          <TabsContent value="vendas" className="space-y-4 mt-4">
+          <TabsContent value="vendas" className="space-y-4 mt-4" data-testid="tabcontent-vendas">
             <div className="p-4 bg-muted/30 rounded-lg">
               <ProductSalesByDayChart
                 data={analytics?.salesByDayOfWeek || []}
@@ -250,7 +250,7 @@ export function ProductDetailModal({ productName, slots, isOpen, onClose, pdvId,
           </TabsContent>
 
           {/* Aba Horários */}
-          <TabsContent value="horarios" className="space-y-4 mt-4">
+          <TabsContent value="horarios" className="space-y-4 mt-4" data-testid="tabcontent-horarios">
             <div className="p-4 bg-muted/30 rounded-lg">
               <ProductSalesByHourChart
                 data={analytics?.salesByHour || []}
@@ -280,7 +280,7 @@ export function ProductDetailModal({ productName, slots, isOpen, onClose, pdvId,
           </TabsContent>
 
           {/* Aba Estoque */}
-          <TabsContent value="estoque" className="mt-4">
+          <TabsContent value="estoque" className="mt-4" data-testid="tabcontent-estoque">
             <ProductSlotsList
               slots={productData.slots}
               status={productData.status}
