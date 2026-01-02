@@ -117,3 +117,50 @@ export function getExactProductKey(productName: string): string {
   return `${brand}:${model}`;
 }
 
+/**
+ * Retorna o modelo normalizado para matching
+ * Centraliza a lógica de normalização usada em todos os hooks
+ */
+export function getNormalizedModel(productName: string): string {
+  if (!productName) return '';
+  return extractModelFromProductName(productName)
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+/**
+ * Filtra array de vendas que correspondem ao produto
+ * Útil para filtrar resultados de queries do Supabase
+ */
+export function filterSalesByProduct<T extends { product_name: string }>(
+  sales: T[],
+  targetProductName: string
+): T[] {
+  const targetModel = getNormalizedModel(targetProductName);
+  if (!targetModel) return [];
+  
+  return sales.filter(sale => {
+    const saleModel = getNormalizedModel(sale.product_name);
+    return saleModel === targetModel;
+  });
+}
+
+/**
+ * Conta vendas de um produto em um Map de vendas por nome
+ */
+export function countSalesForProduct(
+  productName: string,
+  salesByProduct: Map<string, number>
+): number {
+  const targetModel = getNormalizedModel(productName);
+  if (!targetModel) return 0;
+  
+  for (const [salesProduct, count] of salesByProduct.entries()) {
+    if (getNormalizedModel(salesProduct) === targetModel) {
+      return count;
+    }
+  }
+  return 0;
+}
+

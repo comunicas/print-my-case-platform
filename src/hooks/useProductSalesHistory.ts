@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { format, subDays, startOfDay, eachDayOfInterval } from 'date-fns';
+import { format, subDays, eachDayOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { extractModelFromProductName } from '@/lib/productNormalization';
+import { filterSalesByProduct } from '@/lib/productNormalization';
 
 export interface SalesHistoryData {
   date: string;
@@ -60,11 +60,7 @@ export function useProductSalesHistory({
       if (error) throw error;
 
       // Filter by exact product model match
-      const targetModel = extractModelFromProductName(productName).toLowerCase().trim();
-      const filteredSales = (salesData || []).filter(sale => {
-        const saleModel = extractModelFromProductName(sale.product_name).toLowerCase().trim();
-        return saleModel === targetModel;
-      });
+      const filteredSales = filterSalesByProduct(salesData || [], productName);
 
       // Create date range for the requested period
       const periodStart = subDays(endDate, days - 1);

@@ -1,4 +1,4 @@
-import { extractModelFromProductName, getExactProductKey } from './productNormalization';
+import { getExactProductKey, countSalesForProduct } from './productNormalization';
 import { MAX_CAPACITY, ProductActionStatus, SalesIndex } from './stockTypes';
 
 // Re-exports para compatibilidade
@@ -88,7 +88,7 @@ export function aggregateProductStock(
     const key = getExactProductKey(slot.productName);
     
     if (!productMap.has(key)) {
-      const totalSold = findSalesForProduct(slot.productName, salesByProduct);
+      const totalSold = countSalesForProduct(slot.productName, salesByProduct);
       
       productMap.set(key, {
         productKey: key,
@@ -125,23 +125,6 @@ export function aggregateProductStock(
   }
   
   return Array.from(productMap.values());
-}
-
-/**
- * Encontra vendas para um produto (matching exato pelo modelo)
- */
-function findSalesForProduct(productName: string, salesByProduct: Map<string, number>): number {
-  const model = extractModelFromProductName(productName).toLowerCase().trim().replace(/\s+/g, ' ');
-  
-  for (const [salesProduct, count] of salesByProduct.entries()) {
-    const salesModel = extractModelFromProductName(salesProduct).toLowerCase().trim().replace(/\s+/g, ' ');
-    // Match exato do modelo
-    if (model === salesModel) {
-      return count;
-    }
-  }
-  
-  return 0;
 }
 
 /**
