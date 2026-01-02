@@ -1,8 +1,8 @@
+import { forwardRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Copy, Check } from "lucide-react";
-import { useState } from "react";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface ProductCodeModalProps {
   isOpen: boolean;
@@ -12,18 +12,18 @@ interface ProductCodeModalProps {
   qrcodeUrl: string;
 }
 
-export function ProductCodeModal({ isOpen, onClose, code, productName, qrcodeUrl }: ProductCodeModalProps) {
-  const [copied, setCopied] = useState(false);
+export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps>(
+  ({ isOpen, onClose, code, productName, qrcodeUrl }, ref) => {
+    const [copied, setCopied] = useState(false);
 
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(code);
-    setCopied(true);
-    toast({
-      title: "Código copiado!",
-      description: "O código foi copiado para a área de transferência.",
-    });
-    setTimeout(() => setCopied(false), 2000);
-  };
+    const handleCopy = async () => {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      toast.success("Código copiado!", {
+        description: "O código foi copiado para a área de transferência.",
+      });
+      setTimeout(() => setCopied(false), 2000);
+    };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -70,4 +70,7 @@ export function ProductCodeModal({ isOpen, onClose, code, productName, qrcodeUrl
       </DialogContent>
     </Dialog>
   );
-}
+  }
+);
+
+ProductCodeModal.displayName = "ProductCodeModal";
