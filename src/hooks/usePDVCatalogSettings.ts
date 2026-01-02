@@ -7,6 +7,7 @@ export interface PDVCatalogSettings {
   pdv_id: string;
   catalog_code: string | null;
   catalog_qrcode_url: string | null;
+  catalog_modal_text: string | null;
   is_enabled: boolean;
   created_at: string;
   updated_at: string;
@@ -62,6 +63,7 @@ export function usePDVCatalogSettings(organizationId?: string) {
       pdv_id: string;
       catalog_code?: string | null;
       catalog_qrcode_url?: string | null;
+      catalog_modal_text?: string | null;
       is_enabled?: boolean;
     }) => {
       const { pdv_id, ...updateData } = data;

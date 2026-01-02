@@ -175,6 +175,7 @@ export type Database = {
       pdv_catalog_settings: {
         Row: {
           catalog_code: string | null
+          catalog_modal_text: string | null
           catalog_qrcode_url: string | null
           created_at: string | null
           id: string
@@ -184,6 +185,7 @@ export type Database = {
         }
         Insert: {
           catalog_code?: string | null
+          catalog_modal_text?: string | null
           catalog_qrcode_url?: string | null
           created_at?: string | null
           id?: string
@@ -193,6 +195,7 @@ export type Database = {
         }
         Update: {
           catalog_code?: string | null
+          catalog_modal_text?: string | null
           catalog_qrcode_url?: string | null
           created_at?: string | null
           id?: string

@@ -22,7 +22,7 @@ interface PDVCatalogSettingsProps {
 export function PDVCatalogSettings({ organizationId }: PDVCatalogSettingsProps) {
   const { pdvsWithSettings, isLoading, upsertSettings, uploadQrCode } = usePDVCatalogSettings(organizationId);
   const [uploadingPdvId, setUploadingPdvId] = useState<string | null>(null);
-  const [editingPdv, setEditingPdv] = useState<Record<string, { code: string; qrUrl: string | null }>>({});
+  const [editingPdv, setEditingPdv] = useState<Record<string, { code: string; qrUrl: string | null; modalText: string | null }>>({});
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const handleToggleEnabled = async (pdvId: string, currentEnabled: boolean) => {
@@ -106,12 +106,23 @@ export function PDVCatalogSettings({ organizationId }: PDVCatalogSettingsProps) 
     }));
   };
 
+  const handleModalTextChange = (pdvId: string, text: string) => {
+    setEditingPdv(prev => ({
+      ...prev,
+      [pdvId]: {
+        ...prev[pdvId],
+        modalText: text,
+      },
+    }));
+  };
+
   const handleSaveSettings = async (pdvId: string) => {
     const editing = editingPdv[pdvId];
     const pdv = pdvsWithSettings.find(p => p.id === pdvId);
     
     const code = editing?.code ?? pdv?.catalog_settings?.catalog_code ?? "";
     const qrUrl = editing?.qrUrl !== undefined ? editing.qrUrl : (pdv?.catalog_settings?.catalog_qrcode_url ?? null);
+    const modalText = editing?.modalText !== undefined ? editing.modalText : (pdv?.catalog_settings?.catalog_modal_text ?? null);
 
     if (!code.trim()) {
       toast({
@@ -126,6 +137,7 @@ export function PDVCatalogSettings({ organizationId }: PDVCatalogSettingsProps) 
       pdv_id: pdvId,
       catalog_code: code.trim(),
       catalog_qrcode_url: qrUrl,
+      catalog_modal_text: modalText?.trim() || null,
       is_enabled: true,
     });
 
@@ -136,10 +148,15 @@ export function PDVCatalogSettings({ organizationId }: PDVCatalogSettingsProps) 
     });
   };
 
-  const getEditingValue = (pdvId: string, field: "code" | "qrUrl") => {
+  const getEditingValue = (pdvId: string, field: "code" | "qrUrl" | "modalText") => {
     const pdv = pdvsWithSettings.find(p => p.id === pdvId);
     if (field === "code") {
       return editingPdv[pdvId]?.code ?? pdv?.catalog_settings?.catalog_code ?? "";
+    }
+    if (field === "modalText") {
+      return editingPdv[pdvId]?.modalText !== undefined
+        ? editingPdv[pdvId]?.modalText
+        : (pdv?.catalog_settings?.catalog_modal_text ?? "");
     }
     return editingPdv[pdvId]?.qrUrl !== undefined
       ? editingPdv[pdvId]?.qrUrl
@@ -174,6 +191,7 @@ export function PDVCatalogSettings({ organizationId }: PDVCatalogSettingsProps) 
           const isEnabled = pdv.catalog_settings?.is_enabled ?? false;
           const currentCode = getEditingValue(pdv.id, "code") as string;
           const currentQrUrl = getEditingValue(pdv.id, "qrUrl") as string | null;
+          const currentModalText = getEditingValue(pdv.id, "modalText") as string;
           const hasChanges = editingPdv[pdv.id] !== undefined;
 
           return (
@@ -222,6 +240,19 @@ export function PDVCatalogSettings({ organizationId }: PDVCatalogSettingsProps) 
                           placeholder="PMC-001"
                           className="font-mono"
                         />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor={`modal-text-${pdv.id}`}>Texto da modal do cupom</Label>
+                        <Input
+                          id={`modal-text-${pdv.id}`}
+                          value={currentModalText}
+                          onChange={(e) => handleModalTextChange(pdv.id, e.target.value)}
+                          placeholder="🎁 Presente para você: R$ 10 OFF na sua próxima compra!"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Deixe em branco para usar o texto padrão da organização.
+                        </p>
                       </div>
 
                       <div className="space-y-2">
