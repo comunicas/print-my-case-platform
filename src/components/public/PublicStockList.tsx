@@ -7,8 +7,7 @@ import type { PublicStockItem } from "@/hooks/usePublicStock";
 
 interface PublicStockListProps {
   items: PublicStockItem[];
-  searchTerm: string;
-  selectedBrand: string | null;
+  hasActiveFilters?: boolean;
   catalogCodeEnabled?: boolean;
   onProductClick?: (productName: string) => void;
 }
@@ -33,22 +32,15 @@ const statusConfig = {
 
 export function PublicStockList({ 
   items, 
-  searchTerm, 
-  selectedBrand,
+  hasActiveFilters = false,
   catalogCodeEnabled = false,
   onProductClick,
 }: PublicStockListProps) {
-  const filteredItems = items.filter((item) => {
-    const matchesSearch = item.product_name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesBrand = !selectedBrand || extractBrandFromProductName(item.product_name) === selectedBrand;
-    return matchesSearch && matchesBrand;
-  });
-
-  if (filteredItems.length === 0) {
+  if (items.length === 0) {
     return (
       <Card>
         <CardContent className="py-8 text-center text-muted-foreground">
-          {searchTerm
+          {hasActiveFilters
             ? "Nenhum modelo encontrado para sua busca."
             : "Nenhum produto disponível no momento."}
         </CardContent>
@@ -64,7 +56,7 @@ export function PublicStockList({
 
   return (
     <div className="space-y-2">
-      {filteredItems.map((item, index) => {
+      {items.map((item, index) => {
         const brand = extractBrandFromProductName(item.product_name);
         const model = extractModelFromProductName(item.product_name);
         const config = statusConfig[item.status];

@@ -81,13 +81,13 @@ export default function PublicStock() {
     locationCard?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, []);
 
-  // Calculate filtered items count for display - must be before early returns
-  const filteredItemsCount = useMemo(() => {
+  // Pre-filter items once - must be before early returns
+  const filteredItems = useMemo(() => {
     return stock.filter((item) => {
       const matchesSearch = item.product_name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesBrand = !selectedBrand || extractBrandFromProductName(item.product_name) === selectedBrand;
       return matchesSearch && matchesBrand;
-    }).length;
+    });
   }, [stock, searchTerm, selectedBrand]);
 
   if (isLoadingOrganization) {
@@ -142,6 +142,7 @@ export default function PublicStock() {
                 <button
                   onClick={scrollToLocation}
                   className="mt-1 flex items-center gap-1 text-white/60 hover:text-white text-xs transition-colors"
+                  aria-label="Ir para seção de localização da loja"
                 >
                   <MapPin className="h-3 w-3" />
                   <span>Ver localização</span>
@@ -157,6 +158,7 @@ export default function PublicStock() {
                 onClick={handleShare}
                 className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/20 rounded-full"
                 title="Compartilhar catálogo"
+                aria-label="Compartilhar catálogo via WhatsApp ou redes sociais"
               >
                 <Share2 className="h-4 w-4" />
               </Button>
@@ -166,6 +168,7 @@ export default function PublicStock() {
                 onClick={handleCopyLink}
                 className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/20 rounded-full"
                 title="Copiar link"
+                aria-label="Copiar link do catálogo para a área de transferência"
               >
                 <Copy className="h-4 w-4" />
               </Button>
@@ -202,7 +205,7 @@ export default function PublicStock() {
           {!isLoadingStock && (
             <div className="flex items-center justify-between mb-4">
               <p className="text-sm text-muted-foreground">
-                {filteredItemsCount} {filteredItemsCount === 1 ? 'modelo encontrado' : 'modelos encontrados'}
+                {filteredItems.length} {filteredItems.length === 1 ? 'modelo encontrado' : 'modelos encontrados'}
               </p>
               {hasActiveFilters && (
                 <Button 
@@ -227,9 +230,8 @@ export default function PublicStock() {
             </div>
           ) : (
             <PublicStockList 
-              items={stock} 
-              searchTerm={searchTerm} 
-              selectedBrand={selectedBrand}
+              items={filteredItems}
+              hasActiveFilters={!!hasActiveFilters}
               catalogCodeEnabled={catalogCodeEnabled}
               onProductClick={setSelectedProduct}
             />
@@ -266,6 +268,7 @@ export default function PublicStock() {
                   size="sm"
                   onClick={handleOpenGoogleMaps}
                   className="flex-1"
+                  aria-label="Abrir localização no Google Maps"
                 >
                   <Navigation className="h-4 w-4 mr-2" />
                   Google Maps
@@ -275,6 +278,7 @@ export default function PublicStock() {
                   size="sm"
                   onClick={handleOpenWaze}
                   className="flex-1"
+                  aria-label="Abrir localização no Waze"
                 >
                   <MapPin className="h-4 w-4 mr-2" />
                   Waze
