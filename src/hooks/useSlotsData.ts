@@ -5,26 +5,18 @@ import { extractBrandFromProductName, extractModelFromProductName } from '@/lib/
 
 interface UseSlotsDataParams {
   pdvId?: string;
-  userId?: string;
+  /**
+   * Lista de PDV IDs que o usuário pode acessar.
+   * null = sem restrições (acesso a todos da org)
+   * Obtido via useUserAllowedPDVs()
+   */
+  allowedPdvIds?: string[] | null;
 }
 
-export function useSlotsData({ pdvId, userId }: UseSlotsDataParams = {}) {
+export function useSlotsData({ pdvId, allowedPdvIds }: UseSlotsDataParams = {}) {
   return useQuery({
-    queryKey: ['slots-data', pdvId, userId],
+    queryKey: ['slots-data', pdvId, allowedPdvIds],
     queryFn: async (): Promise<SlotData[]> => {
-      // Se não há pdvId específico, verificar se usuário tem PDVs atribuídos
-      let allowedPdvIds: string[] | null = null;
-      
-      if ((!pdvId || pdvId === 'all') && userId) {
-        const { data: userPdvs } = await supabase
-          .from('user_pdvs')
-          .select('pdv_id')
-          .eq('user_id', userId);
-        
-        if (userPdvs && userPdvs.length > 0) {
-          allowedPdvIds = userPdvs.map(p => p.pdv_id);
-        }
-      }
       
       // Busca o upload mais recente de estoque por PDV
       let uploadsQuery = supabase
