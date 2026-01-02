@@ -92,11 +92,12 @@ export const ProductRequestForm = forwardRef<HTMLDivElement, ProductRequestFormP
                 <Label htmlFor="customerName">
                   Nome <span className="text-destructive">*</span>
                 </Label>
-                <Input
+              <Input
                   id="customerName"
                   value={formData.customerName}
                   onChange={(e) => handleChange("customerName", e.target.value)}
                   placeholder="Seu nome"
+                  disabled={isSubmitting}
                   className={cn(inputClassName, errors.customerName && "border-destructive")}
                 />
                 {errors.customerName && (
@@ -112,6 +113,7 @@ export const ProductRequestForm = forwardRef<HTMLDivElement, ProductRequestFormP
                   value={formData.customerPhone}
                   onChange={(value) => handleChange("customerPhone", value)}
                   placeholder="(00) 00000-0000"
+                  disabled={isSubmitting}
                   className={cn(inputClassName, errors.customerPhone && "border-destructive")}
                 />
                 {errors.customerPhone && (
@@ -129,6 +131,7 @@ export const ProductRequestForm = forwardRef<HTMLDivElement, ProductRequestFormP
                 value={formData.requestedModel}
                 onChange={(e) => handleChange("requestedModel", e.target.value)}
                 placeholder="Ex: iPhone 15 Pro Max"
+                disabled={isSubmitting}
                 className={cn(inputClassName, errors.requestedModel && "border-destructive")}
               />
               {errors.requestedModel && (
@@ -138,15 +141,22 @@ export const ProductRequestForm = forwardRef<HTMLDivElement, ProductRequestFormP
 
             <Button 
               type="submit" 
-              className="w-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 shadow-lg transition-all duration-200" 
+              variant="hero"
+              className="w-full" 
               disabled={isSubmitting}
+              aria-label="Enviar pedido de modelo"
             >
               {isSubmitting ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Enviando...
+                </>
               ) : (
-                <Send className="h-4 w-4 mr-2" />
+                <>
+                  <Send className="h-4 w-4" />
+                  Enviar Pedido
+                </>
               )}
-              Enviar Pedido
             </Button>
           </form>
         )}
