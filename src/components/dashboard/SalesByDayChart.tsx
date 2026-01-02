@@ -50,10 +50,10 @@ export function SalesByDayChart({ data }: SalesByDayChartProps) {
   };
 
   return (
-    <Card className="flex flex-col">
+    <Card data-testid="sales-by-day-chart" className="flex flex-col">
       <CardHeader className="flex flex-row items-center justify-between px-4 md:px-6 pt-4 md:pt-6 pb-3">
         <CardTitle className="text-base md:text-lg">Vendas por Dia</CardTitle>
-        <Button variant="ghost" size="sm" onClick={handleExport} className="gap-1.5">
+        <Button data-testid="export-sales-by-day" variant="ghost" size="sm" onClick={handleExport} className="gap-1.5">
           <Download className="h-4 w-4" />
           <span className="hidden sm:inline">Exportar</span>
         </Button>
@@ -112,7 +112,7 @@ export function SalesByDayChart({ data }: SalesByDayChartProps) {
             </BarChart>
           </ChartContainer>
         ) : (
-          <div className="flex-1 min-h-[250px] flex items-center justify-center text-muted-foreground">
+          <div data-testid="sales-by-day-empty" className="flex-1 min-h-[250px] flex items-center justify-center text-muted-foreground">
             Nenhum dado de vendas disponível
           </div>
         )}

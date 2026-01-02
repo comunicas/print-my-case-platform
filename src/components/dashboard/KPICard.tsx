@@ -17,6 +17,7 @@ interface KPICardProps {
   trend?: TrendData;
   subtitle?: string;
   variant?: "default" | "success" | "warning" | "danger";
+  testId?: string;
 }
 
 const variantStyles = {
@@ -33,6 +34,7 @@ export function KPICard({
   trend,
   subtitle,
   variant = "default",
+  testId,
 }: KPICardProps) {
   const showTrend = trend && trend.percentage !== null;
   
@@ -49,7 +51,7 @@ export function KPICard({
   const TrendIcon = getTrendIcon();
 
   return (
-    <Card className="overflow-hidden">
+    <Card data-testid={testId} className="overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between pb-1 md:pb-2 px-3 md:px-6 pt-3 md:pt-6">
         <CardTitle className="text-[10px] md:text-sm font-medium text-muted-foreground truncate pr-2">
           {title}
@@ -57,7 +59,7 @@ export function KPICard({
         <Icon className={cn("h-3.5 w-3.5 md:h-4 md:w-4 shrink-0", variantStyles[variant])} />
       </CardHeader>
       <CardContent className="px-3 md:px-6 pb-3 md:pb-6">
-        <div className="text-base md:text-2xl font-bold text-foreground truncate">{value}</div>
+        <div data-testid="kpi-value" className="text-base md:text-2xl font-bold text-foreground truncate">{value}</div>
         
         <div className="flex items-center gap-1 md:gap-2 mt-0.5 md:mt-1 min-h-[18px]">
           {showTrend && (
@@ -65,6 +67,7 @@ export function KPICard({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Badge
+                    data-testid="kpi-trend"
                     variant="outline"
                     className={cn(
                       "cursor-help gap-0.5 md:gap-1 text-[10px] md:text-xs font-medium px-1.5 md:px-2",

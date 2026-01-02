@@ -63,12 +63,13 @@ export function DateRangeFilter({
   };
 
   return (
-    <div className={cn("flex flex-col sm:flex-row sm:items-center gap-3", className)}>
+    <div data-testid="date-filter" className={cn("flex flex-col sm:flex-row sm:items-center gap-3", className)}>
       {/* Preset Buttons */}
       <div className="flex items-center gap-1">
         {PRESETS.map((preset) => (
           <Button
             key={preset.days}
+            data-testid={`date-preset-${preset.label.toLowerCase()}`}
             variant={isPresetActive(preset.days) ? "default" : "outline"}
             size="sm"
             onClick={() => handlePresetClick(preset.days)}
@@ -82,6 +83,7 @@ export function DateRangeFilter({
         <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
           <PopoverTrigger asChild>
             <Button
+              data-testid="date-picker-trigger"
               variant="outline"
               size="sm"
               className={cn("h-8 px-3 gap-1", !PRESETS.some(p => isPresetActive(p.days)) && "border-primary")}
@@ -114,7 +116,7 @@ export function DateRangeFilter({
       </div>
       
       {/* Period Info */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      <div data-testid="date-range-display" className="flex items-center gap-2 text-sm text-muted-foreground">
         <span className="font-medium text-foreground">
           {formatDateRange()}
         </span>

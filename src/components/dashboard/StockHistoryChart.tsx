@@ -50,7 +50,7 @@ export function StockHistoryChart({ data, brands }: StockHistoryChartProps) {
   };
 
   return (
-    <Card>
+    <Card data-testid="stock-history-chart">
       <CardHeader className="flex flex-row items-center justify-between px-4 md:px-6 pt-4 md:pt-6 pb-3">
         <CardTitle className="text-base md:text-lg">Evolução do Estoque</CardTitle>
         <div className="flex items-center gap-2">
@@ -58,6 +58,7 @@ export function StockHistoryChart({ data, brands }: StockHistoryChartProps) {
             {PERIOD_OPTIONS.map((option) => (
               <Button
                 key={option.days}
+                data-testid={`period-${option.label.toLowerCase()}`}
                 variant={selectedPeriod === option.days ? "default" : "outline"}
                 size="sm"
                 onClick={() => setSelectedPeriod(option.days)}
@@ -67,7 +68,7 @@ export function StockHistoryChart({ data, brands }: StockHistoryChartProps) {
               </Button>
             ))}
           </div>
-          <Button variant="ghost" size="sm" onClick={handleExport} className="gap-1.5">
+          <Button data-testid="export-stock-history" variant="ghost" size="sm" onClick={handleExport} className="gap-1.5">
             <Download className="h-4 w-4" />
             <span className="hidden sm:inline">Exportar</span>
           </Button>
@@ -131,7 +132,7 @@ export function StockHistoryChart({ data, brands }: StockHistoryChartProps) {
             </LineChart>
           </ChartContainer>
         ) : (
-          <div className="flex-1 min-h-[250px] flex items-center justify-center text-muted-foreground">
+          <div data-testid="stock-history-empty" className="flex-1 min-h-[250px] flex items-center justify-center text-muted-foreground">
             Nenhum dado de histórico disponível
           </div>
         )}

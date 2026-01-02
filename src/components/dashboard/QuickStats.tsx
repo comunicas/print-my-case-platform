@@ -15,11 +15,11 @@ export function QuickStats({ peakTimeRange, peakTimeRangeRevenue, bestDay, bestD
   
   return (
     <TooltipProvider>
-      <div className="flex flex-wrap items-center gap-2">
+      <div data-testid="quick-stats" className="flex flex-wrap items-center gap-2">
         {peakTimeRange && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Badge variant="secondary" className="gap-1.5 py-1 px-2.5 cursor-help">
+              <Badge data-testid="peak-time-badge" variant="secondary" className="gap-1.5 py-1 px-2.5 cursor-help">
                 <Clock className="h-3.5 w-3.5" />
                 <span className="text-xs">Pico: {peakTimeRange}</span>
               </Badge>
@@ -33,7 +33,7 @@ export function QuickStats({ peakTimeRange, peakTimeRangeRevenue, bestDay, bestD
         {bestDay && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Badge variant="secondary" className="gap-1.5 py-1 px-2.5 cursor-help">
+              <Badge data-testid="best-day-badge" variant="secondary" className="gap-1.5 py-1 px-2.5 cursor-help">
                 <Calendar className="h-3.5 w-3.5" />
                 <span className="text-xs">Melhor: {bestDay}</span>
               </Badge>
