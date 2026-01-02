@@ -12,7 +12,7 @@ import {
   calculateStockKPIs,
   extractUniqueBrands,
   getSalesIndex,
-  getSlotStatus,
+  getProductActionStatus,
   matchesSearchFilter,
 } from '@/lib/stockUtils';
 import { GRID_LAYOUT } from '@/lib/stockGridUtils';
@@ -114,7 +114,7 @@ export function useProductStock() {
     // Filtro por status
     if (filters.statusFilter && filters.statusFilter !== 'all') {
       filtered = filtered.filter(p => p.status === filters.statusFilter);
-      slotsFiltered = slotsFiltered.filter(s => getSlotStatus(s.quantity) === filters.statusFilter);
+      slotsFiltered = slotsFiltered.filter(s => getProductActionStatus(s.quantity) === filters.statusFilter);
     }
     
     // Filtro por índice de vendas

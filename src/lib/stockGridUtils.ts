@@ -1,3 +1,10 @@
+import { MAX_CAPACITY, STOCK_THRESHOLDS, SlotVisualStatus } from './stockTypes';
+import { slotBlockColors } from './stockLabels';
+
+// Re-export para compatibilidade
+export { MAX_CAPACITY, STOCK_THRESHOLDS };
+export type { SlotVisualStatus };
+
 // Layout físico da máquina: 10 andares × 9 colunas
 // Andar 1 é especial: apenas slots 01-04 nas colunas 6-9
 export const GRID_LAYOUT = [
@@ -16,63 +23,27 @@ export const GRID_LAYOUT = [
 // Colunas da máquina (da esquerda para direita)
 export const COLUMN_HEADERS = ["9", "8", "7", "6", "5", "4", "3", "2", "1"];
 
-// Capacidade máxima de cada slot
-export const MAX_CAPACITY = 7;
-
-// Thresholds para cores
-export const STOCK_THRESHOLDS = {
-  EMPTY: 0,
-  CRITICAL: 2,
-  LOW: 5,
-  FULL: 7,
-} as const;
-
-export type SlotStatus = 'empty' | 'critical' | 'low' | 'medium' | 'full' | 'inactive';
-
 /**
- * Retorna a classe de cor para um slot baseado na quantidade
+ * Retorna o status visual do slot baseado na quantidade
+ * Usado para determinar como exibir o slot visualmente
  */
-export function getSlotColorClass(quantity: number, isActive: boolean = true): string {
-  if (!isActive) return 'bg-muted';
-  if (quantity === 0) return 'bg-destructive';
-  if (quantity <= 2) return 'bg-orange-500';
-  if (quantity <= 5) return 'bg-yellow-500';
-  return 'bg-green-500';
-}
-
-/**
- * Retorna a classe de cor para blocos empilhados
- */
-export function getBlockColorClass(index: number, quantity: number, isActive: boolean = true): string {
-  if (!isActive) return 'bg-muted/30';
-  if (index >= quantity) return 'bg-muted/20'; // Bloco vazio
-  
-  // Blocos preenchidos usam cores baseadas no total
-  if (quantity === 0) return 'bg-destructive';
-  if (quantity <= 2) return 'bg-orange-500';
-  if (quantity <= 5) return 'bg-yellow-500';
-  return 'bg-green-500';
-}
-
-/**
- * Retorna o status textual do slot
- */
-export function getSlotStatus(quantity: number, isActive: boolean = true): SlotStatus {
+export function getSlotVisualStatus(quantity: number, isActive: boolean = true): SlotVisualStatus {
   if (!isActive) return 'inactive';
   if (quantity === 0) return 'empty';
-  if (quantity <= 2) return 'critical';
-  if (quantity <= 5) return 'low';
+  if (quantity <= STOCK_THRESHOLDS.CRITICAL) return 'critical';
+  if (quantity <= STOCK_THRESHOLDS.LOW) return 'low';
   if (quantity < MAX_CAPACITY) return 'medium';
   return 'full';
 }
 
 /**
- * Retorna a cor de borda para hover
+ * Retorna a classe de cor para blocos empilhados na visualização de slots
  */
-export function getSlotBorderClass(quantity: number, isActive: boolean = true): string {
-  if (!isActive) return 'border-muted';
-  if (quantity === 0) return 'border-destructive';
-  if (quantity <= 2) return 'border-orange-500';
-  if (quantity <= 5) return 'border-yellow-500';
-  return 'border-green-500';
+export function getBlockColorClass(index: number, quantity: number, isActive: boolean = true): string {
+  if (!isActive) return 'bg-muted/30';
+  if (index >= quantity) return 'bg-muted/20'; // Bloco vazio
+  
+  // Blocos preenchidos usam cores baseadas no status visual
+  const status = getSlotVisualStatus(quantity, isActive);
+  return slotBlockColors[status] || slotBlockColors.medium;
 }

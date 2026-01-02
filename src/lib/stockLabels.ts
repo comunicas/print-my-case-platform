@@ -1,20 +1,24 @@
-import { ProductStatus, SalesIndex } from './stockUtils';
+import type { ProductActionStatus, SlotVisualStatus, SalesIndex } from './stockTypes';
 
-// Labels para status de produto
-export const statusLabels: Record<ProductStatus, string> = {
+/**
+ * Labels e cores para status de ação de produto
+ */
+export const productActionLabels: Record<ProductActionStatus, string> = {
   ok: 'Ok',
   redistribute: 'Redistribuir',
   restock: 'Repor!',
 };
 
-export const statusColors: Record<ProductStatus, string> = {
+export const productActionColors: Record<ProductActionStatus, string> = {
   ok: 'bg-green-500/10 text-green-600 border-green-500/20',
   redistribute: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
   restock: 'bg-destructive/10 text-destructive border-destructive/20',
 };
 
-// Labels para status de slot
-export const slotStatusLabels: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+/**
+ * Labels e variantes de badge para status visual de slot
+ */
+export const slotVisualLabels: Record<SlotVisualStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   full: { label: 'Cheio', variant: 'default' },
   medium: { label: 'Médio', variant: 'secondary' },
   low: { label: 'Baixo', variant: 'outline' },
@@ -23,7 +27,22 @@ export const slotStatusLabels: Record<string, { label: string; variant: 'default
   inactive: { label: 'Inativo', variant: 'outline' },
 };
 
-// Labels para índice de vendas
+/**
+ * Cores de blocos para visualização de slots
+ * Mapeamento de status visual para classe de cor
+ */
+export const slotBlockColors: Record<SlotVisualStatus, string> = {
+  full: 'bg-green-500',
+  medium: 'bg-yellow-500',
+  low: 'bg-yellow-500',
+  critical: 'bg-orange-500',
+  empty: 'bg-destructive',
+  inactive: 'bg-muted',
+};
+
+/**
+ * Labels para índice de vendas
+ */
 export const salesIndexLabels: Record<SalesIndex, string> = {
   high: 'Alta',
   medium: 'Média',
@@ -38,10 +57,26 @@ export const salesIndexColors: Record<SalesIndex, string> = {
   none: 'bg-muted text-muted-foreground border-border',
 };
 
-// Variantes de badge para vendas (usado em ProductDetailModal)
+/**
+ * Variantes de badge para vendas (usado em ProductDetailModal)
+ */
 export const salesBadgeVariants: Record<SalesIndex, 'default' | 'secondary' | 'destructive' | 'outline'> = {
   high: 'default',
   medium: 'secondary',
   low: 'outline',
   none: 'outline',
 };
+
+// ============================================
+// Aliases para compatibilidade com código legado
+// TODO: Remover após migração completa
+// ============================================
+
+/** @deprecated Use productActionLabels */
+export const statusLabels = productActionLabels;
+
+/** @deprecated Use productActionColors */
+export const statusColors = productActionColors;
+
+/** @deprecated Use slotVisualLabels */
+export const slotStatusLabels = slotVisualLabels;
