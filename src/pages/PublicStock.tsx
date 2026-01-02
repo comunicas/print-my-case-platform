@@ -62,6 +62,15 @@ export default function PublicStock() {
     }
   }, []);
 
+  // Calculate filtered items count for display - must be before early returns
+  const filteredItemsCount = useMemo(() => {
+    return stock.filter((item) => {
+      const matchesSearch = item.product_name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesBrand = !selectedBrand || extractBrandFromProductName(item.product_name) === selectedBrand;
+      return matchesSearch && matchesBrand;
+    }).length;
+  }, [stock, searchTerm, selectedBrand]);
+
   if (isLoadingOrganization) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -83,15 +92,6 @@ export default function PublicStock() {
   }
 
   const catalogCodeEnabled = organization.catalog_code_enabled && !!organization.catalog_code && !!organization.catalog_qrcode_url;
-
-  // Calculate filtered items count for display
-  const filteredItemsCount = useMemo(() => {
-    return stock.filter((item) => {
-      const matchesSearch = item.product_name.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesBrand = !selectedBrand || extractBrandFromProductName(item.product_name) === selectedBrand;
-      return matchesSearch && matchesBrand;
-    }).length;
-  }, [stock, searchTerm, selectedBrand]);
 
   const hasActiveFilters = searchTerm || selectedBrand;
 
