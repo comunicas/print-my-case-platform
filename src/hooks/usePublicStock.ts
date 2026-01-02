@@ -6,6 +6,8 @@ export interface PublicOrganization {
   id: string;
   name: string;
   public_slug: string;
+  catalog_code_enabled: boolean;
+  catalog_code: string | null;
 }
 
 export interface PublicStockItem {
