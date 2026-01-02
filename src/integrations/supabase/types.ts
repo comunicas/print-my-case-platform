@@ -68,6 +68,42 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          message: string
+          metadata: Json | null
+          organization_id: string
+          title: string
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message: string
+          metadata?: Json | null
+          organization_id: string
+          title: string
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          metadata?: Json | null
+          organization_id?: string
+          title?: string
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       organizations: {
         Row: {
           active_since: string | null
@@ -678,6 +714,17 @@ export type Database = {
           _new_role: Database["public"]["Enums"]["app_role"]
         }
         Returns: boolean
+      }
+      create_notification: {
+        Args: {
+          p_message: string
+          p_metadata?: Json
+          p_org_id: string
+          p_title: string
+          p_type: string
+          p_user_id: string
+        }
+        Returns: string
       }
       get_org_user_ids: { Args: { _user_id: string }; Returns: string[] }
       get_public_organization: {
