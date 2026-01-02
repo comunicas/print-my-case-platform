@@ -55,9 +55,19 @@ export function extractBrandFromProductName(fullName: string): string {
  */
 export function extractModelFromProductName(fullName: string): string {
   if (!fullName) return '';
+  
+  // Verifica se é um productKey no formato "BRAND:model"
+  if (fullName.includes(':')) {
+    const parts = fullName.split(':');
+    if (parts.length >= 2) {
+      // Retorna a parte após o primeiro ":"
+      return parts.slice(1).join(':').trim();
+    }
+  }
+  
   const upper = fullName.toUpperCase().trim();
   
-  // Remove marcas conhecidas do início
+  // Remove marcas conhecidas do início (formato "BRAND model")
   for (const brand of KNOWN_BRANDS) {
     if (upper.startsWith(brand + ' ')) {
       return fullName.trim().substring(brand.length + 1).trim();
