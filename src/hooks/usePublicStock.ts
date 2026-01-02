@@ -12,6 +12,7 @@ export interface PublicOrganization {
   catalog_qrcode_url: string | null;
   pdv_name: string | null;
   pdv_location: string | null;
+  catalog_modal_text: string | null;
 }
 
 export interface PublicStockItem {

@@ -299,6 +299,7 @@ export default function PublicStock() {
           code={organization.catalog_code!}
           productName={selectedProduct || ""}
           qrcodeUrl={organization.catalog_qrcode_url!}
+          modalText={organization.catalog_modal_text}
         />
       )}
     </div>
