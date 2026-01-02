@@ -8,13 +8,17 @@ interface PublicBrandFilterProps {
   items: PublicStockItem[];
   selectedBrand: string | null;
   onBrandChange: (brand: string | null) => void;
+  variant?: "default" | "hero";
 }
 
 export function PublicBrandFilter({
   items,
   selectedBrand,
   onBrandChange,
+  variant = "default",
 }: PublicBrandFilterProps) {
+  const isHero = variant === "hero";
+  
   // Get unique brands from items, filtered to known brands
   const availableBrands = [...new Set(
     items.map((item) => extractBrandFromProductName(item.product_name))
@@ -24,6 +28,14 @@ export function PublicBrandFilter({
     return null;
   }
 
+  const baseButtonClass = isHero
+    ? "px-4 py-2 rounded-full border backdrop-blur-sm bg-white/20 text-white border-white/30 hover:bg-white/30 data-[state=on]:bg-white data-[state=on]:text-purple-700 data-[state=on]:border-white"
+    : "px-4 py-2 rounded-full border data-[state=on]:bg-primary data-[state=on]:text-primary-foreground";
+
+  const brandButtonClass = isHero
+    ? "px-3 py-2 rounded-full border backdrop-blur-sm bg-white/20 text-white border-white/30 hover:bg-white/30 data-[state=on]:bg-white data-[state=on]:text-purple-700 data-[state=on]:border-white flex items-center gap-2"
+    : "px-3 py-2 rounded-full border data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex items-center gap-2";
+
   return (
     <div className="overflow-x-auto pb-2 -mx-4 px-4">
       <ToggleGroup
@@ -32,17 +44,14 @@ export function PublicBrandFilter({
         onValueChange={(value) => onBrandChange(value === "all" ? null : value)}
         className="flex gap-2 w-max"
       >
-        <ToggleGroupItem
-          value="all"
-          className="px-4 py-2 rounded-full border data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
-        >
+        <ToggleGroupItem value="all" className={baseButtonClass}>
           Todos
         </ToggleGroupItem>
         {availableBrands.map((brand) => (
           <ToggleGroupItem
             key={brand}
             value={brand}
-            className="px-3 py-2 rounded-full border data-[state=on]:bg-primary data-[state=on]:text-primary-foreground flex items-center gap-2"
+            className={brandButtonClass}
           >
             <BrandLogo brand={brand} size="xs" />
             <span className="capitalize">{brand.toLowerCase()}</span>

@@ -22,6 +22,7 @@ interface PublicStockSearchProps {
   value: string;
   onChange: (value: string) => void;
   items: PublicStockItem[];
+  variant?: "default" | "hero";
 }
 
 const statusConfig = {
@@ -39,9 +40,11 @@ const statusConfig = {
   },
 };
 
-export function PublicStockSearch({ value, onChange, items }: PublicStockSearchProps) {
+export function PublicStockSearch({ value, onChange, items, variant = "default" }: PublicStockSearchProps) {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState(value);
+
+  const isHero = variant === "hero";
 
   const filteredSuggestions = useMemo(() => {
     if (!inputValue.trim()) return [];
@@ -76,14 +79,20 @@ export function PublicStockSearch({ value, onChange, items }: PublicStockSearchP
     <Popover open={open && filteredSuggestions.length > 0} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${
+            isHero ? "text-purple-600" : "text-muted-foreground"
+          }`} />
           <Input
             type="search"
             placeholder="Buscar modelo..."
             value={inputValue}
             onChange={(e) => handleInputChange(e.target.value)}
             onFocus={() => inputValue.trim() && setOpen(true)}
-            className="pl-10"
+            className={`pl-10 ${
+              isHero 
+                ? "bg-white/95 backdrop-blur-sm border-0 shadow-lg rounded-xl text-gray-900 placeholder:text-gray-500" 
+                : ""
+            }`}
           />
         </div>
       </PopoverTrigger>

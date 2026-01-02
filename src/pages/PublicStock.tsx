@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
-import { Loader2, Package } from "lucide-react";
+import { Loader2, Package, MapPin } from "lucide-react";
 import { usePublicStock } from "@/hooks/usePublicStock";
 import { PublicStockSearch, PublicStockList, PublicBrandFilter, ProductRequestForm, ProductCodeModal } from "@/components/public";
 
@@ -43,38 +43,47 @@ export default function PublicStock() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
+      {/* Hero Header */}
+      <header className="bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 text-white">
+        <div className="container mx-auto px-4 py-6 space-y-4 max-w-2xl">
+          {/* Logo e Info */}
+          <div className="flex flex-col items-center text-center space-y-2">
             <img
               src="/logo-printmycase.png"
               alt="PrintMyCase"
-              className="h-10 w-10 object-contain"
+              className="h-14 w-14 object-contain rounded-xl shadow-lg bg-white/10 p-1"
             />
             <div>
-              <h1 className="font-semibold text-lg">
+              <h1 className="font-bold text-xl">
                 {organization.pdv_name || organization.name}
               </h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-white/80 text-sm flex items-center justify-center gap-1">
+                <MapPin className="h-3 w-3" />
                 {organization.pdv_location || "Catálogo de Produtos"}
               </p>
             </div>
           </div>
+
+          {/* Search */}
+          <PublicStockSearch 
+            value={searchTerm} 
+            onChange={setSearchTerm} 
+            items={stock} 
+            variant="hero"
+          />
+
+          {/* Brand Filter */}
+          <PublicBrandFilter
+            items={stock}
+            selectedBrand={selectedBrand}
+            onBrandChange={setSelectedBrand}
+            variant="hero"
+          />
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-6 space-y-4 max-w-2xl">
-        {/* Search */}
-        <PublicStockSearch value={searchTerm} onChange={setSearchTerm} items={stock} />
-
-        {/* Brand Filter */}
-        <PublicBrandFilter
-          items={stock}
-          selectedBrand={selectedBrand}
-          onBrandChange={setSelectedBrand}
-        />
+      <main className="container mx-auto px-4 py-6 max-w-2xl">
 
         {/* Stock List */}
         {isLoadingStock ? (
