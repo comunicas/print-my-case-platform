@@ -7,12 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Copy, ExternalLink } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { organizationFormSchema } from "@/lib/schemas/settings";
 import { parseZodErrors } from "@/lib/utils";
 import { Organization } from "@/hooks/useOrganization";
 import { UseMutationResult } from "@tanstack/react-query";
+import { usePDVs } from "@/hooks/usePDVs";
 
 interface OrganizationSettingsProps {
   organization: Organization;
@@ -35,11 +37,15 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
     public_catalog_enabled?: boolean;
     catalog_code_enabled?: boolean;
     catalog_code?: string;
+    catalog_pdv_id?: string;
   };
   const [catalogEnabled, setCatalogEnabled] = useState(false);
   const [publicSlug, setPublicSlug] = useState("");
   const [catalogCodeEnabled, setCatalogCodeEnabled] = useState(false);
   const [catalogCode, setCatalogCode] = useState("");
+  const [catalogPdvId, setCatalogPdvId] = useState<string | null>(null);
+  
+  const { pdvs } = usePDVs({ organizationId: organization?.id });
 
   useEffect(() => {
     if (organization) {
@@ -53,8 +59,9 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
       setPublicSlug(orgAny.public_slug || "");
       setCatalogCodeEnabled(orgAny.catalog_code_enabled || false);
       setCatalogCode(orgAny.catalog_code || "");
+      setCatalogPdvId(orgAny.catalog_pdv_id || null);
     }
-  }, [organization, orgAny.public_catalog_enabled, orgAny.public_slug, orgAny.catalog_code_enabled, orgAny.catalog_code]);
+  }, [organization, orgAny.public_catalog_enabled, orgAny.public_slug, orgAny.catalog_code_enabled, orgAny.catalog_code, orgAny.catalog_pdv_id]);
 
   const handleSaveOrganization = () => {
     if (!isAdmin) {
@@ -111,6 +118,7 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
       public_slug: catalogEnabled ? publicSlug.toLowerCase().trim() : null,
       catalog_code_enabled: catalogCodeEnabled,
       catalog_code: catalogCodeEnabled ? catalogCode.trim() : null,
+      catalog_pdv_id: catalogPdvId,
     } as Partial<Organization>);
   };
 
@@ -320,6 +328,30 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
                       </div>
                     </div>
                   )}
+
+                  {/* PDV do Catálogo */}
+                  <div className="space-y-2">
+                    <Label htmlFor="catalog-pdv">PDV do catálogo</Label>
+                    <Select
+                      value={catalogPdvId || "all"}
+                      onValueChange={(value) => setCatalogPdvId(value === "all" ? null : value)}
+                    >
+                      <SelectTrigger id="catalog-pdv">
+                        <SelectValue placeholder="Selecione um PDV" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos os PDVs</SelectItem>
+                        {pdvs?.map((pdv) => (
+                          <SelectItem key={pdv.id} value={pdv.id}>
+                            {pdv.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Escolha um PDV específico ou exiba o estoque de todos agregados.
+                    </p>
+                  </div>
 
                   {/* Código do Catálogo */}
                   <Separator className="my-4" />

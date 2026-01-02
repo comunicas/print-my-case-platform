@@ -74,6 +74,7 @@ export type Database = {
           address: string | null
           catalog_code: string | null
           catalog_code_enabled: boolean | null
+          catalog_pdv_id: string | null
           cnpj: string | null
           created_at: string | null
           email: string | null
@@ -90,6 +91,7 @@ export type Database = {
           address?: string | null
           catalog_code?: string | null
           catalog_code_enabled?: boolean | null
+          catalog_pdv_id?: string | null
           cnpj?: string | null
           created_at?: string | null
           email?: string | null
@@ -106,6 +108,7 @@ export type Database = {
           address?: string | null
           catalog_code?: string | null
           catalog_code_enabled?: boolean | null
+          catalog_pdv_id?: string | null
           cnpj?: string | null
           created_at?: string | null
           email?: string | null
@@ -117,7 +120,15 @@ export type Database = {
           public_catalog_enabled?: boolean | null
           public_slug?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "organizations_catalog_pdv_id_fkey"
+            columns: ["catalog_pdv_id"]
+            isOneToOne: false
+            referencedRelation: "pdvs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pdvs: {
         Row: {
@@ -633,13 +644,14 @@ export type Database = {
         Returns: {
           catalog_code: string
           catalog_code_enabled: boolean
+          catalog_pdv_id: string
           id: string
           name: string
           public_slug: string
         }[]
       }
       get_public_stock: {
-        Args: { p_org_id: string }
+        Args: { p_org_id: string; p_pdv_id?: string }
         Returns: {
           product_name: string
           status: string
