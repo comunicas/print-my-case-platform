@@ -39,7 +39,7 @@ export default function PublicStock() {
     );
   }
 
-  const catalogCodeEnabled = organization.catalog_code_enabled && !!organization.catalog_code;
+  const catalogCodeEnabled = organization.catalog_code_enabled && !!organization.catalog_code && !!organization.catalog_qrcode_url;
 
   return (
     <div className="min-h-screen bg-background">
@@ -109,6 +109,7 @@ export default function PublicStock() {
           onClose={() => setSelectedProduct(null)}
           code={organization.catalog_code!}
           productName={selectedProduct || ""}
+          qrcodeUrl={organization.catalog_qrcode_url!}
         />
       )}
     </div>

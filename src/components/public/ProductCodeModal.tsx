@@ -2,7 +2,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Copy, Check } from "lucide-react";
 import { useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
 import { toast } from "@/hooks/use-toast";
 
 interface ProductCodeModalProps {
@@ -10,9 +9,10 @@ interface ProductCodeModalProps {
   onClose: () => void;
   code: string;
   productName: string;
+  qrcodeUrl: string;
 }
 
-export function ProductCodeModal({ isOpen, onClose, code, productName }: ProductCodeModalProps) {
+export function ProductCodeModal({ isOpen, onClose, code, productName, qrcodeUrl }: ProductCodeModalProps) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -52,9 +52,13 @@ export function ProductCodeModal({ isOpen, onClose, code, productName }: Product
             </Button>
           </div>
 
-          {/* QR Code */}
+          {/* QR Code Image */}
           <div className="p-4 bg-white rounded-lg">
-            <QRCodeSVG value={code} size={160} level="M" />
+            <img 
+              src={qrcodeUrl} 
+              alt="QR Code" 
+              className="w-40 h-40 object-contain"
+            />
           </div>
 
           {/* Modelo selecionado */}

@@ -75,6 +75,7 @@ export type Database = {
           catalog_code: string | null
           catalog_code_enabled: boolean | null
           catalog_pdv_id: string | null
+          catalog_qrcode_url: string | null
           cnpj: string | null
           created_at: string | null
           email: string | null
@@ -92,6 +93,7 @@ export type Database = {
           catalog_code?: string | null
           catalog_code_enabled?: boolean | null
           catalog_pdv_id?: string | null
+          catalog_qrcode_url?: string | null
           cnpj?: string | null
           created_at?: string | null
           email?: string | null
@@ -109,6 +111,7 @@ export type Database = {
           catalog_code?: string | null
           catalog_code_enabled?: boolean | null
           catalog_pdv_id?: string | null
+          catalog_qrcode_url?: string | null
           cnpj?: string | null
           created_at?: string | null
           email?: string | null
@@ -645,6 +648,7 @@ export type Database = {
           catalog_code: string
           catalog_code_enabled: boolean
           catalog_pdv_id: string
+          catalog_qrcode_url: string
           id: string
           name: string
           public_slug: string
