@@ -1,4 +1,4 @@
-import { LucideIcon, TrendingUp, TrendingDown, Minus, Info } from "lucide-react";
+import { LucideIcon, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {

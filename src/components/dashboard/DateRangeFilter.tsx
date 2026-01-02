@@ -10,11 +10,9 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { DateRange } from "@/lib/utils/date-presets";
 
-export interface DateRange {
-  from: Date;
-  to: Date;
-}
+export type { DateRange } from "@/lib/utils/date-presets";
 
 interface DateRangeFilterProps {
   dateRange: DateRange;

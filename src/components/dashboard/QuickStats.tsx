@@ -1,6 +1,7 @@
 import { Clock, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { formatCurrency } from "@/lib/utils";
 
 interface QuickStatsProps {
   peakTimeRange: string | null;
@@ -8,10 +9,6 @@ interface QuickStatsProps {
   bestDay: string | null;
   bestDayRevenue: number | null;
 }
-
-const formatCurrency = (value: number) => {
-  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-};
 
 export function QuickStats({ peakTimeRange, peakTimeRangeRevenue, bestDay, bestDayRevenue }: QuickStatsProps) {
   if (!peakTimeRange && !bestDay) return null;
