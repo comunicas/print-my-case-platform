@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useParams } from "react-router-dom";
-import { Loader2, Package, MapPin, X } from "lucide-react";
+import { Loader2, Package, MapPin, X, Share2, Copy } from "lucide-react";
+import { toast } from "sonner";
 import { usePublicStock } from "@/hooks/usePublicStock";
 import { PublicStockSearch, PublicStockList, PublicBrandFilter, ProductRequestForm, ProductCodeModal } from "@/components/public";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,38 @@ export default function PublicStock() {
   const handleRefresh = useCallback(async () => {
     await refetchStock();
   }, [refetchStock]);
+
+  const handleShare = useCallback(async () => {
+    const url = window.location.href;
+    const pdvName = organization?.pdv_name || organization?.name || "nosso catálogo";
+    const message = `O match perfeito para o seu celular está aqui. ❤️ Clique e descubra:`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: pdvName,
+          text: message,
+          url: url,
+        });
+        toast.success("Catálogo compartilhado com sucesso!");
+        return;
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return;
+      }
+    }
+
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${message}\n${url}`)}`;
+    window.open(whatsappUrl, '_blank');
+  }, [organization]);
+
+  const handleCopyLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success("Link copiado para a área de transferência!");
+    } catch {
+      toast.error("Não foi possível copiar o link");
+    }
+  }, []);
 
   if (isLoadingOrganization) {
     return (
@@ -73,7 +106,7 @@ export default function PublicStock() {
       <header className="bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 text-white">
         <div className="container mx-auto px-4 py-6 space-y-4 max-w-2xl">
           {/* Logo e Info */}
-          <div className="flex flex-col items-center text-center space-y-2">
+          <div className="flex flex-col items-center text-center space-y-2 relative">
             <img
               src="/logo-printmycase.png"
               alt="PrintMyCase"
@@ -87,6 +120,28 @@ export default function PublicStock() {
                 <MapPin className="h-3 w-3" />
                 {organization.pdv_location || "Catálogo de Produtos"}
               </p>
+            </div>
+            
+            {/* Botões de ação */}
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 flex flex-col gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleShare}
+                className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/20 rounded-full"
+                title="Compartilhar catálogo"
+              >
+                <Share2 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleCopyLink}
+                className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/20 rounded-full"
+                title="Copiar link"
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
             </div>
           </div>
 
