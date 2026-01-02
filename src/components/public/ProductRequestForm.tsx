@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { forwardRef, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
@@ -20,8 +20,9 @@ interface ProductRequestFormProps {
   isSubmitting: boolean;
 }
 
-export function ProductRequestForm({ organizationId, onSubmit, isSubmitting }: ProductRequestFormProps) {
-  const [formData, setFormData] = useState({
+export const ProductRequestForm = forwardRef<HTMLDivElement, ProductRequestFormProps>(
+  ({ organizationId, onSubmit, isSubmitting }, ref) => {
+    const [formData, setFormData] = useState({
     customerName: "",
     customerPhone: "",
     requestedModel: "",
@@ -67,10 +68,10 @@ export function ProductRequestForm({ organizationId, onSubmit, isSubmitting }: P
     }
   };
 
-  const inputClassName = "focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2";
+    const inputClassName = "focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2";
 
-  return (
-    <Card className="mt-6">
+    return (
+      <Card ref={ref} className="mt-6">
       <CardHeader>
         <CardTitle className="text-lg">Não encontrou seu modelo?</CardTitle>
         <CardDescription>
@@ -149,7 +150,10 @@ export function ProductRequestForm({ organizationId, onSubmit, isSubmitting }: P
             </Button>
           </form>
         )}
-      </CardContent>
-    </Card>
-  );
-}
+        </CardContent>
+      </Card>
+    );
+  }
+);
+
+ProductRequestForm.displayName = "ProductRequestForm";
