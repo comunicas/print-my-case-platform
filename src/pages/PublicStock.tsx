@@ -59,7 +59,7 @@ export default function PublicStock() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6 space-y-6 max-w-2xl">
         {/* Search */}
-        <PublicStockSearch value={searchTerm} onChange={setSearchTerm} />
+        <PublicStockSearch value={searchTerm} onChange={setSearchTerm} items={stock} />
 
         {/* Stock List */}
         {isLoadingStock ? (

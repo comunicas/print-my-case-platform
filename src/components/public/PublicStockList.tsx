@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { BrandLogo } from "@/components/ui/BrandLogo";
-import { extractBrandFromProductName } from "@/lib/productNormalization";
+import { extractBrandFromProductName, extractModelFromProductName } from "@/lib/productNormalization";
 import type { PublicStockItem } from "@/hooks/usePublicStock";
 
 interface PublicStockListProps {
@@ -48,6 +48,7 @@ export function PublicStockList({ items, searchTerm }: PublicStockListProps) {
     <div className="space-y-2">
       {filteredItems.map((item) => {
         const brand = extractBrandFromProductName(item.product_name);
+        const model = extractModelFromProductName(item.product_name);
         const config = statusConfig[item.status];
 
         return (
@@ -55,7 +56,7 @@ export function PublicStockList({ items, searchTerm }: PublicStockListProps) {
             <CardContent className="flex items-center justify-between py-3 px-4">
               <div className="flex items-center gap-3">
                 <BrandLogo brand={brand} size="sm" />
-                <span className="font-medium">{item.product_name}</span>
+                <span className="font-medium">{model}</span>
               </div>
               <Badge variant={config.variant} className={config.className}>
                 {config.label}
