@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
@@ -8,13 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Copy, ExternalLink } from "lucide-react";
+import { Loader2, Copy, ExternalLink, Upload, X, ImageIcon } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { organizationFormSchema } from "@/lib/schemas/settings";
 import { parseZodErrors } from "@/lib/utils";
 import { Organization } from "@/hooks/useOrganization";
 import { UseMutationResult } from "@tanstack/react-query";
 import { usePDVs } from "@/hooks/usePDVs";
+import { supabase } from "@/integrations/supabase/client";
 
 interface OrganizationSettingsProps {
   organization: Organization;
@@ -38,12 +39,16 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
     catalog_code_enabled?: boolean;
     catalog_code?: string;
     catalog_pdv_id?: string;
+    catalog_qrcode_url?: string;
   };
   const [catalogEnabled, setCatalogEnabled] = useState(false);
   const [publicSlug, setPublicSlug] = useState("");
   const [catalogCodeEnabled, setCatalogCodeEnabled] = useState(false);
   const [catalogCode, setCatalogCode] = useState("");
   const [catalogPdvId, setCatalogPdvId] = useState<string | null>(null);
+  const [catalogQrcodeUrl, setCatalogQrcodeUrl] = useState<string | null>(null);
+  const [uploadingQrcode, setUploadingQrcode] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { pdvs } = usePDVs({ organizationId: organization?.id });
 
@@ -60,8 +65,9 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
       setCatalogCodeEnabled(orgAny.catalog_code_enabled || false);
       setCatalogCode(orgAny.catalog_code || "");
       setCatalogPdvId(orgAny.catalog_pdv_id || null);
+      setCatalogQrcodeUrl(orgAny.catalog_qrcode_url || null);
     }
-  }, [organization, orgAny.public_catalog_enabled, orgAny.public_slug, orgAny.catalog_code_enabled, orgAny.catalog_code, orgAny.catalog_pdv_id]);
+  }, [organization, orgAny.public_catalog_enabled, orgAny.public_slug, orgAny.catalog_code_enabled, orgAny.catalog_code, orgAny.catalog_pdv_id, orgAny.catalog_qrcode_url]);
 
   const handleSaveOrganization = () => {
     if (!isAdmin) {
@@ -103,14 +109,24 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
       return;
     }
 
-    // Validate code if enabled
-    if (catalogCodeEnabled && !catalogCode.trim()) {
-      toast({
-        title: "Código obrigatório",
-        description: "Informe o código do catálogo.",
-        variant: "destructive",
-      });
-      return;
+    // Validate code and QR if enabled
+    if (catalogCodeEnabled) {
+      if (!catalogCode.trim()) {
+        toast({
+          title: "Código obrigatório",
+          description: "Informe o código do catálogo.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!catalogQrcodeUrl) {
+        toast({
+          title: "Imagem do QR Code obrigatória",
+          description: "Faça upload da imagem do QR Code.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
     
     updateOrganization.mutate({
@@ -119,7 +135,72 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
       catalog_code_enabled: catalogCodeEnabled,
       catalog_code: catalogCodeEnabled ? catalogCode.trim() : null,
       catalog_pdv_id: catalogPdvId,
+      catalog_qrcode_url: catalogCodeEnabled ? catalogQrcodeUrl : null,
     } as Partial<Organization>);
+  };
+
+  const handleQrcodeUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Formato inválido",
+        description: "Use apenas imagens PNG, JPG ou WEBP.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: "Arquivo muito grande",
+        description: "A imagem deve ter no máximo 2MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadingQrcode(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${organization.id}-qrcode-${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('catalog-images')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('catalog-images')
+        .getPublicUrl(fileName);
+
+      setCatalogQrcodeUrl(publicUrl);
+      toast({
+        title: "Imagem enviada!",
+        description: "A imagem do QR Code foi carregada com sucesso.",
+      });
+    } catch (error) {
+      console.error('Error uploading QR code:', error);
+      toast({
+        title: "Erro no upload",
+        description: "Não foi possível enviar a imagem. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingQrcode(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveQrcode = () => {
+    setCatalogQrcodeUrl(null);
   };
 
   const CUSTOM_DOMAIN = "https://printmycase.comunicas.com.br";
@@ -379,18 +460,73 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
                     </div>
 
                     {catalogCodeEnabled && (
-                      <div className="space-y-2">
-                        <Label htmlFor="catalog-code">Código do catálogo</Label>
-                        <Input
-                          id="catalog-code"
-                          value={catalogCode}
-                          onChange={(e) => setCatalogCode(e.target.value.toUpperCase())}
-                          placeholder="PMC-001"
-                          className="font-mono"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Este código será exibido junto com um QR Code para o cliente.
-                        </p>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="catalog-code">Código do catálogo *</Label>
+                          <Input
+                            id="catalog-code"
+                            value={catalogCode}
+                            onChange={(e) => setCatalogCode(e.target.value.toUpperCase())}
+                            placeholder="PMC-001"
+                            className="font-mono"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Este código será exibido para o cliente.
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Imagem do QR Code *</Label>
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            onChange={handleQrcodeUpload}
+                            className="hidden"
+                          />
+                          
+                          {catalogQrcodeUrl ? (
+                            <div className="relative w-fit">
+                              <div className="p-2 border rounded-lg bg-white">
+                                <img
+                                  src={catalogQrcodeUrl}
+                                  alt="QR Code"
+                                  className="w-32 h-32 object-contain"
+                                />
+                              </div>
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="icon"
+                                className="absolute -top-2 -right-2 h-6 w-6"
+                                onClick={handleRemoveQrcode}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => fileInputRef.current?.click()}
+                              disabled={uploadingQrcode}
+                              className="w-full h-32 border-2 border-dashed border-muted-foreground/25 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-primary/50 hover:bg-muted/50 transition-colors disabled:opacity-50"
+                            >
+                              {uploadingQrcode ? (
+                                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                              ) : (
+                                <>
+                                  <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                                  <span className="text-sm text-muted-foreground">
+                                    Clique para enviar a imagem do QR Code
+                                  </span>
+                                </>
+                              )}
+                            </button>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            Formatos aceitos: PNG, JPG, WEBP (máx. 2MB)
+                          </p>
+                        </div>
                       </div>
                     )}
                   </div>
