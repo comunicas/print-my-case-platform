@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
@@ -5,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { Slider } from "@/components/ui/slider";
 import {
   GripVertical,
   Image,
@@ -14,6 +16,7 @@ import {
   Pencil,
   Trash2,
   Play,
+  Pause,
   Check,
   X,
 } from "lucide-react";
@@ -53,6 +56,16 @@ export function MediaCard({
     isDragging,
   } = useSortable({ id: media.id });
 
+  // Audio player state
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [audioProgress, setAudioProgress] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
+
+  // Video player state
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -71,6 +84,71 @@ export function MediaCard({
   };
 
   const Icon = MediaTypeIcon[media.media_type] || Image;
+
+  // Format time in mm:ss
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  // Audio controls
+  const toggleAudio = () => {
+    if (!audioRef.current) return;
+    if (isAudioPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setIsAudioPlaying(!isAudioPlaying);
+  };
+
+  const handleAudioTimeUpdate = () => {
+    if (!audioRef.current) return;
+    setAudioProgress(audioRef.current.currentTime);
+  };
+
+  const handleAudioLoadedMetadata = () => {
+    if (!audioRef.current) return;
+    setAudioDuration(audioRef.current.duration);
+  };
+
+  const handleAudioSeek = (value: number[]) => {
+    if (!audioRef.current) return;
+    audioRef.current.currentTime = value[0];
+    setAudioProgress(value[0]);
+  };
+
+  const handleAudioEnded = () => {
+    setIsAudioPlaying(false);
+    setAudioProgress(0);
+  };
+
+  // Video controls
+  const handleVideoClick = () => {
+    if (!videoRef.current) return;
+    if (isVideoPlaying) {
+      videoRef.current.pause();
+    } else {
+      videoRef.current.play();
+    }
+  };
+
+  const handleVideoPlay = () => setIsVideoPlaying(true);
+  const handleVideoPause = () => setIsVideoPlaying(false);
+  const handleVideoEnded = () => setIsVideoPlaying(false);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      if (videoRef.current) {
+        videoRef.current.pause();
+      }
+    };
+  }, []);
 
   return (
     <div
@@ -115,31 +193,78 @@ export function MediaCard({
             className="w-full h-full object-cover"
           />
         ) : media.media_type === "video" ? (
-          <div className="w-full h-full bg-muted flex items-center justify-center relative">
+          <div className="w-full h-full bg-muted relative">
             <video
+              ref={videoRef}
               src={media.file_url}
               className="w-full h-full object-cover"
-              muted
+              controls={isVideoPlaying}
+              onPlay={handleVideoPlay}
+              onPause={handleVideoPause}
+              onEnded={handleVideoEnded}
               preload="metadata"
             />
-            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-              <div className="w-14 h-14 rounded-full bg-background/90 flex items-center justify-center shadow-lg">
-                <Play className="h-6 w-6 text-foreground ml-1" />
+            {!isVideoPlaying && (
+              <div
+                className="absolute inset-0 flex items-center justify-center bg-black/20 cursor-pointer transition-opacity hover:bg-black/30"
+                onClick={handleVideoClick}
+              >
+                <div className="w-14 h-14 rounded-full bg-background/90 flex items-center justify-center shadow-lg transition-transform hover:scale-110">
+                  <Play className="h-6 w-6 text-foreground ml-1" />
+                </div>
               </div>
-            </div>
+            )}
           </div>
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-primary/10 to-primary/5 flex flex-col items-center justify-center gap-3">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <Music className="h-8 w-8 text-primary" />
+          <div className="w-full h-full bg-gradient-to-br from-primary/10 to-primary/5 flex flex-col items-center justify-center gap-3 p-4">
+            <audio
+              ref={audioRef}
+              src={media.file_url}
+              onTimeUpdate={handleAudioTimeUpdate}
+              onLoadedMetadata={handleAudioLoadedMetadata}
+              onEnded={handleAudioEnded}
+              preload="metadata"
+            />
+            
+            {/* Play/Pause button */}
+            <button
+              onClick={toggleAudio}
+              className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center transition-all hover:bg-primary/20 hover:scale-105"
+            >
+              {isAudioPlaying ? (
+                <Pause className="h-6 w-6 text-primary" />
+              ) : (
+                <Play className="h-6 w-6 text-primary ml-0.5" />
+              )}
+            </button>
+            
+            {/* Progress bar */}
+            <div className="w-full max-w-[200px] space-y-1">
+              <Slider
+                value={[audioProgress]}
+                max={audioDuration || 100}
+                step={0.1}
+                onValueChange={handleAudioSeek}
+                className="cursor-pointer"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{formatTime(audioProgress)}</span>
+                <span>{formatTime(audioDuration)}</span>
+              </div>
             </div>
-            {/* Audio waveform decoration */}
-            <div className="flex items-end gap-1 h-8">
+            
+            {/* Animated waveform */}
+            <div className="flex items-end gap-0.5 h-6">
               {[3, 5, 8, 6, 9, 4, 7, 5, 6, 8, 4, 6].map((h, i) => (
                 <div
                   key={i}
-                  className="w-1 bg-primary/30 rounded-full"
-                  style={{ height: `${h * 3}px` }}
+                  className={`w-1 bg-primary/40 rounded-full transition-all duration-150 ${
+                    isAudioPlaying ? "animate-pulse" : ""
+                  }`}
+                  style={{
+                    height: `${isAudioPlaying ? h * 2 + Math.random() * 8 : h * 2}px`,
+                    animationDelay: `${i * 50}ms`,
+                  }}
                 />
               ))}
             </div>
