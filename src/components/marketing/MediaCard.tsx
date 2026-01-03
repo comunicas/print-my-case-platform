@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
@@ -65,6 +65,12 @@ export function MediaCard({
   // Video player state
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+
+  // Memoized random heights for waveform animation (avoid Math.random during render)
+  const waveHeights = useMemo(() => 
+    Array.from({ length: 12 }, () => Math.floor(Math.random() * 6) + 3), 
+    []
+  );
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -138,15 +144,13 @@ export function MediaCard({
   const handleVideoPause = () => setIsVideoPlaying(false);
   const handleVideoEnded = () => setIsVideoPlaying(false);
 
-  // Cleanup on unmount
+  // Cleanup on unmount - capture refs before cleanup
   useEffect(() => {
+    const audio = audioRef.current;
+    const video = videoRef.current;
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-      if (videoRef.current) {
-        videoRef.current.pause();
-      }
+      audio?.pause();
+      video?.pause();
     };
   }, []);
 
@@ -229,6 +233,7 @@ export function MediaCard({
             {/* Play/Pause button */}
             <button
               onClick={toggleAudio}
+              aria-label={isAudioPlaying ? "Pausar áudio" : "Reproduzir áudio"}
               className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center transition-all hover:bg-primary/20 hover:scale-105"
             >
               {isAudioPlaying ? (
@@ -246,6 +251,7 @@ export function MediaCard({
                 step={0.1}
                 onValueChange={handleAudioSeek}
                 className="cursor-pointer"
+                aria-label="Progresso do áudio"
               />
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>{formatTime(audioProgress)}</span>
@@ -255,14 +261,14 @@ export function MediaCard({
             
             {/* Animated waveform */}
             <div className="flex items-end gap-0.5 h-6">
-              {[3, 5, 8, 6, 9, 4, 7, 5, 6, 8, 4, 6].map((h, i) => (
+              {waveHeights.map((h, i) => (
                 <div
                   key={i}
                   className={`w-1 bg-primary/40 rounded-full transition-all duration-150 ${
                     isAudioPlaying ? "animate-pulse" : ""
                   }`}
                   style={{
-                    height: `${isAudioPlaying ? h * 2 + Math.random() * 8 : h * 2}px`,
+                    height: `${h * 2}px`,
                     animationDelay: `${i * 50}ms`,
                   }}
                 />

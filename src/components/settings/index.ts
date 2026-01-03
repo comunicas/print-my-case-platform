@@ -5,6 +5,5 @@ export { IntegrationsSettings } from './IntegrationsSettings';
 export { PDVsSettings } from './PDVsSettings';
 export { TeamSettings } from './TeamSettings';
 export { TabSkeleton } from './TabSkeleton';
-export { PDVCatalogSettings } from './PDVCatalogSettings';
 export { ProductRequestsSettings } from './ProductRequestsSettings';
 export { ProductRequestDetailModal } from './ProductRequestDetailModal';

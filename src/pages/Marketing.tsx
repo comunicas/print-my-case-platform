@@ -2,7 +2,6 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useOrganization } from "@/hooks/useOrganization";
-import { useProfile } from "@/hooks/useProfile";
 import { Loader2, QrCode, Image } from "lucide-react";
 import { lazy, Suspense } from "react";
 import { TabSkeleton } from "@/components/settings/TabSkeleton";
@@ -12,9 +11,8 @@ const MediaSettings = lazy(() => import("@/components/marketing/MediaSettings").
 
 export default function Marketing() {
   const { organization, isLoading: orgLoading } = useOrganization();
-  const { profile, isLoading: profileLoading } = useProfile();
 
-  const isLoading = orgLoading || profileLoading;
+  const isLoading = orgLoading;
 
   if (isLoading) {
     return (
@@ -77,9 +75,9 @@ export default function Marketing() {
           <TabsContent value="midia" className="mt-6">
             <Card>
               <CardHeader>
-                <CardTitle>Imagens e Vídeos</CardTitle>
+                <CardTitle>Imagens, Vídeos e Áudios</CardTitle>
                 <CardDescription>
-                  Adicione materiais de marketing para download no catálogo público.
+                  Adicione imagens, vídeos e áudios para download no catálogo público.
                 </CardDescription>
               </CardHeader>
               <CardContent>
