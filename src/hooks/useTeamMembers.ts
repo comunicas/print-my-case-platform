@@ -108,8 +108,25 @@ export function useTeamMembers() {
         },
       });
 
-      if (error) throw error;
-      if (result.error) throw new Error(result.error);
+      if (error) {
+        // Try to extract error message from response body
+        if (error.context && typeof error.context.json === 'function') {
+          try {
+            const errorBody = await error.context.json();
+            if (errorBody?.error) {
+              throw new Error(errorBody.error);
+            }
+          } catch (parseError) {
+            // If we can't parse, check if there's a message in the error
+            if (parseError instanceof Error && parseError.message !== error.message) {
+              throw parseError;
+            }
+          }
+        }
+        throw error;
+      }
+      
+      if (result?.error) throw new Error(result.error);
       
       return result;
     },
