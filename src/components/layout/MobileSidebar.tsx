@@ -4,6 +4,7 @@ import {
   Package,
   X,
   ChevronDown,
+  Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -28,6 +29,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
   { icon: Upload, label: "Uploads", href: "/uploads" },
+  { icon: Megaphone, label: "Marketing", href: "/marketing" },
 ];
 
 const stockSubItems = [
@@ -160,6 +162,7 @@ export function MobileSidebar({
           {renderNavItem(navItems[0])}
           {renderStockMenu()}
           {renderNavItem(navItems[1])}
+          {renderNavItem(navItems[2])}
         </nav>
       </SheetContent>
     </Sheet>

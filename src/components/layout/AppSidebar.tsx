@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronDown,
   Building2,
+  Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
   { icon: Upload, label: "Uploads", href: "/uploads" },
+  { icon: Megaphone, label: "Marketing", href: "/marketing" },
   { icon: Building2, label: "Organizações", href: "/organizations", superAdminOnly: true },
 ];
 
@@ -229,8 +231,9 @@ export function AppSidebar({
           {renderNavItem(visibleNavItems[0])} {/* Dashboard */}
           {renderStockMenu()}
           {renderNavItem(visibleNavItems[1])} {/* Uploads */}
+          {renderNavItem(visibleNavItems[2])} {/* Marketing */}
           {/* Super Admin items */}
-          {visibleNavItems.slice(2).map(renderNavItem)}
+          {visibleNavItems.slice(3).map(renderNavItem)}
         </nav>
 
         {/* Collapse Toggle */}

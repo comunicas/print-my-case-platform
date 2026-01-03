@@ -213,6 +213,56 @@ export type Database = {
           },
         ]
       }
+      pdv_marketing_media: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          display_order: number | null
+          file_size: number | null
+          file_url: string
+          id: string
+          is_active: boolean | null
+          media_type: string
+          pdv_id: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          file_size?: number | null
+          file_url: string
+          id?: string
+          is_active?: boolean | null
+          media_type: string
+          pdv_id: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          file_size?: number | null
+          file_url?: string
+          id?: string
+          is_active?: boolean | null
+          media_type?: string
+          pdv_id?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pdv_marketing_media_pdv_id_fkey"
+            columns: ["pdv_id"]
+            isOneToOne: false
+            referencedRelation: "pdvs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pdvs: {
         Row: {
           created_at: string | null
