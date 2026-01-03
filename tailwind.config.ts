@@ -88,12 +88,17 @@ export default {
           "0%": { opacity: "1", transform: "scale(1)" },
           "100%": { opacity: "0", transform: "scale(0.8)" },
         },
+        "shimmer": {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "badge-fade-in": "badge-fade-in 0.2s ease-out",
         "badge-fade-out": "badge-fade-out 0.2s ease-out forwards",
+        "shimmer": "shimmer 1.5s infinite linear",
       },
     },
   },

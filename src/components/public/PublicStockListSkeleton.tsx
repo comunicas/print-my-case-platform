@@ -1,10 +1,12 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { SkeletonShimmer } from "@/components/ui/skeleton-shimmer";
 
 interface PublicStockListSkeletonProps {
   count?: number;
   showQrIcon?: boolean;
 }
+
+const productWidths = ["w-28", "w-36", "w-32", "w-24", "w-40", "w-30"];
 
 export function PublicStockListSkeleton({ 
   count = 6, 
@@ -13,23 +15,21 @@ export function PublicStockListSkeleton({
   return (
     <div className="space-y-2">
       {[...Array(count)].map((_, i) => (
-        <Card key={i} className="overflow-hidden">
-          <CardContent className="p-3">
+        <Card 
+          key={i} 
+          className="overflow-hidden animate-fade-in"
+          style={{ animationDelay: `${i * 50}ms` }}
+        >
+          <CardContent className="flex items-center justify-between py-3 px-4">
             <div className="flex items-center gap-3">
-              {/* Brand Logo Skeleton */}
-              <Skeleton className="h-8 w-8 rounded-md flex-shrink-0" />
-              
-              {/* Product Name Skeleton */}
-              <div className="flex-1 min-w-0">
-                <Skeleton className="h-4 w-32" />
-              </div>
-              
-              {/* Status Badge Skeleton */}
-              <Skeleton className="h-5 w-16 rounded-full" />
-              
-              {/* QR Icon Skeleton */}
+              <SkeletonShimmer className="h-8 w-8 rounded-md flex-shrink-0" />
+              <SkeletonShimmer className={`h-4 ${productWidths[i % productWidths.length]}`} />
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <SkeletonShimmer className="h-5 w-20 rounded-full" />
               {showQrIcon && (
-                <Skeleton className="h-4 w-4 rounded" />
+                <SkeletonShimmer className="h-4 w-4 rounded" />
               )}
             </div>
           </CardContent>
