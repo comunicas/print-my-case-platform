@@ -64,29 +64,53 @@ export function usePDVMarketingMedia(organizationId?: string) {
 
   const reorderMedia = useMutation({
     mutationFn: async (data: { pdvId: string; orderedIds: string[] }) => {
-      const updates = data.orderedIds.map((id, index) => ({
-        id,
-        display_order: index,
-      }));
-
-      for (const update of updates) {
-        const { error } = await supabase
+      // Batch update using Promise.all for better performance
+      const updates = data.orderedIds.map((id, index) => 
+        supabase
           .from("pdv_marketing_media")
-          .update({ display_order: update.display_order })
-          .eq("id", update.id);
-        if (error) throw error;
-      }
+          .update({ display_order: index })
+          .eq("id", id)
+      );
+      const results = await Promise.all(updates);
+      const errors = results.filter(r => r.error);
+      if (errors.length > 0) throw errors[0].error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pdv-marketing-media"] });
+    onMutate: async (data) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["pdv-marketing-media", organizationId] });
+      
+      // Snapshot current data for rollback
+      const previousData = queryClient.getQueryData(["pdv-marketing-media", organizationId]);
+      
+      // Optimistically update the cache
+      queryClient.setQueryData(["pdv-marketing-media", organizationId], (old: PDVWithMedia[] | undefined) => {
+        if (!old) return old;
+        return old.map(pdv => {
+          if (pdv.id !== data.pdvId) return pdv;
+          const newMedia = data.orderedIds.map((id, index) => {
+            const media = pdv.media.find(m => m.id === id);
+            return media ? { ...media, display_order: index } : null;
+          }).filter(Boolean) as MarketingMedia[];
+          return { ...pdv, media: newMedia };
+        });
+      });
+      
+      return { previousData };
     },
-    onError: (error) => {
+    onError: (error, _data, context) => {
       console.error("Error reordering media:", error);
+      // Rollback on error
+      if (context?.previousData) {
+        queryClient.setQueryData(["pdv-marketing-media", organizationId], context.previousData);
+      }
       toast({
         title: "Erro ao reordenar",
         description: "Não foi possível salvar a nova ordem.",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["pdv-marketing-media"] });
     },
   });
 
@@ -169,12 +193,32 @@ export function usePDVMarketingMedia(organizationId?: string) {
 
   const deleteMedia = useMutation({
     mutationFn: async (id: string) => {
+      // First, get the file URL to delete from storage
+      const { data: media } = await supabase
+        .from("pdv_marketing_media")
+        .select("file_url")
+        .eq("id", id)
+        .single();
+
+      // Delete the database record
       const { error } = await supabase
         .from("pdv_marketing_media")
         .delete()
         .eq("id", id);
 
       if (error) throw error;
+
+      // Try to delete file from storage (don't fail if storage delete fails)
+      if (media?.file_url) {
+        try {
+          const path = media.file_url.split("/marketing-media/")[1];
+          if (path) {
+            await supabase.storage.from("marketing-media").remove([decodeURIComponent(path)]);
+          }
+        } catch (storageError) {
+          console.warn("Could not delete file from storage:", storageError);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pdv-marketing-media"] });
