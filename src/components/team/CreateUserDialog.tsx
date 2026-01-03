@@ -18,9 +18,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle, Eye, EyeOff, RefreshCw, Copy, Check } from "lucide-react";
 import { createUserSchema, CreateUserFormData } from "@/lib/schemas/user";
 import { useOrganizations } from "@/hooks/useOrganizations";
+import { PasswordStrengthIndicator } from "@/components/ui/password-strength";
+import { generateSecurePassword } from "@/lib/utils/password-generator";
+import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface CreateUserDialogProps {
   open: boolean;
@@ -69,6 +73,8 @@ export function CreateUserDialog({
 
   const [formData, setFormData] = useState<CreateUserFormData>(initialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordCopied, setPasswordCopied] = useState(false);
 
   const handleChange = (field: keyof CreateUserFormData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -78,6 +84,28 @@ export function CreateUserDialog({
         delete newErrors[field];
         return newErrors;
       });
+    }
+  };
+
+  const handleGeneratePassword = () => {
+    const newPassword = generateSecurePassword(16);
+    handleChange("password", newPassword);
+    setShowPassword(true);
+    toast({
+      title: "Senha gerada",
+      description: "Uma senha segura foi gerada automaticamente.",
+    });
+  };
+
+  const handleCopyPassword = async () => {
+    if (formData.password) {
+      await navigator.clipboard.writeText(formData.password);
+      setPasswordCopied(true);
+      toast({
+        title: "Senha copiada",
+        description: "A senha foi copiada para a área de transferência.",
+      });
+      setTimeout(() => setPasswordCopied(false), 2000);
     }
   };
 
@@ -160,16 +188,63 @@ export function CreateUserDialog({
             {/* Senha */}
             <div className="grid gap-2">
               <Label htmlFor="password">Senha Temporária *</Label>
-              <Input
-                id="password"
-                type="password"
-                value={formData.password}
-                onChange={(e) => handleChange("password", e.target.value)}
-                placeholder="Mínimo 6 caracteres"
-                className={errors.password ? "border-destructive" : ""}
-              />
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={formData.password}
+                    onChange={(e) => handleChange("password", e.target.value)}
+                    placeholder="Mínimo 8 caracteres"
+                    className={cn(
+                      "pr-10",
+                      errors.password ? "border-destructive" : ""
+                    )}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </Button>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={handleGeneratePassword}
+                  title="Gerar senha segura"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+                {formData.password && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={handleCopyPassword}
+                    title="Copiar senha"
+                  >
+                    {passwordCopied ? (
+                      <Check className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                )}
+              </div>
               {errors.password && (
                 <p className="text-sm text-destructive">{errors.password}</p>
+              )}
+              {formData.password && (
+                <PasswordStrengthIndicator password={formData.password} />
               )}
             </div>
 
