@@ -101,7 +101,7 @@ const formatDate = (dateStr: string): string => {
 export function TeamSettings() {
   const { members, isLoading, isAdmin, isSuperAdmin, updateMember, removeMember, createUser } = useTeamMembers();
   const { profile } = useProfile();
-  const { organization } = useOrganization();
+  const { organization } = useOrganization({ readOnly: true });
   const [searchQuery, setSearchQuery] = useState("");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
