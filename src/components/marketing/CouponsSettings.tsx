@@ -16,9 +16,10 @@ import {
 
 interface CouponsSettingsProps {
   organizationId: string;
+  selectedPdvId?: string;
 }
 
-export function CouponsSettings({ organizationId }: CouponsSettingsProps) {
+export function CouponsSettings({ organizationId, selectedPdvId }: CouponsSettingsProps) {
   const { pdvsWithSettings, isLoading, upsertSettings, uploadQrCode } = usePDVCatalogSettings(organizationId);
   const [uploadingPdvId, setUploadingPdvId] = useState<string | null>(null);
   const [editingPdv, setEditingPdv] = useState<Record<string, { code: string; qrUrl: string | null; modalText: string | null }>>({});
@@ -167,11 +168,24 @@ export function CouponsSettings({ organizationId }: CouponsSettingsProps) {
     );
   }
 
+  const filteredPdvs = selectedPdvId && selectedPdvId !== "all"
+    ? pdvsWithSettings.filter(p => p.id === selectedPdvId)
+    : pdvsWithSettings;
+
   if (pdvsWithSettings.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
         <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
         <p>Nenhum PDV ativo encontrado.</p>
+      </div>
+    );
+  }
+
+  if (filteredPdvs.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
+        <p>PDV selecionado não encontrado.</p>
       </div>
     );
   }
@@ -182,8 +196,13 @@ export function CouponsSettings({ organizationId }: CouponsSettingsProps) {
         Configure código e QR Code para cada PDV individualmente. Quando um PDV é selecionado no catálogo, seu código específico será exibido.
       </div>
 
-      <Accordion type="single" collapsible className="space-y-2">
-        {pdvsWithSettings.map((pdv) => {
+      <Accordion 
+        type="single" 
+        collapsible 
+        className="space-y-2"
+        defaultValue={selectedPdvId !== "all" ? selectedPdvId : undefined}
+      >
+        {filteredPdvs.map((pdv) => {
           const isEnabled = pdv.catalog_settings?.is_enabled ?? false;
           const currentCode = getEditingValue(pdv.id, "code") as string;
           const currentQrUrl = getEditingValue(pdv.id, "qrUrl") as string | null;

@@ -39,9 +39,10 @@ import { MediaCard } from "./MediaCard";
 
 interface MediaSettingsProps {
   organizationId: string;
+  selectedPdvId?: string;
 }
 
-export function MediaSettings({ organizationId }: MediaSettingsProps) {
+export function MediaSettings({ organizationId, selectedPdvId }: MediaSettingsProps) {
   const { pdvsWithMedia, isLoading, addMedia, updateMedia, deleteMedia, reorderMedia, uploadMediaFile } = usePDVMarketingMedia(organizationId);
   const [uploadingPdvId, setUploadingPdvId] = useState<string | null>(null);
   const [editingMedia, setEditingMedia] = useState<{ id: string; title: string } | null>(null);
@@ -170,11 +171,24 @@ export function MediaSettings({ organizationId }: MediaSettingsProps) {
     );
   }
 
+  const filteredPdvs = selectedPdvId && selectedPdvId !== "all"
+    ? pdvsWithMedia.filter(p => p.id === selectedPdvId)
+    : pdvsWithMedia;
+
   if (pdvsWithMedia.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
         <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
         <p>Nenhum PDV ativo encontrado.</p>
+      </div>
+    );
+  }
+
+  if (filteredPdvs.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
+        <p>PDV selecionado não encontrado.</p>
       </div>
     );
   }
@@ -185,8 +199,13 @@ export function MediaSettings({ organizationId }: MediaSettingsProps) {
         Adicione imagens, vídeos e áudios para cada PDV. Arraste para reordenar. Esses arquivos ficam disponíveis para download no catálogo público.
       </div>
 
-      <Accordion type="single" collapsible className="space-y-2">
-        {pdvsWithMedia.map((pdv) => {
+      <Accordion 
+        type="single" 
+        collapsible 
+        className="space-y-2"
+        defaultValue={selectedPdvId !== "all" ? selectedPdvId : undefined}
+      >
+        {filteredPdvs.map((pdv) => {
           const activeCount = pdv.media.filter(m => m.is_active).length;
 
           return (
