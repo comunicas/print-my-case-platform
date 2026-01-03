@@ -61,8 +61,8 @@ export function usePublicStock(orgSlug: string | undefined) {
       
       if (error) throw error;
       
-      // Remove quantity from response, only return product_name and status
-      return ((data as { product_name: string; status: string; total_quantity: number }[]) || []).map((item) => ({
+      // API now only returns product_name and status (no quantity exposed)
+      return ((data as { product_name: string; status: string }[]) || []).map((item) => ({
         product_name: item.product_name,
         status: item.status as "available" | "low" | "unavailable",
       })) as PublicStockItem[];
