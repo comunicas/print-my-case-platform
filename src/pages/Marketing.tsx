@@ -13,7 +13,7 @@ const CouponsSettings = lazy(() => import("@/components/marketing/CouponsSetting
 const MediaSettings = lazy(() => import("@/components/marketing/MediaSettings").then(m => ({ default: m.MediaSettings })));
 
 export default function Marketing() {
-  const { organization, isLoading: orgLoading } = useOrganization();
+  const { organization, isLoading: orgLoading } = useOrganization({ readOnly: true });
   const { pdvs = [], isLoading: pdvsLoading } = usePDVs();
   const { preferences, isLoading: prefsLoading } = usePreferences();
   
