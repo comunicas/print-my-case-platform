@@ -80,11 +80,18 @@ export function ProfileSettings({ profile, role, session, updateProfile }: Profi
     setIsChangingPassword(true);
     
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: passwordData.newPassword,
+      // Use server-side Edge Function for password validation
+      const { data, error } = await supabase.functions.invoke('update-password', {
+        body: { newPassword: passwordData.newPassword }
       });
       
-      if (error) throw error;
+      if (error) {
+        throw new Error(error.message || 'Erro ao atualizar senha');
+      }
+      
+      if (data?.error) {
+        throw new Error(data.error);
+      }
       
       setPasswordDialogOpen(false);
       setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });

@@ -803,7 +803,6 @@ export type Database = {
         Returns: {
           product_name: string
           status: string
-          total_quantity: number
         }[]
       }
       get_user_org_id: { Args: { _user_id: string }; Returns: string }
