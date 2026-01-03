@@ -122,55 +122,21 @@ export default function PublicStock() {
     <div className="min-h-screen bg-background">
       {/* Hero Header */}
       <header className="bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 text-white">
-        <div className="container mx-auto px-4 py-6 space-y-4 max-w-2xl">
-          {/* Logo e Info */}
-          <div className="flex flex-col items-center text-center space-y-2 relative">
+        <div className="container mx-auto px-5 py-8 space-y-6 max-w-md">
+          {/* Logo e Info - Centralizado */}
+          <div className="flex flex-col items-center text-center space-y-3">
             <img
               src="/logo-printmycase.png"
               alt="PrintMyCase"
-              className="h-14 w-14 object-contain rounded-xl shadow-lg bg-white/10 p-1"
+              className="h-16 w-16 object-contain rounded-2xl shadow-lg bg-white/10 p-2"
             />
-            <div>
-              <h1 className="font-bold text-xl">
+            <div className="space-y-1">
+              <h1 className="font-bold text-2xl tracking-tight">
                 {organization.pdv_name || organization.name}
               </h1>
-              <p className="text-white/80 text-sm">Catálogo de Produtos</p>
-              
-              {/* Anchor to location */}
-              {organization.pdv_location && (
-                <button
-                  onClick={scrollToLocation}
-                  className="mt-1 flex items-center gap-1 text-white/60 hover:text-white text-xs transition-colors"
-                  aria-label="Ir para seção de localização da loja"
-                >
-                  <MapPin className="h-3 w-3" />
-                  <span>Ver localização</span>
-                </button>
-              )}
-            </div>
-            
-            {/* Botões de ação */}
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 flex flex-col gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleShare}
-                className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/20 rounded-full"
-                title="Compartilhar catálogo"
-                aria-label="Compartilhar catálogo via WhatsApp ou redes sociais"
-              >
-                <Share2 className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleCopyLink}
-                className="h-9 w-9 text-white/80 hover:text-white hover:bg-white/20 rounded-full"
-                title="Copiar link"
-                aria-label="Copiar link do catálogo para a área de transferência"
-              >
-                <Copy className="h-4 w-4" />
-              </Button>
+              <p className="text-white/70 text-sm font-medium">
+                Catálogo de Produtos
+              </p>
             </div>
           </div>
 
@@ -189,6 +155,42 @@ export default function PublicStock() {
             onBrandChange={setSelectedBrand}
             variant="hero"
           />
+
+          {/* Barra de ações no footer do hero */}
+          <div className="flex items-center justify-center gap-2 pt-4 border-t border-white/20">
+            {organization.pdv_location && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={scrollToLocation}
+                className="text-white/90 hover:text-white hover:bg-white/20 rounded-full px-4 gap-2 h-11 min-w-[120px] active:scale-95 transition-transform touch-manipulation"
+                aria-label="Ver localização da loja"
+              >
+                <MapPin className="h-4 w-4" />
+                <span className="text-sm">Localização</span>
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleShare}
+              className="text-white/90 hover:text-white hover:bg-white/20 rounded-full h-11 w-11 active:scale-95 transition-transform touch-manipulation"
+              title="Compartilhar catálogo"
+              aria-label="Compartilhar catálogo via WhatsApp ou redes sociais"
+            >
+              <Share2 className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleCopyLink}
+              className="text-white/90 hover:text-white hover:bg-white/20 rounded-full h-11 w-11 active:scale-95 transition-transform touch-manipulation"
+              title="Copiar link"
+              aria-label="Copiar link do catálogo para a área de transferência"
+            >
+              <Copy className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
       </header>
 
