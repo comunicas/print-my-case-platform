@@ -23,17 +23,23 @@ export interface Organization {
   catalog_modal_text: string | null;
 }
 
-export function useOrganization() {
+interface UseOrganizationOptions {
+  readOnly?: boolean;
+}
+
+export function useOrganization(options: UseOrganizationOptions = {}) {
+  const { readOnly = false } = options;
   const { profile, isAdmin } = useProfile();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const organizationQuery = useQuery({
-    queryKey: ["organization", profile?.organization_id, isAdmin],
+    queryKey: ["organization", profile?.organization_id, isAdmin, readOnly],
     queryFn: async () => {
       if (!profile?.organization_id) return null;
-      // Only admins can access organization data (RLS enforced)
-      if (!isAdmin) return null;
+      // Em modo readOnly, qualquer usuário autenticado pode acessar (RLS valida)
+      // Em modo normal, apenas admins podem acessar
+      if (!readOnly && !isAdmin) return null;
       
       const { data, error } = await supabase
         .from("organizations")
@@ -48,7 +54,7 @@ export function useOrganization() {
       }
       return data as Organization | null;
     },
-    enabled: !!profile?.organization_id && isAdmin,
+    enabled: !!profile?.organization_id && (readOnly || isAdmin),
   });
 
   const updateOrganization = useMutation({
