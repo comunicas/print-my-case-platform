@@ -5,7 +5,7 @@ import { toast } from "@/hooks/use-toast";
 export interface MarketingMedia {
   id: string;
   pdv_id: string;
-  media_type: "image" | "video";
+  media_type: "image" | "video" | "audio";
   title: string;
   description: string | null;
   file_url: string;
@@ -62,10 +62,38 @@ export function usePDVMarketingMedia(organizationId?: string) {
     enabled: !!organizationId,
   });
 
+  const reorderMedia = useMutation({
+    mutationFn: async (data: { pdvId: string; orderedIds: string[] }) => {
+      const updates = data.orderedIds.map((id, index) => ({
+        id,
+        display_order: index,
+      }));
+
+      for (const update of updates) {
+        const { error } = await supabase
+          .from("pdv_marketing_media")
+          .update({ display_order: update.display_order })
+          .eq("id", update.id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pdv-marketing-media"] });
+    },
+    onError: (error) => {
+      console.error("Error reordering media:", error);
+      toast({
+        title: "Erro ao reordenar",
+        description: "Não foi possível salvar a nova ordem.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const addMedia = useMutation({
     mutationFn: async (data: {
       pdv_id: string;
-      media_type: "image" | "video";
+      media_type: "image" | "video" | "audio";
       title: string;
       description?: string | null;
       file_url: string;
@@ -189,6 +217,7 @@ export function usePDVMarketingMedia(organizationId?: string) {
     addMedia,
     updateMedia,
     deleteMedia,
+    reorderMedia,
     uploadMediaFile,
   };
 }
