@@ -1,10 +1,22 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+} from "@dnd-kit/sortable";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Upload, Trash2, MapPin, Image, Video, Download, Pencil, X, Check, Plus } from "lucide-react";
+import { Loader2, MapPin, Plus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { usePDVMarketingMedia, MarketingMedia } from "@/hooks/usePDVMarketingMedia";
 import {
@@ -23,17 +35,44 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { MediaCard } from "./MediaCard";
 
 interface MediaSettingsProps {
   organizationId: string;
 }
 
 export function MediaSettings({ organizationId }: MediaSettingsProps) {
-  const { pdvsWithMedia, isLoading, addMedia, updateMedia, deleteMedia, uploadMediaFile } = usePDVMarketingMedia(organizationId);
+  const { pdvsWithMedia, isLoading, addMedia, updateMedia, deleteMedia, reorderMedia, uploadMediaFile } = usePDVMarketingMedia(organizationId);
   const [uploadingPdvId, setUploadingPdvId] = useState<string | null>(null);
   const [editingMedia, setEditingMedia] = useState<{ id: string; title: string } | null>(null);
   const [mediaToDelete, setMediaToDelete] = useState<string | null>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = useCallback(
+    (pdvId: string, mediaList: MarketingMedia[]) => (event: DragEndEvent) => {
+      const { active, over } = event;
+
+      if (over && active.id !== over.id) {
+        const oldIndex = mediaList.findIndex((m) => m.id === active.id);
+        const newIndex = mediaList.findIndex((m) => m.id === over.id);
+        const newOrder = arrayMove(mediaList, oldIndex, newIndex);
+        const orderedIds = newOrder.map((m) => m.id);
+        reorderMedia.mutate({ pdvId, orderedIds });
+      }
+    },
+    [reorderMedia]
+  );
 
   const handleFileUpload = async (pdvId: string, event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -41,12 +80,13 @@ export function MediaSettings({ organizationId }: MediaSettingsProps) {
 
     const imageTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
     const videoTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
-    const allowedTypes = [...imageTypes, ...videoTypes];
+    const audioTypes = ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/webm'];
+    const allowedTypes = [...imageTypes, ...videoTypes, ...audioTypes];
 
     if (!allowedTypes.includes(file.type)) {
       toast({
         title: "Formato inválido",
-        description: "Use imagens (PNG, JPG, WEBP, GIF) ou vídeos (MP4, WEBM, MOV).",
+        description: "Use imagens (PNG, JPG, WEBP, GIF), vídeos (MP4, WEBM, MOV) ou áudios (MP3, WAV, OGG).",
         variant: "destructive",
       });
       return;
@@ -65,7 +105,10 @@ export function MediaSettings({ organizationId }: MediaSettingsProps) {
     setUploadingPdvId(pdvId);
     try {
       const { url, size } = await uploadMediaFile(pdvId, file);
-      const mediaType = imageTypes.includes(file.type) ? "image" : "video";
+      let mediaType: "image" | "video" | "audio" = "image";
+      if (videoTypes.includes(file.type)) mediaType = "video";
+      else if (audioTypes.includes(file.type)) mediaType = "audio";
+      
       const title = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
 
       await addMedia.mutateAsync({
@@ -139,7 +182,7 @@ export function MediaSettings({ organizationId }: MediaSettingsProps) {
   return (
     <div className="space-y-4">
       <div className="text-sm text-muted-foreground">
-        Adicione imagens e vídeos para cada PDV. Esses arquivos ficam disponíveis para download no catálogo público.
+        Adicione imagens, vídeos e áudios para cada PDV. Arraste para reordenar. Esses arquivos ficam disponíveis para download no catálogo público.
       </div>
 
       <Accordion type="single" collapsible className="space-y-2">
@@ -168,7 +211,7 @@ export function MediaSettings({ organizationId }: MediaSettingsProps) {
                 <div className="space-y-4">
                   <input
                     type="file"
-                    accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
+                    accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime,audio/mpeg,audio/wav,audio/ogg,audio/webm"
                     onChange={(e) => handleFileUpload(pdv.id, e)}
                     className="hidden"
                     ref={(el) => { fileInputRefs.current[pdv.id] = el; }}
@@ -185,7 +228,7 @@ export function MediaSettings({ organizationId }: MediaSettingsProps) {
                     ) : (
                       <Plus className="h-4 w-4 mr-2" />
                     )}
-                    Adicionar Imagem ou Vídeo
+                    Adicionar Imagem, Vídeo ou Áudio
                   </Button>
 
                   {pdv.media.length === 0 ? (
@@ -193,102 +236,34 @@ export function MediaSettings({ organizationId }: MediaSettingsProps) {
                       Nenhuma mídia adicionada ainda.
                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      {pdv.media.map((media) => (
-                        <div
-                          key={media.id}
-                          className={`flex items-center gap-4 p-3 rounded-lg border ${
-                            media.is_active ? "bg-background" : "bg-muted/50 opacity-60"
-                          }`}
-                        >
-                          {/* Thumbnail */}
-                          <div className="w-16 h-16 rounded-lg border overflow-hidden flex-shrink-0 bg-muted flex items-center justify-center">
-                            {media.media_type === "image" ? (
-                              <img
-                                src={media.file_url}
-                                alt={media.title}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <Video className="h-6 w-6 text-muted-foreground" />
-                            )}
-                          </div>
-
-                          {/* Info */}
-                          <div className="flex-1 min-w-0">
-                            {editingMedia?.id === media.id ? (
-                              <div className="flex items-center gap-2">
-                                <Input
-                                  value={editingMedia.title}
-                                  onChange={(e) => setEditingMedia({ ...editingMedia, title: e.target.value })}
-                                  className="h-8"
-                                  autoFocus
-                                />
-                                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleSaveTitle}>
-                                  <Check className="h-4 w-4" />
-                                </Button>
-                                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditingMedia(null)}>
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium truncate">{media.title}</span>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-6 w-6"
-                                    onClick={() => setEditingMedia({ id: media.id, title: media.title })}
-                                  >
-                                    <Pencil className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                  {media.media_type === "image" ? (
-                                    <Image className="h-3 w-3" />
-                                  ) : (
-                                    <Video className="h-3 w-3" />
-                                  )}
-                                  <span>{media.media_type === "image" ? "Imagem" : "Vídeo"}</span>
-                                  {media.file_size && (
-                                    <>
-                                      <span>•</span>
-                                      <span>{formatFileSize(media.file_size)}</span>
-                                    </>
-                                  )}
-                                </div>
-                              </>
-                            )}
-                          </div>
-
-                          {/* Actions */}
-                          <div className="flex items-center gap-2">
-                            <Switch
-                              checked={media.is_active}
-                              onCheckedChange={() => handleToggleActive(media)}
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd(pdv.id, pdv.media)}
+                    >
+                      <SortableContext
+                        items={pdv.media.map((m) => m.id)}
+                        strategy={rectSortingStrategy}
+                      >
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {pdv.media.map((media) => (
+                            <MediaCard
+                              key={media.id}
+                              media={media}
+                              onToggleActive={handleToggleActive}
+                              onEdit={(m) => setEditingMedia({ id: m.id, title: m.title })}
+                              onDelete={(id) => setMediaToDelete(id)}
+                              isEditing={editingMedia?.id === media.id}
+                              editTitle={editingMedia?.id === media.id ? editingMedia.title : ""}
+                              onEditTitleChange={(title) => setEditingMedia((prev) => prev ? { ...prev, title } : null)}
+                              onSaveTitle={handleSaveTitle}
+                              onCancelEdit={() => setEditingMedia(null)}
+                              formatFileSize={formatFileSize}
                             />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              asChild
-                            >
-                              <a href={media.file_url} download target="_blank" rel="noopener noreferrer">
-                                <Download className="h-4 w-4" />
-                              </a>
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => setMediaToDelete(media.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      </SortableContext>
+                    </DndContext>
                   )}
                 </div>
               </AccordionContent>
