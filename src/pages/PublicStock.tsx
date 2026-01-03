@@ -7,6 +7,7 @@ import { PublicStockSearch, PublicStockList, PublicStockListSkeleton, PublicBran
 import { Button } from "@/components/ui/button";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { extractBrandFromProductName } from "@/lib/productNormalization";
+import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 
 export default function PublicStock() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
@@ -25,11 +26,14 @@ export default function PublicStock() {
     isRefetching,
   } = usePublicStock(orgSlug);
 
+  const { vibrate } = useHapticFeedback();
+
   const handleRefresh = useCallback(async () => {
     await refetchStock();
   }, [refetchStock]);
 
   const handleShare = useCallback(async () => {
+    vibrate("light");
     const url = window.location.href;
     const pdvName = organization?.pdv_name || organization?.name || "nosso catálogo";
     const message = `O match perfeito para o seu celular está aqui. ❤️ Clique e descubra:`;
@@ -50,35 +54,39 @@ export default function PublicStock() {
 
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${message}\n${url}`)}`;
     window.open(whatsappUrl, '_blank');
-  }, [organization]);
+  }, [organization, vibrate]);
 
   const handleCopyLink = useCallback(async () => {
+    vibrate("success");
     try {
       await navigator.clipboard.writeText(window.location.href);
       toast.success("Link copiado para a área de transferência!");
     } catch {
       toast.error("Não foi possível copiar o link");
     }
-  }, []);
+  }, [vibrate]);
 
   const handleOpenGoogleMaps = useCallback(() => {
+    vibrate("light");
     const address = organization?.pdv_location;
     if (!address) return;
     const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
     window.open(url, '_blank');
-  }, [organization?.pdv_location]);
+  }, [organization?.pdv_location, vibrate]);
 
   const handleOpenWaze = useCallback(() => {
+    vibrate("light");
     const address = organization?.pdv_location;
     if (!address) return;
     const url = `https://waze.com/ul?q=${encodeURIComponent(address)}`;
     window.open(url, '_blank');
-  }, [organization?.pdv_location]);
+  }, [organization?.pdv_location, vibrate]);
 
   const scrollToLocation = useCallback(() => {
+    vibrate("light");
     const locationCard = document.getElementById('location-card');
     locationCard?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, []);
+  }, [vibrate]);
 
   // Pre-filter items once - must be before early returns
   const filteredItems = useMemo(() => {

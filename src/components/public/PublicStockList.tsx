@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { BrandLogo } from "@/components/ui/BrandLogo";
 import { extractBrandFromProductName, extractModelFromProductName } from "@/lib/productNormalization";
 import { QrCode } from "lucide-react";
+import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import type { PublicStockItem } from "@/hooks/usePublicStock";
 
 interface PublicStockListProps {
@@ -36,6 +37,8 @@ export function PublicStockList({
   catalogCodeEnabled = false,
   onProductClick,
 }: PublicStockListProps) {
+  const { vibrate } = useHapticFeedback();
+
   if (items.length === 0) {
     return (
       <Card>
@@ -50,6 +53,7 @@ export function PublicStockList({
 
   const handleClick = (productName: string) => {
     if (catalogCodeEnabled && onProductClick) {
+      vibrate("light");
       onProductClick(productName);
     }
   };
