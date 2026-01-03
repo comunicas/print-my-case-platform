@@ -27,7 +27,7 @@ export default function Settings() {
   const [searchParams] = useSearchParams();
   const { session } = useAuth();
   const { profile, role, isAdmin, isLoading: profileLoading, updateProfile } = useProfile();
-  const { organization, isLoading: orgLoading, updateOrganization } = useOrganization();
+  const { organization, isLoading: orgLoading, updateOrganization } = useOrganization({ readOnly: true });
   const { preferences, isLoading: prefsLoading, updatePreferences } = usePreferences();
   const { pdvs, isLoading: pdvsLoading } = usePDVs();
   
