@@ -1,6 +1,4 @@
-import { Download, Flame, Trophy } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Flame, Trophy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from "recharts";
@@ -9,16 +7,18 @@ import { formatCurrency } from "@/lib/utils";
 import { getBrandChartColor } from "@/lib/brandAssets";
 import { useProductModal } from "@/contexts/ProductModalContext";
 import { getExactProductKey } from "@/lib/productNormalization";
+import { ChartCard } from "./ChartCard";
 
 interface TopProductsChartProps {
   data: TopProductData[];
+  animationDelay?: number;
 }
 
 const chartConfig = {
   revenue: { label: "Receita" },
 };
 
-export function TopProductsChart({ data }: TopProductsChartProps) {
+export function TopProductsChart({ data, animationDelay = 0 }: TopProductsChartProps) {
   const { openProductModal } = useProductModal();
   
   const handleExport = () => {
@@ -39,24 +39,18 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
   };
 
   return (
-    <Card data-testid="top-products-chart" className="flex flex-col">
-      <CardHeader className="flex flex-row items-center justify-between px-4 md:px-6 pt-4 md:pt-6 pb-2">
-        <div>
-          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-            <Trophy className="h-5 w-5 text-amber-500" />
-            Top 10 Produtos
-          </CardTitle>
-          <CardDescription>
-            Produtos com maior receita no período
-          </CardDescription>
-        </div>
-        <Button data-testid="export-top-products" variant="outline" size="sm" onClick={handleExport}>
-          <Download className="h-4 w-4 mr-1" />
-          Excel
-        </Button>
-      </CardHeader>
-      <CardContent className="flex-1 flex flex-col px-4 md:px-6 pb-4 md:pb-6">
-        {data.length > 0 ? (
+    <ChartCard
+      testId="top-products-chart"
+      title="Top 10 Produtos"
+      description="Produtos com maior receita no período"
+      icon={Trophy}
+      iconColor="text-amber-500"
+      onExport={handleExport}
+      exportTestId="export-top-products"
+      animationDelay={animationDelay}
+    >
+      {data.length > 0 ? (
+        <>
           <ChartContainer config={chartConfig} className="flex-1 min-h-[300px] w-full">
             <BarChart 
               data={data} 
@@ -116,14 +110,7 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
               </Bar>
             </BarChart>
           </ChartContainer>
-        ) : (
-          <div data-testid="top-products-empty" className="flex-1 min-h-[300px] flex items-center justify-center text-muted-foreground">
-            Nenhum dado de produtos disponível
-          </div>
-        )}
-        
-        {/* Badge para o primeiro lugar */}
-        {data.length > 0 && (
+          
           <div className="flex items-center justify-center mt-2">
             <button
               onClick={() => openProductModal(getExactProductKey(data[0].name))}
@@ -135,8 +122,12 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
               </Badge>
             </button>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </>
+      ) : (
+        <div data-testid="top-products-empty" className="flex-1 min-h-[300px] flex items-center justify-center text-muted-foreground">
+          Nenhum dado de produtos disponível
+        </div>
+      )}
+    </ChartCard>
   );
 }
