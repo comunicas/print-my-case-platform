@@ -370,8 +370,8 @@ function mapSalesRow(row: Record<string, unknown>, pdvId: string, uploadId: stri
   
   // Infer refund_amount from status when not explicitly set
   const REFUND_STATUS_KEYWORDS = [
-    'reembolsado', 'reembolso', 'cancelado', 'devolvido', 'estornado',
-    'refunded', 'refund', 'cancelled', 'canceled', 'returned', 'reversed'
+    'reembolsado', 'reembolso', 'devolvido', 'estornado',
+    'refunded', 'refund', 'returned', 'reversed'
   ];
   
   const status = String(mapped.status || '').toLowerCase().trim();
