@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { Download } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Download, Grid3x3 } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -68,18 +68,26 @@ export function SalesHeatmapChart({ data }: SalesHeatmapChartProps) {
 
   return (
     <Card data-testid="sales-heatmap-chart" className="flex flex-col">
-      <CardHeader className="flex flex-row items-center justify-between px-4 md:px-6 pt-4 md:pt-6 pb-3">
-        <div className="flex items-center gap-3">
-          <CardTitle className="text-base md:text-lg">Vendas por Horário</CardTitle>
-          {peak && (
-            <Badge data-testid="heatmap-peak-badge" variant="outline" className="gap-1 text-xs">
-              Pico: {peak.dayName} {peak.rangeLabel}
-            </Badge>
-          )}
+      <CardHeader className="flex flex-row items-center justify-between px-4 md:px-6 pt-4 md:pt-6 pb-2">
+        <div>
+          <div className="flex items-center gap-3">
+            <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+              <Grid3x3 className="h-5 w-5 text-purple-500" />
+              Vendas por Horário
+            </CardTitle>
+            {peak && (
+              <Badge data-testid="heatmap-peak-badge" variant="outline" className="gap-1 text-xs">
+                Pico: {peak.dayName} {peak.rangeLabel}
+              </Badge>
+            )}
+          </div>
+          <CardDescription>
+            Concentração de vendas por dia e horário
+          </CardDescription>
         </div>
-        <Button data-testid="export-heatmap" variant="ghost" size="sm" onClick={handleExport} className="gap-1.5">
-          <Download className="h-4 w-4" />
-          <span className="hidden sm:inline">Exportar</span>
+        <Button data-testid="export-heatmap" variant="outline" size="sm" onClick={handleExport}>
+          <Download className="h-4 w-4 mr-1" />
+          Excel
         </Button>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col px-4 md:px-6 pb-4 md:pb-6">

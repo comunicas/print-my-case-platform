@@ -1,5 +1,5 @@
-import { Download } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Download, Package } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { PieChart, Pie, Cell } from "recharts";
@@ -31,11 +31,19 @@ export function StockByBrandChart({ data }: StockByBrandChartProps) {
 
   return (
     <Card data-testid="stock-by-brand-chart" className="flex flex-col">
-      <CardHeader className="flex flex-row items-center justify-between px-4 md:px-6 pt-4 md:pt-6 pb-3">
-        <CardTitle className="text-base md:text-lg">Estoque por Marca</CardTitle>
-        <Button data-testid="export-stock-by-brand" variant="ghost" size="sm" onClick={handleExport} className="gap-1.5">
-          <Download className="h-4 w-4" />
-          <span className="hidden sm:inline">Exportar</span>
+      <CardHeader className="flex flex-row items-center justify-between px-4 md:px-6 pt-4 md:pt-6 pb-2">
+        <div>
+          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+            <Package className="h-5 w-5 text-blue-500" />
+            Estoque por Marca
+          </CardTitle>
+          <CardDescription>
+            Distribuição do estoque atual por marca
+          </CardDescription>
+        </div>
+        <Button data-testid="export-stock-by-brand" variant="outline" size="sm" onClick={handleExport}>
+          <Download className="h-4 w-4 mr-1" />
+          Excel
         </Button>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col px-4 md:px-6 pb-4 md:pb-6">
