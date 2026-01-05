@@ -23,8 +23,9 @@ export type UploadStatus = "processing" | "ready" | "error";
 export type UploadType = "sales" | "stock";
 
 // Colunas obrigatórias para planilha de Vendas (REVENUE)
+// Colunas obrigatórias para planilha de Vendas (REVENUE e REVENUE-UP)
+// Nota: "Comerciante" removido pois REVENUE-UP.xlsx não possui essa coluna
 export const SALES_REQUIRED_COLUMNS = [
-  "Comerciante",
   "ID do dispositivo",
   "Número do pedido",
   "Nome do produto",
@@ -37,14 +38,15 @@ export const SALES_REQUIRED_COLUMNS = [
 ] as const;
 
 // Mapeamento de colunas inglês → português para Vendas
+// Suporta tanto REVENUE.xlsx (português) quanto REVENUE-UP.xlsx (inglês)
 export const SALES_COLUMN_ALIASES: Record<string, string[]> = {
   "Comerciante": ["Merchant", "Comerciante"],
   "ID do dispositivo": ["Device ID", "ID do dispositivo"],
   "Número do pedido": ["Order ID", "Número do pedido"],
   "Nome do produto": ["Product Name", "Nome do produto"],
-  "Número da transação": ["Transaction ID", "Número da transação"],
+  "Número da transação": ["Transaction ID", "Número da transação", "Payment Flow"],
   "Hora do pagamento": ["Payment Time", "Hora do pagamento"],
-  "Valor pago": ["Payment Amount", "Valor pago"],
+  "Valor pago": ["Payment Amount", "Valor pago", "Order Amount"],
   "Forma de pagamento": ["Payment Method", "Forma de pagamento"],
   "Status": ["Status"],
   "Valor reembolsado": ["Refund Amount", "Valor reembolsado"],
