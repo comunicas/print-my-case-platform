@@ -674,8 +674,47 @@ export type Database = {
           },
         ]
       }
+      upload_anomalies: {
+        Row: {
+          amount: number
+          created_at: string | null
+          id: string
+          order_number: string
+          product_name: string
+          reason: string
+          upload_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          id?: string
+          order_number: string
+          product_name: string
+          reason: string
+          upload_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          id?: string
+          order_number?: string
+          product_name?: string
+          reason?: string
+          upload_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "upload_anomalies_upload_id_fkey"
+            columns: ["upload_id"]
+            isOneToOne: false
+            referencedRelation: "uploads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       uploads: {
         Row: {
+          anomaly_count: number | null
           drive_url: string | null
           error_message: string | null
           file_name: string
@@ -691,6 +730,7 @@ export type Database = {
           uploaded_by: string
         }
         Insert: {
+          anomaly_count?: number | null
           drive_url?: string | null
           error_message?: string | null
           file_name: string
@@ -706,6 +746,7 @@ export type Database = {
           uploaded_by: string
         }
         Update: {
+          anomaly_count?: number | null
           drive_url?: string | null
           error_message?: string | null
           file_name?: string

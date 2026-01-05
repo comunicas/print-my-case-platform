@@ -18,6 +18,7 @@ export interface UploadListItem {
   drive_url: string | null;
   status: UploadStatus;
   records_count: number | null;
+  anomaly_count: number | null;
   period: string | null;
   uploaded_by: string;
   uploader: { name: string };

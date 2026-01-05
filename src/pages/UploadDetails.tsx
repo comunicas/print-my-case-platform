@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, FileSpreadsheet, Search, Package, ShoppingCart, Loader2 } from "lucide-react";
+import { ArrowLeft, FileSpreadsheet, Search, Package, ShoppingCart, Loader2, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -46,6 +46,8 @@ const UploadDetails = () => {
     salesRecordsLoading,
     stockRecords,
     stockRecordsLoading,
+    anomalies,
+    anomaliesLoading,
   } = useUploadDetails(id);
 
   const filteredSalesRecords = useMemo(() => {
@@ -235,6 +237,64 @@ const UploadDetails = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Card de Anomalias (se houver) */}
+        {anomalies.length > 0 && (
+          <Card className="border-orange-500/20 bg-orange-500/5">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-orange-600" />
+                <CardTitle className="text-lg text-orange-600">
+                  Registros Excluídos por Anomalia
+                </CardTitle>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {anomalies.length} registro(s) com valores anormais foram excluídos deste upload
+              </p>
+            </CardHeader>
+            <CardContent>
+              {anomaliesLoading ? (
+                <div className="flex items-center justify-center h-16">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <div className="rounded-md border border-orange-500/20 overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Pedido</TableHead>
+                        <TableHead>Produto</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
+                        <TableHead>Motivo</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {anomalies.map((anomaly) => (
+                        <TableRow key={anomaly.id}>
+                          <TableCell className="font-mono text-sm">{anomaly.order_number}</TableCell>
+                          <TableCell className="max-w-[200px]">
+                            <button
+                              onClick={() => openProductModal(getExactProductKey(anomaly.product_name))}
+                              className="truncate block w-full text-left hover:underline focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
+                            >
+                              {anomaly.product_name}
+                            </button>
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-orange-600">
+                            {formatCurrency(Number(anomaly.amount))}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground max-w-[250px] truncate">
+                            {anomaly.reason}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Tabela de dados */}
         <Card>
