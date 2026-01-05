@@ -161,9 +161,21 @@ export function useUploads() {
       if (file_url) {
         supabase.functions.invoke("process-spreadsheet", {
           body: { uploadId: insertedUpload.id },
-        }).then(() => {
+        }).then((response) => {
           queryClient.invalidateQueries({ queryKey: ["uploads"] });
           queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+          
+          // Check for anomalies in the response
+          const data = response.data;
+          if (data?.hasAnomalies && data?.anomalyCount > 0) {
+            // Import toast dynamically to show warning
+            import("sonner").then(({ toast: sonnerToast }) => {
+              sonnerToast.warning("Valores anormais detectados!", {
+                description: `${data.anomalyCount} transação(ões) com valores acima de R$ 500. Verifique os dados importados.`,
+                duration: 10000,
+              });
+            });
+          }
         }).catch((err) => {
           console.error("Spreadsheet processing error:", err);
           queryClient.invalidateQueries({ queryKey: ["uploads"] });

@@ -27,6 +27,41 @@ const AMOUNT_MAX = 10000000; // 10 million (reasonable max for a single transact
 const QUANTITY_MIN = 0;
 const QUANTITY_MAX = 100000; // reasonable max for stock quantity
 
+// Anomaly detection thresholds
+const ANOMALY_THRESHOLDS = {
+  maxSingleAmount: 500, // Maximum expected amount for a single transaction (phone cases)
+};
+
+// Interface for detected anomalies
+interface AnomalyRecord {
+  orderNumber: string;
+  productName: string;
+  amount: number;
+  reason: string;
+}
+
+// Detect amount anomalies in sales records
+function detectAmountAnomalies(records: Record<string, unknown>[]): AnomalyRecord[] {
+  const anomalies: AnomalyRecord[] = [];
+  
+  for (const record of records) {
+    const amount = record.amount as number;
+    const productName = record.product_name as string || "N/A";
+    const orderNumber = record.order_number as string || "N/A";
+    
+    if (amount > ANOMALY_THRESHOLDS.maxSingleAmount) {
+      anomalies.push({
+        orderNumber,
+        productName,
+        amount,
+        reason: `Valor R$ ${amount.toFixed(2)} excede o máximo esperado de R$ ${ANOMALY_THRESHOLDS.maxSingleAmount}`,
+      });
+    }
+  }
+  
+  return anomalies;
+}
+
 // Column mapping for sales spreadsheet (REVENUE.xlsx and REVENUE-UP.xlsx) - PT and EN aliases
 const SALES_COLUMN_MAP: Record<string, string[]> = {
   "merchant_id": ["Comerciante", "Merchant"],
@@ -656,6 +691,13 @@ Deno.serve(async (req) => {
       
       skippedRecords = rows.length - validRecords.length;
 
+      // Detect amount anomalies before insertion
+      const anomalies = detectAmountAnomalies(validRecords as Record<string, unknown>[]);
+      if (anomalies.length > 0) {
+        console.warn(`[process-spreadsheet] Upload ${uploadId}: Detected ${anomalies.length} amount anomalies:`, 
+          JSON.stringify(anomalies.slice(0, 10)));
+      }
+
       // Batch insert (chunks of 500)
       const chunkSize = 500;
       for (let i = 0; i < validRecords.length; i += chunkSize) {
@@ -812,18 +854,35 @@ Deno.serve(async (req) => {
 
       if (pdvInfo?.organization_id) {
         const typeLabel = upload.type === "sales" ? "vendas" : "estoque";
+        
+        // Get anomalies for notification (only for sales)
+        let anomalyCount = 0;
+        if (upload.type === "sales") {
+          const salesRecords = rows.map(row => mapSalesRow(row, pdvId, uploadId)).filter(Boolean);
+          const validRecords = salesRecords.filter(r => 
+            r && r.device_id && r.order_number && r.product_name && r.amount !== null && r.amount !== undefined
+          );
+          const anomalies = detectAmountAnomalies(validRecords as Record<string, unknown>[]);
+          anomalyCount = anomalies.length;
+        }
+        
+        const anomalyWarning = anomalyCount > 0 
+          ? ` ATENÇÃO: ${anomalyCount} valor(es) acima de R$ ${ANOMALY_THRESHOLDS.maxSingleAmount} detectado(s).` 
+          : "";
+        
         await supabase
           .from("notifications")
           .insert({
             organization_id: pdvInfo.organization_id,
             user_id: upload.uploaded_by,
             type: "upload_processed",
-            title: "Upload processado",
-            message: `Seu arquivo de ${typeLabel} foi processado com ${recordsInserted} registros.`,
+            title: anomalyCount > 0 ? "Upload processado com alertas" : "Upload processado",
+            message: `Seu arquivo de ${typeLabel} foi processado com ${recordsInserted} registros.${anomalyWarning}`,
             metadata: { 
               upload_id: uploadId, 
               records_count: recordsInserted,
-              type: upload.type 
+              type: upload.type,
+              anomaly_count: anomalyCount,
             },
           });
       }
@@ -832,11 +891,24 @@ Deno.serve(async (req) => {
       // Don't fail the upload because of notification error
     }
 
+    // Calculate anomalies for response (only for sales)
+    let responseAnomalies: AnomalyRecord[] = [];
+    if (upload.type === "sales") {
+      const salesRecords = rows.map(row => mapSalesRow(row, pdvId, uploadId)).filter(Boolean);
+      const validRecords = salesRecords.filter(r => 
+        r && r.device_id && r.order_number && r.product_name && r.amount !== null && r.amount !== undefined
+      );
+      responseAnomalies = detectAmountAnomalies(validRecords as Record<string, unknown>[]);
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
         recordsCount: recordsInserted,
         skippedCount: skippedRecords,
+        anomalies: responseAnomalies.slice(0, 20),
+        hasAnomalies: responseAnomalies.length > 0,
+        anomalyCount: responseAnomalies.length,
         message: `Processado com sucesso: ${recordsInserted} registros` 
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
