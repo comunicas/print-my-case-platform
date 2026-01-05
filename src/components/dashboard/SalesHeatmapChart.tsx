@@ -1,7 +1,5 @@
 import { useMemo } from "react";
-import { Download, Grid3x3 } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Grid3x3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -12,19 +10,20 @@ import {
 import { cn } from "@/lib/utils";
 import { HeatmapCell, TIME_RANGES, getHeatmapPeak, exportToExcel } from "@/lib/dashboardUtils";
 import { formatCurrency } from "@/lib/utils";
+import { ChartCard } from "./ChartCard";
 
 interface SalesHeatmapChartProps {
   data: HeatmapCell[];
+  animationDelay?: number;
 }
 
 const DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-export function SalesHeatmapChart({ data }: SalesHeatmapChartProps) {
+export function SalesHeatmapChart({ data, animationDelay = 0 }: SalesHeatmapChartProps) {
   const { grid, maxRevenue, peak } = useMemo(() => {
     const max = Math.max(...data.map(d => d.revenue), 1);
     const peakData = getHeatmapPeak(data);
     
-    // Organiza em grade [rangeId][day]
     const gridData: (HeatmapCell | undefined)[][] = [];
     for (let r = 0; r < TIME_RANGES.length; r++) {
       gridData[r] = [];
@@ -36,11 +35,9 @@ export function SalesHeatmapChart({ data }: SalesHeatmapChartProps) {
     return { grid: gridData, maxRevenue: max, peak: peakData };
   }, [data]);
   
-  // Cores com gradiente de luminosidade para melhor visibilidade
   const getCellColor = (revenue: number) => {
     if (revenue === 0 || maxRevenue === 0) return "bg-muted/40";
     const ratio = revenue / maxRevenue;
-    // Gradiente de cinza claro → roxo escuro para melhor contraste
     if (ratio < 0.15) return "bg-purple-100 dark:bg-purple-950/60";
     if (ratio < 0.30) return "bg-purple-200 dark:bg-purple-900/70";
     if (ratio < 0.50) return "bg-purple-300 dark:bg-purple-800/80";
@@ -67,104 +64,91 @@ export function SalesHeatmapChart({ data }: SalesHeatmapChartProps) {
   };
 
   return (
-    <Card data-testid="sales-heatmap-chart" className="flex flex-col">
-      <CardHeader className="flex flex-row items-center justify-between px-4 md:px-6 pt-4 md:pt-6 pb-2">
-        <div>
-          <div className="flex items-center gap-3">
-            <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-              <Grid3x3 className="h-5 w-5 text-purple-500" />
-              Vendas por Horário
-            </CardTitle>
-            {peak && (
-              <Badge data-testid="heatmap-peak-badge" variant="outline" className="gap-1 text-xs">
-                Pico: {peak.dayName} {peak.rangeLabel}
-              </Badge>
-            )}
-          </div>
-          <CardDescription>
-            Concentração de vendas por dia e horário
-          </CardDescription>
-        </div>
-        <Button data-testid="export-heatmap" variant="outline" size="sm" onClick={handleExport}>
-          <Download className="h-4 w-4 mr-1" />
-          Excel
-        </Button>
-      </CardHeader>
-      <CardContent className="flex-1 flex flex-col px-4 md:px-6 pb-4 md:pb-6">
-        {data.length > 0 ? (
-          <div className="overflow-x-auto">
-            <div data-testid="heatmap-grid" className="min-w-[400px]">
-              {/* Header - Dias */}
-              <div className="grid grid-cols-8 gap-1 mb-1">
-                <div className="text-xs text-muted-foreground text-right pr-1"></div>
-                {DAYS.map(day => (
-                  <div key={day} className="text-xs text-muted-foreground text-center font-medium">
-                    {day}
-                  </div>
-                ))}
-              </div>
-              
-              {/* Grid - 8 faixas horárias (2h cada) */}
-              <TooltipProvider>
-                {TIME_RANGES.map((range, rIdx) => (
-                  <div key={range.id} className="grid grid-cols-8 gap-1 mb-1 relative">
-                    <div className="text-xs text-muted-foreground text-right pr-1 leading-8">
-                      {range.label}
-                    </div>
-                    {DAYS.map((day, dIdx) => {
-                      const cell = grid[rIdx]?.[dIdx];
-                      const revenue = cell?.revenue || 0;
-                      const count = cell?.count || 0;
-                      
-                      return (
-                        <Tooltip key={day}>
-                          <TooltipTrigger asChild>
-                            <div
-                              className={cn(
-                                "h-8 rounded cursor-default",
-                                "transition-all duration-200 ease-out",
-                                "hover:scale-110 hover:shadow-lg hover:z-10",
-                                "hover:ring-2 hover:ring-foreground/20",
-                                getCellColor(revenue),
-                                isPeakCell(rIdx, dIdx) && "ring-2 ring-primary ring-offset-1 ring-offset-background"
-                              )}
-                            />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <div className="flex flex-col gap-1">
-                              <span className="font-medium text-sm">{day} {range.label}</span>
-                              <span className="text-xs">Receita: {formatCurrency(revenue)}</span>
-                              <span className="text-xs text-muted-foreground">{count} vendas</span>
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      );
-                    })}
-                  </div>
-                ))}
-              </TooltipProvider>
-              
-              {/* Legenda */}
-              <div className="flex items-center justify-center gap-2 mt-3 text-xs text-muted-foreground">
-                <span>Menos</span>
-                <div className="flex gap-0.5">
-                  <div className="w-4 h-4 rounded bg-muted/40 border border-border/50" />
-                  <div className="w-4 h-4 rounded bg-purple-100 dark:bg-purple-950/60" />
-                  <div className="w-4 h-4 rounded bg-purple-200 dark:bg-purple-900/70" />
-                  <div className="w-4 h-4 rounded bg-purple-300 dark:bg-purple-800/80" />
-                  <div className="w-4 h-4 rounded bg-purple-400 dark:bg-purple-700" />
-                  <div className="w-4 h-4 rounded bg-purple-500 dark:bg-purple-600" />
+    <ChartCard
+      testId="sales-heatmap-chart"
+      title="Vendas por Horário"
+      description="Concentração de vendas por dia e horário"
+      icon={Grid3x3}
+      iconColor="text-purple-500"
+      onExport={handleExport}
+      exportTestId="export-heatmap"
+      headerBadge={peak && (
+        <Badge data-testid="heatmap-peak-badge" variant="outline" className="gap-1 text-xs">
+          Pico: {peak.dayName} {peak.rangeLabel}
+        </Badge>
+      )}
+      animationDelay={animationDelay}
+    >
+      {data.length > 0 ? (
+        <div className="overflow-x-auto">
+          <div data-testid="heatmap-grid" className="min-w-[400px]">
+            <div className="grid grid-cols-8 gap-1 mb-1">
+              <div className="text-xs text-muted-foreground text-right pr-1"></div>
+              {DAYS.map(day => (
+                <div key={day} className="text-xs text-muted-foreground text-center font-medium">
+                  {day}
                 </div>
-                <span>Mais</span>
+              ))}
+            </div>
+            
+            <TooltipProvider>
+              {TIME_RANGES.map((range, rIdx) => (
+                <div key={range.id} className="grid grid-cols-8 gap-1 mb-1 relative">
+                  <div className="text-xs text-muted-foreground text-right pr-1 leading-8">
+                    {range.label}
+                  </div>
+                  {DAYS.map((day, dIdx) => {
+                    const cell = grid[rIdx]?.[dIdx];
+                    const revenue = cell?.revenue || 0;
+                    const count = cell?.count || 0;
+                    
+                    return (
+                      <Tooltip key={day}>
+                        <TooltipTrigger asChild>
+                          <div
+                            className={cn(
+                              "h-8 rounded cursor-default",
+                              "transition-all duration-200 ease-out",
+                              "hover:scale-110 hover:shadow-lg hover:z-10",
+                              "hover:ring-2 hover:ring-foreground/20",
+                              getCellColor(revenue),
+                              isPeakCell(rIdx, dIdx) && "ring-2 ring-primary ring-offset-1 ring-offset-background"
+                            )}
+                          />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <div className="flex flex-col gap-1">
+                            <span className="font-medium text-sm">{day} {range.label}</span>
+                            <span className="text-xs">Receita: {formatCurrency(revenue)}</span>
+                            <span className="text-xs text-muted-foreground">{count} vendas</span>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })}
+                </div>
+              ))}
+            </TooltipProvider>
+            
+            <div className="flex items-center justify-center gap-2 mt-3 text-xs text-muted-foreground">
+              <span>Menos</span>
+              <div className="flex gap-0.5">
+                <div className="w-4 h-4 rounded bg-muted/40 border border-border/50" />
+                <div className="w-4 h-4 rounded bg-purple-100 dark:bg-purple-950/60" />
+                <div className="w-4 h-4 rounded bg-purple-200 dark:bg-purple-900/70" />
+                <div className="w-4 h-4 rounded bg-purple-300 dark:bg-purple-800/80" />
+                <div className="w-4 h-4 rounded bg-purple-400 dark:bg-purple-700" />
+                <div className="w-4 h-4 rounded bg-purple-500 dark:bg-purple-600" />
               </div>
+              <span>Mais</span>
             </div>
           </div>
-        ) : (
-          <div data-testid="heatmap-empty" className="flex-1 min-h-[150px] flex items-center justify-center text-muted-foreground">
-            Nenhum dado disponível
-          </div>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+      ) : (
+        <div data-testid="heatmap-empty" className="flex-1 min-h-[150px] flex items-center justify-center text-muted-foreground">
+          Nenhum dado disponível
+        </div>
+      )}
+    </ChartCard>
   );
 }

@@ -92,6 +92,10 @@ export default {
           "0%": { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" },
         },
+        "fade-in-up": {
+          "0%": { opacity: "0", transform: "translateY(16px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -99,6 +103,7 @@ export default {
         "badge-fade-in": "badge-fade-in 0.2s ease-out",
         "badge-fade-out": "badge-fade-out 0.2s ease-out forwards",
         "shimmer": "shimmer 1.5s infinite linear",
+        "fade-in-up": "fade-in-up 0.4s ease-out",
       },
     },
   },
