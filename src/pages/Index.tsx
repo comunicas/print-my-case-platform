@@ -394,26 +394,26 @@ export default function Index() {
 
         {/* Charts - Only show if there's data */}
         {hasData && (
-          <div data-testid="charts-section">
-            {/* Row 1: Sales by Day + Heatmap */}
+          <div data-testid="charts-section" className="space-y-4">
+            {/* Sales by Day - Full Width */}
+            <Suspense fallback={<ChartSkeleton />}>
+              <SalesByDayChart data={data?.salesByDay || []} />
+            </Suspense>
+
+            {/* Row 1: Heatmap + Top Products */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
-              <Suspense fallback={<ChartSkeleton />}>
-                <SalesByDayChart data={data?.salesByDay || []} />
-              </Suspense>
               <Suspense fallback={<ChartSkeleton />}>
                 <SalesHeatmapChart data={data?.salesByHourAndDay || []} />
               </Suspense>
-            </div>
-
-            {/* Row 2: Top Products + Stock by Brand */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
               <Suspense fallback={<ChartSkeleton />}>
                 <TopProductsChart data={data?.topProductsChart || []} />
               </Suspense>
-              <Suspense fallback={<ChartSkeleton />}>
-                <StockByBrandChart data={stockByBrand} />
-              </Suspense>
             </div>
+
+            {/* Stock by Brand */}
+            <Suspense fallback={<ChartSkeleton />}>
+              <StockByBrandChart data={stockByBrand} />
+            </Suspense>
 
             {/* Stock History Chart */}
             {stockHistory && stockHistory.chartData.length > 0 && (
