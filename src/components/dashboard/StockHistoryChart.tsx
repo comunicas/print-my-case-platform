@@ -16,6 +16,7 @@ interface StockHistoryData {
 interface StockHistoryChartProps {
   data: StockHistoryData[];
   brands: string[];
+  animationDelay?: number;
 }
 
 const PERIOD_OPTIONS = [
@@ -25,7 +26,7 @@ const PERIOD_OPTIONS = [
   { label: "90d", days: 90 },
 ];
 
-export function StockHistoryChart({ data, brands }: StockHistoryChartProps) {
+export function StockHistoryChart({ data, brands, animationDelay = 0 }: StockHistoryChartProps) {
   const [selectedPeriod, setSelectedPeriod] = useState(30);
   
   // Filtra dados pelo período selecionado
@@ -50,7 +51,11 @@ export function StockHistoryChart({ data, brands }: StockHistoryChartProps) {
   };
 
   return (
-    <Card data-testid="stock-history-chart">
+    <Card 
+      data-testid="stock-history-chart"
+      className="animate-fade-in-up"
+      style={{ animationDelay: `${animationDelay}ms`, animationFillMode: "backwards" }}
+    >
       <CardHeader className="flex flex-row items-center justify-between px-4 md:px-6 pt-4 md:pt-6 pb-3">
         <CardTitle className="text-base md:text-lg">Evolução do Estoque</CardTitle>
         <div className="flex items-center gap-2">

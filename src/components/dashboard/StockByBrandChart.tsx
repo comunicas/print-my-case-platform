@@ -3,6 +3,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLe
 import { PieChart, Pie, Cell } from "recharts";
 import { StockByBrandData, exportToExcel } from "@/lib/dashboardUtils";
 import { ChartCard } from "./ChartCard";
+import { ChartEmptyState } from "./ChartEmptyState";
 
 interface StockByBrandChartProps {
   data: StockByBrandData[];
@@ -105,9 +106,12 @@ export function StockByBrandChart({ data, animationDelay = 0 }: StockByBrandChar
           </PieChart>
         </ChartContainer>
       ) : (
-        <div data-testid="stock-by-brand-empty" className="flex-1 min-h-[250px] flex items-center justify-center text-muted-foreground">
-          Nenhum dado de estoque disponível
-        </div>
+        <ChartEmptyState 
+          testId="stock-by-brand-empty"
+          icon={Package}
+          title="Sem estoque"
+          description="Faça upload de dados para visualizar"
+        />
       )}
     </ChartCard>
   );

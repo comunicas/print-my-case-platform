@@ -378,7 +378,7 @@ export default function Index() {
         {/* Losses by Day Chart */}
         {(kpis.totalCancellations > 0 || kpis.totalRefunds > 0) && (
           <Suspense fallback={<ChartSkeleton />}>
-            <LossesByDayChart data={data?.lossesByDay || []} />
+            <LossesByDayChart data={data?.lossesByDay || []} animationDelay={0} />
           </Suspense>
         )}
 
@@ -397,22 +397,22 @@ export default function Index() {
           <div data-testid="charts-section" className="space-y-4">
             {/* Sales by Day - Full Width */}
             <Suspense fallback={<ChartSkeleton />}>
-              <SalesByDayChart data={data?.salesByDay || []} />
+              <SalesByDayChart data={data?.salesByDay || []} animationDelay={0} />
             </Suspense>
 
             {/* Row 1: Heatmap + Top Products */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
               <Suspense fallback={<ChartSkeleton />}>
-                <SalesHeatmapChart data={data?.salesByHourAndDay || []} />
+                <SalesHeatmapChart data={data?.salesByHourAndDay || []} animationDelay={100} />
               </Suspense>
               <Suspense fallback={<ChartSkeleton />}>
-                <TopProductsChart data={data?.topProductsChart || []} />
+                <TopProductsChart data={data?.topProductsChart || []} animationDelay={150} />
               </Suspense>
             </div>
 
             {/* Stock by Brand */}
             <Suspense fallback={<ChartSkeleton />}>
-              <StockByBrandChart data={stockByBrand} />
+              <StockByBrandChart data={stockByBrand} animationDelay={200} />
             </Suspense>
 
             {/* Stock History Chart */}
@@ -420,13 +420,14 @@ export default function Index() {
               <Suspense fallback={<ChartSkeleton />}>
                 <StockHistoryChart 
                   data={stockHistory.chartData} 
-                  brands={stockHistory.brands} 
+                  brands={stockHistory.brands}
+                  animationDelay={250}
                 />
               </Suspense>
             )}
 
             {/* Stock Alerts Table */}
-            <StockAlertsTable data={lowStockItems} />
+            <StockAlertsTable data={lowStockItems} animationDelay={300} />
           </div>
         )}
     </div>
