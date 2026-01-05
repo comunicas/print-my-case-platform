@@ -86,6 +86,7 @@ export interface KPIData {
   avgTicket: number;
   revenueChange: number;
   transactionsChange: number;
+  refundsChange: number;
 }
 
 // Constants
@@ -375,9 +376,16 @@ export function calculateKPIs(
 
   const previousRevenue = calculateTotalRevenue(previousSales);
   const previousTransactions = previousSales.length;
+  
+  // Calcula reembolsos do período anterior
+  const previousRefunds = previousSales.reduce(
+    (sum, record) => sum + Number(record.refund_amount || 0),
+    0
+  );
 
   const revenueChange = calculatePercentageChange(totalRevenue, previousRevenue);
   const transactionsChange = calculatePercentageChange(transactions, previousTransactions);
+  const refundsChange = calculatePercentageChange(totalRefunds, previousRefunds);
 
   return {
     totalRevenue,
@@ -388,6 +396,7 @@ export function calculateKPIs(
     avgTicket,
     revenueChange,
     transactionsChange,
+    refundsChange,
   };
 }
 
