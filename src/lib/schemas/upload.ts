@@ -117,6 +117,13 @@ export interface SalesRecord {
   payment_method: string | null;
   status: string | null;
   refund_amount: number | null;
+  // REVENUE-UP.xlsx additional fields
+  order_time: string | null;
+  print_code: string | null;
+  discount_amount: number | null;
+  actual_paid_amount: number | null;
+  order_completion_time: string | null;
+  payment_flow: string | null;
 }
 
 // Interface de registro de estoque para uso na aplicação

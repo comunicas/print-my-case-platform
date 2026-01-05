@@ -33,6 +33,12 @@ export interface SalesRecordPreview {
   refund_amount: number | null;
   order_number: string;
   transaction_number: string | null;
+  // REVENUE-UP.xlsx additional fields
+  order_time: string | null;
+  print_code: string | null;
+  discount_amount: number | null;
+  actual_paid_amount: number | null;
+  order_completion_time: string | null;
 }
 
 /** Subset de StockRecord para exibição em tabelas de preview */
@@ -86,7 +92,7 @@ export function useUploadDetails(uploadId: string | undefined) {
 
       const { data, error } = await supabase
         .from("sales_records")
-        .select("id, product_name, amount, payment_method, status, payment_date, refund_amount, order_number, transaction_number")
+        .select("id, product_name, amount, payment_method, status, payment_date, refund_amount, order_number, transaction_number, order_time, print_code, discount_amount, actual_paid_amount, order_completion_time")
         .eq("upload_id", uploadId)
         .order("payment_date", { ascending: false });
 

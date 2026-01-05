@@ -486,14 +486,20 @@ export type Database = {
       }
       sales_records: {
         Row: {
+          actual_paid_amount: number | null
           amount: number
           device_id: string
+          discount_amount: number | null
           id: string
           merchant_id: string | null
+          order_completion_time: string | null
           order_number: string
+          order_time: string | null
           payment_date: string
+          payment_flow: string | null
           payment_method: string | null
           pdv_id: string
+          print_code: string | null
           product_name: string
           refund_amount: number | null
           status: string | null
@@ -501,14 +507,20 @@ export type Database = {
           upload_id: string
         }
         Insert: {
+          actual_paid_amount?: number | null
           amount: number
           device_id: string
+          discount_amount?: number | null
           id?: string
           merchant_id?: string | null
+          order_completion_time?: string | null
           order_number: string
+          order_time?: string | null
           payment_date: string
+          payment_flow?: string | null
           payment_method?: string | null
           pdv_id: string
+          print_code?: string | null
           product_name: string
           refund_amount?: number | null
           status?: string | null
@@ -516,14 +528,20 @@ export type Database = {
           upload_id: string
         }
         Update: {
+          actual_paid_amount?: number | null
           amount?: number
           device_id?: string
+          discount_amount?: number | null
           id?: string
           merchant_id?: string | null
+          order_completion_time?: string | null
           order_number?: string
+          order_time?: string | null
           payment_date?: string
+          payment_flow?: string | null
           payment_method?: string | null
           pdv_id?: string
+          print_code?: string | null
           product_name?: string
           refund_amount?: number | null
           status?: string | null
