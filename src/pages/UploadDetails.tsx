@@ -78,11 +78,19 @@ const UploadDetails = () => {
     return filteredStockRecords.slice(start, start + ITEMS_PER_PAGE);
   }, [filteredStockRecords, currentPage]);
 
+  // Detectar se tem dados do REVENUE-UP.xlsx
+  const hasRevenueUpData = useMemo(() => {
+    return salesRecords.some(r => r.order_time !== null);
+  }, [salesRecords]);
+
   // Estatísticas
   const salesStats = useMemo(() => {
     const total = salesRecords.reduce((acc, r) => acc + Number(r.amount), 0);
     const refunds = salesRecords.filter((r) => (r.refund_amount || 0) > 0).length;
-    return { total, refunds };
+    const totalDiscounts = salesRecords.reduce(
+      (acc, r) => acc + Number(r.discount_amount || 0), 0
+    );
+    return { total, refunds, totalDiscounts };
   }, [salesRecords]);
 
   const stockStats = useMemo(() => {
@@ -198,7 +206,17 @@ const UploadDetails = () => {
                   <span className="font-medium text-primary">
                     {formatCurrency(salesStats.total)}
                   </span>{" "}
-                  total •{" "}
+                  total
+                  {salesStats.totalDiscounts > 0 && (
+                    <>
+                      {" "}•{" "}
+                      <span className="font-medium text-orange-600">
+                        -{formatCurrency(salesStats.totalDiscounts)}
+                      </span>{" "}
+                      descontos
+                    </>
+                  )}
+                  {" "}•{" "}
                   <span className="font-medium">{salesStats.refunds}</span>{" "}
                   reembolsos
                 </p>
@@ -243,15 +261,23 @@ const UploadDetails = () => {
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
             ) : upload.type === "sales" ? (
-              <div className="rounded-md border">
-                <Table>
+              <div className="rounded-md border overflow-x-auto">
+                <Table className={hasRevenueUpData ? "min-w-[900px]" : ""}>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Produto</TableHead>
                       <TableHead className="text-right">Valor</TableHead>
+                      {hasRevenueUpData && (
+                        <TableHead className="text-right">Valor Pago</TableHead>
+                      )}
+                      {hasRevenueUpData && (
+                        <TableHead className="text-right">Desconto</TableHead>
+                      )}
                       <TableHead>Pagamento</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Data</TableHead>
+                      {hasRevenueUpData && <TableHead>Código</TableHead>}
+                      {hasRevenueUpData && <TableHead>Hora Pedido</TableHead>}
+                      <TableHead>Hora Pagamento</TableHead>
                       <TableHead className="text-right">Reembolso</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -259,7 +285,7 @@ const UploadDetails = () => {
                     {paginatedSalesRecords.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={6}
+                          colSpan={hasRevenueUpData ? 10 : 6}
                           className="text-center py-8 text-muted-foreground"
                         >
                           Nenhum registro encontrado
@@ -279,12 +305,26 @@ const UploadDetails = () => {
                           <TableCell className="text-right">
                             {formatCurrency(Number(record.amount))}
                           </TableCell>
+                          {hasRevenueUpData && (
+                            <TableCell className="text-right">
+                              {record.actual_paid_amount
+                                ? formatCurrency(Number(record.actual_paid_amount))
+                                : "-"}
+                            </TableCell>
+                          )}
+                          {hasRevenueUpData && (
+                            <TableCell className="text-right">
+                              {record.discount_amount && Number(record.discount_amount) > 0
+                                ? formatCurrency(Number(record.discount_amount))
+                                : "-"}
+                            </TableCell>
+                          )}
                           <TableCell>{record.payment_method || "-"}</TableCell>
                           <TableCell>
                             <Badge
                               variant="outline"
                               className={
-                                record.status === "Pago"
+                                record.status === "Pago" || record.status === "Completed"
                                   ? "bg-green-500/10 text-green-600 border-green-500/20"
                                   : "bg-orange-500/10 text-orange-600 border-orange-500/20"
                               }
@@ -292,8 +332,26 @@ const UploadDetails = () => {
                               {record.status || "-"}
                             </Badge>
                           </TableCell>
+                          {hasRevenueUpData && (
+                            <TableCell>
+                              {record.print_code ? (
+                                <Badge variant="outline" className="font-mono text-xs">
+                                  {record.print_code}
+                                </Badge>
+                              ) : (
+                                "-"
+                              )}
+                            </TableCell>
+                          )}
+                          {hasRevenueUpData && (
+                            <TableCell>
+                              {record.order_time
+                                ? format(new Date(record.order_time), "dd/MM HH:mm")
+                                : "-"}
+                            </TableCell>
+                          )}
                           <TableCell>
-                            {format(new Date(record.payment_date), "dd/MM/yyyy HH:mm")}
+                            {format(new Date(record.payment_date), "dd/MM HH:mm")}
                           </TableCell>
                           <TableCell className="text-right">
                             {(record.refund_amount || 0) > 0
