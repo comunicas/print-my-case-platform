@@ -368,6 +368,21 @@ function mapSalesRow(row: Record<string, unknown>, pdvId: string, uploadId: stri
     }
   }
   
+  // Infer refund_amount from status when not explicitly set
+  const REFUND_STATUS_KEYWORDS = [
+    'reembolsado', 'reembolso', 'cancelado', 'devolvido', 'estornado',
+    'refunded', 'refund', 'cancelled', 'canceled', 'returned', 'reversed'
+  ];
+  
+  const status = String(mapped.status || '').toLowerCase().trim();
+  const isRefundStatus = REFUND_STATUS_KEYWORDS.some(keyword => status.includes(keyword));
+  
+  // If status indicates refund and refund_amount is empty/zero, use amount as refund value
+  if (isRefundStatus && (!mapped.refund_amount || mapped.refund_amount === 0)) {
+    mapped.refund_amount = mapped.amount || 0;
+    console.log(`Inferred refund_amount from status "${mapped.status}": ${mapped.refund_amount}`);
+  }
+  
   return mapped;
 }
 
