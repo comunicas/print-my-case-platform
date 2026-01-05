@@ -28,6 +28,7 @@ export interface DashboardData {
     activePdvs: number;
     revenueChange: number;
     transactionsChange: number;
+    refundsChange: number;
   };
   hasData: boolean;
   globalMetrics?: {

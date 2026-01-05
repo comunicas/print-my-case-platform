@@ -158,6 +158,7 @@ export default function Index() {
     activePdvs: 0,
     revenueChange: 0,
     transactionsChange: 0,
+    refundsChange: 0,
   };
 
   const globalMetrics = data?.globalMetrics;
@@ -174,6 +175,17 @@ export default function Index() {
   const transactionsTrend = calculateTrend(
     kpis.transactions,
     kpis.transactions / (1 + kpis.transactionsChange / 100),
+    dateRange.from,
+    dateRange.to
+  );
+  
+  // Calculate refunds trend
+  const previousRefunds = kpis.refundsChange !== 0 
+    ? kpis.totalRefunds / (1 + kpis.refundsChange / 100) 
+    : 0;
+  const refundsTrend = calculateTrend(
+    kpis.totalRefunds,
+    previousRefunds,
     dateRange.from,
     dateRange.to
   );
@@ -315,6 +327,7 @@ export default function Index() {
             title="Reembolsos"
             value={formatCurrency(kpis.totalRefunds)}
             icon={RotateCcw}
+            trend={refundsTrend}
             subtitle={kpis.refundedTransactions > 0 ? `${kpis.refundedTransactions} transações` : undefined}
             variant={kpis.totalRefunds > 0 ? "danger" : "default"}
           />
