@@ -1,9 +1,9 @@
 import { useMemo } from "react";
-import { Download } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Download, TrendingUp } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine, Cell } from "recharts";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine, Cell, Legend } from "recharts";
 import { SalesByDayData, exportToExcel } from "@/lib/dashboardUtils";
 import { formatCurrency } from "@/lib/utils";
 
@@ -12,8 +12,11 @@ interface SalesByDayChartProps {
 }
 
 const chartConfig = {
-  revenue: { label: "Receita", color: "hsl(var(--chart-1))" },
-};
+  revenue: { 
+    label: "Receita", 
+    color: "hsl(var(--chart-1))" 
+  },
+} satisfies ChartConfig;
 
 export function SalesByDayChart({ data }: SalesByDayChartProps) {
   const { processedData, average, maxIdx, minIdx } = useMemo(() => {
@@ -49,73 +52,92 @@ export function SalesByDayChart({ data }: SalesByDayChartProps) {
     return "hsl(var(--chart-1))"; // Azul para demais
   };
 
+  if (processedData.length === 0) {
+    return null;
+  }
+
   return (
-    <Card data-testid="sales-by-day-chart" className="flex flex-col">
-      <CardHeader className="flex flex-row items-center justify-between px-4 md:px-6 pt-4 md:pt-6 pb-3">
-        <CardTitle className="text-base md:text-lg">Vendas por Dia</CardTitle>
-        <Button data-testid="export-sales-by-day" variant="ghost" size="sm" onClick={handleExport} className="gap-1.5">
-          <Download className="h-4 w-4" />
-          <span className="hidden sm:inline">Exportar</span>
+    <Card data-testid="sales-by-day-chart">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <div>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <TrendingUp className="h-5 w-5 text-chart-2" />
+            Vendas por Dia
+          </CardTitle>
+          <CardDescription>
+            Evolução da receita ao longo do período
+          </CardDescription>
+        </div>
+        <Button 
+          data-testid="export-sales-by-day" 
+          variant="outline" 
+          size="sm" 
+          onClick={handleExport}
+        >
+          <Download className="h-4 w-4 mr-1" />
+          Excel
         </Button>
       </CardHeader>
-      <CardContent className="flex-1 flex flex-col px-4 md:px-6 pb-4 md:pb-6">
-        {processedData.length > 0 ? (
-          <ChartContainer config={chartConfig} className="flex-1 min-h-[250px] w-full">
-            <BarChart data={processedData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis 
-                dataKey="dateDisplay" 
-                className="text-xs" 
-                tick={{ fill: "hsl(var(--muted-foreground))" }} 
-              />
-              <YAxis
-                className="text-xs"
-                tick={{ fill: "hsl(var(--muted-foreground))" }}
-                tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-              />
-              <ChartTooltip
-                content={
-                  <ChartTooltipContent 
-                    hideLabel={true}
-                    formatter={(value, name, item) => {
-                      const entry = item.payload as SalesByDayData;
-                      return [
-                        <div key="tooltip" className="flex flex-col gap-1">
-                          <span className="font-medium">Dia {entry.dateDisplay}</span>
-                          <span>Receita: {formatCurrency(entry.revenue)}</span>
-                          <span className="text-muted-foreground text-sm">
-                            {entry.count} vendas
-                          </span>
-                        </div>,
-                        ""
-                      ];
-                    }}
-                  />
-                }
-              />
-              <ReferenceLine 
-                y={average} 
-                stroke="hsl(var(--muted-foreground))" 
-                strokeDasharray="5 5"
-                label={{ 
-                  value: `Média: ${formatCurrency(average)}`,
-                  position: "insideTopRight",
-                  fill: "hsl(var(--muted-foreground))",
-                  fontSize: 10,
-                }}
-              />
-              <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
-                {processedData.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={getBarColor(index)} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ChartContainer>
-        ) : (
-          <div data-testid="sales-by-day-empty" className="flex-1 min-h-[250px] flex items-center justify-center text-muted-foreground">
-            Nenhum dado de vendas disponível
-          </div>
-        )}
+      <CardContent>
+        <ChartContainer config={chartConfig} className="h-[300px] w-full">
+          <BarChart data={processedData} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <XAxis
+              dataKey="dateDisplay"
+              tick={{ fontSize: 11 }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <YAxis
+              tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
+              tick={{ fontSize: 11 }}
+              tickLine={false}
+              axisLine={false}
+              width={55}
+            />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  hideLabel={true}
+                  formatter={(value, name, item) => {
+                    const entry = item.payload as SalesByDayData;
+                    return [
+                      <div key="tooltip" className="flex flex-col gap-1">
+                        <span className="font-medium">Dia {entry.dateDisplay}</span>
+                        <span>Receita: {formatCurrency(entry.revenue)}</span>
+                        <span className="text-muted-foreground text-sm">
+                          {entry.count} vendas
+                        </span>
+                      </div>,
+                      ""
+                    ];
+                  }}
+                />
+              }
+            />
+            <Legend 
+              verticalAlign="top" 
+              height={36}
+              formatter={() => "Receita"}
+            />
+            <ReferenceLine
+              y={average}
+              stroke="hsl(var(--muted-foreground))"
+              strokeDasharray="4 4"
+              strokeWidth={1.5}
+              label={{
+                value: `Média: ${formatCurrency(average)}`,
+                position: "insideTopRight",
+                className: "text-[10px] fill-muted-foreground",
+              }}
+            />
+            <Bar dataKey="revenue" radius={[4, 4, 0, 0]} name="Receita">
+              {processedData.map((_, index) => (
+                <Cell key={`cell-${index}`} fill={getBarColor(index)} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ChartContainer>
       </CardContent>
     </Card>
   );
