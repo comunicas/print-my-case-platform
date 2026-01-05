@@ -218,7 +218,8 @@ function parsePaymentDate(value: unknown): string {
   return new Date().toISOString();
 }
 
-// Parse monetary value "R$ 1.234,56" or number with validation
+// Parse monetary value with auto-detection of format
+// Supports: "R$ 1.234,56" (BR), "1,234.56" (EN), "69.90", "69,90"
 function parseAmount(value: unknown): number {
   if (!value) return 0;
   if (typeof value === "number") {
@@ -229,10 +230,38 @@ function parseAmount(value: unknown): number {
     return value;
   }
   
-  const str = String(value).substring(0, 50) // Limit input length
-    .replace(/[R$\s]/g, "")
-    .replace(/\./g, "")
-    .replace(",", ".");
+  let str = String(value).substring(0, 50).replace(/[R$\s]/g, "").trim();
+  
+  const hasComma = str.includes(",");
+  const hasDot = str.includes(".");
+  
+  if (hasComma && hasDot) {
+    // Both present - check which comes last (that's the decimal separator)
+    const lastComma = str.lastIndexOf(",");
+    const lastDot = str.lastIndexOf(".");
+    
+    if (lastComma > lastDot) {
+      // Brazilian format: "1.234,56"
+      str = str.replace(/\./g, "").replace(",", ".");
+    } else {
+      // English format: "1,234.56"
+      str = str.replace(/,/g, "");
+    }
+  } else if (hasComma && !hasDot) {
+    // Only comma - likely Brazilian decimal: "69,90"
+    str = str.replace(",", ".");
+  } else if (hasDot && !hasComma) {
+    // Only dot - check if it's decimal or thousands
+    // If exactly 1-2 digits after dot, it's decimal: "69.90", "69.9"
+    // If 3+ digits after dot, it's thousands: "1.234"
+    const parts = str.split(".");
+    if (parts.length === 2 && parts[1].length <= 2) {
+      // It's a decimal - keep as is: "69.90"
+    } else {
+      // It's thousands separator - remove: "1.234" → "1234"
+      str = str.replace(/\./g, "");
+    }
+  }
   
   const parsed = parseFloat(str);
   if (isNaN(parsed)) return 0;
