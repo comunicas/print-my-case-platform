@@ -46,6 +46,7 @@ const SalesHeatmapChart = lazy(() => import("@/components/dashboard/SalesHeatmap
 const TopProductsChart = lazy(() => import("@/components/dashboard/TopProductsChart").then(m => ({ default: m.TopProductsChart })));
 const StockByBrandChart = lazy(() => import("@/components/dashboard/StockByBrandChart").then(m => ({ default: m.StockByBrandChart })));
 const StockHistoryChart = lazy(() => import("@/components/dashboard/StockHistoryChart").then(m => ({ default: m.StockHistoryChart })));
+const LossesByDayChart = lazy(() => import("@/components/dashboard/LossesByDayChart").then(m => ({ default: m.LossesByDayChart })));
 
 export default function Index() {
   const navigate = useNavigate();
@@ -373,6 +374,13 @@ export default function Index() {
           totalRefunds={kpis.totalRefunds}
           refundedTransactions={kpis.refundedTransactions}
         />
+
+        {/* Losses by Day Chart */}
+        {(kpis.totalCancellations > 0 || kpis.totalRefunds > 0) && (
+          <Suspense fallback={<ChartSkeleton />}>
+            <LossesByDayChart data={data?.lossesByDay || []} />
+          </Suspense>
+        )}
 
         {/* Quick Stats */}
         {data?.quickStats && (

@@ -8,6 +8,7 @@ import {
   getSalesByHourAndDay,
   getTopProducts,
   getQuickStats,
+  getLossesByDay,
   calculateKPIs,
   calculateTotalRevenue,
   SaleRecord,
@@ -15,6 +16,8 @@ import {
   HeatmapCell,
   TopProductData,
   QuickStatsData,
+  LossesByDayData,
+  CancellationRecord,
 } from "@/lib/dashboardUtils";
 
 export interface DashboardData {
@@ -47,6 +50,7 @@ export interface DashboardData {
   salesByHourAndDay: HeatmapCell[];
   topProductsChart: TopProductData[];
   quickStats: QuickStatsData;
+  lossesByDay: LossesByDayData[];
 }
 
 interface UseDashboardParams {
@@ -135,7 +139,7 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
       // Queries for cancelled transactions (pre-payment cancellations)
       let currentCancellationsQuery = supabase
         .from("sales_records")
-        .select("amount")
+        .select("amount, payment_date")
         .gte("payment_date", startDate.toISOString())
         .lte("payment_date", endDate.toISOString())
         .or("status.ilike.%cancelled%,status.ilike.%canceled%");
@@ -257,6 +261,13 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
       const salesByHourAndDay = getSalesByHourAndDay(salesRecordsForCharts);
       const topProductsChart = getTopProducts(salesRecordsForCharts, 10);
       const quickStats = getQuickStats(salesRecordsForCharts);
+      
+      // Calculate losses by day for chart
+      const cancellationsForChart: CancellationRecord[] = currentCancellations.map((c: any) => ({
+        payment_date: c.payment_date,
+        amount: Number(c.amount),
+      }));
+      const lossesByDay = getLossesByDay(salesRecordsForCharts, cancellationsForChart);
 
       return {
         kpis: {
@@ -273,6 +284,7 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
         salesByHourAndDay,
         topProductsChart,
         quickStats,
+        lossesByDay,
       };
     },
     enabled: !!profile?.id || isSuperAdmin,
