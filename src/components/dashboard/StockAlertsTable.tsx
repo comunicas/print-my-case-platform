@@ -21,11 +21,12 @@ import { salesIndexLabels, salesBadgeVariants } from "@/lib/stockLabels";
 interface StockAlertsTableProps {
   data: LowStockItem[];
   maxCapacity?: number;
+  animationDelay?: number;
 }
 
 const ITEMS_PER_PAGE = 5;
 
-export function StockAlertsTable({ data, maxCapacity = 7 }: StockAlertsTableProps) {
+export function StockAlertsTable({ data, maxCapacity = 7, animationDelay = 0 }: StockAlertsTableProps) {
   const [page, setPage] = useState(0);
   const { openProductModal } = useProductModal();
   
@@ -37,7 +38,11 @@ export function StockAlertsTable({ data, maxCapacity = 7 }: StockAlertsTableProp
 
   if (data.length === 0) {
     return (
-      <Card data-testid="stock-alerts-ok">
+      <Card 
+        data-testid="stock-alerts-ok"
+        className="animate-fade-in-up"
+        style={{ animationDelay: `${animationDelay}ms`, animationFillMode: "backwards" }}
+      >
         <CardContent className="flex flex-col items-center justify-center py-12">
           <CheckCircle2 className="h-12 w-12 text-emerald-500 mb-4" />
           <h3 className="text-lg font-medium mb-2">Estoque OK</h3>
@@ -50,7 +55,11 @@ export function StockAlertsTable({ data, maxCapacity = 7 }: StockAlertsTableProp
   }
 
   return (
-    <Card data-testid="stock-alerts-table" className="flex flex-col">
+    <Card 
+      data-testid="stock-alerts-table" 
+      className="flex flex-col animate-fade-in-up"
+      style={{ animationDelay: `${animationDelay}ms`, animationFillMode: "backwards" }}
+    >
       <CardHeader className="px-4 md:px-6 pt-4 md:pt-6 pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base md:text-lg flex items-center gap-2">

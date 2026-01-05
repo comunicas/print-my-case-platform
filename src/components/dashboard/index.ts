@@ -1,4 +1,5 @@
 export { ChartCard } from './ChartCard';
+export { ChartEmptyState } from './ChartEmptyState';
 export { ChartSkeleton } from './ChartSkeleton';
 export { DateRangeFilter } from './DateRangeFilter';
 export { KPICard } from './KPICard';
