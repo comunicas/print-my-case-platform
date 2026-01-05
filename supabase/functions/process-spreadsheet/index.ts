@@ -698,10 +698,26 @@ Deno.serve(async (req) => {
           JSON.stringify(anomalies.slice(0, 10)));
       }
 
-      // Batch insert (chunks of 500)
+      // Create set of anomalous order numbers for quick lookup
+      const anomalousOrderNumbers = new Set(anomalies.map(a => a.orderNumber));
+
+      // FILTER OUT ANOMALOUS RECORDS BEFORE INSERTION
+      const cleanRecords = validRecords.filter(r => 
+        !anomalousOrderNumbers.has(r?.order_number as string)
+      );
+
+      // Update skipped count to include anomalies
+      const anomalySkipped = validRecords.length - cleanRecords.length;
+      skippedRecords = rows.length - cleanRecords.length;
+
+      if (anomalySkipped > 0) {
+        console.log(`[process-spreadsheet] Upload ${uploadId}: EXCLUDED ${anomalySkipped} records with anomalous amounts (> R$ ${ANOMALY_THRESHOLDS.maxSingleAmount})`);
+      }
+
+      // Batch insert ONLY CLEAN RECORDS (chunks of 500)
       const chunkSize = 500;
-      for (let i = 0; i < validRecords.length; i += chunkSize) {
-        const chunk = validRecords.slice(i, i + chunkSize);
+      for (let i = 0; i < cleanRecords.length; i += chunkSize) {
+        const chunk = cleanRecords.slice(i, i + chunkSize);
         const { error: insertError } = await supabase
           .from("sales_records")
           .insert(chunk);
