@@ -232,8 +232,8 @@ function mapSalesRow(row: Record<string, unknown>, pdvId: string, uploadId: stri
   
   // Infer refund_amount from status when not explicitly set
   const REFUND_STATUS_KEYWORDS = [
-    'reembolsado', 'reembolso', 'cancelado', 'devolvido', 'estornado',
-    'refunded', 'refund', 'cancelled', 'canceled', 'returned', 'reversed'
+    'reembolsado', 'reembolso', 'devolvido', 'estornado',
+    'refunded', 'refund', 'returned', 'reversed'
   ];
   
   const status = String(mapped.status || '').toLowerCase().trim();
@@ -335,8 +335,8 @@ Deno.serve(async (req) => {
             // Track if refund was inferred
             const status = String(mapped.status || '').toLowerCase().trim();
             const REFUND_STATUS_KEYWORDS = [
-              'reembolsado', 'reembolso', 'cancelado', 'devolvido', 'estornado',
-              'refunded', 'refund', 'cancelled', 'canceled', 'returned', 'reversed'
+              'reembolsado', 'reembolso', 'devolvido', 'estornado',
+              'refunded', 'refund', 'returned', 'reversed'
             ];
             const isRefundStatus = REFUND_STATUS_KEYWORDS.some(keyword => status.includes(keyword));
             const refundAmount = mapped.refund_amount as number;
