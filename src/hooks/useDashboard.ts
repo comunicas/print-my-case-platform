@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { startOfDay, endOfDay } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "./useProfile";
 import { useUserAllowedPDVs } from "./useUserAllowedPDVs";
@@ -19,6 +20,9 @@ import {
 export interface DashboardData {
   kpis: {
     totalRevenue: number;
+    grossRevenue: number;
+    totalRefunds: number;
+    refundedTransactions: number;
     transactions: number;
     avgTicket: number;
     activePdvs: number;
@@ -31,6 +35,7 @@ export interface DashboardData {
     totalPdvsGlobal: number;
     totalRevenueGlobal: number;
     totalTransactionsGlobal: number;
+    totalRefundsGlobal: number;
   };
   // Chart data
   salesByDay: SalesByDayData[];
@@ -55,13 +60,14 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
     queryFn: async (): Promise<DashboardData> => {
       const now = new Date();
       // Use dateRange if provided, otherwise default to 30 days
-      const startDate = dateRange?.from || new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      const endDate = dateRange?.to || now;
+      // Apply startOfDay/endOfDay for precise boundaries
+      const startDate = startOfDay(dateRange?.from || new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000));
+      const endDate = endOfDay(dateRange?.to || now);
       
       // Calculate previous period for comparison
       const periodDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
-      const previousStartDate = new Date(startDate.getTime() - periodDays * 24 * 60 * 60 * 1000);
-      const previousEndDate = new Date(startDate.getTime() - 1);
+      const previousStartDate = startOfDay(new Date(startDate.getTime() - periodDays * 24 * 60 * 60 * 1000));
+      const previousEndDate = endOfDay(new Date(startDate.getTime() - 1));
 
       // Determine which PDVs to query based on role and filters
       let pdvIds: string[] | null = null;
@@ -160,11 +166,16 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
           if (!orgsResult.error && !globalPdvsResult.error && !globalSalesResult.error) {
             const globalSalesData = globalSalesResult.data || [];
             const totalRevenueGlobal = calculateTotalRevenue(globalSalesData);
+            const totalRefundsGlobal = globalSalesData.reduce(
+              (sum, record) => sum + Number(record.refund_amount || 0),
+              0
+            );
             globalMetrics = {
               totalOrganizations: orgsResult.count || 0,
               totalPdvsGlobal: globalPdvsResult.count || 0,
               totalRevenueGlobal,
               totalTransactionsGlobal: globalSalesData.length,
+              totalRefundsGlobal,
             };
           }
         } catch {

@@ -14,6 +14,7 @@ import {
   Building2,
   RefreshCw,
   FileSpreadsheet,
+  RotateCcw,
 } from "lucide-react";
 import { useDashboard } from "@/hooks/useDashboard";
 import { useOrganizations } from "@/hooks/useOrganizations";
@@ -149,6 +150,9 @@ export default function Index() {
 
   const kpis = data?.kpis || {
     totalRevenue: 0,
+    grossRevenue: 0,
+    totalRefunds: 0,
+    refundedTransactions: 0,
     transactions: 0,
     avgTicket: 0,
     activePdvs: 0,
@@ -283,11 +287,11 @@ export default function Index() {
           </Card>
         )}
 
-        {/* KPI Cards - 2 columns on mobile, 4 on desktop */}
-        <div data-testid="kpi-grid" className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
+        {/* KPI Cards - 2 columns on mobile, 5 on desktop */}
+        <div data-testid="kpi-grid" className="grid grid-cols-2 lg:grid-cols-5 gap-2 md:gap-4">
           <KPICard
             testId="kpi-revenue"
-            title="Receita Total"
+            title="Receita Líquida"
             value={formatCurrency(kpis.totalRevenue)}
             icon={DollarSign}
             trend={revenueTrend}
@@ -305,6 +309,14 @@ export default function Index() {
             title="Ticket Médio"
             value={formatCurrency(kpis.avgTicket)}
             icon={TrendingUp}
+          />
+          <KPICard
+            testId="kpi-refunds"
+            title="Reembolsos"
+            value={formatCurrency(kpis.totalRefunds)}
+            icon={RotateCcw}
+            subtitle={kpis.refundedTransactions > 0 ? `${kpis.refundedTransactions} transações` : undefined}
+            variant={kpis.totalRefunds > 0 ? "danger" : "default"}
           />
           <KPICard
             testId="kpi-critical-stock"

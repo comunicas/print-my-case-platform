@@ -79,6 +79,9 @@ export interface SalesAmountRecord {
 
 export interface KPIData {
   totalRevenue: number;
+  grossRevenue: number;
+  totalRefunds: number;
+  refundedTransactions: number;
   transactions: number;
   avgTicket: number;
   revenueChange: number;
@@ -348,7 +351,25 @@ export function calculateKPIs(
   currentSales: SalesAmountRecord[],
   previousSales: SalesAmountRecord[]
 ): KPIData {
-  const totalRevenue = calculateTotalRevenue(currentSales);
+  // Calcula receita bruta (soma de amounts)
+  const grossRevenue = currentSales.reduce(
+    (sum, record) => sum + Number(record.amount),
+    0
+  );
+  
+  // Calcula total de reembolsos
+  const totalRefunds = currentSales.reduce(
+    (sum, record) => sum + Number(record.refund_amount || 0),
+    0
+  );
+  
+  // Conta transações com reembolso
+  const refundedTransactions = currentSales.filter(
+    record => Number(record.refund_amount || 0) > 0
+  ).length;
+  
+  // Receita líquida
+  const totalRevenue = grossRevenue - totalRefunds;
   const transactions = currentSales.length;
   const avgTicket = transactions > 0 ? totalRevenue / transactions : 0;
 
@@ -360,6 +381,9 @@ export function calculateKPIs(
 
   return {
     totalRevenue,
+    grossRevenue,
+    totalRefunds,
+    refundedTransactions,
     transactions,
     avgTicket,
     revenueChange,
