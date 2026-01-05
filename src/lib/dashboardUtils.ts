@@ -89,6 +89,21 @@ export interface KPIData {
   refundsChange: number;
 }
 
+export interface LossesByDayData {
+  date: string;
+  dateDisplay: string;
+  cancellations: number;
+  cancellationCount: number;
+  refunds: number;
+  refundCount: number;
+  total: number;
+}
+
+export interface CancellationRecord {
+  payment_date: string;
+  amount: number;
+}
+
 // Constants
 const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -398,6 +413,60 @@ export function calculateKPIs(
     transactionsChange,
     refundsChange,
   };
+}
+
+/**
+ * Agrupa perdas (cancelamentos e reembolsos) por dia
+ */
+export function getLossesByDay(
+  sales: SaleRecord[],
+  cancellations: CancellationRecord[]
+): LossesByDayData[] {
+  const byDay = new Map<string, { 
+    cancellations: number; 
+    cancellationCount: number;
+    refunds: number; 
+    refundCount: number;
+  }>();
+  
+  // Agrupa cancelamentos por dia
+  for (const cancel of cancellations) {
+    const date = cancel.payment_date.substring(0, 10);
+    const current = byDay.get(date) || { 
+      cancellations: 0, cancellationCount: 0, 
+      refunds: 0, refundCount: 0 
+    };
+    current.cancellations += Number(cancel.amount);
+    current.cancellationCount += 1;
+    byDay.set(date, current);
+  }
+  
+  // Agrupa reembolsos por dia (do campo refund_amount nas vendas)
+  for (const sale of sales) {
+    const refundAmount = Number(sale.refund_amount || 0);
+    if (refundAmount > 0) {
+      const date = sale.payment_date.substring(0, 10);
+      const current = byDay.get(date) || { 
+        cancellations: 0, cancellationCount: 0, 
+        refunds: 0, refundCount: 0 
+      };
+      current.refunds += refundAmount;
+      current.refundCount += 1;
+      byDay.set(date, current);
+    }
+  }
+  
+  return Array.from(byDay.entries())
+    .map(([date, data]) => ({
+      date,
+      dateDisplay: format(parseISO(date), "dd/MM", { locale: ptBR }),
+      cancellations: data.cancellations,
+      cancellationCount: data.cancellationCount,
+      refunds: data.refunds,
+      refundCount: data.refundCount,
+      total: data.cancellations + data.refunds,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 }
 
 /**

@@ -1,0 +1,152 @@
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine, Legend } from "recharts";
+import { Download, TrendingDown } from "lucide-react";
+import { useMemo } from "react";
+import { formatCurrency } from "@/lib/utils";
+import { exportToExcel, LossesByDayData } from "@/lib/dashboardUtils";
+
+interface LossesByDayChartProps {
+  data: LossesByDayData[];
+}
+
+const chartConfig = {
+  cancellations: {
+    label: "Cancelamentos",
+    color: "hsl(var(--warning))",
+  },
+  refunds: {
+    label: "Reembolsos",
+    color: "hsl(var(--destructive))",
+  },
+} satisfies ChartConfig;
+
+export function LossesByDayChart({ data }: LossesByDayChartProps) {
+  const { averageLoss, totalLosses } = useMemo(() => {
+    const total = data.reduce((sum, d) => sum + d.total, 0);
+    const daysWithLosses = data.filter(d => d.total > 0).length;
+    return {
+      averageLoss: daysWithLosses > 0 ? total / daysWithLosses : 0,
+      totalLosses: total,
+    };
+  }, [data]);
+
+  const handleExport = () => {
+    const exportData = data.map(d => ({
+      Data: d.dateDisplay,
+      Cancelamentos: d.cancellations,
+      "Qtd. Cancelamentos": d.cancellationCount,
+      Reembolsos: d.refunds,
+      "Qtd. Reembolsos": d.refundCount,
+      "Total Perdas": d.total,
+    }));
+    exportToExcel(exportData, "perdas-por-dia");
+  };
+
+  if (data.length === 0 || totalLosses === 0) {
+    return null;
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <div>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <TrendingDown className="h-5 w-5 text-destructive" />
+            Perdas por Dia
+          </CardTitle>
+          <CardDescription>
+            Cancelamentos e reembolsos ao longo do período
+          </CardDescription>
+        </div>
+        <Button variant="outline" size="sm" onClick={handleExport}>
+          <Download className="h-4 w-4 mr-1" />
+          Excel
+        </Button>
+      </CardHeader>
+      <CardContent>
+        <ChartContainer config={chartConfig} className="h-[300px] w-full">
+          <BarChart data={data} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <XAxis
+              dataKey="dateDisplay"
+              tick={{ fontSize: 11 }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <YAxis
+              tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
+              tick={{ fontSize: 11 }}
+              tickLine={false}
+              axisLine={false}
+              width={55}
+            />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  formatter={(value, name) => {
+                    const label = name === "cancellations" ? "Cancelamentos" : "Reembolsos";
+                    return (
+                      <span className="font-medium">
+                        {label}: {formatCurrency(Number(value))}
+                      </span>
+                    );
+                  }}
+                  labelFormatter={(label, payload) => {
+                    if (payload && payload.length > 0) {
+                      const item = payload[0].payload as LossesByDayData;
+                      return (
+                        <div className="space-y-1">
+                          <div className="font-semibold">{label}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {item.cancellationCount} cancelamento(s) • {item.refundCount} reembolso(s)
+                          </div>
+                        </div>
+                      );
+                    }
+                    return label;
+                  }}
+                />
+              }
+            />
+            <Legend
+              verticalAlign="top"
+              height={36}
+              formatter={(value) => (
+                <span className="text-xs">
+                  {value === "cancellations" ? "Cancelamentos" : "Reembolsos"}
+                </span>
+              )}
+            />
+            {averageLoss > 0 && (
+              <ReferenceLine
+                y={averageLoss}
+                stroke="hsl(var(--muted-foreground))"
+                strokeDasharray="4 4"
+                strokeWidth={1.5}
+                label={{
+                  value: `Média: ${formatCurrency(averageLoss)}`,
+                  position: "insideTopRight",
+                  className: "text-[10px] fill-muted-foreground",
+                }}
+              />
+            )}
+            <Bar
+              dataKey="cancellations"
+              stackId="losses"
+              fill="hsl(var(--warning))"
+              radius={[0, 0, 0, 0]}
+            />
+            <Bar
+              dataKey="refunds"
+              stackId="losses"
+              fill="hsl(var(--destructive))"
+              radius={[4, 4, 0, 0]}
+            />
+          </BarChart>
+        </ChartContainer>
+      </CardContent>
+    </Card>
+  );
+}
