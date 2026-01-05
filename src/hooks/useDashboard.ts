@@ -29,6 +29,10 @@ export interface DashboardData {
     revenueChange: number;
     transactionsChange: number;
     refundsChange: number;
+    // Cancellations (pre-payment)
+    totalCancellations: number;
+    cancelledTransactions: number;
+    cancellationsChange: number;
   };
   hasData: boolean;
   globalMetrics?: {
@@ -128,12 +132,29 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
         .select("id")
         .eq("status", "active");
 
+      // Queries for cancelled transactions (pre-payment cancellations)
+      let currentCancellationsQuery = supabase
+        .from("sales_records")
+        .select("amount")
+        .gte("payment_date", startDate.toISOString())
+        .lte("payment_date", endDate.toISOString())
+        .or("status.ilike.%cancelled%,status.ilike.%canceled%");
+
+      let previousCancellationsQuery = supabase
+        .from("sales_records")
+        .select("amount")
+        .gte("payment_date", previousStartDate.toISOString())
+        .lte("payment_date", previousEndDate.toISOString())
+        .or("status.ilike.%cancelled%,status.ilike.%canceled%");
+
       // Apply PDV filter if needed
       if (pdvIds !== null) {
         const filterIds = pdvIds.length > 0 ? pdvIds : ["no-match"];
         currentSalesQuery = currentSalesQuery.in("pdv_id", filterIds);
         previousSalesQuery = previousSalesQuery.in("pdv_id", filterIds);
         fullSalesRecordsQuery = fullSalesRecordsQuery.in("pdv_id", filterIds);
+        currentCancellationsQuery = currentCancellationsQuery.in("pdv_id", filterIds);
+        previousCancellationsQuery = previousCancellationsQuery.in("pdv_id", filterIds);
       }
 
       // Apply organization filter for PDVs count
@@ -146,17 +167,21 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
         }
       }
 
-      // Fetch all data in parallel (reduced from 11 to 4 queries)
+      // Fetch all data in parallel
       const [
         currentSalesResult,
         previousSalesResult,
         fullSalesRecordsResult,
         activePdvsResult,
+        currentCancellationsResult,
+        previousCancellationsResult,
       ] = await Promise.all([
         currentSalesQuery,
         previousSalesQuery,
         fullSalesRecordsQuery,
         activePdvsQuery,
+        currentCancellationsQuery,
+        previousCancellationsQuery,
       ]);
 
       // Fetch global metrics for super_admin with robust error handling
@@ -196,6 +221,23 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
       const kpis = calculateKPIs(currentSales, previousSales);
       const activePdvs = activePdvsResult.data?.length || 0;
 
+      // Calculate cancellation metrics
+      const currentCancellations = currentCancellationsResult.data || [];
+      const previousCancellations = previousCancellationsResult.data || [];
+      
+      const totalCancellations = currentCancellations.reduce(
+        (sum, record) => sum + Number(record.amount || 0), 0
+      );
+      const cancelledTransactions = currentCancellations.length;
+      
+      const previousCancellationsTotal = previousCancellations.reduce(
+        (sum, record) => sum + Number(record.amount || 0), 0
+      );
+      
+      const cancellationsChange = previousCancellationsTotal > 0
+        ? ((totalCancellations - previousCancellationsTotal) / previousCancellationsTotal) * 100
+        : 0;
+
       const hasData = currentSales.length > 0;
 
       // Process full sales records for charts
@@ -220,6 +262,9 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
         kpis: {
           ...kpis,
           activePdvs,
+          totalCancellations,
+          cancelledTransactions,
+          cancellationsChange,
         },
         hasData,
         globalMetrics,

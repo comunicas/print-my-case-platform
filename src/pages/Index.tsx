@@ -15,6 +15,7 @@ import {
   RefreshCw,
   FileSpreadsheet,
   RotateCcw,
+  Ban,
 } from "lucide-react";
 import { useDashboard } from "@/hooks/useDashboard";
 import { useOrganizations } from "@/hooks/useOrganizations";
@@ -37,6 +38,7 @@ import { KPICard } from "@/components/dashboard/KPICard";
 import { QuickStats } from "@/components/dashboard/QuickStats";
 import { StockAlertsTable } from "@/components/dashboard/StockAlertsTable";
 import { ChartSkeleton } from "@/components/dashboard/ChartSkeleton";
+import { LossAnalysisCard } from "@/components/dashboard/LossAnalysisCard";
 
 // Lazy load dos charts pesados (usam recharts)
 const SalesByDayChart = lazy(() => import("@/components/dashboard/SalesByDayChart").then(m => ({ default: m.SalesByDayChart })));
@@ -159,6 +161,9 @@ export default function Index() {
     revenueChange: 0,
     transactionsChange: 0,
     refundsChange: 0,
+    totalCancellations: 0,
+    cancelledTransactions: 0,
+    cancellationsChange: 0,
   };
 
   const globalMetrics = data?.globalMetrics;
@@ -186,6 +191,17 @@ export default function Index() {
   const refundsTrend = calculateTrend(
     kpis.totalRefunds,
     previousRefunds,
+    dateRange.from,
+    dateRange.to
+  );
+
+  // Calculate cancellations trend
+  const previousCancellations = kpis.cancellationsChange !== 0 
+    ? kpis.totalCancellations / (1 + kpis.cancellationsChange / 100) 
+    : 0;
+  const cancellationsTrend = calculateTrend(
+    kpis.totalCancellations,
+    previousCancellations,
     dateRange.from,
     dateRange.to
   );
@@ -299,8 +315,8 @@ export default function Index() {
           </Card>
         )}
 
-        {/* KPI Cards - 2 columns on mobile, 5 on desktop */}
-        <div data-testid="kpi-grid" className="grid grid-cols-2 lg:grid-cols-5 gap-2 md:gap-4">
+        {/* KPI Cards - 2 columns on mobile, 6 on desktop */}
+        <div data-testid="kpi-grid" className="grid grid-cols-2 lg:grid-cols-6 gap-2 md:gap-4">
           <KPICard
             testId="kpi-revenue"
             title="Receita Líquida"
@@ -332,6 +348,15 @@ export default function Index() {
             variant={kpis.totalRefunds > 0 ? "danger" : "default"}
           />
           <KPICard
+            testId="kpi-cancellations"
+            title="Cancelamentos"
+            value={formatCurrency(kpis.totalCancellations)}
+            icon={Ban}
+            trend={cancellationsTrend}
+            subtitle={kpis.cancelledTransactions > 0 ? `${kpis.cancelledTransactions} desistências` : undefined}
+            variant={kpis.totalCancellations > 0 ? "warning" : "default"}
+          />
+          <KPICard
             testId="kpi-critical-stock"
             title="Estoque Crítico"
             value={criticalStockCount.toString()}
@@ -340,6 +365,14 @@ export default function Index() {
             variant={criticalStockCount > 0 ? "danger" : "success"}
           />
         </div>
+
+        {/* Loss Analysis Card */}
+        <LossAnalysisCard
+          totalCancellations={kpis.totalCancellations}
+          cancelledTransactions={kpis.cancelledTransactions}
+          totalRefunds={kpis.totalRefunds}
+          refundedTransactions={kpis.refundedTransactions}
+        />
 
         {/* Quick Stats */}
         {data?.quickStats && (

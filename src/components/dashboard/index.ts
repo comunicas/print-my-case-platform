@@ -1,6 +1,7 @@
 export { ChartSkeleton } from './ChartSkeleton';
 export { DateRangeFilter } from './DateRangeFilter';
 export { KPICard } from './KPICard';
+export { LossAnalysisCard } from './LossAnalysisCard';
 export { QuickStats } from './QuickStats';
 export { SalesByDayChart } from './SalesByDayChart';
 export { SalesHeatmapChart } from './SalesHeatmapChart';
