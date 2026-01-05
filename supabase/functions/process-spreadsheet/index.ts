@@ -712,6 +712,25 @@ Deno.serve(async (req) => {
 
       if (anomalySkipped > 0) {
         console.log(`[process-spreadsheet] Upload ${uploadId}: EXCLUDED ${anomalySkipped} records with anomalous amounts (> R$ ${ANOMALY_THRESHOLDS.maxSingleAmount})`);
+        
+        // Persist anomalies to database for history/reporting
+        const anomalyRecords = anomalies.map(a => ({
+          upload_id: uploadId,
+          order_number: a.orderNumber,
+          product_name: a.productName,
+          amount: a.amount,
+          reason: a.reason,
+        }));
+        
+        const { error: anomalyError } = await supabase
+          .from("upload_anomalies")
+          .insert(anomalyRecords);
+        
+        if (anomalyError) {
+          console.error(`Upload ${uploadId}: Failed to save anomalies`, anomalyError.message);
+        } else {
+          console.log(`[process-spreadsheet] Upload ${uploadId}: Saved ${anomalies.length} anomalies to database`);
+        }
       }
 
       // Batch insert ONLY CLEAN RECORDS (chunks of 500)
@@ -848,12 +867,23 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Calculate anomaly count for the upload record
+    let uploadAnomalyCount = 0;
+    if (upload.type === "sales") {
+      const salesRecords = rows.map(row => mapSalesRow(row, pdvId, uploadId)).filter(Boolean);
+      const validRecords = salesRecords.filter(r => 
+        r && r.device_id && r.order_number && r.product_name && r.amount !== null && r.amount !== undefined
+      );
+      uploadAnomalyCount = detectAmountAnomalies(validRecords as Record<string, unknown>[]).length;
+    }
+
     // 5. Update upload status to ready
     await supabase
       .from("uploads")
       .update({
         status: "ready",
         records_count: recordsInserted,
+        anomaly_count: uploadAnomalyCount,
         processed_at: new Date().toISOString(),
         error_message: null,
       })
@@ -883,7 +913,7 @@ Deno.serve(async (req) => {
         }
         
         const anomalyWarning = anomalyCount > 0 
-          ? ` ATENÇÃO: ${anomalyCount} valor(es) acima de R$ ${ANOMALY_THRESHOLDS.maxSingleAmount} detectado(s).` 
+          ? ` ATENÇÃO: ${anomalyCount} registro(s) com valor acima de R$ ${ANOMALY_THRESHOLDS.maxSingleAmount} foram EXCLUÍDOS.` 
           : "";
         
         await supabase

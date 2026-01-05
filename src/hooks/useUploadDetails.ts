@@ -14,6 +14,7 @@ export interface UploadDetails {
   drive_url: string | null;
   status: UploadStatus;
   records_count: number | null;
+  anomaly_count: number | null;
   period: string | null;
   uploaded_by: string;
   uploader: { name: string };
@@ -48,6 +49,16 @@ export interface StockRecordPreview {
   product_name: string;
   quantity: number;
   is_active: boolean | null;
+}
+
+/** Registro de anomalia excluída */
+export interface AnomalyRecord {
+  id: string;
+  order_number: string;
+  product_name: string;
+  amount: number;
+  reason: string;
+  created_at: string;
 }
 
 export function useUploadDetails(uploadId: string | undefined) {
@@ -119,6 +130,23 @@ export function useUploadDetails(uploadId: string | undefined) {
     enabled: !!uploadId && uploadQuery.data?.type === "stock",
   });
 
+  const anomaliesQuery = useQuery({
+    queryKey: ["upload-anomalies", uploadId],
+    queryFn: async () => {
+      if (!uploadId) return [];
+
+      const { data, error } = await supabase
+        .from("upload_anomalies")
+        .select("*")
+        .eq("upload_id", uploadId)
+        .order("amount", { ascending: false });
+
+      if (error) throw error;
+      return data as AnomalyRecord[];
+    },
+    enabled: !!uploadId && !!profile?.organization_id,
+  });
+
   return {
     upload: uploadQuery.data,
     isLoading: uploadQuery.isLoading,
@@ -127,5 +155,7 @@ export function useUploadDetails(uploadId: string | undefined) {
     salesRecordsLoading: salesRecordsQuery.isLoading,
     stockRecords: stockRecordsQuery.data || [],
     stockRecordsLoading: stockRecordsQuery.isLoading,
+    anomalies: anomaliesQuery.data || [],
+    anomaliesLoading: anomaliesQuery.isLoading,
   };
 }

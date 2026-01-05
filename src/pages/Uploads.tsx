@@ -41,6 +41,7 @@ import {
   AlertCircle,
   ExternalLink,
   Eye,
+  AlertTriangle,
 } from "lucide-react";
 import { UploadDialog } from "@/components/upload/UploadDialog";
 import {
@@ -317,7 +318,7 @@ export default function Uploads() {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 mt-3">
+                    <div className="flex items-center gap-2 mt-3 flex-wrap">
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -343,6 +344,26 @@ export default function Uploads() {
                           )}
                         </Tooltip>
                       </TooltipProvider>
+
+                      {/* Badge de anomalias */}
+                      {upload.anomaly_count != null && upload.anomaly_count > 0 && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge 
+                                variant="outline" 
+                                className="bg-orange-500/10 text-orange-600 border-orange-500/20 flex items-center gap-1 cursor-default"
+                              >
+                                <AlertTriangle className="h-3 w-3" />
+                                {upload.anomaly_count} exclusão(ões)
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              <p className="text-xs">Registros excluídos por valores anormais</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
                     </div>
 
                     <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
