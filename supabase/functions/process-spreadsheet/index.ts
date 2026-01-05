@@ -284,12 +284,22 @@ function mapSalesRow(row: Record<string, unknown>, pdvId: string, uploadId: stri
     upload_id: uploadId,
   };
   
+  // Extract order_time first to use as fallback for payment_date
+  const orderTimeValue = getColumnValue(row, SALES_COLUMN_MAP["order_time"]);
+  const orderTime = orderTimeValue ? parsePaymentDate(orderTimeValue) : null;
+  
   for (const [dbCol, aliases] of Object.entries(SALES_COLUMN_MAP)) {
     const value = getColumnValue(row, aliases);
     
     switch (dbCol) {
       case "payment_date":
+        // Use order_time as fallback when payment_date is empty (e.g., cancelled orders)
+        const paymentDate = value ? parsePaymentDate(value) : null;
+        mapped[dbCol] = paymentDate || orderTime || new Date().toISOString();
+        break;
       case "order_time":
+        mapped[dbCol] = orderTime;
+        break;
       case "order_completion_time":
         mapped[dbCol] = value ? parsePaymentDate(value) : null;
         break;
