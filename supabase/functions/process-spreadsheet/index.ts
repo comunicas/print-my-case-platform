@@ -17,6 +17,8 @@ const FIELD_LIMITS = {
   status: 50,
   record_number: 50,
   slot_number: 50,
+  print_code: 20,
+  payment_flow: 100,
 };
 
 // Amount limits for validation
@@ -25,7 +27,7 @@ const AMOUNT_MAX = 10000000; // 10 million (reasonable max for a single transact
 const QUANTITY_MIN = 0;
 const QUANTITY_MAX = 100000; // reasonable max for stock quantity
 
-// Column mapping for sales spreadsheet (REVENUE.xlsx) - PT and EN aliases
+// Column mapping for sales spreadsheet (REVENUE.xlsx and REVENUE-UP.xlsx) - PT and EN aliases
 const SALES_COLUMN_MAP: Record<string, string[]> = {
   "merchant_id": ["Comerciante", "Merchant"],
   "device_id": ["ID do dispositivo", "Device ID"],
@@ -33,10 +35,17 @@ const SALES_COLUMN_MAP: Record<string, string[]> = {
   "product_name": ["Nome do produto", "Product Name"],
   "transaction_number": ["Número da transação", "Transaction ID"],
   "payment_date": ["Hora do pagamento", "Payment Time"],
-  "amount": ["Valor pago", "Payment Amount"],
+  "amount": ["Valor pago", "Payment Amount", "Order Amount"],
   "payment_method": ["Forma de pagamento", "Payment Method"],
   "status": ["Status"],
   "refund_amount": ["Valor reembolsado", "Refund Amount"],
+  // REVENUE-UP.xlsx additional columns
+  "order_time": ["Order Time", "Hora do pedido"],
+  "print_code": ["Print Code", "Código de impressão"],
+  "discount_amount": ["Discount Amount", "Valor do desconto"],
+  "actual_paid_amount": ["Actual Paid Amount", "Valor pago efetivo"],
+  "order_completion_time": ["Order Completion Time", "Hora de conclusão"],
+  "payment_flow": ["Payment Flow", "Fluxo de pagamento"],
 };
 
 // Column mapping for stock spreadsheet (REPORT-SLOT.xlsx) - PT and EN aliases
@@ -280,10 +289,14 @@ function mapSalesRow(row: Record<string, unknown>, pdvId: string, uploadId: stri
     
     switch (dbCol) {
       case "payment_date":
-        mapped[dbCol] = parsePaymentDate(value);
+      case "order_time":
+      case "order_completion_time":
+        mapped[dbCol] = value ? parsePaymentDate(value) : null;
         break;
       case "amount":
       case "refund_amount":
+      case "discount_amount":
+      case "actual_paid_amount":
         mapped[dbCol] = parseAmount(value);
         break;
       case "device_id":
@@ -306,6 +319,12 @@ function mapSalesRow(row: Record<string, unknown>, pdvId: string, uploadId: stri
         break;
       case "status":
         mapped[dbCol] = sanitizeString(value, FIELD_LIMITS.status);
+        break;
+      case "print_code":
+        mapped[dbCol] = sanitizeString(value, FIELD_LIMITS.print_code);
+        break;
+      case "payment_flow":
+        mapped[dbCol] = sanitizeString(value, FIELD_LIMITS.payment_flow);
         break;
     }
   }
