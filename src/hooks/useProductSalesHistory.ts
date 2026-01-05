@@ -49,7 +49,9 @@ export function useProductSalesHistory({
         .from('sales_records')
         .select('payment_date, amount, product_name')
         .gte('payment_date', startDate.toISOString())
-        .lte('payment_date', endDate.toISOString());
+        .lte('payment_date', endDate.toISOString())
+        .not('status', 'ilike', '%cancelled%')
+        .not('status', 'ilike', '%canceled%');
 
       if (pdvId && pdvId !== 'all') {
         query = query.eq('pdv_id', pdvId);

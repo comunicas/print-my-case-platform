@@ -94,18 +94,22 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
         }
       }
 
-      // Build base queries
+      // Build base queries - exclude cancelled transactions (pre-payment cancellations)
       let currentSalesQuery = supabase
         .from("sales_records")
         .select("amount, refund_amount")
         .gte("payment_date", startDate.toISOString())
-        .lte("payment_date", endDate.toISOString());
+        .lte("payment_date", endDate.toISOString())
+        .not("status", "ilike", "%cancelled%")
+        .not("status", "ilike", "%canceled%");
 
       let previousSalesQuery = supabase
         .from("sales_records")
         .select("amount, refund_amount")
         .gte("payment_date", previousStartDate.toISOString())
-        .lte("payment_date", previousEndDate.toISOString());
+        .lte("payment_date", previousEndDate.toISOString())
+        .not("status", "ilike", "%cancelled%")
+        .not("status", "ilike", "%canceled%");
 
       // Query for full sales records (for charts) - limit to prevent performance issues
       // Use a higher limit since we need data for charts, but cap it to avoid memory issues
@@ -114,6 +118,8 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
         .select("id, payment_date, amount, refund_amount, product_name, payment_method, pdv_id")
         .gte("payment_date", startDate.toISOString())
         .lte("payment_date", endDate.toISOString())
+        .not("status", "ilike", "%cancelled%")
+        .not("status", "ilike", "%canceled%")
         .order("payment_date", { ascending: true })
         .limit(10000);
 
