@@ -24,17 +24,23 @@ const IntegrationsSettings = lazy(() => import("@/components/settings/Integratio
 const ProductRequestsSettings = lazy(() => import("@/components/settings/ProductRequestsSettings").then(m => ({ default: m.ProductRequestsSettings })));
 
 export default function Settings() {
-  const [searchParams] = useSearchParams();
+const [searchParams, setSearchParams] = useSearchParams();
   const { session } = useAuth();
   const { profile, role, isAdmin, isLoading: profileLoading, updateProfile } = useProfile();
-  const { organization, isLoading: orgLoading, updateOrganization } = useOrganization({ readOnly: true });
+  const { organization, isLoading: orgLoading, updateOrganization } = useOrganization();
   const { preferences, isLoading: prefsLoading, updatePreferences } = usePreferences();
   const { pdvs, isLoading: pdvsLoading } = usePDVs();
   
-  const [activeTab, setActiveTab] = useState(() => {
-    const tabFromUrl = searchParams.get("tab");
-    return tabFromUrl || "profile";
-  });
+  // Sincronizar tab com URL
+  const activeTab = searchParams.get("tab") || "profile";
+  
+  const handleTabChange = (value: string) => {
+    setSearchParams(prev => {
+      const newParams = new URLSearchParams(prev);
+      newParams.set("tab", value);
+      return newParams;
+    });
+  };
 
   const isLoading = profileLoading || orgLoading || prefsLoading;
 
@@ -60,7 +66,7 @@ export default function Settings() {
         </div>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4 md:grid-cols-7 h-auto">
             <TabsTrigger value="profile" className="gap-2 py-2">
               <User className="h-4 w-4" />
@@ -198,7 +204,7 @@ export default function Settings() {
                     ))}
                   </div>
                 )}
-                <Button variant="link" className="mt-4 px-0" onClick={() => setActiveTab("pdvs")}>
+                <Button variant="link" className="mt-4 px-0" onClick={() => handleTabChange("pdvs")}>
                   Ver todos os PDVs →
                 </Button>
               </CardContent>

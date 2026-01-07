@@ -177,8 +177,16 @@ export function useUploads() {
               });
             });
           }
-        }).catch((err) => {
+        }).catch(async (err) => {
           console.error("Spreadsheet processing error:", err);
+          // Marcar upload como erro para não ficar travado em "processing"
+          await supabase
+            .from("uploads")
+            .update({ 
+              status: "error", 
+              error_message: err?.message || "Erro ao processar planilha" 
+            })
+            .eq("id", insertedUpload.id);
           queryClient.invalidateQueries({ queryKey: ["uploads"] });
         });
       }

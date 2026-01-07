@@ -3,7 +3,6 @@ import { MAX_CAPACITY, ProductActionStatus, SalesIndex } from './stockTypes';
 
 // Re-exports para compatibilidade
 export type { ProductActionStatus, SalesIndex };
-export type ProductStatus = ProductActionStatus; // Alias legado
 
 /**
  * Determina o status de ação de um slot individual baseado na quantidade
@@ -14,10 +13,6 @@ export function getProductActionStatus(quantity: number): ProductActionStatus {
   if (quantity <= 5) return 'redistribute';
   return 'ok';
 }
-
-// Alias legado - TODO: remover após migração
-/** @deprecated Use getProductActionStatus */
-export const getSlotStatus = getProductActionStatus;
 
 /**
  * Verifica se um produto/slot corresponde ao termo de busca

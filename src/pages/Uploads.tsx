@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { usePreferences } from "@/hooks/usePreferences";
+import { useDefaultPdvPreference } from "@/hooks/useDefaultPdvPreference";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,37 +57,19 @@ import { usePDVs } from "@/hooks/usePDVs";
 import { useProfile } from "@/hooks/useProfile";
 import { PDVFilter } from "@/components/ui/PDVFilter";
 import { DataPagination } from "@/components/ui/data-pagination";
+
 export default function Uploads() {
   const navigate = useNavigate();
   const { uploads, isLoading, createUpload, deleteUpload, pagination, totalCount } = useUploads();
   const { pdvs, isLoading: pdvsLoading } = usePDVs();
   const { isAdmin } = useProfile();
-  const { preferences, isLoading: isLoadingPreferences } = usePreferences();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterPdv, setFilterPdv] = useState<string>("all");
-  const [hasInitializedPrefs, setHasInitializedPrefs] = useState(false);
-  const [pdvWasAutoApplied, setPdvWasAutoApplied] = useState(false);
-
-  // Apply default_pdv preference on first load
-  useEffect(() => {
-    if (preferences && !hasInitializedPrefs && !isLoadingPreferences && !pdvsLoading) {
-      if (preferences.default_pdv) {
-        // Validate that the PDV exists in the list
-        const pdvExists = pdvs.some(p => p.id === preferences.default_pdv);
-        if (pdvExists) {
-          setFilterPdv(preferences.default_pdv);
-          setPdvWasAutoApplied(true);
-        }
-      }
-      setHasInitializedPrefs(true);
-    }
-  }, [preferences, hasInitializedPrefs, isLoadingPreferences, pdvs, pdvsLoading]);
-
-  const handlePdvChange = (value: string) => {
-    setFilterPdv(value);
-    setPdvWasAutoApplied(false);
-  };
+  const { 
+    selectedPdvId: filterPdv, 
+    setSelectedPdvId: handlePdvChange, 
+    wasAutoApplied: pdvWasAutoApplied 
+  } = useDefaultPdvPreference({ pdvs, isLoading: pdvsLoading });
 
   const [filterType, setFilterType] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");

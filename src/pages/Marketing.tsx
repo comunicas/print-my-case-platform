@@ -3,37 +3,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useOrganization } from "@/hooks/useOrganization";
 import { usePDVs } from "@/hooks/usePDVs";
-import { usePreferences } from "@/hooks/usePreferences";
+import { useDefaultPdvPreference } from "@/hooks/useDefaultPdvPreference";
 import { PDVFilter } from "@/components/ui/PDVFilter";
 import { Loader2, QrCode, Image } from "lucide-react";
-import { lazy, Suspense, useState, useEffect } from "react";
+import { lazy, Suspense } from "react";
 import { TabSkeleton } from "@/components/settings/TabSkeleton";
 
 const CouponsSettings = lazy(() => import("@/components/marketing/CouponsSettings").then(m => ({ default: m.CouponsSettings })));
 const MediaSettings = lazy(() => import("@/components/marketing/MediaSettings").then(m => ({ default: m.MediaSettings })));
 
 export default function Marketing() {
-  const { organization, isLoading: orgLoading } = useOrganization({ readOnly: true });
+  const { organization, isLoading: orgLoading } = useOrganization();
   const { pdvs = [], isLoading: pdvsLoading } = usePDVs();
-  const { preferences, isLoading: prefsLoading } = usePreferences();
   
-  const [selectedPdvId, setSelectedPdvId] = useState<string>("all");
-  const [pdvWasAutoApplied, setPdvWasAutoApplied] = useState(false);
-
-  useEffect(() => {
-    if (!prefsLoading && preferences?.default_pdv && pdvs.length > 0) {
-      const pdvExists = pdvs.some(p => p.id === preferences.default_pdv);
-      if (pdvExists && selectedPdvId === "all") {
-        setSelectedPdvId(preferences.default_pdv);
-        setPdvWasAutoApplied(true);
-      }
-    }
-  }, [preferences, pdvs, prefsLoading, selectedPdvId]);
-
-  const handlePdvChange = (value: string) => {
-    setSelectedPdvId(value);
-    setPdvWasAutoApplied(false);
-  };
+  const { 
+    selectedPdvId, 
+    setSelectedPdvId: handlePdvChange, 
+    wasAutoApplied: pdvWasAutoApplied 
+  } = useDefaultPdvPreference({ pdvs, isLoading: pdvsLoading });
 
   const isLoading = orgLoading || pdvsLoading;
 

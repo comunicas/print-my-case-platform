@@ -66,17 +66,3 @@ export const salesBadgeVariants: Record<SalesIndex, 'default' | 'secondary' | 'd
   low: 'outline',
   none: 'outline',
 };
-
-// ============================================
-// Aliases para compatibilidade com código legado
-// TODO: Remover após migração completa
-// ============================================
-
-/** @deprecated Use productActionLabels */
-export const statusLabels = productActionLabels;
-
-/** @deprecated Use productActionColors */
-export const statusColors = productActionColors;
-
-/** @deprecated Use slotVisualLabels */
-export const slotStatusLabels = slotVisualLabels;
