@@ -8,7 +8,6 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BrandLogo } from '@/components/ui/BrandLogo';
-import { SlotData } from '@/lib/stockUtils';
 import { MAX_CAPACITY } from '@/lib/stockGridUtils';
 import { cn } from '@/lib/utils';
 import { Package, MapPin, BarChart3, Clock, TrendingUp } from 'lucide-react';
@@ -24,14 +23,14 @@ import { extractBrandFromProductName, extractModelFromProductName, getExactProdu
 import { usePDVs } from '@/hooks/usePDVs';
 import { useProductAnalytics } from '@/hooks/useProductAnalytics';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useSlotsData } from '@/hooks/useSlotsData';
+import { useUserAllowedPDVs } from '@/hooks/useUserAllowedPDVs';
 
 interface ProductDetailModalProps {
   productName: string | null;
-  slots: SlotData[];
   isOpen: boolean;
   onClose: () => void;
   pdvId?: string;
-  slotsLoading?: boolean;
 }
 
 // Skeleton loader para quando a modal está carregando
@@ -64,9 +63,16 @@ function ModalSkeleton() {
   );
 }
 
-export function ProductDetailModal({ productName, slots, isOpen, onClose, pdvId, slotsLoading }: ProductDetailModalProps) {
+export function ProductDetailModal({ productName, isOpen, onClose, pdvId }: ProductDetailModalProps) {
   const { pdvs } = usePDVs();
-  const pdvName = pdvId ? pdvs.find(p => p.id === pdvId)?.name : null;
+  const pdvName = pdvId && pdvId !== 'all' ? pdvs.find(p => p.id === pdvId)?.name : null;
+  
+  // Busca slots filtrados pelo PDV selecionado
+  const { allowedPdvIds } = useUserAllowedPDVs();
+  const { data: slots = [], isLoading: slotsLoading } = useSlotsData({ 
+    pdvId: pdvId !== 'all' ? pdvId : undefined,
+    allowedPdvIds 
+  });
 
   const { data: analytics, isLoading: analyticsLoading } = useProductAnalytics(productName, pdvId);
 
