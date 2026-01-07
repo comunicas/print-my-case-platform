@@ -7,25 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Mail, Lock, ArrowLeft, CheckCircle2 } from "lucide-react";
-import { z } from "zod";
+import { 
+  loginSchema, 
+  forgotPasswordSchema, 
+  newPasswordSchema 
+} from "@/lib/schemas/auth";
 import { PasswordStrengthIndicator } from "@/components/ui/password-strength";
-
-const loginSchema = z.object({
-  email: z.string().email("Email inválido"),
-  password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
-});
-
-const resetEmailSchema = z.object({
-  email: z.string().email("Email inválido"),
-});
-
-const newPasswordSchema = z.object({
-  password: z.string().min(8, "Senha deve ter no mínimo 8 caracteres"),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "As senhas não coincidem",
-  path: ["confirmPassword"],
-});
 
 type AuthMode = "login" | "forgot" | "reset";
 
@@ -110,7 +97,7 @@ export default function Auth() {
     e.preventDefault();
     setForgotErrors({});
     
-    const result = resetEmailSchema.safeParse({ email: forgotEmail });
+    const result = forgotPasswordSchema.safeParse({ email: forgotEmail });
     if (!result.success) {
       const errors: Record<string, string> = {};
       result.error.errors.forEach((err) => {
