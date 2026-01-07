@@ -12,13 +12,14 @@ import { ChartCard } from "./ChartCard";
 interface TopProductsChartProps {
   data: TopProductData[];
   animationDelay?: number;
+  selectedPdvId?: string;
 }
 
 const chartConfig = {
   revenue: { label: "Receita" },
 };
 
-export function TopProductsChart({ data, animationDelay = 0 }: TopProductsChartProps) {
+export function TopProductsChart({ data, animationDelay = 0, selectedPdvId }: TopProductsChartProps) {
   const { openProductModal } = useProductModal();
   
   const handleExport = () => {
@@ -96,7 +97,7 @@ export function TopProductsChart({ data, animationDelay = 0 }: TopProductsChartP
                 radius={[0, 4, 4, 0]}
                 onClick={(entry) => {
                   if (entry?.name) {
-                    openProductModal(getExactProductKey(entry.name));
+                    openProductModal(getExactProductKey(entry.name), selectedPdvId);
                   }
                 }}
                 className="cursor-pointer"
@@ -113,7 +114,7 @@ export function TopProductsChart({ data, animationDelay = 0 }: TopProductsChartP
           
           <div className="flex items-center justify-center mt-2">
             <button
-              onClick={() => openProductModal(getExactProductKey(data[0].name))}
+              onClick={() => openProductModal(getExactProductKey(data[0].name), selectedPdvId)}
               className="focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
             >
               <Badge data-testid="top-seller-badge" variant="secondary" className="gap-1 cursor-pointer hover:bg-secondary/80">

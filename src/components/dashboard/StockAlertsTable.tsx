@@ -22,11 +22,12 @@ interface StockAlertsTableProps {
   data: LowStockItem[];
   maxCapacity?: number;
   animationDelay?: number;
+  selectedPdvId?: string;
 }
 
 const ITEMS_PER_PAGE = 5;
 
-export function StockAlertsTable({ data, maxCapacity = 7, animationDelay = 0 }: StockAlertsTableProps) {
+export function StockAlertsTable({ data, maxCapacity = 7, animationDelay = 0, selectedPdvId }: StockAlertsTableProps) {
   const [page, setPage] = useState(0);
   const { openProductModal } = useProductModal();
   
@@ -90,7 +91,7 @@ export function StockAlertsTable({ data, maxCapacity = 7, animationDelay = 0 }: 
                   </TableCell>
                   <TableCell className="max-w-[200px]">
                     <button
-                      onClick={() => openProductModal(getExactProductKey(item.productName))}
+                      onClick={() => openProductModal(getExactProductKey(item.productName), selectedPdvId)}
                       className="text-left truncate block w-full hover:underline focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
                       title={item.productName}
                     >
