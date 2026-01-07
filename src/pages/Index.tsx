@@ -406,7 +406,7 @@ export default function Index() {
                 <SalesHeatmapChart data={data?.salesByHourAndDay || []} animationDelay={100} />
               </Suspense>
               <Suspense fallback={<ChartSkeleton />}>
-                <TopProductsChart data={data?.topProductsChart || []} animationDelay={150} />
+                <TopProductsChart data={data?.topProductsChart || []} animationDelay={150} selectedPdvId={selectedPdvId !== 'all' ? selectedPdvId : undefined} />
               </Suspense>
             </div>
 
@@ -427,7 +427,7 @@ export default function Index() {
             )}
 
             {/* Stock Alerts Table */}
-            <StockAlertsTable data={lowStockItems} animationDelay={300} />
+            <StockAlertsTable data={lowStockItems} animationDelay={300} selectedPdvId={selectedPdvId !== 'all' ? selectedPdvId : undefined} />
           </div>
         )}
     </div>
