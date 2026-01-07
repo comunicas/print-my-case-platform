@@ -23,7 +23,7 @@ import { createUserSchema, CreateUserFormData } from "@/lib/schemas/user";
 import { useOrganizations } from "@/hooks/useOrganizations";
 import { PasswordStrengthIndicator } from "@/components/ui/password-strength";
 import { generateSecurePassword } from "@/lib/utils/password-generator";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 interface CreateUserDialogProps {
@@ -91,8 +91,7 @@ export function CreateUserDialog({
     const newPassword = generateSecurePassword(16);
     handleChange("password", newPassword);
     setShowPassword(true);
-    toast({
-      title: "Senha gerada",
+    toast.success("Senha gerada", {
       description: "Uma senha segura foi gerada automaticamente.",
     });
   };
@@ -101,8 +100,7 @@ export function CreateUserDialog({
     if (formData.password) {
       await navigator.clipboard.writeText(formData.password);
       setPasswordCopied(true);
-      toast({
-        title: "Senha copiada",
+      toast.success("Senha copiada", {
         description: "A senha foi copiada para a área de transferência.",
       });
       setTimeout(() => setPasswordCopied(false), 2000);

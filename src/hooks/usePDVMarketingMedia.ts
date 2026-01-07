@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export interface MarketingMedia {
   id: string;
@@ -99,14 +99,11 @@ export function usePDVMarketingMedia(organizationId?: string) {
     },
     onError: (error, _data, context) => {
       console.error("Error reordering media:", error);
-      // Rollback on error
       if (context?.previousData) {
         queryClient.setQueryData(["pdv-marketing-media", organizationId], context.previousData);
       }
-      toast({
-        title: "Erro ao reordenar",
+      toast.error("Erro ao reordenar", {
         description: "Não foi possível salvar a nova ordem.",
-        variant: "destructive",
       });
     },
     onSettled: () => {
@@ -144,17 +141,14 @@ export function usePDVMarketingMedia(organizationId?: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pdv-marketing-media"] });
-      toast({
-        title: "Mídia adicionada!",
+      toast.success("Mídia adicionada!", {
         description: "O arquivo foi adicionado com sucesso.",
       });
     },
     onError: (error) => {
       console.error("Error adding media:", error);
-      toast({
-        title: "Erro ao adicionar",
+      toast.error("Erro ao adicionar", {
         description: "Não foi possível adicionar a mídia.",
-        variant: "destructive",
       });
     },
   });
@@ -176,17 +170,14 @@ export function usePDVMarketingMedia(organizationId?: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pdv-marketing-media"] });
-      toast({
-        title: "Mídia atualizada!",
+      toast.success("Mídia atualizada!", {
         description: "As alterações foram salvas.",
       });
     },
     onError: (error) => {
       console.error("Error updating media:", error);
-      toast({
-        title: "Erro ao atualizar",
+      toast.error("Erro ao atualizar", {
         description: "Não foi possível atualizar a mídia.",
-        variant: "destructive",
       });
     },
   });
@@ -222,17 +213,14 @@ export function usePDVMarketingMedia(organizationId?: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pdv-marketing-media"] });
-      toast({
-        title: "Mídia removida!",
+      toast.success("Mídia removida!", {
         description: "O arquivo foi removido com sucesso.",
       });
     },
     onError: (error) => {
       console.error("Error deleting media:", error);
-      toast({
-        title: "Erro ao remover",
+      toast.error("Erro ao remover", {
         description: "Não foi possível remover a mídia.",
-        variant: "destructive",
       });
     },
   });

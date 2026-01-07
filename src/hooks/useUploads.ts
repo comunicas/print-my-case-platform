@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { UploadStatus, UploadType, uploadTypeLabels } from "@/lib/schemas/upload";
 import { usePagination, PaginationControls } from "@/hooks/usePaginatedQuery";
 import { parseUploadError, parseDeleteError } from "@/lib/errors/uploadErrors";
@@ -45,7 +45,6 @@ const PAGE_SIZE = 50;
 export function useUploads() {
   const { user } = useAuth();
   const { profile, isAdmin } = useProfile();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   const pagination = usePagination(PAGE_SIZE);
 
@@ -169,12 +168,9 @@ export function useUploads() {
           // Check for anomalies in the response
           const data = response.data;
           if (data?.hasAnomalies && data?.anomalyCount > 0) {
-            // Import toast dynamically to show warning
-            import("sonner").then(({ toast: sonnerToast }) => {
-              sonnerToast.warning("Valores anormais detectados!", {
-                description: `${data.anomalyCount} transação(ões) com valores acima de R$ 500. Verifique os dados importados.`,
-                duration: 10000,
-              });
+            toast.warning("Valores anormais detectados!", {
+              description: `${data.anomalyCount} transação(ões) com valores acima de R$ 500. Verifique os dados importados.`,
+              duration: 10000,
             });
           }
         }).catch(async (err) => {
@@ -198,17 +194,14 @@ export function useUploads() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["uploads"] });
-      toast({
-        title: "Upload iniciado",
+      toast.success("Upload iniciado", {
         description: `Processando ${uploadTypeLabels[data.type].toLowerCase()} de ${data.pdv.name}`,
       });
     },
     onError: (error) => {
       const parsedError = parseUploadError(error);
-      toast({
-        title: parsedError.title,
+      toast.error(parsedError.title, {
         description: parsedError.description,
-        variant: "destructive",
       });
     },
   });
@@ -268,17 +261,14 @@ export function useUploads() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["uploads"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      toast({
-        title: "Upload excluído",
+      toast.success("Upload excluído", {
         description: `${data.fileName} foi removido com sucesso.`,
       });
     },
     onError: (error) => {
       const parsedError = parseDeleteError(error);
-      toast({
-        title: parsedError.title,
+      toast.error(parsedError.title, {
         description: parsedError.description,
-        variant: "destructive",
       });
     },
   });

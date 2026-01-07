@@ -25,9 +25,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Users, Search, Pencil, Trash2, Mail, Loader2, Building2, MapPin } from "lucide-react";
 import { UserPDVsDialog } from "@/components/team/UserPDVsDialog";
-import { useToast } from "@/hooks/use-toast";
 import { TeamMemberForm } from "@/components/team/TeamMemberForm";
 import { CreateUserDialog } from "@/components/team/CreateUserDialog";
+import { toast } from "sonner";
 import {
   teamMemberFormSchema,
   TeamMemberFormData,
@@ -111,7 +111,6 @@ export function TeamSettings() {
   const [editingMember, setEditingMember] = useState<EditingMember | null>(null);
   const [deletingMember, setDeletingMember] = useState<TeamMember | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const { toast } = useToast();
 
   const validateForm = (data: TeamMemberFormData, excludeId?: string): boolean => {
     const result = teamMemberFormSchema.safeParse(data);
@@ -193,10 +192,8 @@ export function TeamSettings() {
 
     // Prevent self-removal
     if (deletingMember.id === profile?.id) {
-      toast({
-        title: "Ação não permitida",
+      toast.error("Ação não permitida", {
         description: "Você não pode remover a si mesmo.",
-        variant: "destructive",
       });
       setIsDeleteDialogOpen(false);
       setDeletingMember(null);

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export interface Notification {
   id: string;
@@ -17,7 +17,6 @@ export interface Notification {
 
 export function useNotifications(limit = 20) {
   const { user } = useAuth();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const notificationsQuery = useQuery({
@@ -82,16 +81,13 @@ export function useNotifications(limit = 20) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      toast({
-        title: "Notificação removida",
+      toast.success("Notificação removida", {
         description: "A notificação foi excluída.",
       });
     },
     onError: (error) => {
-      toast({
-        title: "Erro ao remover",
+      toast.error("Erro ao remover", {
         description: error.message,
-        variant: "destructive",
       });
     },
   });

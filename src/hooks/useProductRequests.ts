@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export type ProductRequestStatus = "pending" | "contacted" | "resolved" | "cancelled";
 
@@ -119,17 +119,14 @@ export function useProductRequests(options: UseProductRequestsOptions = {}) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["product-requests"] });
       queryClient.invalidateQueries({ queryKey: ["product-requests-stats"] });
-      toast({
-        title: "Status atualizado!",
+      toast.success("Status atualizado!", {
         description: "O status do pedido foi atualizado.",
       });
     },
     onError: (error) => {
       console.error("Error updating status:", error);
-      toast({
-        title: "Erro ao atualizar",
+      toast.error("Erro ao atualizar", {
         description: "Não foi possível atualizar o status.",
-        variant: "destructive",
       });
     },
   });
@@ -146,17 +143,14 @@ export function useProductRequests(options: UseProductRequestsOptions = {}) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["product-requests"] });
       queryClient.invalidateQueries({ queryKey: ["product-requests-stats"] });
-      toast({
-        title: "Pedido removido!",
+      toast.success("Pedido removido!", {
         description: "O pedido foi removido com sucesso.",
       });
     },
     onError: (error) => {
       console.error("Error deleting request:", error);
-      toast({
-        title: "Erro ao remover",
+      toast.error("Erro ao remover", {
         description: "Não foi possível remover o pedido.",
-        variant: "destructive",
       });
     },
   });

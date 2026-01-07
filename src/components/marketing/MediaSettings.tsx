@@ -17,7 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, MapPin, Plus } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { usePDVMarketingMedia, MarketingMedia } from "@/hooks/usePDVMarketingMedia";
 import {
   Accordion,
@@ -85,20 +85,16 @@ export function MediaSettings({ organizationId, selectedPdvId }: MediaSettingsPr
     const allowedTypes = [...imageTypes, ...videoTypes, ...audioTypes];
 
     if (!allowedTypes.includes(file.type)) {
-      toast({
-        title: "Formato inválido",
+      toast.error("Formato inválido", {
         description: "Use imagens (PNG, JPG, WEBP, GIF), vídeos (MP4, WEBM, MOV) ou áudios (MP3, WAV, OGG).",
-        variant: "destructive",
       });
       return;
     }
 
     // Max 50MB
     if (file.size > 50 * 1024 * 1024) {
-      toast({
-        title: "Arquivo muito grande",
+      toast.error("Arquivo muito grande", {
         description: "O arquivo deve ter no máximo 50MB.",
-        variant: "destructive",
       });
       return;
     }
@@ -121,10 +117,8 @@ export function MediaSettings({ organizationId, selectedPdvId }: MediaSettingsPr
       });
     } catch (error) {
       console.error("Error uploading media:", error);
-      toast({
-        title: "Erro no upload",
+      toast.error("Erro no upload", {
         description: "Não foi possível enviar o arquivo.",
-        variant: "destructive",
       });
     } finally {
       setUploadingPdvId(null);

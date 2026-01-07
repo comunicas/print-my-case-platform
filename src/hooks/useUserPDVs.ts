@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export interface UserPDV {
   id: string;
@@ -11,7 +11,6 @@ export interface UserPDV {
 
 export function useUserPDVs(userId?: string) {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   // Buscar PDVs atribuídos a um usuário específico
   const userPDVsQuery = useQuery({
@@ -43,10 +42,8 @@ export function useUserPDVs(userId?: string) {
       queryClient.invalidateQueries({ queryKey: ["user-pdvs", userId] });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erro ao atribuir PDV",
+      toast.error("Erro ao atribuir PDV", {
         description: error.message,
-        variant: "destructive",
       });
     },
   });
@@ -66,10 +63,8 @@ export function useUserPDVs(userId?: string) {
       queryClient.invalidateQueries({ queryKey: ["user-pdvs", userId] });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erro ao remover atribuição",
+      toast.error("Erro ao remover atribuição", {
         description: error.message,
-        variant: "destructive",
       });
     },
   });
@@ -102,16 +97,13 @@ export function useUserPDVs(userId?: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-pdvs", userId] });
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
-      toast({
-        title: "Atribuições atualizadas",
+      toast.success("Atribuições atualizadas", {
         description: "Os PDVs foram atualizados com sucesso.",
       });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erro ao atualizar atribuições",
+      toast.error("Erro ao atualizar atribuições", {
         description: error.message,
-        variant: "destructive",
       });
     },
   });

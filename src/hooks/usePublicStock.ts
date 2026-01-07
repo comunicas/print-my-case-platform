@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export interface PublicOrganization {
   id: string;
@@ -86,17 +86,14 @@ export function usePublicStock(orgSlug: string | undefined) {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast({
-        title: "Pedido enviado!",
+      toast.success("Pedido enviado!", {
         description: "Entraremos em contato quando o modelo estiver disponível.",
       });
       queryClient.invalidateQueries({ queryKey: ["public-stock"] });
     },
     onError: () => {
-      toast({
-        title: "Erro ao enviar pedido",
+      toast.error("Erro ao enviar pedido", {
         description: "Tente novamente mais tarde.",
-        variant: "destructive",
       });
     },
   });

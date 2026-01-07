@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Upload, X, ImageIcon, MapPin, QrCode } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { usePDVCatalogSettings } from "@/hooks/usePDVCatalogSettings";
 import {
   Accordion,
@@ -48,19 +48,15 @@ export function CouponsSettings({ organizationId, selectedPdvId }: CouponsSettin
 
     const allowedTypes = ['image/png', 'image/jpeg', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      toast({
-        title: "Formato inválido",
+      toast.error("Formato inválido", {
         description: "Use apenas imagens PNG, JPG ou WEBP.",
-        variant: "destructive",
       });
       return;
     }
 
     if (file.size > 2 * 1024 * 1024) {
-      toast({
-        title: "Arquivo muito grande",
+      toast.error("Arquivo muito grande", {
         description: "A imagem deve ter no máximo 2MB.",
-        variant: "destructive",
       });
       return;
     }
@@ -75,16 +71,13 @@ export function CouponsSettings({ organizationId, selectedPdvId }: CouponsSettin
           qrUrl: publicUrl,
         },
       }));
-      toast({
-        title: "Imagem enviada!",
+      toast.success("Imagem enviada!", {
         description: "A imagem do QR Code foi carregada.",
       });
     } catch (error) {
       console.error("Error uploading QR code:", error);
-      toast({
-        title: "Erro no upload",
+      toast.error("Erro no upload", {
         description: "Não foi possível enviar a imagem.",
-        variant: "destructive",
       });
     } finally {
       setUploadingPdvId(null);
@@ -123,10 +116,8 @@ export function CouponsSettings({ organizationId, selectedPdvId }: CouponsSettin
     const modalText = editing?.modalText !== undefined ? editing.modalText : (pdv?.catalog_settings?.catalog_modal_text ?? null);
 
     if (!code.trim()) {
-      toast({
-        title: "Código obrigatório",
+      toast.error("Código obrigatório", {
         description: "Informe o código do catálogo para este PDV.",
-        variant: "destructive",
       });
       return;
     }

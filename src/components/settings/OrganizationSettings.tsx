@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Copy, ExternalLink } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { organizationFormSchema } from "@/lib/schemas/settings";
 import { parseZodErrors } from "@/lib/utils";
 import { Organization } from "@/hooks/useOrganization";
@@ -53,10 +53,8 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
 
   const handleSaveOrganization = () => {
     if (!isAdmin) {
-      toast({
-        title: "Permissão negada",
+      toast.error("Permissão negada", {
         description: "Apenas administradores podem editar a organização.",
-        variant: "destructive",
       });
       return;
     }
@@ -83,10 +81,8 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
     // Validate slug format
     const slugRegex = /^[a-z0-9-]+$/;
     if (catalogEnabled && publicSlug && !slugRegex.test(publicSlug)) {
-      toast({
-        title: "Slug inválido",
+      toast.error("Slug inválido", {
         description: "Use apenas letras minúsculas, números e hífens.",
-        variant: "destructive",
       });
       return;
     }
@@ -107,8 +103,7 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
   const handleCopyLink = () => {
     if (catalogUrl) {
       navigator.clipboard.writeText(catalogUrl);
-      toast({
-        title: "Link copiado!",
+      toast.success("Link copiado!", {
         description: "O link do catálogo foi copiado para a área de transferência.",
       });
     }

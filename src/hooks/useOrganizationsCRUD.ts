@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "./useProfile";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export interface OrganizationWithStats {
   id: string;
@@ -33,7 +33,6 @@ export interface OrganizationUpdate extends Partial<OrganizationInsert> {
 
 export function useOrganizationsCRUD() {
   const { role } = useProfile();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   const isSuperAdmin = role === "super_admin";
 
@@ -112,16 +111,13 @@ export function useOrganizationsCRUD() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizations-with-stats"] });
       queryClient.invalidateQueries({ queryKey: ["organizations"] });
-      toast({
-        title: "Organização criada",
+      toast.success("Organização criada", {
         description: "A organização foi criada com sucesso.",
       });
     },
     onError: (error) => {
-      toast({
-        title: "Erro ao criar organização",
+      toast.error("Erro ao criar organização", {
         description: error.message,
-        variant: "destructive",
       });
     },
   });
@@ -150,16 +146,13 @@ export function useOrganizationsCRUD() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizations-with-stats"] });
       queryClient.invalidateQueries({ queryKey: ["organizations"] });
-      toast({
-        title: "Organização atualizada",
+      toast.success("Organização atualizada", {
         description: "As informações foram salvas.",
       });
     },
     onError: (error) => {
-      toast({
-        title: "Erro ao atualizar",
+      toast.error("Erro ao atualizar", {
         description: error.message,
-        variant: "destructive",
       });
     },
   });
@@ -178,16 +171,13 @@ export function useOrganizationsCRUD() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizations-with-stats"] });
       queryClient.invalidateQueries({ queryKey: ["organizations"] });
-      toast({
-        title: "Organização excluída",
+      toast.success("Organização excluída", {
         description: "A organização foi removida com sucesso.",
       });
     },
     onError: (error) => {
-      toast({
-        title: "Erro ao excluir",
+      toast.error("Erro ao excluir", {
         description: error.message,
-        variant: "destructive",
       });
     },
   });

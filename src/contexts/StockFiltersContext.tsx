@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { usePreferences } from '@/hooks/usePreferences';
 import { usePDVs } from '@/hooks/usePDVs';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 interface StockFiltersState {
   selectedPdv: string;
@@ -37,7 +37,6 @@ const AUTO_APPLIED_TOAST_KEY = 'pdv_auto_applied_toast_shown';
 export function StockFiltersProvider({ children }: { children: ReactNode }) {
   const { preferences, isLoading: isLoadingPreferences } = usePreferences();
   const { pdvs = [], isLoading: isLoadingPdvs } = usePDVs();
-  const { toast } = useToast();
   const [state, setState] = useState<StockFiltersState>(defaultState);
   const [pdvWasAutoApplied, setPdvWasAutoApplied] = useState(false);
   const [prefsInitialized, setPrefsInitialized] = useState(false);
@@ -56,8 +55,7 @@ export function StockFiltersProvider({ children }: { children: ReactNode }) {
         setPdvWasAutoApplied(true);
         
         if (!sessionStorage.getItem(AUTO_APPLIED_TOAST_KEY)) {
-          toast({
-            title: "Preferências aplicadas",
+          toast.info("Preferências aplicadas", {
             description: `PDV "${pdv.name}" foi selecionado automaticamente.`,
             duration: 4000,
           });
@@ -65,7 +63,7 @@ export function StockFiltersProvider({ children }: { children: ReactNode }) {
         }
       }
     }
-  }, [preferences, prefsInitialized, isLoadingPreferences, isLoadingPdvs, pdvs, toast]);
+  }, [preferences, prefsInitialized, isLoadingPreferences, isLoadingPdvs, pdvs]);
 
   const setSelectedPdv = (pdv: string) => {
     setState(s => ({ ...s, selectedPdv: pdv }));
