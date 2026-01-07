@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export interface Preferences {
   id: string;
@@ -22,7 +22,6 @@ export interface Preferences {
 
 export function usePreferences() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const preferencesQuery = useQuery({
@@ -63,17 +62,14 @@ export function usePreferences() {
       // Don't show toast for sidebar preference updates
       const isSidebarUpdate = 'sidebar_collapsed' in variables || 'sidebar_reports_expanded' in variables;
       if (!isSidebarUpdate) {
-        toast({
-          title: "Preferências salvas",
+        toast.success("Preferências salvas", {
           description: "Suas preferências foram atualizadas.",
         });
       }
     },
     onError: (error) => {
-      toast({
-        title: "Erro ao salvar",
+      toast.error("Erro ao salvar", {
         description: error.message,
-        variant: "destructive",
       });
     },
   });

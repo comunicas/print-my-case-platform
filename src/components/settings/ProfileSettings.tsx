@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Camera, Lock, Loader2 } from "lucide-react";
 import { PasswordStrengthIndicator } from "@/components/ui/password-strength";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { profileFormSchema, passwordFormSchema } from "@/lib/schemas/settings";
 import { roleLabels, roleBadgeVariants, TeamMemberRole } from "@/lib/schemas/team";
 import { parseZodErrors, getInitials } from "@/lib/utils";
@@ -95,16 +95,13 @@ export function ProfileSettings({ profile, role, session, updateProfile }: Profi
       
       setPasswordDialogOpen(false);
       setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
-      toast({
-        title: "Senha alterada",
+      toast.success("Senha alterada", {
         description: "Sua senha foi atualizada com sucesso.",
       });
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
-      toast({
-        title: "Erro ao alterar senha",
+      toast.error("Erro ao alterar senha", {
         description: errorMessage,
-        variant: "destructive",
       });
     } finally {
       setIsChangingPassword(false);

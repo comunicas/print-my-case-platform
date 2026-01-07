@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "./useProfile";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export interface Organization {
   id: string;
@@ -30,7 +30,6 @@ interface UseOrganizationOptions {
 export function useOrganization(options: UseOrganizationOptions = {}) {
   const { readOnly = false } = options;
   const { profile, isAdmin } = useProfile();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const organizationQuery = useQuery({
@@ -74,16 +73,13 @@ export function useOrganization(options: UseOrganizationOptions = {}) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organization", profile?.organization_id] });
-      toast({
-        title: "Organização atualizada",
+      toast.success("Organização atualizada", {
         description: "As informações foram salvas com sucesso.",
       });
     },
     onError: (error) => {
-      toast({
-        title: "Erro ao atualizar",
+      toast.error("Erro ao atualizar", {
         description: error.message,
-        variant: "destructive",
       });
     },
   });

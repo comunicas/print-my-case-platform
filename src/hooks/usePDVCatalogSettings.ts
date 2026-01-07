@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export interface PDVCatalogSettings {
   id: string;
@@ -94,17 +94,14 @@ export function usePDVCatalogSettings(organizationId?: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pdv-catalog-settings"] });
-      toast({
-        title: "Configuração salva!",
+      toast.success("Configuração salva!", {
         description: "As configurações do catálogo foram atualizadas.",
       });
     },
     onError: (error) => {
       console.error("Error saving catalog settings:", error);
-      toast({
-        title: "Erro ao salvar",
+      toast.error("Erro ao salvar", {
         description: "Não foi possível salvar as configurações.",
-        variant: "destructive",
       });
     },
   });

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "./useProfile";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export interface PDV {
   id: string;
@@ -23,7 +23,6 @@ interface UsePDVsOptions {
 
 export function usePDVs(options?: UsePDVsOptions) {
   const { profile, isAdmin } = useProfile();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   
   const filterOrgId = options?.organizationId;
@@ -70,16 +69,13 @@ export function usePDVs(options?: UsePDVsOptions) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pdvs"] });
-      toast({
-        title: "PDV criado",
+      toast.success("PDV criado", {
         description: "O PDV foi adicionado com sucesso.",
       });
     },
     onError: (error) => {
-      toast({
-        title: "Erro ao criar PDV",
+      toast.error("Erro ao criar PDV", {
         description: error.message,
-        variant: "destructive",
       });
     },
   });
@@ -100,16 +96,13 @@ export function usePDVs(options?: UsePDVsOptions) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pdvs"] });
-      toast({
-        title: "PDV atualizado",
+      toast.success("PDV atualizado", {
         description: "As informações foram salvas.",
       });
     },
     onError: (error) => {
-      toast({
-        title: "Erro ao atualizar",
+      toast.error("Erro ao atualizar", {
         description: error.message,
-        variant: "destructive",
       });
     },
   });
@@ -127,16 +120,13 @@ export function usePDVs(options?: UsePDVsOptions) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pdvs"] });
-      toast({
-        title: "PDV excluído",
+      toast.success("PDV excluído", {
         description: "O PDV foi removido com sucesso.",
       });
     },
     onError: (error) => {
-      toast({
-        title: "Erro ao excluir",
+      toast.error("Erro ao excluir", {
         description: error.message,
-        variant: "destructive",
       });
     },
   });

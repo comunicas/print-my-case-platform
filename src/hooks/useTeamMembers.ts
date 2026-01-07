@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "./useProfile";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { CreateUserFormData } from "@/lib/schemas/user";
 
 export interface TeamMember {
@@ -19,7 +19,6 @@ export interface TeamMember {
 
 export function useTeamMembers() {
   const { profile, role, isAdmin } = useProfile();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   
   const isSuperAdmin = role === "super_admin";
@@ -134,16 +133,13 @@ export function useTeamMembers() {
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
       const roleLabel = result.user?.role === 'org_admin' ? 'administrador' : 
                         result.user?.role === 'operator' ? 'operador' : 'visualizador';
-      toast({
-        title: "Usuário criado",
+      toast.success("Usuário criado", {
         description: `${result.user?.name} foi criado como ${roleLabel} em ${result.user?.organization?.name}.`,
       });
     },
     onError: (error) => {
-      toast({
-        title: "Erro ao criar usuário",
+      toast.error("Erro ao criar usuário", {
         description: error.message,
-        variant: "destructive",
       });
     },
   });
@@ -205,16 +201,13 @@ export function useTeamMembers() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
-      toast({
-        title: "Membro atualizado",
+      toast.success("Membro atualizado", {
         description: "Alterações salvas com sucesso.",
       });
     },
     onError: (error) => {
-      toast({
-        title: "Erro ao atualizar",
+      toast.error("Erro ao atualizar", {
         description: error.message,
-        variant: "destructive",
       });
     },
   });
@@ -241,16 +234,13 @@ export function useTeamMembers() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
-      toast({
-        title: "Membro removido",
+      toast.success("Membro removido", {
         description: "O membro foi removido da organização.",
       });
     },
     onError: (error) => {
-      toast({
-        title: "Erro ao remover",
+      toast.error("Erro ao remover", {
         description: error.message,
-        variant: "destructive",
       });
     },
   });

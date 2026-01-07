@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Loader2, Mail, Lock, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { 
   loginSchema, 
@@ -20,7 +20,6 @@ export default function Auth() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, session, signIn, resetPassword, updatePassword, loading: authLoading } = useAuth();
-  const { toast } = useToast();
   
   const [mode, setMode] = useState<AuthMode>("login");
   const [isLoading, setIsLoading] = useState(false);
@@ -77,16 +76,13 @@ export default function Auth() {
     setIsLoading(false);
 
     if (error) {
-      toast({
-        title: "Erro ao entrar",
+      toast.error("Erro ao entrar", {
         description: error.message === "Invalid login credentials" 
           ? "Email ou senha incorretos" 
           : error.message,
-        variant: "destructive",
       });
     } else {
-      toast({
-        title: "Bem-vindo!",
+      toast.success("Bem-vindo!", {
         description: "Login realizado com sucesso",
       });
       navigate("/");
@@ -112,10 +108,8 @@ export default function Auth() {
     setIsLoading(false);
 
     if (error) {
-      toast({
-        title: "Erro ao enviar email",
+      toast.error("Erro ao enviar email", {
         description: error.message,
-        variant: "destructive",
       });
     } else {
       setResetEmailSent(true);
@@ -141,10 +135,8 @@ export default function Auth() {
     setIsLoading(false);
 
     if (error) {
-      toast({
-        title: "Erro ao atualizar senha",
+      toast.error("Erro ao atualizar senha", {
         description: error.message,
-        variant: "destructive",
       });
     } else {
       setPasswordUpdated(true);
