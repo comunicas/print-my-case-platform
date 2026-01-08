@@ -87,7 +87,7 @@ export function useProductSalesHistory({
         
         return {
           date: dateKey,
-          dateDisplay: format(date, 'd MMM', { locale: ptBR }),
+          dateDisplay: format(date, 'EEE, d MMM', { locale: ptBR }),
           salesCount: dayData.count,
           revenue: dayData.revenue
         };

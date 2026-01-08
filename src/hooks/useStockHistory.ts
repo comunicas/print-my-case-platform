@@ -64,7 +64,7 @@ export function useStockHistory({ days = 90, organizationId, pdvId }: UseStockHi
       for (const date of sortedDates) {
         const entry: StockHistoryData = {
           date,
-          dateDisplay: format(new Date(date + 'T00:00:00'), "dd MMM", { locale: ptBR }),
+          dateDisplay: format(new Date(date + 'T00:00:00'), "EEE, dd MMM", { locale: ptBR }),
         };
         
         const brandData = byDate.get(date)!;
