@@ -2,7 +2,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine, Legend } from "recharts";
 import { TrendingDown } from "lucide-react";
 import { useMemo } from "react";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, pluralize } from "@/lib/utils";
 import { exportToExcel, LossesByDayData } from "@/lib/dashboardUtils";
 import { ChartCard } from "./ChartCard";
 
@@ -91,7 +91,7 @@ export function LossesByDayChart({ data, animationDelay = 0 }: LossesByDayChartP
                       <div className="space-y-1">
                         <div className="font-semibold">{label}</div>
                         <div className="text-xs text-muted-foreground">
-                          {item.cancellationCount} cancelamento(s) • {item.refundCount} reembolso(s)
+                          {pluralize(item.cancellationCount, 'cancelamento', 'cancelamentos')} • {pluralize(item.refundCount, 'reembolso', 'reembolsos')}
                         </div>
                       </div>
                     );

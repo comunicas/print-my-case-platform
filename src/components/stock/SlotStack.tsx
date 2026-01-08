@@ -78,7 +78,7 @@ export function SlotStack({
           <div>
             <p className="font-medium">{model}</p>
             <p className="text-xs text-muted-foreground">
-              Slot {slot} • {quantity}/{MAX_CAPACITY} unidades
+              Slot {slot} • {quantity}/{MAX_CAPACITY} {quantity === 1 ? 'unidade' : 'unidades'}
             </p>
           </div>
         </div>

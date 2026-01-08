@@ -37,3 +37,16 @@ export function getInitials(name: string): string {
     .toUpperCase()
     .slice(0, 2);
 }
+
+/**
+ * Returns singular or plural form based on count
+ * @example pluralize(1, 'venda', 'vendas') => '1 venda'
+ * @example pluralize(5, 'unidade', 'unidades') => '5 unidades'
+ */
+export function pluralize(
+  count: number,
+  singular: string,
+  plural: string
+): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}

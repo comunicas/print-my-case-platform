@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from "recharts";
 import { TopProductData, exportToExcel } from "@/lib/dashboardUtils";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, pluralize } from "@/lib/utils";
 import { getBrandChartColor } from "@/lib/brandAssets";
 import { useProductModal } from "@/contexts/ProductModalContext";
 import { getExactProductKey } from "@/lib/productNormalization";
@@ -84,7 +84,7 @@ export function TopProductsChart({ data, animationDelay = 0, selectedPdvId }: To
                           <span className="font-medium">{product.name}</span>
                           <span className="text-muted-foreground">{product.brand}</span>
                           <span>Receita: {formatCurrency(product.revenue)}</span>
-                          <span>Vendas: {product.count} unidades</span>
+                          <span>Vendas: {pluralize(product.count, 'unidade', 'unidades')}</span>
                         </div>,
                         ""
                       ];

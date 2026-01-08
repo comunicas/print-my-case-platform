@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
 import { exportToExcel } from "@/lib/dashboardUtils";
+import { pluralize } from "@/lib/utils";
 import { getBrandChartColor } from "@/lib/brandAssets";
 
 interface StockHistoryData {
@@ -101,7 +102,7 @@ export function StockHistoryChart({ data, brands, animationDelay = 0 }: StockHis
                       return [
                         <div key="tooltip" className="flex flex-col gap-0.5">
                           <span className="font-medium">{name}</span>
-                          <span>{value} unidades</span>
+                          <span>{pluralize(Number(value), 'unidade', 'unidades')}</span>
                         </div>,
                         ""
                       ];

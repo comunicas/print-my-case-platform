@@ -3,7 +3,7 @@ import { TrendingUp } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine, Cell, Legend } from "recharts";
 import { SalesByDayData, exportToExcel } from "@/lib/dashboardUtils";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, pluralize } from "@/lib/utils";
 import { ChartCard } from "./ChartCard";
 
 interface SalesByDayChartProps {
@@ -94,7 +94,7 @@ export function SalesByDayChart({ data, animationDelay = 0 }: SalesByDayChartPro
                       <span className="font-medium">Dia {entry.dateDisplay}</span>
                       <span>Receita: {formatCurrency(entry.revenue)}</span>
                       <span className="text-muted-foreground text-sm">
-                        {entry.count} vendas
+                        {pluralize(entry.count, 'venda', 'vendas')}
                       </span>
                     </div>,
                     ""

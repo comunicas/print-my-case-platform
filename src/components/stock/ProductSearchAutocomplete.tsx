@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Check, ChevronsUpDown, Search, ShoppingCart } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, pluralize } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
   Command,
@@ -114,7 +114,7 @@ export function ProductSearchAutocomplete({
                     <p className="text-sm font-medium truncate">{suggestion.model}</p>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <ShoppingCart className="h-3 w-3" />
-                      <span>{suggestion.totalSold} vendas</span>
+                      <span>{pluralize(suggestion.totalSold, 'venda', 'vendas')}</span>
                     </div>
                   </div>
                   {inputValue.toLowerCase() === suggestion.model.toLowerCase() && (
