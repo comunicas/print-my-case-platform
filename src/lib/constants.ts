@@ -23,3 +23,7 @@ export const ANOMALY_VALUE_THRESHOLD = 500; // R$ acima deste valor é considera
 // ===== Polling =====
 export const NOTIFICATIONS_POLL_INTERVAL = 60 * 1000; // 1 minuto
 export const NOTIFICATIONS_STALE_TIME = 30 * 1000; // 30 segundos
+
+// ===== Query Limits =====
+export const DASHBOARD_SALES_LIMIT = 10000; // Limite para queries de vendas no dashboard
+export const PRODUCT_STOCK_SALES_LIMIT = 5000; // Limite para queries de vendas no estoque

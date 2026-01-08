@@ -19,6 +19,7 @@ import {
   LossesByDayData,
   CancellationRecord,
 } from "@/lib/dashboardUtils";
+import { DASHBOARD_SALES_LIMIT } from "@/lib/constants";
 
 export interface DashboardData {
   kpis: {
@@ -129,7 +130,7 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
         .not("status", "ilike", "%cancelled%")
         .not("status", "ilike", "%canceled%")
         .order("payment_date", { ascending: true })
-        .limit(10000);
+        .limit(DASHBOARD_SALES_LIMIT);
 
       let activePdvsQuery = supabase
         .from("pdvs")

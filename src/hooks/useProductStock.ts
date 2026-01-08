@@ -17,8 +17,7 @@ import {
 } from '@/lib/stockUtils';
 import { GRID_LAYOUT } from '@/lib/stockGridUtils';
 import type { ProductSuggestion } from '@/components/stock/ProductSearchAutocomplete';
-
-const SALES_QUERY_LIMIT = 5000;
+import { PRODUCT_STOCK_SALES_LIMIT } from '@/lib/constants';
 
 export function useProductStock() {
   const filters = useStockFilters();
@@ -49,7 +48,7 @@ export function useProductStock() {
         .from('sales_records')
         .select('product_name, pdv_id')
         .order('payment_date', { ascending: false })
-        .limit(SALES_QUERY_LIMIT);
+        .limit(PRODUCT_STOCK_SALES_LIMIT);
       
       if (filters.selectedPdv && filters.selectedPdv !== 'all') {
         query = query.eq('pdv_id', filters.selectedPdv);

@@ -29,8 +29,7 @@ import { useUploadDetails, SalesRecordPreview, StockRecordPreview } from "@/hook
 import { formatCurrency } from "@/lib/utils";
 import { useProductModal } from "@/contexts/ProductModalContext";
 import { getExactProductKey } from "@/lib/productNormalization";
-
-const ITEMS_PER_PAGE = 10;
+import { UPLOAD_DETAILS_PAGE_SIZE } from "@/lib/constants";
 
 const UploadDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -68,16 +67,16 @@ const UploadDetails = () => {
     upload?.type === "sales"
       ? filteredSalesRecords.length
       : filteredStockRecords.length;
-  const totalPages = Math.ceil(totalRecords / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(totalRecords / UPLOAD_DETAILS_PAGE_SIZE);
 
   const paginatedSalesRecords = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredSalesRecords.slice(start, start + ITEMS_PER_PAGE);
+    const start = (currentPage - 1) * UPLOAD_DETAILS_PAGE_SIZE;
+    return filteredSalesRecords.slice(start, start + UPLOAD_DETAILS_PAGE_SIZE);
   }, [filteredSalesRecords, currentPage]);
 
   const paginatedStockRecords = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredStockRecords.slice(start, start + ITEMS_PER_PAGE);
+    const start = (currentPage - 1) * UPLOAD_DETAILS_PAGE_SIZE;
+    return filteredStockRecords.slice(start, start + UPLOAD_DETAILS_PAGE_SIZE);
   }, [filteredStockRecords, currentPage]);
 
   // Detectar se tem dados do REVENUE-UP.xlsx
@@ -486,8 +485,8 @@ const UploadDetails = () => {
             {totalPages > 1 && (
               <div className="flex items-center justify-between mt-4">
                 <p className="text-sm text-muted-foreground">
-                  Mostrando {(currentPage - 1) * ITEMS_PER_PAGE + 1} a{" "}
-                  {Math.min(currentPage * ITEMS_PER_PAGE, totalRecords)} de{" "}
+                  Mostrando {(currentPage - 1) * UPLOAD_DETAILS_PAGE_SIZE + 1} a{" "}
+                  {Math.min(currentPage * UPLOAD_DETAILS_PAGE_SIZE, totalRecords)} de{" "}
                   {totalRecords} registros
                 </p>
                 <Pagination>
