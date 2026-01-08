@@ -153,7 +153,7 @@ export function ProductSalesHistoryChart({ productName, pdvId }: ProductSalesHis
               <ChartTooltipContent
                 formatter={(value, name) => {
                   if (name === 'salesCount') {
-                    return [`${value} vendas`, 'Vendas'];
+                    return [value, 'Vendas'];
                   }
                   return [
                     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value)),
