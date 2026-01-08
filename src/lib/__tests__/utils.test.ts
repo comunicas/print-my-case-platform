@@ -1,5 +1,64 @@
 import { describe, it, expect } from 'vitest';
-import { pluralize, formatCurrency, formatNumber, getInitials } from '../utils';
+import { z } from 'zod';
+import { cn, pluralize, formatCurrency, formatNumber, getInitials, parseZodErrors } from '../utils';
+
+describe('cn', () => {
+  it('deve combinar classes simples', () => {
+    expect(cn('foo', 'bar')).toBe('foo bar');
+  });
+
+  it('deve lidar com classes condicionais', () => {
+    expect(cn('foo', false && 'bar', 'baz')).toBe('foo baz');
+  });
+
+  it('deve fazer merge de classes Tailwind conflitantes', () => {
+    expect(cn('px-2', 'px-4')).toBe('px-4');
+  });
+
+  it('deve retornar string vazia para inputs vazios', () => {
+    expect(cn()).toBe('');
+  });
+
+  it('deve lidar com undefined e null', () => {
+    expect(cn('foo', undefined, null, 'bar')).toBe('foo bar');
+  });
+
+  it('deve fazer merge de variantes Tailwind', () => {
+    expect(cn('text-red-500', 'text-blue-500')).toBe('text-blue-500');
+  });
+});
+
+describe('parseZodErrors', () => {
+  const testSchema = z.object({
+    email: z.string().email('Email inválido'),
+    name: z.string().min(2, 'Nome muito curto'),
+  });
+
+  it('deve retornar null para resultado válido', () => {
+    const result = testSchema.safeParse({ email: 'test@test.com', name: 'João' });
+    expect(parseZodErrors(result)).toBeNull();
+  });
+
+  it('deve extrair erros de validação', () => {
+    const result = testSchema.safeParse({ email: 'invalido', name: 'J' });
+    const errors = parseZodErrors(result);
+    expect(errors?.email).toBe('Email inválido');
+    expect(errors?.name).toBe('Nome muito curto');
+  });
+
+  it('deve lidar com campo único inválido', () => {
+    const result = testSchema.safeParse({ email: 'test@test.com', name: 'J' });
+    const errors = parseZodErrors(result);
+    expect(errors?.name).toBe('Nome muito curto');
+    expect(errors?.email).toBeUndefined();
+  });
+
+  it('deve lidar com objeto vazio', () => {
+    const result = testSchema.safeParse({});
+    const errors = parseZodErrors(result);
+    expect(errors).not.toBeNull();
+  });
+});
 
 describe('pluralize', () => {
   describe('casos básicos', () => {
@@ -55,6 +114,22 @@ describe('formatCurrency', () => {
   it('deve formatar zero', () => {
     expect(formatCurrency(0)).toBe('R$ 0,00');
   });
+
+  it('deve formatar valores negativos', () => {
+    expect(formatCurrency(-100)).toBe('-R$ 100,00');
+  });
+
+  it('deve formatar valores muito grandes', () => {
+    expect(formatCurrency(1000000)).toBe('R$ 1.000.000,00');
+  });
+
+  it('deve arredondar valores com muitas casas decimais', () => {
+    expect(formatCurrency(99.999)).toBe('R$ 100,00');
+  });
+
+  it('deve formatar valores pequenos', () => {
+    expect(formatCurrency(0.01)).toBe('R$ 0,01');
+  });
 });
 
 describe('formatNumber', () => {
@@ -64,6 +139,18 @@ describe('formatNumber', () => {
 
   it('deve formatar número grande', () => {
     expect(formatNumber(1234567)).toBe('1.234.567');
+  });
+
+  it('deve formatar zero', () => {
+    expect(formatNumber(0)).toBe('0');
+  });
+
+  it('deve formatar valores negativos', () => {
+    expect(formatNumber(-1000)).toBe('-1.000');
+  });
+
+  it('deve formatar valores decimais', () => {
+    expect(formatNumber(1234.56)).toBe('1.234,56');
   });
 });
 
@@ -78,5 +165,17 @@ describe('getInitials', () => {
 
   it('deve limitar a 2 caracteres', () => {
     expect(getInitials('Ana Beatriz Costa')).toBe('AB');
+  });
+
+  it('deve retornar string vazia para input vazio', () => {
+    expect(getInitials('')).toBe('');
+  });
+
+  it('deve manter apenas letras em maiúsculo', () => {
+    expect(getInitials('josé maria')).toBe('JM');
+  });
+
+  it('deve lidar com nome com múltiplos espaços', () => {
+    expect(getInitials('João   Silva')).toBe('JS');
   });
 });
