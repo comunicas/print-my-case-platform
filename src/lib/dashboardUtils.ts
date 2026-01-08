@@ -125,7 +125,7 @@ export function getSalesByDay(sales: SaleRecord[]): SalesByDayData[] {
   return Array.from(byDay.entries())
     .map(([date, data]) => ({
       date,
-      dateDisplay: format(parseISO(date), "dd/MM", { locale: ptBR }),
+      dateDisplay: format(parseISO(date), "EEE, dd/MM", { locale: ptBR }),
       revenue: data.revenue,
       count: data.count,
     }))
@@ -459,7 +459,7 @@ export function getLossesByDay(
   return Array.from(byDay.entries())
     .map(([date, data]) => ({
       date,
-      dateDisplay: format(parseISO(date), "dd/MM", { locale: ptBR }),
+      dateDisplay: format(parseISO(date), "EEE, dd/MM", { locale: ptBR }),
       cancellations: data.cancellations,
       cancellationCount: data.cancellationCount,
       refunds: data.refunds,
