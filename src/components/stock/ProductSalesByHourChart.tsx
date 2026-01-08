@@ -52,7 +52,12 @@ export function ProductSalesByHourChart({ data, peakHour, isLoading }: ProductSa
   }
 
   return (
-    <div className="space-y-3" data-testid="sales-by-hour-chart">
+    <div 
+      className="space-y-3" 
+      data-testid="sales-by-hour-chart"
+      role="region"
+      aria-label={`Vendas por hora${peakHour ? `. Pico às ${String(peakHour.hour).padStart(2, '0')}h com ${peakHour.count} vendas` : ''}`}
+    >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Clock className="h-4 w-4 text-muted-foreground" />
@@ -65,7 +70,11 @@ export function ProductSalesByHourChart({ data, peakHour, isLoading }: ProductSa
         )}
       </div>
       
-      <div className="h-[200px]">
+      <div 
+        className="h-[200px]"
+        role="img"
+        aria-label="Gráfico de barras mostrando distribuição de vendas por hora"
+      >
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />

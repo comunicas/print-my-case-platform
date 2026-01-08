@@ -116,9 +116,10 @@ export function TopProductsChart({ data, animationDelay = 0, selectedPdvId }: To
             <button
               onClick={() => openProductModal(getExactProductKey(data[0].name), selectedPdvId)}
               className="focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
+              aria-label={`Ver detalhes do produto mais vendido: ${data[0].name}`}
             >
               <Badge data-testid="top-seller-badge" variant="secondary" className="gap-1 cursor-pointer hover:bg-secondary/80">
-                <Flame className="h-3.5 w-3.5 text-orange-500" />
+                <Flame className="h-3.5 w-3.5 text-orange-500" aria-hidden="true" />
                 Mais vendido: {truncateName(data[0].name, 25)}
               </Badge>
             </button>

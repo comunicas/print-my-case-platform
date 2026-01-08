@@ -81,7 +81,12 @@ export function SalesHeatmapChart({ data, animationDelay = 0 }: SalesHeatmapChar
     >
       {data.length > 0 ? (
         <div className="overflow-x-auto">
-          <div data-testid="heatmap-grid" className="min-w-[400px]">
+          <div 
+            data-testid="heatmap-grid" 
+            className="min-w-[400px]"
+            role="grid"
+            aria-label="Mapa de calor de vendas por dia e horário"
+          >
             <div className="grid grid-cols-8 gap-1 mb-1">
               <div className="text-xs text-muted-foreground text-right pr-1"></div>
               {DAYS.map(day => (
@@ -114,6 +119,8 @@ export function SalesHeatmapChart({ data, animationDelay = 0 }: SalesHeatmapChar
                               getCellColor(revenue),
                               isPeakCell(rIdx, dIdx) && "ring-2 ring-primary ring-offset-1 ring-offset-background"
                             )}
+                            role="gridcell"
+                            aria-label={`${day} ${range.label}: ${pluralize(count, 'venda', 'vendas')}, ${formatCurrency(revenue)}${isPeakCell(rIdx, dIdx) ? ' - Horário de pico' : ''}`}
                           />
                         </TooltipTrigger>
                         <TooltipContent>
@@ -130,7 +137,11 @@ export function SalesHeatmapChart({ data, animationDelay = 0 }: SalesHeatmapChar
               ))}
             </TooltipProvider>
             
-            <div className="flex items-center justify-center gap-2 mt-3 text-xs text-muted-foreground">
+            <div 
+              className="flex items-center justify-center gap-2 mt-3 text-xs text-muted-foreground"
+              role="legend"
+              aria-label="Legenda: cores indicam intensidade de vendas, de menos (claro) a mais (escuro)"
+            >
               <span>Menos</span>
               <div className="flex gap-0.5">
                 <div className="w-4 h-4 rounded bg-muted/40 border border-border/50" />
