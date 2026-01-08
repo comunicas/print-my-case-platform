@@ -59,7 +59,11 @@ export function ProductSalesByDayChart({ data, bestDay, isLoading }: ProductSale
         )}
       </div>
       
-      <div className="h-[200px]">
+      <div 
+        className="h-[200px]"
+        role="img"
+        aria-label={`Gráfico de vendas por dia da semana${bestDay ? `. Melhor dia: ${bestDay.dayName} com ${bestDay.count} vendas` : ''}`}
+      >
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />

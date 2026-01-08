@@ -67,7 +67,12 @@ export function SalesByDayChart({ data, animationDelay = 0 }: SalesByDayChartPro
       exportTestId="export-sales-by-day"
       animationDelay={animationDelay}
     >
-      <ChartContainer config={chartConfig} className="h-[300px] w-full">
+      <ChartContainer 
+        config={chartConfig} 
+        className="h-[300px] w-full"
+        role="img"
+        aria-label={`Gráfico de vendas por dia mostrando ${processedData.length} dias. Média: ${formatCurrency(average)}`}
+      >
         <BarChart data={processedData} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
           <XAxis

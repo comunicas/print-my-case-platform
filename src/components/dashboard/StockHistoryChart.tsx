@@ -69,6 +69,8 @@ export function StockHistoryChart({ data, brands, animationDelay = 0 }: StockHis
                 size="sm"
                 onClick={() => setSelectedPeriod(option.days)}
                 className="h-7 px-2 text-xs"
+                aria-label={`Mostrar últimos ${option.days} dias`}
+                aria-pressed={selectedPeriod === option.days}
               >
                 {option.label}
               </Button>
