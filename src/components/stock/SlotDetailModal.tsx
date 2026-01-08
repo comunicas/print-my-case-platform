@@ -106,7 +106,7 @@ export function SlotDetailModal({ slot, isOpen, onClose }: SlotDetailModalProps)
             {/* Quantidade e porcentagem */}
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">
-                {slot.quantity} de {MAX_CAPACITY} unidades
+                {slot.quantity} de {MAX_CAPACITY} {slot.quantity === 1 ? 'unidade' : 'unidades'}
               </span>
               <span className="font-medium">{percentage}%</span>
             </div>

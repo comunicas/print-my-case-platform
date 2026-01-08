@@ -2,6 +2,7 @@ import { Package } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { PieChart, Pie, Cell } from "recharts";
 import { StockByBrandData, exportToExcel } from "@/lib/dashboardUtils";
+import { pluralize } from "@/lib/utils";
 import { ChartCard } from "./ChartCard";
 import { ChartEmptyState } from "./ChartEmptyState";
 
@@ -53,7 +54,7 @@ export function StockByBrandChart({ data, animationDelay = 0 }: StockByBrandChar
                     return [
                       <div key="tooltip" className="flex flex-col gap-1">
                         <span className="font-medium">{entry.brand}</span>
-                        <span>{entry.quantity} unidades</span>
+                        <span>{pluralize(entry.quantity, 'unidade', 'unidades')}</span>
                         <span className="text-muted-foreground text-sm">
                           {pct}% do estoque total
                         </span>

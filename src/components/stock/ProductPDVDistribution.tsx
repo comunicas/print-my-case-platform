@@ -1,5 +1,6 @@
 import { MapPin } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { pluralize } from '@/lib/utils';
 
 interface PDVSales {
   pdvId: string;
@@ -61,7 +62,7 @@ export function ProductPDVDistribution({ data, isLoading }: ProductPDVDistributi
                 {pdv.pdvName}
               </span>
               <span className="text-muted-foreground">
-                {pdv.count} ({pdv.percentage.toFixed(0)}%)
+                {pluralize(pdv.count, 'venda', 'vendas')} ({pdv.percentage.toFixed(0)}%)
               </span>
             </div>
             <Progress 

@@ -7,7 +7,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn, pluralize } from "@/lib/utils";
 import { HeatmapCell, TIME_RANGES, getHeatmapPeak, exportToExcel } from "@/lib/dashboardUtils";
 import { formatCurrency } from "@/lib/utils";
 import { ChartCard } from "./ChartCard";
@@ -120,7 +120,7 @@ export function SalesHeatmapChart({ data, animationDelay = 0 }: SalesHeatmapChar
                           <div className="flex flex-col gap-1">
                             <span className="font-medium text-sm">{day} {range.label}</span>
                             <span className="text-xs">Receita: {formatCurrency(revenue)}</span>
-                            <span className="text-xs text-muted-foreground">{count} vendas</span>
+                            <span className="text-xs text-muted-foreground">{pluralize(count, 'venda', 'vendas')}</span>
                           </div>
                         </TooltipContent>
                       </Tooltip>

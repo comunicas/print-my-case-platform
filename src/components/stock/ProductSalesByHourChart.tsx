@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { pluralize } from '@/lib/utils';
 
 interface SalesByHour {
   hour: number;
@@ -86,7 +87,7 @@ export function ProductSalesByHourChart({ data, peakHour, isLoading }: ProductSa
                     <div className="bg-popover border border-border rounded-lg shadow-lg p-2 text-xs">
                       <p className="font-medium">{data.label}</p>
                       <p className="text-muted-foreground">
-                        {data.count} vendas
+                        {pluralize(data.count, 'venda', 'vendas')}
                       </p>
                       <p className="text-muted-foreground">
                         {data.revenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
