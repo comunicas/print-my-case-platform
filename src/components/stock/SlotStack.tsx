@@ -26,8 +26,6 @@ export function SlotStack({
 }: SlotStackProps) {
   const blocks = Array.from({ length: MAX_CAPACITY }, (_, i) => i);
   
-  // Trunca o modelo para caber no slot
-  const truncatedModel = model.length > 12 ? model.substring(0, 11) + '…' : model;
   
   return (
     <Tooltip>
@@ -67,8 +65,8 @@ export function SlotStack({
           </span>
           
           {/* Nome do modelo */}
-          <span className="text-[6px] sm:text-[8px] text-muted-foreground/70 font-medium leading-tight text-center w-full truncate">
-            {truncatedModel}
+          <span className="text-[6px] sm:text-[8px] text-muted-foreground/70 font-medium leading-tight text-center w-full line-clamp-2 break-words min-h-[1.5em] sm:min-h-[2em]">
+            {model}
           </span>
         </div>
       </TooltipTrigger>
