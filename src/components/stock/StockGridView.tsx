@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Maximize2, X, Minimize2, Expand } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SlotStack, EmptySlot } from './SlotStack';
@@ -21,7 +21,7 @@ interface StockGridViewProps {
 const STORAGE_KEY = 'stock-view-mode';
 
 export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isLoading }: StockGridViewProps) {
-  const { searchTerm, brandFilter, statusFilter, salesIndexFilter } = useStockFilters();
+  const { searchTerm, brandFilter, statusFilter, salesIndexFilter, selectedPdv } = useStockFilters();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<SlotData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -32,9 +32,33 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
     return (saved === 'compact' || saved === 'expanded') ? saved : 'expanded';
   });
   
+  // Transition states for animations
+  const [isViewModeTransitioning, setIsViewModeTransitioning] = useState(false);
+  const [isPdvTransitioning, setIsPdvTransitioning] = useState(false);
+  const prevViewModeRef = useRef(viewMode);
+  const prevPdvRef = useRef(selectedPdv);
+  
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, viewMode);
+    
+    // Animate view mode change
+    if (prevViewModeRef.current !== viewMode) {
+      setIsViewModeTransitioning(true);
+      const timer = setTimeout(() => setIsViewModeTransitioning(false), 300);
+      prevViewModeRef.current = viewMode;
+      return () => clearTimeout(timer);
+    }
   }, [viewMode]);
+  
+  // Animate PDV change
+  useEffect(() => {
+    if (prevPdvRef.current !== selectedPdv) {
+      setIsPdvTransitioning(true);
+      const timer = setTimeout(() => setIsPdvTransitioning(false), 350);
+      prevPdvRef.current = selectedPdv;
+      return () => clearTimeout(timer);
+    }
+  }, [selectedPdv]);
   
   const dimensions = SLOT_DIMENSIONS[viewMode];
 
@@ -72,7 +96,8 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
   const gridContent = (
     <div className={cn(
       'space-y-4',
-      isFullscreen && 'fixed inset-0 z-50 bg-background p-4 md:p-6 overflow-auto'
+      isFullscreen && 'fixed inset-0 z-50 bg-background p-4 md:p-6 overflow-auto',
+      isPdvTransitioning && 'animate-content-swap'
     )}>
       {/* Header com toggles */}
       <div className="flex justify-end gap-2">
@@ -111,7 +136,10 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
       </div>
 
       {/* Grid da máquina - responsivo */}
-      <div className="overflow-x-auto pb-4">
+      <div className={cn(
+        'overflow-x-auto pb-4',
+        isViewModeTransitioning && 'animate-scale-resize'
+      )}>
         <div className="flex justify-center min-w-fit">
           <div className="inline-block">
             {/* Cabeçalho de colunas */}

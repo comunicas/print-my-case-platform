@@ -36,11 +36,12 @@ export function SlotStack({
         <div
           onClick={onClick}
           className={cn(
-            'flex flex-col items-center gap-0.5 p-1 sm:p-1.5 rounded-lg cursor-pointer transition-all',
+            'flex flex-col items-center gap-0.5 p-1 sm:p-1.5 rounded-lg cursor-pointer',
+            'transition-all duration-300 ease-out',
             dimensions.slot,
             'hover:scale-105 hover:shadow-md hover:bg-muted/50',
             isHighlighted && 'ring-2 ring-primary bg-primary/5',
-            isFiltered && 'opacity-30',
+            isFiltered && 'opacity-30 scale-[0.98]',
             !isActive && 'opacity-50'
           )}
         >
@@ -54,8 +55,9 @@ export function SlotStack({
             {blocks.map((index) => (
               <div
                 key={index}
+                style={{ transitionDelay: `${index * 25}ms` }}
                 className={cn(
-                  'rounded-sm transition-colors',
+                  'rounded-sm transition-all duration-200',
                   dimensions.block,
                   getBlockColorClass(index, quantity, isActive)
                 )}
