@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback, RefObject } from 'react';
 import { Maximize2, X, Minimize2, Expand } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SlotStack, EmptySlot } from './SlotStack';
@@ -82,6 +82,17 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
 
   const hasFilter = searchTerm !== '' || brandFilter !== 'all' || statusFilter !== 'all' || salesIndexFilter !== 'all';
 
+  // Refs para scroll automático
+  const slotRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  
+  const registerSlotRef = useCallback((slotNumber: string, element: HTMLDivElement | null) => {
+    if (element) {
+      slotRefs.current.set(slotNumber, element);
+    } else {
+      slotRefs.current.delete(slotNumber);
+    }
+  }, []);
+
   const handleSlotClick = useCallback((slotData: SlotData) => {
     setSelectedSlot(slotData);
     setIsModalOpen(true);
@@ -104,6 +115,7 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
       if (slotData) handleSlotClick(slotData);
     },
     isModalOpen,
+    slotRefs: slotRefs as RefObject<Map<string, HTMLDivElement>>,
   });
 
   if (isLoading) {
@@ -208,7 +220,11 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
                       const isFocused = focusedSlot === slotNumber;
                       
                       return (
-                        <div key={slotNumber} className={cn(dimensions.container, "flex items-center justify-center")}>
+                        <div 
+                          key={slotNumber} 
+                          ref={(el) => registerSlotRef(slotNumber, el)}
+                          className={cn(dimensions.container, "flex items-center justify-center")}
+                        >
                           <SlotStack
                             slot={slotData.slot}
                             brand={slotData.brand}
