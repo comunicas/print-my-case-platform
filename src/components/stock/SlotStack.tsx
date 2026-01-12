@@ -43,7 +43,7 @@ export function SlotStack({
             dimensions.slot,
             'hover:scale-105 hover:shadow-md hover:bg-muted/50',
             isHighlighted && 'ring-2 ring-primary bg-primary/5',
-            isFocused && 'ring-2 ring-blue-500 bg-blue-500/10 shadow-lg scale-105 animate-pulse-subtle',
+            isFocused && 'ring-2 ring-primary bg-primary/10 shadow-lg scale-105',
             isFiltered && 'opacity-30 scale-[0.98]',
             !isActive && 'opacity-50'
           )}
