@@ -55,30 +55,30 @@ export function LossAnalysisCard({
         </div>
 
         {/* Metrics Grid */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-2 md:gap-4">
           {/* Cancellations */}
-          <div className="flex items-start gap-3 p-3 rounded-lg bg-warning/10 border border-warning/20">
-            <div className="p-2 rounded-full bg-warning/20">
-              <Ban className="h-4 w-4 text-warning" />
+          <div className="flex items-start gap-2 md:gap-3 p-2 md:p-3 rounded-lg bg-warning/10 border border-warning/20">
+            <div className="p-1.5 md:p-2 rounded-full bg-warning/20">
+              <Ban className="h-3.5 w-3.5 md:h-4 md:w-4 text-warning" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Cancelamentos</p>
-              <p className="text-lg font-bold text-foreground">{formatCurrency(totalCancellations)}</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[10px] md:text-xs text-muted-foreground">Cancelamentos</p>
+              <p className="text-base md:text-lg font-bold text-foreground">{formatCurrency(totalCancellations)}</p>
+              <p className="text-[10px] md:text-xs text-muted-foreground">
                 {cancelledTransactions} desistências ({cancellationsPercentage.toFixed(0)}%)
               </p>
             </div>
           </div>
 
           {/* Refunds */}
-          <div className="flex items-start gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-            <div className="p-2 rounded-full bg-destructive/20">
-              <RotateCcw className="h-4 w-4 text-destructive" />
+          <div className="flex items-start gap-2 md:gap-3 p-2 md:p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <div className="p-1.5 md:p-2 rounded-full bg-destructive/20">
+              <RotateCcw className="h-3.5 w-3.5 md:h-4 md:w-4 text-destructive" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Reembolsos</p>
-              <p className="text-lg font-bold text-foreground">{formatCurrency(totalRefunds)}</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[10px] md:text-xs text-muted-foreground">Reembolsos</p>
+              <p className="text-base md:text-lg font-bold text-foreground">{formatCurrency(totalRefunds)}</p>
+              <p className="text-[10px] md:text-xs text-muted-foreground">
                 {refundedTransactions} devoluções ({refundsPercentage.toFixed(0)}%)
               </p>
             </div>

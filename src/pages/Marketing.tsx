@@ -46,11 +46,11 @@ export default function Marketing() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 md:space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold">Marketing</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-xl md:text-2xl font-bold">Marketing</h1>
+            <p className="text-sm md:text-base text-muted-foreground">
               Gerencie cupons e mídias para seus PDVs.
             </p>
           </div>
@@ -74,15 +74,15 @@ export default function Marketing() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="cupons" className="mt-6">
+          <TabsContent value="cupons" className="mt-4 md:mt-6">
             <Card>
-              <CardHeader>
-                <CardTitle>Códigos e QR Codes</CardTitle>
-                <CardDescription>
+              <CardHeader className="px-4 md:px-6 pt-4 md:pt-6 pb-3">
+                <CardTitle className="text-base md:text-lg">Códigos e QR Codes</CardTitle>
+                <CardDescription className="text-xs md:text-sm">
                   Configure códigos promocionais e QR Codes para cada PDV do catálogo público.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
               <Suspense fallback={<TabSkeleton />}>
                   <CouponsSettings organizationId={organization.id} selectedPdvId={selectedPdvId} />
                 </Suspense>
@@ -90,15 +90,15 @@ export default function Marketing() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="midia" className="mt-6">
+          <TabsContent value="midia" className="mt-4 md:mt-6">
             <Card>
-              <CardHeader>
-                <CardTitle>Imagens, Vídeos e Áudios</CardTitle>
-                <CardDescription>
+              <CardHeader className="px-4 md:px-6 pt-4 md:pt-6 pb-3">
+                <CardTitle className="text-base md:text-lg">Imagens, Vídeos e Áudios</CardTitle>
+                <CardDescription className="text-xs md:text-sm">
                   Adicione imagens, vídeos e áudios para download no catálogo público.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
               <Suspense fallback={<TabSkeleton />}>
                   <MediaSettings organizationId={organization.id} selectedPdvId={selectedPdvId} />
                 </Suspense>
