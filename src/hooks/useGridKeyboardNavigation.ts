@@ -38,21 +38,33 @@ function buildNavigationMap() {
 
 const { slotToPosition, positionToSlot } = buildNavigationMap();
 
-// Encontra o primeiro slot válido
-function getFirstSlot(): string | null {
+// Encontra o primeiro slot válido (canto superior direito do grid visual)
+export function getFirstSlot(): string {
   for (const floor of GRID_LAYOUT) {
     for (const slot of floor.slots) {
       if (slot !== null) return slot;
     }
   }
-  return null;
+  return "91";
+}
+
+// Encontra o último slot válido (canto inferior esquerdo do grid visual)
+export function getLastSlot(): string {
+  for (let i = GRID_LAYOUT.length - 1; i >= 0; i--) {
+    const floor = GRID_LAYOUT[i];
+    for (let j = floor.slots.length - 1; j >= 0; j--) {
+      if (floor.slots[j] !== null) return floor.slots[j]!;
+    }
+  }
+  return "01";
 }
 
 // Encontra próximo slot válido na direção especificada
 export function findNextSlot(
   currentSlot: string,
   direction: 'up' | 'down' | 'left' | 'right',
-  slots: Map<string, unknown>
+  slots: Map<string, unknown>,
+  enableLoop: boolean = false
 ): string | null {
   const currentPos = slotToPosition.get(currentSlot);
   if (!currentPos) return null;
@@ -94,6 +106,17 @@ export function findNextSlot(
       if (testSlot && slots.has(testSlot)) {
         return testSlot;
       }
+    }
+  }
+  
+  // Loop infinito: se não encontrou próximo na direção, volta ao início/fim
+  if (enableLoop) {
+    if (direction === 'right' || direction === 'down') {
+      const firstSlot = getFirstSlot();
+      if (slots.has(firstSlot)) return firstSlot;
+    } else {
+      const lastSlot = getLastSlot();
+      if (slots.has(lastSlot)) return lastSlot;
     }
   }
   
