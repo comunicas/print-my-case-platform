@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useState, RefObject } from 'react';
 import { GRID_LAYOUT } from '@/lib/stockGridUtils';
 import { StockViewMode } from '@/lib/stockViewModes';
+import { useHapticFeedback } from '@/hooks/useHapticFeedback';
 
 interface UseGridKeyboardNavigationProps {
   slots: Map<string, unknown>;
@@ -135,6 +136,7 @@ export function useGridKeyboardNavigation({
 }: UseGridKeyboardNavigationProps) {
   const [focusedSlot, setFocusedSlot] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
+  const { vibrate } = useHapticFeedback();
 
   // Scroll automático quando o slot focado muda
   useEffect(() => {
@@ -162,6 +164,7 @@ export function useGridKeyboardNavigation({
       // Navegação por setas
       case 'ArrowUp':
         e.preventDefault();
+        vibrate('navigation');
         if (!focusedSlot) {
           setFocusedSlot(getFirstSlot());
         } else {
@@ -172,6 +175,7 @@ export function useGridKeyboardNavigation({
         
       case 'ArrowDown':
         e.preventDefault();
+        vibrate('navigation');
         if (!focusedSlot) {
           setFocusedSlot(getFirstSlot());
         } else {
@@ -182,6 +186,7 @@ export function useGridKeyboardNavigation({
         
       case 'ArrowLeft':
         e.preventDefault();
+        vibrate('navigation');
         if (!focusedSlot) {
           setFocusedSlot(getFirstSlot());
         } else {
@@ -192,6 +197,7 @@ export function useGridKeyboardNavigation({
         
       case 'ArrowRight':
         e.preventDefault();
+        vibrate('navigation');
         if (!focusedSlot) {
           setFocusedSlot(getFirstSlot());
         } else {
@@ -204,6 +210,7 @@ export function useGridKeyboardNavigation({
       case 'Enter':
       case ' ':
         e.preventDefault();
+        vibrate('medium');
         if (focusedSlot) {
           onSlotSelect(focusedSlot);
         }
@@ -250,7 +257,7 @@ export function useGridKeyboardNavigation({
         setShowHelp(prev => !prev);
         break;
     }
-  }, [focusedSlot, slots, viewMode, setViewMode, isFullscreen, setIsFullscreen, onSlotSelect, isModalOpen]);
+  }, [focusedSlot, slots, viewMode, setViewMode, isFullscreen, setIsFullscreen, onSlotSelect, isModalOpen, vibrate]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);

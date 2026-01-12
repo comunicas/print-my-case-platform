@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,7 @@ import { useProductModal } from '@/contexts/ProductModalContext';
 import { useStockFilters } from '@/contexts/StockFiltersContext';
 import { getExactProductKey } from '@/lib/productNormalization';
 import { useSwipeGesture } from '@/hooks/useSwipeGesture';
+import { useHapticFeedback } from '@/hooks/useHapticFeedback';
 
 interface SlotDetailModalProps {
   slot: SlotData | null;
@@ -40,19 +41,25 @@ export function SlotDetailModal({
   const { openProductModal } = useProductModal();
   const { selectedPdv } = useStockFilters();
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
+  const { vibrate } = useHapticFeedback();
+  
+  // Handler de navegação com feedback háptico
+  const handleNavigate = useCallback((direction: 'prev' | 'next') => {
+    vibrate('navigation');
+    setSlideDirection(direction === 'next' ? 'left' : 'right');
+    onNavigate?.(direction);
+  }, [onNavigate, vibrate]);
   
   // Gestos de swipe para navegação touch
   const { handlers: swipeHandlers, swipeOffset } = useSwipeGesture({
     onSwipeLeft: () => {
       if (canNavigateNext && onNavigate) {
-        setSlideDirection('left');
-        onNavigate('next');
+        handleNavigate('next');
       }
     },
     onSwipeRight: () => {
       if (canNavigatePrev && onNavigate) {
-        setSlideDirection('right');
-        onNavigate('prev');
+        handleNavigate('prev');
       }
     },
     threshold: 50,
@@ -66,18 +73,16 @@ export function SlotDetailModal({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft' && canNavigatePrev) {
         e.preventDefault();
-        setSlideDirection('right');
-        onNavigate('prev');
+        handleNavigate('prev');
       } else if (e.key === 'ArrowRight' && canNavigateNext) {
         e.preventDefault();
-        setSlideDirection('left');
-        onNavigate('next');
+        handleNavigate('next');
       }
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onNavigate, canNavigatePrev, canNavigateNext]);
+  }, [isOpen, onNavigate, canNavigatePrev, canNavigateNext, handleNavigate]);
 
   // Reset slide animation after transition
   useEffect(() => {
@@ -228,10 +233,7 @@ export function SlotDetailModal({
               <Button 
                 variant="ghost" 
                 size="icon"
-                onClick={() => {
-                  setSlideDirection('right');
-                  onNavigate('prev');
-                }}
+                onClick={() => handleNavigate('prev')}
                 disabled={!canNavigatePrev}
                 title="Slot anterior (←)"
               >
@@ -240,10 +242,7 @@ export function SlotDetailModal({
               <Button 
                 variant="ghost" 
                 size="icon"
-                onClick={() => {
-                  setSlideDirection('left');
-                  onNavigate('next');
-                }}
+                onClick={() => handleNavigate('next')}
                 disabled={!canNavigateNext}
                 title="Próximo slot (→)"
               >
