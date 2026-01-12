@@ -18,6 +18,7 @@ import { Package, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useProductModal } from '@/contexts/ProductModalContext';
 import { useStockFilters } from '@/contexts/StockFiltersContext';
 import { getExactProductKey } from '@/lib/productNormalization';
+import { useSwipeGesture } from '@/hooks/useSwipeGesture';
 
 interface SlotDetailModalProps {
   slot: SlotData | null;
@@ -39,6 +40,24 @@ export function SlotDetailModal({
   const { openProductModal } = useProductModal();
   const { selectedPdv } = useStockFilters();
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
+  
+  // Gestos de swipe para navegação touch
+  const { handlers: swipeHandlers, swipeOffset } = useSwipeGesture({
+    onSwipeLeft: () => {
+      if (canNavigateNext && onNavigate) {
+        setSlideDirection('left');
+        onNavigate('next');
+      }
+    },
+    onSwipeRight: () => {
+      if (canNavigatePrev && onNavigate) {
+        setSlideDirection('right');
+        onNavigate('prev');
+      }
+    },
+    threshold: 50,
+    enabled: isOpen && !!onNavigate,
+  });
   
   // Keyboard navigation dentro da modal
   useEffect(() => {
@@ -95,11 +114,36 @@ export function SlotDetailModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className={cn(
-          "space-y-6 transition-all duration-200",
-          slideDirection === 'left' && 'animate-slide-in-left',
-          slideDirection === 'right' && 'animate-slide-in-right'
-        )}>
+        <div 
+          {...swipeHandlers}
+          className={cn(
+            "space-y-6 transition-all duration-200 touch-pan-y select-none relative",
+            slideDirection === 'left' && 'animate-slide-in-left',
+            slideDirection === 'right' && 'animate-slide-in-right'
+          )}
+          style={{ 
+            transform: swipeOffset ? `translateX(${swipeOffset * 0.3}px)` : undefined,
+            transition: swipeOffset ? 'none' : 'transform 0.2s ease-out'
+          }}
+        >
+          {/* Indicadores de swipe */}
+          {swipeOffset !== 0 && (
+            <div className={cn(
+              "absolute inset-y-0 w-12 flex items-center justify-center pointer-events-none",
+              swipeOffset > 0 ? "left-0" : "right-0"
+            )}>
+              <div className={cn(
+                "p-2 rounded-full bg-primary/10 transition-opacity",
+                Math.abs(swipeOffset) > 30 ? "opacity-100" : "opacity-50"
+              )}>
+                {swipeOffset > 0 ? (
+                  <ChevronLeft className="h-5 w-5 text-primary" />
+                ) : (
+                  <ChevronRight className="h-5 w-5 text-primary" />
+                )}
+              </div>
+            </div>
+          )}
           {/* Informações do Slot */}
           <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
             <div>

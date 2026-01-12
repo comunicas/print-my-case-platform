@@ -103,17 +103,17 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
     // Não limpa selectedSlot para manter consistência com navegação
   }, []);
 
-  // Navegação na modal
+  // Navegação na modal com loop infinito
   const getAdjacentSlot = useCallback((currentSlot: string, direction: 'prev' | 'next'): string | null => {
     const navDirection = direction === 'prev' ? 'left' : 'right';
-    return findNextSlot(currentSlot, navDirection, slotMap);
+    return findNextSlot(currentSlot, navDirection, slotMap, true); // enableLoop = true
   }, [slotMap]);
 
   const handleModalNavigate = useCallback((direction: 'prev' | 'next') => {
     if (!selectedSlot) return;
     
     const nextSlotNumber = getAdjacentSlot(selectedSlot.slot, direction);
-    if (nextSlotNumber && nextSlotNumber !== selectedSlot.slot) {
+    if (nextSlotNumber) {
       const nextSlotData = slotMap.get(nextSlotNumber);
       if (nextSlotData) {
         setSelectedSlot(nextSlotData);
@@ -122,13 +122,9 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
     }
   }, [selectedSlot, slotMap, getAdjacentSlot]);
 
-  const canNavigatePrev = selectedSlot 
-    ? getAdjacentSlot(selectedSlot.slot, 'prev') !== selectedSlot.slot 
-    : false;
-    
-  const canNavigateNext = selectedSlot 
-    ? getAdjacentSlot(selectedSlot.slot, 'next') !== selectedSlot.slot 
-    : false;
+  // Com loop infinito, sempre pode navegar
+  const canNavigatePrev = true;
+  const canNavigateNext = true;
 
   // Keyboard navigation
   const { focusedSlot, setFocusedSlot, showHelp, setShowHelp } = useGridKeyboardNavigation({
