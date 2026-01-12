@@ -16,7 +16,9 @@ import {
   FileSpreadsheet,
   RotateCcw,
   Ban,
+  ChevronDown,
 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useDashboard } from "@/hooks/useDashboard";
 import { useOrganizations } from "@/hooks/useOrganizations";
 import { usePDVs } from "@/hooks/usePDVs";
@@ -58,6 +60,7 @@ export default function Index() {
   const [pdvWasAutoApplied, setPdvWasAutoApplied] = useState(false);
   const [selectedOrgId, setSelectedOrgId] = useState<string>("all");
   const [prefsInitialized, setPrefsInitialized] = useState(false);
+  const [consolidatedOpen, setConsolidatedOpen] = useState(true);
   
   // Fetch PDVs filtered by selected organization (for super admins)
   const { pdvs = [], isLoading: pdvsLoading } = usePDVs({ 
@@ -212,6 +215,47 @@ export default function Index() {
 
   const dashboardContent = (
     <div data-testid="dashboard-page" className="space-y-4 md:space-y-6">
+        {/* Super Admin Consolidated View - Collapsible, before header */}
+        {isSuperAdmin && globalMetrics && (
+          <Collapsible open={consolidatedOpen} onOpenChange={setConsolidatedOpen}>
+            <Card data-testid="global-metrics-card" className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
+              <CollapsibleTrigger asChild>
+                <CardHeader className="px-4 md:px-6 pt-4 md:pt-6 pb-3 cursor-pointer hover:bg-primary/5 transition-colors rounded-t-lg">
+                  <CardTitle className="flex items-center justify-between text-base md:text-lg">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-5 w-5 text-primary" />
+                      Visão Consolidada
+                    </div>
+                    <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${consolidatedOpen ? 'rotate-180' : ''}`} />
+                  </CardTitle>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="text-center md:text-left">
+                      <p className="text-xl md:text-2xl font-bold text-foreground">{globalMetrics.totalOrganizations}</p>
+                      <p className="text-xs md:text-sm text-muted-foreground">Organizações</p>
+                    </div>
+                    <div className="text-center md:text-left">
+                      <p className="text-xl md:text-2xl font-bold text-foreground">{globalMetrics.totalPdvsGlobal}</p>
+                      <p className="text-xs md:text-sm text-muted-foreground">PDVs Total</p>
+                    </div>
+                    <div className="text-center md:text-left">
+                      <p className="text-xl md:text-2xl font-bold text-foreground">{formatCurrency(globalMetrics.totalRevenueGlobal)}</p>
+                      <p className="text-xs md:text-sm text-muted-foreground">Receita Global</p>
+                    </div>
+                    <div className="text-center md:text-left">
+                      <p className="text-xl md:text-2xl font-bold text-foreground">{globalMetrics.totalTransactionsGlobal.toLocaleString("pt-BR")}</p>
+                      <p className="text-xs md:text-sm text-muted-foreground">Transações Global</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+        )}
+
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -266,38 +310,6 @@ export default function Index() {
             showAutoAppliedBadge={pdvWasAutoApplied}
           />
         </div>
-
-        {/* Super Admin Consolidated View */}
-        {isSuperAdmin && globalMetrics && (
-          <Card data-testid="global-metrics-card" className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
-            <CardHeader className="px-4 md:px-6 pt-4 md:pt-6 pb-3">
-              <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-                <Building2 className="h-5 w-5 text-primary" />
-                Visão Consolidada
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center md:text-left">
-                  <p className="text-xl md:text-2xl font-bold text-foreground">{globalMetrics.totalOrganizations}</p>
-                  <p className="text-xs md:text-sm text-muted-foreground">Organizações</p>
-                </div>
-                <div className="text-center md:text-left">
-                  <p className="text-xl md:text-2xl font-bold text-foreground">{globalMetrics.totalPdvsGlobal}</p>
-                  <p className="text-xs md:text-sm text-muted-foreground">PDVs Total</p>
-                </div>
-                <div className="text-center md:text-left">
-                  <p className="text-xl md:text-2xl font-bold text-foreground">{formatCurrency(globalMetrics.totalRevenueGlobal)}</p>
-                  <p className="text-xs md:text-sm text-muted-foreground">Receita Global</p>
-                </div>
-                <div className="text-center md:text-left">
-                  <p className="text-xl md:text-2xl font-bold text-foreground">{globalMetrics.totalTransactionsGlobal.toLocaleString("pt-BR")}</p>
-                  <p className="text-xs md:text-sm text-muted-foreground">Transações Global</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Empty State */}
         {!hasData && (
