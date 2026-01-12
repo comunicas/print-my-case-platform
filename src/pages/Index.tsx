@@ -410,21 +410,21 @@ export default function Index() {
               </Suspense>
             </div>
 
-            {/* Stock by Brand */}
-            <Suspense fallback={<ChartSkeleton />}>
-              <StockByBrandChart data={stockByBrand} animationDelay={200} />
-            </Suspense>
-
-            {/* Stock History Chart */}
-            {stockHistory && stockHistory.chartData.length > 0 && (
+            {/* Row 2: Stock by Brand + Stock History */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
               <Suspense fallback={<ChartSkeleton />}>
-                <StockHistoryChart 
-                  data={stockHistory.chartData} 
-                  brands={stockHistory.brands}
-                  animationDelay={250}
-                />
+                <StockByBrandChart data={stockByBrand} animationDelay={200} />
               </Suspense>
-            )}
+              {stockHistory && stockHistory.chartData.length > 0 && (
+                <Suspense fallback={<ChartSkeleton />}>
+                  <StockHistoryChart 
+                    data={stockHistory.chartData} 
+                    brands={stockHistory.brands}
+                    animationDelay={250}
+                  />
+                </Suspense>
+              )}
+            </div>
 
             {/* Stock Alerts Table */}
             <StockAlertsTable data={lowStockItems} animationDelay={300} selectedPdvId={selectedPdvId !== 'all' ? selectedPdvId : undefined} />

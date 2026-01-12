@@ -84,7 +84,7 @@ export function StockHistoryChart({ data, brands, animationDelay = 0 }: StockHis
       </CardHeader>
       <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
         {filteredData.length > 0 ? (
-          <ChartContainer config={chartConfig} className="h-[300px] w-full">
+          <ChartContainer config={chartConfig} className="h-[220px] w-full">
             <LineChart data={filteredData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis 

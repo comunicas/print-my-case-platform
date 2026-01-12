@@ -71,8 +71,8 @@ export function StockByBrandChart({ data, animationDelay = 0 }: StockByBrandChar
               nameKey="brand"
               cx="50%"
               cy="50%"
-              innerRadius={60}
-              outerRadius={90}
+              innerRadius={50}
+              outerRadius={75}
               paddingAngle={2}
             >
               {data.map((entry, index) => (
