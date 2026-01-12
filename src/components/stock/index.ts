@@ -10,6 +10,7 @@ export { ProductSlotsList } from './ProductSlotsList';
 export { ProductStockTable } from './ProductStockTable';
 export { SlotDetailModal } from './SlotDetailModal';
 export { SlotStack } from './SlotStack';
+export { StockGridSkeleton } from './StockGridSkeleton';
 export { StockEmptyState } from './StockEmptyState';
 export { StockFilters } from './StockFilters';
 export { StockGridView } from './StockGridView';
