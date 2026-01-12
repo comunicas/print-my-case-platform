@@ -6,47 +6,52 @@ interface StockLegendProps {
 
 export function StockLegend({ brands = [] }: StockLegendProps) {
   return (
-    <div className="flex flex-wrap gap-6 p-4 bg-muted/30 rounded-lg">
-      {/* Legenda de cores */}
-      <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Níveis de Estoque
-        </p>
-        <div className="flex flex-wrap gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-green-500" />
-            <span className="text-sm">Cheio (6-7)</span>
+    <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 py-3 px-4 border-t border-border/50">
+      {/* Níveis de estoque */}
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+          Níveis:
+        </span>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-sm bg-green-500" />
+            <span className="text-xs text-muted-foreground">Cheio</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-yellow-500" />
-            <span className="text-sm">Médio (3-5)</span>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-sm bg-yellow-500" />
+            <span className="text-xs text-muted-foreground">Médio</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-orange-500" />
-            <span className="text-sm">Baixo (1-2)</span>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-sm bg-orange-500" />
+            <span className="text-xs text-muted-foreground">Baixo</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-destructive" />
-            <span className="text-sm">Vazio (0)</span>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-sm bg-destructive" />
+            <span className="text-xs text-muted-foreground">Vazio</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-muted" />
-            <span className="text-sm">Inativo</span>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-sm bg-gray-200 dark:bg-gray-700" />
+            <span className="text-xs text-muted-foreground">Inativo</span>
           </div>
         </div>
       </div>
 
-      {/* Legenda de marcas */}
+      {/* Separador vertical */}
       {brands.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            Marcas
-          </p>
-          <div className="flex flex-wrap gap-4">
+        <div className="hidden sm:block h-4 w-px bg-border" />
+      )}
+
+      {/* Marcas */}
+      {brands.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+            Marcas:
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
             {brands.map((brand) => (
-              <div key={brand} className="flex items-center gap-2">
-                <BrandLogo brand={brand} size="sm" showTooltip={false} />
-                <span className="text-sm">{brand}</span>
+              <div key={brand} className="flex items-center gap-1">
+                <BrandLogo brand={brand} size="xs" showTooltip={false} />
+                <span className="text-xs text-muted-foreground">{brand}</span>
               </div>
             ))}
           </div>
