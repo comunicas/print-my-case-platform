@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { SlotStack, EmptySlot } from './SlotStack';
 import { StockLegend } from './StockLegend';
 import { SlotDetailModal } from './SlotDetailModal';
+import { StockGridSkeleton } from './StockGridSkeleton';
 import { SlotData } from '@/lib/stockUtils';
 import { GRID_LAYOUT, COLUMN_HEADERS } from '@/lib/stockGridUtils';
 import { SLOT_DIMENSIONS, StockViewMode } from '@/lib/stockViewModes';
@@ -90,7 +91,7 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
   };
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-64 text-muted-foreground">Carregando...</div>;
+    return <StockGridSkeleton viewMode={viewMode} />;
   }
 
   const gridContent = (

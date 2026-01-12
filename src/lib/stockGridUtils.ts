@@ -41,7 +41,7 @@ export function getSlotVisualStatus(quantity: number, isActive: boolean = true):
  */
 export function getBlockColorClass(index: number, quantity: number, isActive: boolean = true): string {
   if (!isActive) return 'bg-muted/30';
-  if (index >= quantity) return 'bg-muted/20'; // Bloco vazio
+  if (index >= quantity) return 'bg-gray-200 dark:bg-gray-700'; // Bloco vazio - cinza claro visível
   
   // Blocos preenchidos usam cores baseadas no status visual
   const status = getSlotVisualStatus(quantity, isActive);
