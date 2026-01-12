@@ -11,7 +11,7 @@ import { GRID_LAYOUT, COLUMN_HEADERS } from '@/lib/stockGridUtils';
 import { SLOT_DIMENSIONS, StockViewMode } from '@/lib/stockViewModes';
 import { KNOWN_BRANDS } from '@/lib/brandAssets';
 import { useStockFilters } from '@/contexts/StockFiltersContext';
-import { useGridKeyboardNavigation } from '@/hooks/useGridKeyboardNavigation';
+import { useGridKeyboardNavigation, findNextSlot } from '@/hooks/useGridKeyboardNavigation';
 import { cn } from '@/lib/utils';
 
 interface StockGridViewProps {
@@ -100,11 +100,38 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
 
   const handleCloseModal = useCallback(() => {
     setIsModalOpen(false);
-    setSelectedSlot(null);
+    // Não limpa selectedSlot para manter consistência com navegação
   }, []);
 
+  // Navegação na modal
+  const getAdjacentSlot = useCallback((currentSlot: string, direction: 'prev' | 'next'): string | null => {
+    const navDirection = direction === 'prev' ? 'left' : 'right';
+    return findNextSlot(currentSlot, navDirection, slotMap);
+  }, [slotMap]);
+
+  const handleModalNavigate = useCallback((direction: 'prev' | 'next') => {
+    if (!selectedSlot) return;
+    
+    const nextSlotNumber = getAdjacentSlot(selectedSlot.slot, direction);
+    if (nextSlotNumber && nextSlotNumber !== selectedSlot.slot) {
+      const nextSlotData = slotMap.get(nextSlotNumber);
+      if (nextSlotData) {
+        setSelectedSlot(nextSlotData);
+        setFocusedSlot(nextSlotNumber);
+      }
+    }
+  }, [selectedSlot, slotMap, getAdjacentSlot]);
+
+  const canNavigatePrev = selectedSlot 
+    ? getAdjacentSlot(selectedSlot.slot, 'prev') !== selectedSlot.slot 
+    : false;
+    
+  const canNavigateNext = selectedSlot 
+    ? getAdjacentSlot(selectedSlot.slot, 'next') !== selectedSlot.slot 
+    : false;
+
   // Keyboard navigation
-  const { focusedSlot, showHelp, setShowHelp } = useGridKeyboardNavigation({
+  const { focusedSlot, setFocusedSlot, showHelp, setShowHelp } = useGridKeyboardNavigation({
     slots: slotMap,
     viewMode,
     setViewMode,
@@ -256,6 +283,9 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
         slot={selectedSlot}
         isOpen={isModalOpen}
         onClose={handleCloseModal}
+        onNavigate={handleModalNavigate}
+        canNavigatePrev={canNavigatePrev}
+        canNavigateNext={canNavigateNext}
       />
     </div>
   );

@@ -49,7 +49,7 @@ function getFirstSlot(): string | null {
 }
 
 // Encontra próximo slot válido na direção especificada
-function findNextSlot(
+export function findNextSlot(
   currentSlot: string,
   direction: 'up' | 'down' | 'left' | 'right',
   slots: Map<string, unknown>
