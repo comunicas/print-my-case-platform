@@ -96,6 +96,14 @@ export default {
           "0%": { opacity: "0", transform: "translateY(16px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        "scale-resize": {
+          "0%": { transform: "scale(0.97)", opacity: "0.7" },
+          "100%": { transform: "scale(1)", opacity: "1" },
+        },
+        "content-swap": {
+          "0%": { opacity: "0", transform: "translateY(8px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -104,6 +112,8 @@ export default {
         "badge-fade-out": "badge-fade-out 0.2s ease-out forwards",
         "shimmer": "shimmer 1.5s infinite linear",
         "fade-in-up": "fade-in-up 0.4s ease-out",
+        "scale-resize": "scale-resize 0.25s ease-out",
+        "content-swap": "content-swap 0.3s ease-out",
       },
     },
   },

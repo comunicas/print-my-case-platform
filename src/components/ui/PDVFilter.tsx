@@ -79,7 +79,7 @@ export function PDVFilter({
         <Select value={value} onValueChange={onChange}>
           <SelectTrigger 
             data-testid="pdv-select-trigger"
-            className={cn("w-full sm:w-[180px]", triggerClassName)}
+            className={cn("w-full sm:w-[180px] transition-all duration-200", triggerClassName)}
           >
             <SelectValue placeholder="Selecionar PDV" />
           </SelectTrigger>
