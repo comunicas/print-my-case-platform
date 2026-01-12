@@ -99,7 +99,7 @@ export function SalesHeatmapChart({ data, animationDelay = 0 }: SalesHeatmapChar
             <TooltipProvider>
               {TIME_RANGES.map((range, rIdx) => (
                 <div key={range.id} className="grid grid-cols-8 gap-1 mb-1 relative">
-                  <div className="text-xs text-muted-foreground text-right pr-1 leading-8">
+                  <div className="text-[10px] md:text-xs text-muted-foreground text-right pr-1 leading-6 md:leading-8">
                     {range.label}
                   </div>
                   {DAYS.map((day, dIdx) => {
@@ -112,7 +112,7 @@ export function SalesHeatmapChart({ data, animationDelay = 0 }: SalesHeatmapChar
                         <TooltipTrigger asChild>
                           <div
                             className={cn(
-                              "h-8 rounded cursor-default",
+                              "h-6 md:h-8 rounded cursor-default",
                               "transition-all duration-200 ease-out",
                               "hover:scale-110 hover:shadow-lg hover:z-10",
                               "hover:ring-2 hover:ring-foreground/20",
