@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, RefObject } from 'react';
 import { GRID_LAYOUT } from '@/lib/stockGridUtils';
 import { StockViewMode } from '@/lib/stockViewModes';
 
@@ -10,6 +10,7 @@ interface UseGridKeyboardNavigationProps {
   setIsFullscreen: (fullscreen: boolean) => void;
   onSlotSelect: (slotNumber: string) => void;
   isModalOpen: boolean;
+  slotRefs?: RefObject<Map<string, HTMLDivElement> | null>;
 }
 
 interface GridPosition {
@@ -107,9 +108,24 @@ export function useGridKeyboardNavigation({
   setIsFullscreen,
   onSlotSelect,
   isModalOpen,
+  slotRefs,
 }: UseGridKeyboardNavigationProps) {
   const [focusedSlot, setFocusedSlot] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
+
+  // Scroll automático quando o slot focado muda
+  useEffect(() => {
+    if (!focusedSlot || !slotRefs?.current) return;
+    
+    const slotElement = slotRefs.current.get(focusedSlot);
+    if (!slotElement) return;
+    
+    slotElement.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+      inline: 'nearest',
+    });
+  }, [focusedSlot, slotRefs]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     // Ignora se estiver digitando em input ou modal aberto
