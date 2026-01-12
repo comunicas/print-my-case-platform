@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-type HapticPattern = "light" | "medium" | "heavy" | "success" | "error";
+type HapticPattern = "light" | "medium" | "heavy" | "success" | "error" | "navigation";
 
 const patterns: Record<HapticPattern, number | number[]> = {
   light: 10,
@@ -8,6 +8,7 @@ const patterns: Record<HapticPattern, number | number[]> = {
   heavy: 50,
   success: [10, 30, 10],
   error: [50, 30, 50, 30, 50],
+  navigation: 5, // Ultra sutil para navegação contínua
 };
 
 export function useHapticFeedback() {

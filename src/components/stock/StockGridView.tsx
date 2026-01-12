@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback, RefObject } from 'react';
-import { Maximize2, X, Minimize2, Expand } from 'lucide-react';
+import { Maximize2, X, Minimize2, Expand, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SlotStack, EmptySlot } from './SlotStack';
 import { StockLegend } from './StockLegend';
@@ -11,7 +11,10 @@ import { GRID_LAYOUT, COLUMN_HEADERS } from '@/lib/stockGridUtils';
 import { SLOT_DIMENSIONS, StockViewMode } from '@/lib/stockViewModes';
 import { KNOWN_BRANDS } from '@/lib/brandAssets';
 import { useStockFilters } from '@/contexts/StockFiltersContext';
-import { useGridKeyboardNavigation, findNextSlot } from '@/hooks/useGridKeyboardNavigation';
+import { useGridKeyboardNavigation, findNextSlot, getFirstSlot } from '@/hooks/useGridKeyboardNavigation';
+import { useSwipeGesture } from '@/hooks/useSwipeGesture';
+import { useHapticFeedback } from '@/hooks/useHapticFeedback';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 
 interface StockGridViewProps {
@@ -109,23 +112,6 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
     return findNextSlot(currentSlot, navDirection, slotMap, true); // enableLoop = true
   }, [slotMap]);
 
-  const handleModalNavigate = useCallback((direction: 'prev' | 'next') => {
-    if (!selectedSlot) return;
-    
-    const nextSlotNumber = getAdjacentSlot(selectedSlot.slot, direction);
-    if (nextSlotNumber) {
-      const nextSlotData = slotMap.get(nextSlotNumber);
-      if (nextSlotData) {
-        setSelectedSlot(nextSlotData);
-        setFocusedSlot(nextSlotNumber);
-      }
-    }
-  }, [selectedSlot, slotMap, getAdjacentSlot]);
-
-  // Com loop infinito, sempre pode navegar
-  const canNavigatePrev = true;
-  const canNavigateNext = true;
-
   // Keyboard navigation
   const { focusedSlot, setFocusedSlot, showHelp, setShowHelp } = useGridKeyboardNavigation({
     slots: slotMap,
@@ -139,6 +125,48 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
     },
     isModalOpen,
     slotRefs: slotRefs as RefObject<Map<string, HTMLDivElement>>,
+  });
+
+  const handleModalNavigate = useCallback((direction: 'prev' | 'next') => {
+    if (!selectedSlot) return;
+    
+    const nextSlotNumber = getAdjacentSlot(selectedSlot.slot, direction);
+    if (nextSlotNumber) {
+      const nextSlotData = slotMap.get(nextSlotNumber);
+      if (nextSlotData) {
+        setSelectedSlot(nextSlotData);
+        setFocusedSlot(nextSlotNumber);
+      }
+    }
+  }, [selectedSlot, slotMap, getAdjacentSlot, setFocusedSlot]);
+
+  // Com loop infinito, sempre pode navegar
+  const canNavigatePrev = true;
+  const canNavigateNext = true;
+
+  // Swipe e haptic para navegação touch no grid principal
+  const isMobile = useIsMobile();
+  const { vibrate } = useHapticFeedback();
+  
+  const { handlers: gridSwipeHandlers, swipeOffset: gridSwipeOffset } = useSwipeGesture({
+    onSwipeLeft: () => {
+      if (!isModalOpen) {
+        vibrate('navigation');
+        const currentSlot = focusedSlot || getFirstSlot();
+        const next = findNextSlot(currentSlot, 'right', slotMap, true);
+        if (next) setFocusedSlot(next);
+      }
+    },
+    onSwipeRight: () => {
+      if (!isModalOpen) {
+        vibrate('navigation');
+        const currentSlot = focusedSlot || getFirstSlot();
+        const next = findNextSlot(currentSlot, 'left', slotMap, true);
+        if (next) setFocusedSlot(next);
+      }
+    },
+    threshold: 60,
+    enabled: isMobile && !isModalOpen,
   });
 
   if (isLoading) {
@@ -192,10 +220,30 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
       </div>
 
       {/* Grid da máquina - responsivo */}
-      <div className={cn(
-        'overflow-x-auto pb-4',
-        isViewModeTransitioning && 'animate-scale-resize'
-      )}>
+      <div 
+        {...(isMobile ? gridSwipeHandlers : {})}
+        className={cn(
+          'overflow-x-auto pb-4 relative',
+          isViewModeTransitioning && 'animate-scale-resize'
+        )}
+      >
+        {/* Indicador de swipe no grid */}
+        {isMobile && gridSwipeOffset !== 0 && (
+          <div className={cn(
+            "fixed top-1/2 -translate-y-1/2 z-40 transition-opacity pointer-events-none",
+            gridSwipeOffset > 0 ? "left-4" : "right-4",
+            Math.abs(gridSwipeOffset) > 40 ? "opacity-100" : "opacity-50"
+          )}>
+            <div className="p-3 rounded-full bg-primary/20 backdrop-blur-sm">
+              {gridSwipeOffset > 0 ? (
+                <ChevronLeft className="h-6 w-6 text-primary" />
+              ) : (
+                <ChevronRight className="h-6 w-6 text-primary" />
+              )}
+            </div>
+          </div>
+        )}
+        
         <div className="flex justify-center min-w-fit">
           <div className="inline-block">
             {/* Cabeçalho de colunas */}
