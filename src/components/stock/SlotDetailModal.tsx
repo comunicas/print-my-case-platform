@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -13,7 +14,7 @@ import { SlotData } from '@/lib/stockUtils';
 import { getSlotVisualStatus, MAX_CAPACITY, getBlockColorClass } from '@/lib/stockGridUtils';
 import { slotVisualLabels } from '@/lib/stockLabels';
 import { cn } from '@/lib/utils';
-import { Package } from 'lucide-react';
+import { Package, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useProductModal } from '@/contexts/ProductModalContext';
 import { useStockFilters } from '@/contexts/StockFiltersContext';
 import { getExactProductKey } from '@/lib/productNormalization';
@@ -22,11 +23,50 @@ interface SlotDetailModalProps {
   slot: SlotData | null;
   isOpen: boolean;
   onClose: () => void;
+  onNavigate?: (direction: 'prev' | 'next') => void;
+  canNavigatePrev?: boolean;
+  canNavigateNext?: boolean;
 }
 
-export function SlotDetailModal({ slot, isOpen, onClose }: SlotDetailModalProps) {
+export function SlotDetailModal({ 
+  slot, 
+  isOpen, 
+  onClose,
+  onNavigate,
+  canNavigatePrev = false,
+  canNavigateNext = false,
+}: SlotDetailModalProps) {
   const { openProductModal } = useProductModal();
   const { selectedPdv } = useStockFilters();
+  const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
+  
+  // Keyboard navigation dentro da modal
+  useEffect(() => {
+    if (!isOpen || !onNavigate) return;
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft' && canNavigatePrev) {
+        e.preventDefault();
+        setSlideDirection('right');
+        onNavigate('prev');
+      } else if (e.key === 'ArrowRight' && canNavigateNext) {
+        e.preventDefault();
+        setSlideDirection('left');
+        onNavigate('next');
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onNavigate, canNavigatePrev, canNavigateNext]);
+
+  // Reset slide animation after transition
+  useEffect(() => {
+    if (slideDirection) {
+      const timer = setTimeout(() => setSlideDirection(null), 200);
+      return () => clearTimeout(timer);
+    }
+  }, [slideDirection, slot]);
   
   if (!slot) return null;
 
@@ -55,7 +95,11 @@ export function SlotDetailModal({ slot, isOpen, onClose }: SlotDetailModalProps)
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className={cn(
+          "space-y-6 transition-all duration-200",
+          slideDirection === 'left' && 'animate-slide-in-left',
+          slideDirection === 'right' && 'animate-slide-in-right'
+        )}>
           {/* Informações do Slot */}
           <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
             <div>
@@ -133,14 +177,46 @@ export function SlotDetailModal({ slot, isOpen, onClose }: SlotDetailModalProps)
           </div>
         </div>
 
-        <DialogFooter className="flex gap-2 sm:gap-2">
-          <Button variant="outline" onClick={onClose}>
-            Fechar
-          </Button>
-          <Button onClick={handleViewProduct}>
-            <Package className="h-4 w-4 mr-2" />
-            Ver detalhes do produto
-          </Button>
+        <DialogFooter className="flex items-center justify-between gap-2 sm:gap-2">
+          {/* Navegação entre slots */}
+          {onNavigate && (
+            <div className="flex gap-1">
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => {
+                  setSlideDirection('right');
+                  onNavigate('prev');
+                }}
+                disabled={!canNavigatePrev}
+                title="Slot anterior (←)"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => {
+                  setSlideDirection('left');
+                  onNavigate('next');
+                }}
+                disabled={!canNavigateNext}
+                title="Próximo slot (→)"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+          
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose}>
+              Fechar
+            </Button>
+            <Button onClick={handleViewProduct}>
+              <Package className="h-4 w-4 mr-2" />
+              Ver detalhes do produto
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
