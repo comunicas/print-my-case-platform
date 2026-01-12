@@ -60,7 +60,15 @@ export default function Index() {
   const [pdvWasAutoApplied, setPdvWasAutoApplied] = useState(false);
   const [selectedOrgId, setSelectedOrgId] = useState<string>("all");
   const [prefsInitialized, setPrefsInitialized] = useState(false);
-  const [consolidatedOpen, setConsolidatedOpen] = useState(true);
+  const [consolidatedOpen, setConsolidatedOpen] = useState(() => {
+    const saved = localStorage.getItem('dashboard-consolidated-open');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+
+  // Persist consolidated card state to localStorage
+  useEffect(() => {
+    localStorage.setItem('dashboard-consolidated-open', JSON.stringify(consolidatedOpen));
+  }, [consolidatedOpen]);
   
   // Fetch PDVs filtered by selected organization (for super admins)
   const { pdvs = [], isLoading: pdvsLoading } = usePDVs({ 
