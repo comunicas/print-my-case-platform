@@ -83,10 +83,34 @@ export function findNextSlot(
       floor = Math.min(maxFloors - 1, floor + 1);
       break;
     case 'left':
-      col = Math.max(0, col - 1);
+      col = col - 1;
+      // Se saiu da coluna à esquerda, vai para última coluna da linha anterior
+      if (col < 0) {
+        col = maxCols - 1;
+        floor = floor - 1;
+        if (floor < 0) {
+          if (enableLoop) {
+            floor = maxFloors - 1;
+          } else {
+            return currentSlot;
+          }
+        }
+      }
       break;
     case 'right':
-      col = Math.min(maxCols - 1, col + 1);
+      col = col + 1;
+      // Se saiu da coluna à direita, vai para primeira coluna da próxima linha
+      if (col >= maxCols) {
+        col = 0;
+        floor = floor + 1;
+        if (floor >= maxFloors) {
+          if (enableLoop) {
+            floor = 0;
+          } else {
+            return currentSlot;
+          }
+        }
+      }
       break;
   }
   
@@ -96,9 +120,43 @@ export function findNextSlot(
     return newSlot;
   }
   
-  // Se não encontrou, procura o mais próximo na direção
+  // Para navegação horizontal, continua procurando até encontrar slot válido
+  // (necessário para a linha 1 que tem slots null)
+  if (direction === 'left' || direction === 'right') {
+    let attempts = 0;
+    while (attempts < maxFloors * maxCols) {
+      if (direction === 'right') {
+        col++;
+        if (col >= maxCols) {
+          col = 0;
+          floor++;
+          if (floor >= maxFloors) {
+            floor = enableLoop ? 0 : maxFloors - 1;
+            if (!enableLoop) return currentSlot;
+          }
+        }
+      } else {
+        col--;
+        if (col < 0) {
+          col = maxCols - 1;
+          floor--;
+          if (floor < 0) {
+            floor = enableLoop ? maxFloors - 1 : 0;
+            if (!enableLoop) return currentSlot;
+          }
+        }
+      }
+      
+      const testSlot = positionToSlot.get(`${floor}-${col}`);
+      if (testSlot && slots.has(testSlot)) {
+        return testSlot;
+      }
+      attempts++;
+    }
+  }
+  
+  // Para navegação vertical, procura na mesma coluna em andares adjacentes
   if (direction === 'up' || direction === 'down') {
-    // Procura na mesma coluna em andares adjacentes
     for (let offset = 1; offset < maxFloors; offset++) {
       const testFloor = direction === 'up' ? floor - offset : floor + offset;
       if (testFloor < 0 || testFloor >= maxFloors) break;
@@ -108,20 +166,20 @@ export function findNextSlot(
         return testSlot;
       }
     }
-  }
-  
-  // Loop infinito: se não encontrou próximo na direção, volta ao início/fim
-  if (enableLoop) {
-    if (direction === 'right' || direction === 'down') {
-      const firstSlot = getFirstSlot();
-      if (slots.has(firstSlot)) return firstSlot;
-    } else {
-      const lastSlot = getLastSlot();
-      if (slots.has(lastSlot)) return lastSlot;
+    
+    // Loop para navegação vertical
+    if (enableLoop) {
+      if (direction === 'down') {
+        const firstSlot = getFirstSlot();
+        if (slots.has(firstSlot)) return firstSlot;
+      } else {
+        const lastSlot = getLastSlot();
+        if (slots.has(lastSlot)) return lastSlot;
+      }
     }
   }
   
-  return currentSlot; // Mantém posição atual se não encontrou
+  return currentSlot;
 }
 
 export function useGridKeyboardNavigation({
