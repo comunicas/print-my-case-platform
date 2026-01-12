@@ -80,10 +80,10 @@ export function SalesHeatmapChart({ data, animationDelay = 0 }: SalesHeatmapChar
       animationDelay={animationDelay}
     >
       {data.length > 0 ? (
-        <div className="overflow-x-auto">
+        <div>
           <div 
             data-testid="heatmap-grid" 
-            className="min-w-[400px]"
+            className="w-full"
             role="grid"
             aria-label="Mapa de calor de vendas por dia e horário"
           >

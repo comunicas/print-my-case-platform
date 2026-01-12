@@ -42,7 +42,7 @@ export function StockByBrandChart({ data, animationDelay = 0 }: StockByBrandChar
       animationDelay={animationDelay}
     >
       {data.length > 0 ? (
-        <ChartContainer config={chartConfig} className="flex-1 min-h-[250px] w-full">
+        <ChartContainer config={chartConfig} className="min-h-[180px] w-full">
           <PieChart>
             <ChartTooltip 
               content={
