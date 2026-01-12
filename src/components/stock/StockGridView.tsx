@@ -1,11 +1,12 @@
-import { useState, useMemo } from 'react';
-import { Maximize2, X } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Maximize2, X, Minimize2, Expand } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SlotStack, EmptySlot } from './SlotStack';
 import { StockLegend } from './StockLegend';
 import { SlotDetailModal } from './SlotDetailModal';
 import { SlotData } from '@/lib/stockUtils';
 import { GRID_LAYOUT, COLUMN_HEADERS } from '@/lib/stockGridUtils';
+import { SLOT_DIMENSIONS, StockViewMode } from '@/lib/stockViewModes';
 import { KNOWN_BRANDS } from '@/lib/brandAssets';
 import { useStockFilters } from '@/contexts/StockFiltersContext';
 import { cn } from '@/lib/utils';
@@ -17,11 +18,25 @@ interface StockGridViewProps {
   isLoading?: boolean;
 }
 
+const STORAGE_KEY = 'stock-view-mode';
+
 export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isLoading }: StockGridViewProps) {
   const { searchTerm, brandFilter, statusFilter, salesIndexFilter } = useStockFilters();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<SlotData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // View mode com persistência em localStorage
+  const [viewMode, setViewMode] = useState<StockViewMode>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return (saved === 'compact' || saved === 'expanded') ? saved : 'expanded';
+  });
+  
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, viewMode);
+  }, [viewMode]);
+  
+  const dimensions = SLOT_DIMENSIONS[viewMode];
 
   // Mapeia slots por número para acesso rápido
   const slotMap = useMemo(() => {
@@ -59,8 +74,33 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
       'space-y-4',
       isFullscreen && 'fixed inset-0 z-50 bg-background p-4 md:p-6 overflow-auto'
     )}>
-      {/* Header com botão fullscreen */}
-      <div className="flex justify-end">
+      {/* Header com toggles */}
+      <div className="flex justify-end gap-2">
+        {/* Toggle compacto/expandido */}
+        <div className="flex border border-border rounded-md overflow-hidden">
+          <Button 
+            variant={viewMode === 'compact' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('compact')}
+            className="rounded-none px-2 sm:px-3"
+            title="Visualização compacta"
+          >
+            <Minimize2 className="h-4 w-4" />
+            <span className="hidden sm:inline ml-1.5">Compacto</span>
+          </Button>
+          <Button 
+            variant={viewMode === 'expanded' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('expanded')}
+            className="rounded-none px-2 sm:px-3"
+            title="Visualização expandida"
+          >
+            <Expand className="h-4 w-4" />
+            <span className="hidden sm:inline ml-1.5">Expandido</span>
+          </Button>
+        </div>
+        
+        {/* Botão fullscreen */}
         <Button 
           variant="outline" 
           size="sm"
@@ -77,7 +117,7 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
             {/* Cabeçalho de colunas */}
             <div className="flex items-center mb-2 sm:mb-3 pl-6 sm:pl-8 md:pl-10">
               {COLUMN_HEADERS.map((col) => (
-                <div key={col} className="w-[52px] sm:w-[60px] md:w-[72px] text-center text-xs sm:text-sm text-muted-foreground font-semibold">
+                <div key={col} className={cn(dimensions.container, "text-center text-xs sm:text-sm text-muted-foreground font-semibold")}>
                   {col}
                 </div>
               ))}
@@ -96,15 +136,15 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
                   <div className="flex">
                     {floor.slots.map((slotNumber, colIndex) => {
                       if (slotNumber === null) {
-                        return <div key={`empty-${colIndex}`} className="w-[52px] sm:w-[60px] md:w-[72px] h-[70px] sm:h-[85px] md:h-[100px]" />;
+                        return <div key={`empty-${colIndex}`} className={cn(dimensions.container, dimensions.height)} />;
                       }
                       
                       const slotData = slotMap.get(slotNumber);
                       
                       if (!slotData) {
                         return (
-                          <div key={slotNumber} className="w-[52px] sm:w-[60px] md:w-[72px] flex items-center justify-center">
-                            <div className="w-12 sm:w-14 md:w-16 h-[70px] sm:h-[85px] md:h-[100px] bg-muted/30 rounded-lg flex flex-col items-center justify-center gap-1">
+                          <div key={slotNumber} className={cn(dimensions.container, "flex items-center justify-center")}>
+                            <div className={cn(dimensions.slot, dimensions.height, "bg-muted/30 rounded-lg flex flex-col items-center justify-center gap-1")}>
                               <div className="w-7 sm:w-8 md:w-10 h-10 sm:h-12 md:h-14 bg-muted/20 rounded" />
                               <span className="text-[8px] sm:text-[10px] text-muted-foreground font-medium">{slotNumber}</span>
                             </div>
@@ -118,7 +158,7 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
                       const isFiltered = hasFilter && !isInFilteredSlots;
                       
                       return (
-                        <div key={slotNumber} className="w-[52px] sm:w-[60px] md:w-[72px] flex items-center justify-center">
+                        <div key={slotNumber} className={cn(dimensions.container, "flex items-center justify-center")}>
                           <SlotStack
                             slot={slotData.slot}
                             brand={slotData.brand}
@@ -127,6 +167,7 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
                             isActive={slotData.isActive}
                             isHighlighted={isHighlighted}
                             isFiltered={isFiltered}
+                            viewMode={viewMode}
                             onClick={() => handleSlotClick(slotData)}
                           />
                         </div>

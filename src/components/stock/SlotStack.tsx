@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { MAX_CAPACITY, getBlockColorClass } from '@/lib/stockGridUtils';
+import { SLOT_DIMENSIONS, StockViewMode } from '@/lib/stockViewModes';
 
 interface SlotStackProps {
   slot: string;
@@ -11,6 +12,7 @@ interface SlotStackProps {
   isActive?: boolean;
   isHighlighted?: boolean;
   isFiltered?: boolean;
+  viewMode?: StockViewMode;
   onClick?: () => void;
 }
 
@@ -22,10 +24,11 @@ export function SlotStack({
   isActive = true,
   isHighlighted = false,
   isFiltered = false,
+  viewMode = 'expanded',
   onClick,
 }: SlotStackProps) {
   const blocks = Array.from({ length: MAX_CAPACITY }, (_, i) => i);
-  
+  const dimensions = SLOT_DIMENSIONS[viewMode];
   
   return (
     <Tooltip>
@@ -34,7 +37,7 @@ export function SlotStack({
           onClick={onClick}
           className={cn(
             'flex flex-col items-center gap-0.5 p-1 sm:p-1.5 rounded-lg cursor-pointer transition-all',
-            'w-12 sm:w-14 md:w-16',
+            dimensions.slot,
             'hover:scale-105 hover:shadow-md hover:bg-muted/50',
             isHighlighted && 'ring-2 ring-primary bg-primary/5',
             isFiltered && 'opacity-30',
@@ -52,7 +55,8 @@ export function SlotStack({
               <div
                 key={index}
                 className={cn(
-                  'w-7 sm:w-8 md:w-10 h-1.5 sm:h-2 rounded-sm transition-colors',
+                  'rounded-sm transition-colors',
+                  dimensions.block,
                   getBlockColorClass(index, quantity, isActive)
                 )}
               />
@@ -60,12 +64,20 @@ export function SlotStack({
           </div>
           
           {/* Número do slot */}
-          <span className="text-[8px] sm:text-[10px] text-muted-foreground font-semibold mt-0.5">
+          <span className={cn(
+            'text-muted-foreground font-semibold mt-0.5',
+            dimensions.fontSize.slot
+          )}>
             {slot}
           </span>
           
           {/* Nome do modelo */}
-          <span className="text-[6px] sm:text-[8px] text-muted-foreground/70 font-medium leading-tight text-center w-full line-clamp-2 break-words min-h-[1.5em] sm:min-h-[2em]">
+          <span className={cn(
+            'text-muted-foreground/70 font-medium leading-tight text-center w-full break-words',
+            dimensions.fontSize.model,
+            viewMode === 'compact' ? 'line-clamp-1' : 'line-clamp-2',
+            viewMode === 'compact' ? 'min-h-[1em]' : 'min-h-[1.5em] sm:min-h-[2em]'
+          )}>
             {model}
           </span>
         </div>
@@ -86,8 +98,9 @@ export function SlotStack({
 }
 
 // Componente para slot vazio (sem produto)
-export function EmptySlot() {
+export function EmptySlot({ viewMode = 'expanded' }: { viewMode?: StockViewMode }) {
+  const dimensions = SLOT_DIMENSIONS[viewMode];
   return (
-    <div className="w-12 sm:w-14 md:w-16 h-[70px] sm:h-[85px] md:h-[100px]" />
+    <div className={cn(dimensions.slot, dimensions.height)} />
   );
 }
