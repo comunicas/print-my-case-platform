@@ -1,3 +1,4 @@
+export { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
 export { ProductAnalyticsKPIs } from './ProductAnalyticsKPIs';
 export { ProductDetailModal } from './ProductDetailModal';
 export { ProductPDVDistribution } from './ProductPDVDistribution';
