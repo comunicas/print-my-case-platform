@@ -250,12 +250,29 @@ export function MediaCard({
             {!isVideoPlaying && (
               <div
                 className="absolute inset-0 flex items-center justify-center bg-black/20 cursor-pointer transition-opacity hover:bg-black/30"
-                onClick={handleVideoClick}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleVideoClick();
+                }}
               >
                 <div className="w-14 h-14 rounded-full bg-background/90 flex items-center justify-center shadow-lg transition-transform hover:scale-110">
                   <Play className="h-6 w-6 text-foreground ml-1" />
                 </div>
               </div>
+            )}
+            {/* Botão de expandir quando vídeo está tocando */}
+            {isVideoPlaying && onClick && (
+              <button
+                className="absolute top-2 right-2 z-20 w-8 h-8 rounded-full bg-background/80 flex items-center justify-center shadow-lg hover:bg-background transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  videoRef.current?.pause();
+                  onClick();
+                }}
+                aria-label="Expandir vídeo"
+              >
+                <Maximize2 className="h-4 w-4" />
+              </button>
             )}
           </div>
         ) : (
