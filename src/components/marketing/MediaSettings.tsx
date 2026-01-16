@@ -190,7 +190,7 @@ export function MediaSettings({ organizationId, selectedPdvId }: MediaSettingsPr
   return (
     <div className="space-y-4">
       <div className="text-sm text-muted-foreground">
-        Adicione imagens, vídeos e áudios para cada PDV. Arraste para reordenar. Esses arquivos ficam disponíveis para download no catálogo público.
+        Adicione imagens, vídeos e áudios para cada PDV. Arraste para reordenar. Esses arquivos ficam disponíveis para download na vitrine de mídias do PDV.
       </div>
 
       <Accordion 
