@@ -2,7 +2,10 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { useOrganization } from "@/hooks/useOrganization";
 import { usePDVs } from "@/hooks/usePDVs";
 import { useDefaultPdvPreference } from "@/hooks/useDefaultPdvPreference";
+import { useProfile } from "@/hooks/useProfile";
 import { PDVFilter } from "@/components/ui/PDVFilter";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { Loader2 } from "lucide-react";
 import { lazy, Suspense } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -12,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const CouponsSettings = lazy(() => import("@/components/marketing/CouponsSettings").then(m => ({ default: m.CouponsSettings })));
 const VitrineContent = lazy(() => import("@/components/marketing/VitrineContent").then(m => ({ default: m.VitrineContent })));
 const MarketingOverview = lazy(() => import("@/components/marketing/MarketingOverview").then(m => ({ default: m.MarketingOverview })));
+const MediaSettings = lazy(() => import("@/components/marketing/MediaSettings").then(m => ({ default: m.MediaSettings })));
 
 export default function Marketing() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -19,6 +23,7 @@ export default function Marketing() {
   
   const { organization, isLoading: orgLoading } = useOrganization();
   const { pdvs = [], isLoading: pdvsLoading } = usePDVs();
+  const { role } = useProfile();
   
   const { 
     selectedPdvId, 
@@ -27,6 +32,7 @@ export default function Marketing() {
   } = useDefaultPdvPreference({ pdvs, isLoading: pdvsLoading });
 
   const isLoading = orgLoading || pdvsLoading;
+  const isSuperAdmin = role === "super_admin";
 
   const handleTabChange = (value: string) => {
     setSearchParams({ tab: value });
@@ -101,9 +107,22 @@ export default function Marketing() {
             </Suspense>
           </TabsContent>
 
-          <TabsContent value="midias" className="mt-4">
+          <TabsContent value="midias" className="mt-4 space-y-6">
             <Suspense fallback={<TabSkeleton />}>
-              <VitrineContent selectedPdvId={selectedPdvId} />
+              {isSuperAdmin && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-semibold">Gerenciar Mídias</h2>
+                    <Badge variant="secondary">Super Admin</Badge>
+                  </div>
+                  <MediaSettings organizationId={organization.id} selectedPdvId={selectedPdvId} />
+                  <Separator className="my-6" />
+                </div>
+              )}
+              <div>
+                <h2 className="text-lg font-semibold mb-4">Mídias Disponíveis</h2>
+                <VitrineContent selectedPdvId={selectedPdvId} />
+              </div>
             </Suspense>
           </TabsContent>
         </Tabs>
