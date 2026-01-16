@@ -11,10 +11,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const CouponsSettings = lazy(() => import("@/components/marketing/CouponsSettings").then(m => ({ default: m.CouponsSettings })));
 const VitrineContent = lazy(() => import("@/components/marketing/VitrineContent").then(m => ({ default: m.VitrineContent })));
+const MarketingOverview = lazy(() => import("@/components/marketing/MarketingOverview").then(m => ({ default: m.MarketingOverview })));
 
 export default function Marketing() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get("tab") || "cupons";
+  const activeTab = searchParams.get("tab");
   
   const { organization, isLoading: orgLoading } = useOrganization();
   const { pdvs = [], isLoading: pdvsLoading } = usePDVs();
@@ -46,6 +47,25 @@ export default function Marketing() {
       <AppLayout>
         <div className="text-center py-16 text-muted-foreground">
           Organização não encontrada.
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // Show overview when no tab is selected
+  if (!activeTab) {
+    return (
+      <AppLayout>
+        <div className="space-y-4 md:space-y-6">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold">Marketing</h1>
+            <p className="text-sm md:text-base text-muted-foreground">
+              Gerencie cupons e mídias promocionais dos seus PDVs.
+            </p>
+          </div>
+          <Suspense fallback={<TabSkeleton />}>
+            <MarketingOverview onNavigate={handleTabChange} />
+          </Suspense>
         </div>
       </AppLayout>
     );

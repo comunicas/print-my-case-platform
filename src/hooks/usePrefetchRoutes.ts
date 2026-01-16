@@ -102,18 +102,63 @@ export function usePrefetchRoutes() {
       });
     });
   }, [queryClient, isSuperAdmin, debounce]);
+
+  // Prefetch Marketing data
+  const prefetchMarketing = useCallback(() => {
+    debounce('marketing', () => {
+      if (!profile?.organization_id) return;
+      
+      // Prefetch PDVs for catalog settings (cupons)
+      const pdvsCacheKey = ["pdvs", profile.organization_id];
+      const existingPdvsData = queryClient.getQueryState(pdvsCacheKey);
+      if (!existingPdvsData?.data || existingPdvsData.dataUpdatedAt < Date.now() - 5 * 60 * 1000) {
+        queryClient.prefetchQuery({
+          queryKey: pdvsCacheKey,
+          staleTime: 5 * 60 * 1000,
+          queryFn: async () => {
+            const { data } = await supabase
+              .from("pdvs")
+              .select("id, name, location, status")
+              .eq("organization_id", profile.organization_id)
+              .order("name");
+            return data || [];
+          },
+        });
+      }
+      
+      // Prefetch vitrine media (mídias)
+      const mediaCacheKey = ["vitrine-media-prefetch", profile.organization_id];
+      const existingMediaData = queryClient.getQueryState(mediaCacheKey);
+      if (!existingMediaData?.data || existingMediaData.dataUpdatedAt < Date.now() - 5 * 60 * 1000) {
+        queryClient.prefetchQuery({
+          queryKey: mediaCacheKey,
+          staleTime: 5 * 60 * 1000,
+          queryFn: async () => {
+            const { data } = await supabase
+              .from("pdv_marketing_media")
+              .select("id, pdv_id, title, media_type, file_url")
+              .eq("is_active", true)
+              .limit(50);
+            return data || [];
+          },
+        });
+      }
+    });
+  }, [queryClient, profile, debounce]);
   
   // Mapeamento de rotas para funções de prefetch
   const prefetchMap = useMemo(() => ({
     "/": prefetchDashboard,
     "/organizations": prefetchOrganizations,
     "/estoque": prefetchStock,
-  }), [prefetchDashboard, prefetchOrganizations, prefetchStock]);
+    "/marketing": prefetchMarketing,
+  }), [prefetchDashboard, prefetchOrganizations, prefetchStock, prefetchMarketing]);
   
   return {
     prefetchDashboard,
     prefetchStock,
     prefetchOrganizations,
+    prefetchMarketing,
     prefetchMap,
   };
 }
