@@ -3,16 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, Upload, X, ImageIcon, MapPin, QrCode } from "lucide-react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Loader2, Upload, X, ImageIcon, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { usePDVCatalogSettings } from "@/hooks/usePDVCatalogSettings";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { cn } from "@/lib/utils";
 
 interface CouponsSettingsProps {
   organizationId: string;
@@ -183,170 +178,164 @@ export function CouponsSettings({ organizationId, selectedPdvId }: CouponsSettin
 
   return (
     <div className="space-y-4">
-      <div className="text-sm text-muted-foreground">
-        Configure código e QR Code para cada PDV individualmente. Quando um PDV é selecionado no catálogo, seu código específico será exibido.
-      </div>
+      {filteredPdvs.map((pdv) => {
+        const isEnabled = pdv.catalog_settings?.is_enabled ?? false;
+        const currentCode = getEditingValue(pdv.id, "code") as string;
+        const currentQrUrl = getEditingValue(pdv.id, "qrUrl") as string | null;
+        const currentModalText = getEditingValue(pdv.id, "modalText") as string;
 
-      <Accordion 
-        type="single" 
-        collapsible 
-        className="space-y-2"
-        defaultValue={selectedPdvId !== "all" ? selectedPdvId : undefined}
-      >
-        {filteredPdvs.map((pdv) => {
-          const isEnabled = pdv.catalog_settings?.is_enabled ?? false;
-          const currentCode = getEditingValue(pdv.id, "code") as string;
-          const currentQrUrl = getEditingValue(pdv.id, "qrUrl") as string | null;
-          const currentModalText = getEditingValue(pdv.id, "modalText") as string;
-
-          return (
-            <AccordionItem key={pdv.id} value={pdv.id} className="border rounded-lg px-4">
-              <AccordionTrigger className="hover:no-underline">
-                <div className="flex items-center gap-3 text-left">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <span className="font-medium">{pdv.name}</span>
-                    <span className="text-muted-foreground text-sm ml-2">
+        return (
+          <Card 
+            key={pdv.id} 
+            className={cn(
+              "transition-opacity",
+              !isEnabled && "opacity-60"
+            )}
+          >
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div className="min-w-0">
+                    <span className="font-medium truncate block">{pdv.name}</span>
+                    <span className="text-muted-foreground text-sm truncate block">
                       {pdv.location}
                     </span>
                   </div>
-                  {isEnabled && (
-                    <Badge variant="secondary" className="ml-2">
-                      <QrCode className="h-3 w-3 mr-1" />
-                      Código ativo
-                    </Badge>
-                  )}
                 </div>
-              </AccordionTrigger>
-              <AccordionContent className="pt-4 pb-6">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Ativar código para este PDV</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Quando ativo, este PDV terá seu próprio código no catálogo.
-                      </p>
-                    </div>
-                    <Switch
-                      checked={isEnabled}
-                      onCheckedChange={() => handleToggleEnabled(pdv.id, isEnabled)}
-                      disabled={upsertSettings.isPending}
-                    />
-                  </div>
+                <Switch
+                  checked={isEnabled}
+                  onCheckedChange={() => handleToggleEnabled(pdv.id, isEnabled)}
+                  disabled={upsertSettings.isPending}
+                />
+              </div>
+            </CardHeader>
 
-                  {isEnabled && (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor={`code-${pdv.id}`}>Código do catálogo</Label>
+            <CardContent className="pt-0">
+              {isEnabled ? (
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-[auto_1fr]">
+                    {/* QR Code Section */}
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wide">QR Code</Label>
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        onChange={(e) => handleQrCodeUpload(pdv.id, e)}
+                        className="hidden"
+                        ref={(el) => { fileInputRefs.current[pdv.id] = el; }}
+                      />
+
+                      {currentQrUrl ? (
+                        <div className="space-y-2">
+                          <div className="relative w-24 h-24 rounded-lg border overflow-hidden bg-muted">
+                            <img
+                              src={currentQrUrl}
+                              alt="QR Code"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div className="flex gap-1">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => fileInputRefs.current[pdv.id]?.click()}
+                              disabled={uploadingPdvId === pdv.id}
+                              className="text-xs h-7 px-2"
+                            >
+                              {uploadingPdvId === pdv.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Upload className="h-3 w-3" />
+                              )}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveQrCode(pdv.id)}
+                              className="text-destructive hover:text-destructive text-xs h-7 px-2"
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => fileInputRefs.current[pdv.id]?.click()}
+                          disabled={uploadingPdvId === pdv.id}
+                          className="w-24 h-24 border-dashed flex flex-col gap-1"
+                        >
+                          {uploadingPdvId === pdv.id ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : (
+                            <>
+                              <ImageIcon className="h-5 w-5" />
+                              <span className="text-xs">Upload</span>
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Text Fields Section */}
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`code-${pdv.id}`} className="text-xs text-muted-foreground uppercase tracking-wide">
+                          Código do Catálogo
+                        </Label>
                         <Input
                           id={`code-${pdv.id}`}
                           value={currentCode}
                           onChange={(e) => handleCodeChange(pdv.id, e.target.value)}
                           placeholder="PMC-001"
-                          className="font-mono"
+                          className="font-mono h-9"
                         />
                       </div>
 
-                      <div className="space-y-2">
-                        <Label htmlFor={`modal-text-${pdv.id}`}>Texto da modal do cupom</Label>
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`modal-text-${pdv.id}`} className="text-xs text-muted-foreground uppercase tracking-wide">
+                          Texto da Modal
+                        </Label>
                         <Input
                           id={`modal-text-${pdv.id}`}
                           value={currentModalText}
                           onChange={(e) => handleModalTextChange(pdv.id, e.target.value)}
-                          placeholder="🎁 Presente para você: R$ 10 OFF na sua próxima compra!"
+                          placeholder="🎁 Presente para você: R$ 10 OFF!"
+                          className="h-9"
                         />
                         <p className="text-xs text-muted-foreground">
-                          Deixe em branco para usar o texto padrão da organização.
+                          Deixe em branco para usar o texto padrão.
                         </p>
                       </div>
+                    </div>
+                  </div>
 
-                      <div className="space-y-2">
-                        <Label>Imagem do QR Code</Label>
-                        <input
-                          type="file"
-                          accept="image/png,image/jpeg,image/webp"
-                          onChange={(e) => handleQrCodeUpload(pdv.id, e)}
-                          className="hidden"
-                          ref={(el) => { fileInputRefs.current[pdv.id] = el; }}
-                        />
-
-                        {currentQrUrl ? (
-                          <div className="flex items-start gap-4">
-                            <div className="relative w-24 h-24 rounded-lg border overflow-hidden">
-                              <img
-                                src={currentQrUrl}
-                                alt="QR Code"
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => fileInputRefs.current[pdv.id]?.click()}
-                                disabled={uploadingPdvId === pdv.id}
-                              >
-                                {uploadingPdvId === pdv.id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                ) : (
-                                  <Upload className="h-4 w-4 mr-2" />
-                                )}
-                                Alterar
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleRemoveQrCode(pdv.id)}
-                                className="text-destructive hover:text-destructive"
-                              >
-                                <X className="h-4 w-4 mr-2" />
-                                Remover
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => fileInputRefs.current[pdv.id]?.click()}
-                            disabled={uploadingPdvId === pdv.id}
-                            className="w-full h-24 border-dashed"
-                          >
-                            {uploadingPdvId === pdv.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            ) : (
-                              <ImageIcon className="h-4 w-4 mr-2" />
-                            )}
-                            Enviar imagem do QR Code
-                          </Button>
-                        )}
-                        <p className="text-xs text-muted-foreground">
-                          PNG, JPG ou WEBP. Máximo 2MB.
-                        </p>
-                      </div>
-
-                      <div className="flex justify-end pt-2">
-                        <Button
-                          onClick={() => handleSaveSettings(pdv.id)}
-                          disabled={upsertSettings.isPending}
-                          size="sm"
-                        >
-                          {upsertSettings.isPending && (
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          )}
-                          Salvar Configurações
-                        </Button>
-                      </div>
-                    </>
-                  )}
+                  <div className="flex justify-end pt-2 border-t">
+                    <Button
+                      onClick={() => handleSaveSettings(pdv.id)}
+                      disabled={upsertSettings.isPending}
+                      size="sm"
+                    >
+                      {upsertSettings.isPending && (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      )}
+                      Salvar
+                    </Button>
+                  </div>
                 </div>
-              </AccordionContent>
-            </AccordionItem>
-          );
-        })}
-      </Accordion>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Ative o cupom para configurar código e QR Code.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 }
