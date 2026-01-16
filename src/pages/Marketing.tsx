@@ -19,7 +19,7 @@ export default function Marketing() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab");
   
-  const { organization, isLoading: orgLoading } = useOrganization();
+  const { organization, isLoading: orgLoading } = useOrganization({ readOnly: true });
   const { pdvs = [], isLoading: pdvsLoading } = usePDVs();
   const { role, isAdmin } = useProfile();
   
