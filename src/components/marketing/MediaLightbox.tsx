@@ -620,7 +620,6 @@ export function MediaLightbox({
             <video
               src={media.file_url}
               controls
-              autoPlay
               className="max-w-full max-h-full rounded-lg"
             />
           )}
