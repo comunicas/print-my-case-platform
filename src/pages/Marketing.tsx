@@ -1,16 +1,14 @@
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useOrganization } from "@/hooks/useOrganization";
 import { usePDVs } from "@/hooks/usePDVs";
 import { useDefaultPdvPreference } from "@/hooks/useDefaultPdvPreference";
 import { PDVFilter } from "@/components/ui/PDVFilter";
-import { Loader2, QrCode, Image } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { lazy, Suspense } from "react";
 import { TabSkeleton } from "@/components/settings/TabSkeleton";
 
 const CouponsSettings = lazy(() => import("@/components/marketing/CouponsSettings").then(m => ({ default: m.CouponsSettings })));
-const MediaSettings = lazy(() => import("@/components/marketing/MediaSettings").then(m => ({ default: m.MediaSettings })));
 
 export default function Marketing() {
   const { organization, isLoading: orgLoading } = useOrganization();
@@ -49,9 +47,9 @@ export default function Marketing() {
       <div className="space-y-4 md:space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold">Marketing</h1>
+            <h1 className="text-xl md:text-2xl font-bold">Cupons</h1>
             <p className="text-sm md:text-base text-muted-foreground">
-              Gerencie cupons e mídias para seus PDVs.
+              Configure códigos promocionais e QR Codes para seus PDVs.
             </p>
           </div>
           <PDVFilter
@@ -62,50 +60,9 @@ export default function Marketing() {
           />
         </div>
 
-        <Tabs defaultValue="cupons" className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="cupons" className="gap-2">
-              <QrCode className="h-4 w-4" />
-              Cupons
-            </TabsTrigger>
-            <TabsTrigger value="midia" className="gap-2">
-              <Image className="h-4 w-4" />
-              Mídia
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="cupons" className="mt-4 md:mt-6">
-            <Card>
-              <CardHeader className="px-4 md:px-6 pt-4 md:pt-6 pb-3">
-                <CardTitle className="text-base md:text-lg">Códigos e QR Codes</CardTitle>
-                <CardDescription className="text-xs md:text-sm">
-                  Configure códigos promocionais e QR Codes para cada PDV do catálogo público.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
-              <Suspense fallback={<TabSkeleton />}>
-                  <CouponsSettings organizationId={organization.id} selectedPdvId={selectedPdvId} />
-                </Suspense>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="midia" className="mt-4 md:mt-6">
-            <Card>
-              <CardHeader className="px-4 md:px-6 pt-4 md:pt-6 pb-3">
-                <CardTitle className="text-base md:text-lg">Imagens, Vídeos e Áudios</CardTitle>
-                <CardDescription className="text-xs md:text-sm">
-                  Adicione imagens, vídeos e áudios para download no catálogo público.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
-              <Suspense fallback={<TabSkeleton />}>
-                  <MediaSettings organizationId={organization.id} selectedPdvId={selectedPdvId} />
-                </Suspense>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        <Suspense fallback={<TabSkeleton />}>
+          <CouponsSettings organizationId={organization.id} selectedPdvId={selectedPdvId} />
+        </Suspense>
       </div>
     </AppLayout>
   );
