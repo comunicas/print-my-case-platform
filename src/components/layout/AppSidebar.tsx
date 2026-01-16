@@ -6,7 +6,6 @@ import {
   ChevronDown,
   Building2,
   Megaphone,
-  Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -34,14 +33,17 @@ interface NavItem {
 const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
   { icon: Upload, label: "Uploads", href: "/uploads" },
-  { icon: Megaphone, label: "Marketing", href: "/marketing" },
-  { icon: Download, label: "Vitrine", href: "/vitrine" },
   { icon: Building2, label: "Organizações", href: "/organizations", superAdminOnly: true },
 ];
 
 const stockSubItems = [
   { label: "Tabela", href: "/estoque?tab=tabela" },
   { label: "Mapa", href: "/estoque?tab=mapa" },
+];
+
+const marketingSubItems = [
+  { label: "Cupons", href: "/marketing" },
+  { label: "Mídias", href: "/vitrine" },
 ];
 
 interface AppSidebarProps {
@@ -51,6 +53,8 @@ interface AppSidebarProps {
   onNavigate: (href: string) => void;
   stockExpanded: boolean;
   onStockExpandedChange: (expanded: boolean) => void;
+  marketingExpanded: boolean;
+  onMarketingExpandedChange: (expanded: boolean) => void;
 }
 
 export function AppSidebar({ 
@@ -60,11 +64,14 @@ export function AppSidebar({
   onNavigate,
   stockExpanded,
   onStockExpandedChange,
+  marketingExpanded,
+  onMarketingExpandedChange,
 }: AppSidebarProps) {
   const { role } = useProfile();
   const { prefetchMap, prefetchStock } = usePrefetchRoutes();
   const isSuperAdmin = role === "super_admin";
   const isStockActive = activeItem.startsWith("/estoque");
+  const isMarketingActive = activeItem.startsWith("/marketing") || activeItem.startsWith("/vitrine");
 
   const visibleNavItems = navItems.filter(
     (item) => !item.superAdminOnly || isSuperAdmin
@@ -200,6 +207,87 @@ export function AppSidebar({
     );
   };
 
+  const renderMarketingMenu = () => {
+    if (collapsed) {
+      const button = (
+        <button
+          onClick={() => onNavigate("/marketing")}
+          className={cn(
+            "w-full flex items-center justify-center px-2 py-2.5 rounded-lg text-sm font-medium transition-colors",
+            isMarketingActive
+              ? "bg-sidebar-accent text-sidebar-accent-foreground"
+              : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+          )}
+        >
+          <Megaphone className="h-5 w-5 flex-shrink-0" />
+        </button>
+      );
+
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>{button}</TooltipTrigger>
+          <TooltipContent side="right" className="font-medium">
+            Marketing
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    const effectiveMarketingExpanded = isMarketingActive || marketingExpanded;
+
+    return (
+      <Collapsible open={effectiveMarketingExpanded} onOpenChange={onMarketingExpandedChange}>
+        <CollapsibleTrigger asChild>
+          <button
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+              isMarketingActive
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+            )}
+          >
+            <Megaphone className="h-5 w-5 flex-shrink-0" />
+            <span className={cn(
+              "flex-1 text-left transition-all duration-200",
+              collapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
+            )}>
+              Marketing
+            </span>
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 transition-transform duration-200",
+                effectiveMarketingExpanded && "rotate-180"
+              )}
+            />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="ml-4 mt-1 space-y-1">
+            {marketingSubItems.map((subItem) => {
+              const isSubActive = activeItem.startsWith(subItem.href);
+              
+              return (
+                <button
+                  key={subItem.href}
+                  onClick={() => onNavigate(subItem.href)}
+                  className={cn(
+                    "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                    isSubActive
+                      ? "bg-sidebar-accent/70 text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/30 hover:text-sidebar-accent-foreground"
+                  )}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60" />
+                  <span>{subItem.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  };
+
   return (
     <TooltipProvider delayDuration={0}>
       <aside
@@ -233,10 +321,9 @@ export function AppSidebar({
           {renderNavItem(visibleNavItems[0])} {/* Dashboard */}
           {renderStockMenu()}
           {renderNavItem(visibleNavItems[1])} {/* Uploads */}
-          {renderNavItem(visibleNavItems[2])} {/* Marketing */}
-          {renderNavItem(visibleNavItems[3])} {/* Vitrine */}
+          {renderMarketingMenu()}
           {/* Super Admin items */}
-          {visibleNavItems.slice(4).map(renderNavItem)}
+          {visibleNavItems.slice(2).map(renderNavItem)}
         </nav>
 
         {/* Collapse Toggle */}
