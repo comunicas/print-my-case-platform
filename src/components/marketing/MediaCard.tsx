@@ -233,8 +233,8 @@ export function MediaCard({
             onClick?.();
           }}
         >
-          {/* Expand overlay on hover */}
-          {onClick && (
+          {/* Expand overlay on hover - hide when video is playing (has dedicated button) */}
+          {onClick && !(media.media_type === "video" && isVideoPlaying) && (
             <div className="absolute inset-0 z-10 bg-black/0 group-hover/preview:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover/preview:opacity-100 pointer-events-none">
               <div className="w-10 h-10 rounded-full bg-background/90 flex items-center justify-center shadow-lg">
                 <Maximize2 className="h-5 w-5 text-foreground" />
