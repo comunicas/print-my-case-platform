@@ -13,6 +13,7 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const { collapsed: sidebarCollapsed, updateCollapsed, stockExpanded, updateStockExpanded } = useSidebarPreferences();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [marketingExpanded, setMarketingExpanded] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const breakpoint = useBreakpoint();
@@ -41,6 +42,8 @@ export function AppLayout({ children }: AppLayoutProps) {
           onNavigate={handleNavigate}
           stockExpanded={stockExpanded}
           onStockExpandedChange={updateStockExpanded}
+          marketingExpanded={marketingExpanded}
+          onMarketingExpandedChange={setMarketingExpanded}
         />
       )}
 
@@ -53,6 +56,8 @@ export function AppLayout({ children }: AppLayoutProps) {
           onNavigate={handleNavigate}
           stockExpanded={stockExpanded}
           onStockExpandedChange={updateStockExpanded}
+          marketingExpanded={marketingExpanded}
+          onMarketingExpandedChange={setMarketingExpanded}
         />
       )}
 

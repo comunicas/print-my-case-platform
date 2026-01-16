@@ -29,12 +29,16 @@ interface NavItem {
 const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
   { icon: Upload, label: "Uploads", href: "/uploads" },
-  { icon: Megaphone, label: "Marketing", href: "/marketing" },
 ];
 
 const stockSubItems = [
   { label: "Tabela", href: "/estoque?tab=tabela" },
   { label: "Mapa", href: "/estoque?tab=mapa" },
+];
+
+const marketingSubItems = [
+  { label: "Cupons", href: "/marketing" },
+  { label: "Mídias", href: "/vitrine" },
 ];
 
 interface MobileSidebarProps {
@@ -44,6 +48,8 @@ interface MobileSidebarProps {
   onNavigate: (href: string) => void;
   stockExpanded: boolean;
   onStockExpandedChange: (expanded: boolean) => void;
+  marketingExpanded: boolean;
+  onMarketingExpandedChange: (expanded: boolean) => void;
 }
 
 export function MobileSidebar({ 
@@ -53,8 +59,11 @@ export function MobileSidebar({
   onNavigate,
   stockExpanded,
   onStockExpandedChange,
+  marketingExpanded,
+  onMarketingExpandedChange,
 }: MobileSidebarProps) {
   const isStockActive = activeItem.startsWith("/estoque");
+  const isMarketingActive = activeItem.startsWith("/marketing") || activeItem.startsWith("/vitrine");
 
   const handleNavClick = (href: string) => {
     onNavigate(href);
@@ -138,6 +147,57 @@ export function MobileSidebar({
     );
   };
 
+  const renderMarketingMenu = () => {
+    const effectiveMarketingExpanded = isMarketingActive || marketingExpanded;
+
+    return (
+      <Collapsible open={effectiveMarketingExpanded} onOpenChange={onMarketingExpandedChange}>
+        <CollapsibleTrigger asChild>
+          <button
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors",
+              isMarketingActive
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+            )}
+          >
+            <Megaphone className="h-5 w-5 flex-shrink-0" />
+            <span className="flex-1 text-left">Marketing</span>
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 transition-transform duration-200",
+                effectiveMarketingExpanded && "rotate-180"
+              )}
+            />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="ml-4 mt-1 space-y-1">
+            {marketingSubItems.map((subItem) => {
+              const isSubActive = activeItem.startsWith(subItem.href);
+              
+              return (
+                <button
+                  key={subItem.href}
+                  onClick={() => handleNavClick(subItem.href)}
+                  className={cn(
+                    "w-full flex items-center gap-2 px-3 py-2.5 rounded-md text-sm transition-colors",
+                    isSubActive
+                      ? "bg-sidebar-accent/70 text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/30 hover:text-sidebar-accent-foreground"
+                  )}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60" />
+                  <span>{subItem.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="left" className="w-72 p-0 bg-sidebar border-sidebar-border">
@@ -162,7 +222,7 @@ export function MobileSidebar({
           {renderNavItem(navItems[0])}
           {renderStockMenu()}
           {renderNavItem(navItems[1])}
-          {renderNavItem(navItems[2])}
+          {renderMarketingMenu()}
         </nav>
       </SheetContent>
     </Sheet>
