@@ -107,22 +107,22 @@ export default function Marketing() {
             </Suspense>
           </TabsContent>
 
-          <TabsContent value="midias" className="mt-4 space-y-6">
+          <TabsContent value="midias" className="mt-4">
             <Suspense fallback={<TabSkeleton />}>
-              {isSuperAdmin && (
+              {isSuperAdmin ? (
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
                     <h2 className="text-lg font-semibold">Gerenciar Mídias</h2>
                     <Badge variant="secondary">Super Admin</Badge>
                   </div>
                   <MediaSettings organizationId={organization.id} selectedPdvId={selectedPdvId} />
-                  <Separator className="my-6" />
+                </div>
+              ) : (
+                <div>
+                  <h2 className="text-lg font-semibold mb-4">Mídias Disponíveis</h2>
+                  <VitrineContent selectedPdvId={selectedPdvId} />
                 </div>
               )}
-              <div>
-                <h2 className="text-lg font-semibold mb-4">Mídias Disponíveis</h2>
-                <VitrineContent selectedPdvId={selectedPdvId} />
-              </div>
             </Suspense>
           </TabsContent>
         </Tabs>
