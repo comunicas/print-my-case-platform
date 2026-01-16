@@ -1,16 +1,21 @@
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useOrganization } from "@/hooks/useOrganization";
 import { usePDVs } from "@/hooks/usePDVs";
 import { useDefaultPdvPreference } from "@/hooks/useDefaultPdvPreference";
 import { PDVFilter } from "@/components/ui/PDVFilter";
 import { Loader2 } from "lucide-react";
 import { lazy, Suspense } from "react";
+import { useSearchParams } from "react-router-dom";
 import { TabSkeleton } from "@/components/settings/TabSkeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const CouponsSettings = lazy(() => import("@/components/marketing/CouponsSettings").then(m => ({ default: m.CouponsSettings })));
+const VitrineContent = lazy(() => import("@/components/marketing/VitrineContent").then(m => ({ default: m.VitrineContent })));
 
 export default function Marketing() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "cupons";
+  
   const { organization, isLoading: orgLoading } = useOrganization();
   const { pdvs = [], isLoading: pdvsLoading } = usePDVs();
   
@@ -21,6 +26,10 @@ export default function Marketing() {
   } = useDefaultPdvPreference({ pdvs, isLoading: pdvsLoading });
 
   const isLoading = orgLoading || pdvsLoading;
+
+  const handleTabChange = (value: string) => {
+    setSearchParams({ tab: value });
+  };
 
   if (isLoading) {
     return (
@@ -47,9 +56,9 @@ export default function Marketing() {
       <div className="space-y-4 md:space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold">Cupons</h1>
+            <h1 className="text-xl md:text-2xl font-bold">Marketing</h1>
             <p className="text-sm md:text-base text-muted-foreground">
-              Configure códigos promocionais e QR Codes para seus PDVs.
+              Gerencie cupons e mídias promocionais dos seus PDVs.
             </p>
           </div>
           <PDVFilter
@@ -60,9 +69,24 @@ export default function Marketing() {
           />
         </div>
 
-        <Suspense fallback={<TabSkeleton />}>
-          <CouponsSettings organizationId={organization.id} selectedPdvId={selectedPdvId} />
-        </Suspense>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
+          <TabsList>
+            <TabsTrigger value="cupons">Cupons</TabsTrigger>
+            <TabsTrigger value="midias">Mídias</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="cupons" className="mt-4">
+            <Suspense fallback={<TabSkeleton />}>
+              <CouponsSettings organizationId={organization.id} selectedPdvId={selectedPdvId} />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="midias" className="mt-4">
+            <Suspense fallback={<TabSkeleton />}>
+              <VitrineContent selectedPdvId={selectedPdvId} />
+            </Suspense>
+          </TabsContent>
+        </Tabs>
       </div>
     </AppLayout>
   );

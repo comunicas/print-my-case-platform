@@ -20,7 +20,7 @@ const Auth = lazy(() => import("./pages/Auth"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const PublicStock = lazy(() => import("./pages/PublicStock"));
 const Marketing = lazy(() => import("./pages/Marketing"));
-const Vitrine = lazy(() => import("./pages/Vitrine"));
+// Vitrine foi unificado em Marketing
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -59,8 +59,9 @@ const App = () => (
                   <Route path="/uploads/:id" element={<ProtectedRoute><UploadDetails /></ProtectedRoute>} />
                   <Route path="/estoque" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
                   <Route path="/reports" element={<Navigate to="/estoque" replace />} />
-                  <Route path="/marketing" element={<ProtectedRoute><Marketing /></ProtectedRoute>} />
-                  <Route path="/vitrine" element={<ProtectedRoute><Vitrine /></ProtectedRoute>} />
+<Route path="/marketing" element={<ProtectedRoute><Marketing /></ProtectedRoute>} />
+                  {/* Redirect para manter compatibilidade com links antigos */}
+                  <Route path="/vitrine" element={<Navigate to="/marketing?tab=midias" replace />} />
                   <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                   <Route path="/organizations" element={<ProtectedRoute><Organizations /></ProtectedRoute>} />
                   {/* Redirects for old routes */}
