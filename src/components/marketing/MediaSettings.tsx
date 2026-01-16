@@ -16,7 +16,7 @@ import {
 } from "@dnd-kit/sortable";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, MapPin, Plus } from "lucide-react";
+import { Image, Loader2, MapPin, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { usePDVMarketingMedia, MarketingMedia } from "@/hooks/usePDVMarketingMedia";
 import {
@@ -40,9 +40,10 @@ import { MediaCard } from "./MediaCard";
 interface MediaSettingsProps {
   organizationId: string;
   selectedPdvId?: string;
+  isAdmin?: boolean;
 }
 
-export function MediaSettings({ organizationId, selectedPdvId }: MediaSettingsProps) {
+export function MediaSettings({ organizationId, selectedPdvId, isAdmin = true }: MediaSettingsProps) {
   const { pdvsWithMedia, isLoading, addMedia, updateMedia, deleteMedia, reorderMedia, uploadMediaFile } = usePDVMarketingMedia(organizationId);
   const [uploadingPdvId, setUploadingPdvId] = useState<string | null>(null);
   const [editingMedia, setEditingMedia] = useState<{ id: string; title: string } | null>(null);
@@ -59,6 +60,7 @@ export function MediaSettings({ organizationId, selectedPdvId }: MediaSettingsPr
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
 
   const handleDragEnd = useCallback(
     (pdvId: string, mediaList: MarketingMedia[]) => (event: DragEndEvent) => {
@@ -169,6 +171,15 @@ export function MediaSettings({ organizationId, selectedPdvId }: MediaSettingsPr
     ? pdvsWithMedia.filter(p => p.id === selectedPdvId)
     : pdvsWithMedia;
 
+  // No modo readonly, pegar apenas mídias ativas de todos os PDVs
+  const allActiveMedia = !isAdmin
+    ? filteredPdvs.flatMap((pdv) =>
+        pdv.media
+          .filter((m) => m.is_active)
+          .map((m) => ({ ...m, pdvName: pdv.name }))
+      )
+    : [];
+
   if (pdvsWithMedia.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -187,6 +198,44 @@ export function MediaSettings({ organizationId, selectedPdvId }: MediaSettingsPr
     );
   }
 
+  // Modo readonly: mostrar grid flat com todas as mídias ativas
+  if (!isAdmin) {
+    if (allActiveMedia.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center h-64 text-center">
+          <Image className="h-16 w-16 text-muted-foreground/50 mb-4" />
+          <h3 className="text-lg font-medium text-muted-foreground">
+            Nenhuma mídia disponível
+          </h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            {selectedPdvId && selectedPdvId !== "all"
+              ? "Este PDV não possui mídias ativas no momento."
+              : "Não há mídias ativas nos PDVs que você tem acesso."}
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        <div className="text-sm text-muted-foreground">
+          Baixe imagens, vídeos e áudios disponíveis para os PDVs.
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {allActiveMedia.map((media) => (
+            <MediaCard
+              key={media.id}
+              media={media}
+              mode="readonly"
+              pdvName={media.pdvName}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Modo admin: mostrar accordion com todas as funcionalidades
   return (
     <div className="space-y-4">
       <div className="text-sm text-muted-foreground">
@@ -263,6 +312,7 @@ export function MediaSettings({ organizationId, selectedPdvId }: MediaSettingsPr
                             <MediaCard
                               key={media.id}
                               media={media}
+                              mode="admin"
                               onToggleActive={handleToggleActive}
                               onEdit={(m) => setEditingMedia({ id: m.id, title: m.title })}
                               onDelete={(id) => setMediaToDelete(id)}

@@ -1,1 +1,0 @@
-export { VitrineMediaCard } from "./VitrineMediaCard";
