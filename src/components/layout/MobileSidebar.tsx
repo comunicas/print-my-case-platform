@@ -5,6 +5,8 @@ import {
   X,
   ChevronDown,
   Megaphone,
+  Building2,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -19,16 +21,23 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { useProfile } from "@/hooks/useProfile";
 
 interface NavItem {
   icon: React.ElementType;
   label: string;
   href: string;
+  superAdminOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
   { icon: Upload, label: "Uploads", href: "/uploads" },
+];
+
+const bottomNavItems: NavItem[] = [
+  { icon: Building2, label: "Organizações", href: "/organizacoes", superAdminOnly: true },
+  { icon: Settings, label: "Configurações", href: "/settings" },
 ];
 
 const stockSubItems = [
@@ -62,6 +71,9 @@ export function MobileSidebar({
   marketingExpanded,
   onMarketingExpandedChange,
 }: MobileSidebarProps) {
+  const { role } = useProfile();
+  const isSuperAdmin = role === "super_admin";
+  
   const isStockActive = activeItem.startsWith("/estoque");
   const isMarketingActive = activeItem.startsWith("/marketing") || activeItem.startsWith("/vitrine");
 
@@ -218,12 +230,20 @@ export function MobileSidebar({
           </Button>
         </SheetHeader>
 
-        <nav className="flex-1 py-4 px-2 space-y-1">
-          {renderNavItem(navItems[0])}
-          {renderStockMenu()}
-          {renderNavItem(navItems[1])}
-          {renderMarketingMenu()}
-        </nav>
+        <div className="flex-1 flex flex-col">
+          <nav className="flex-1 py-4 px-2 space-y-1">
+            {renderNavItem(navItems[0])}
+            {renderStockMenu()}
+            {renderNavItem(navItems[1])}
+            {renderMarketingMenu()}
+          </nav>
+          
+          <nav className="py-4 px-2 space-y-1 border-t border-sidebar-border">
+            {bottomNavItems
+              .filter(item => !item.superAdminOnly || isSuperAdmin)
+              .map(renderNavItem)}
+          </nav>
+        </div>
       </SheetContent>
     </Sheet>
   );

@@ -3,6 +3,7 @@ import { usePreferences } from "./usePreferences";
 
 const STORAGE_KEY_COLLAPSED = "sidebar-collapsed";
 const STORAGE_KEY_STOCK = "sidebar-reports-expanded"; // Keep same key for backwards compatibility
+const STORAGE_KEY_MARKETING = "sidebar-marketing-expanded";
 
 export function useSidebarPreferences() {
   const { preferences, isLoading, updatePreferences } = usePreferences();
@@ -15,6 +16,11 @@ export function useSidebarPreferences() {
 
   const [stockExpanded, setStockExpanded] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY_STOCK);
+    return saved === "true";
+  });
+
+  const [marketingExpanded, setMarketingExpanded] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_MARKETING);
     return saved === "true";
   });
 
@@ -45,11 +51,19 @@ export function useSidebarPreferences() {
     updatePreferences.mutate({ sidebar_reports_expanded: value });
   }, [updatePreferences]);
 
+  const updateMarketingExpanded = useCallback((value: boolean) => {
+    setMarketingExpanded(value);
+    localStorage.setItem(STORAGE_KEY_MARKETING, String(value));
+    // Marketing expanded is only stored locally for now
+  }, []);
+
   return {
     collapsed,
     stockExpanded,
+    marketingExpanded,
     updateCollapsed,
     updateStockExpanded,
+    updateMarketingExpanded,
     isLoading,
   };
 }
