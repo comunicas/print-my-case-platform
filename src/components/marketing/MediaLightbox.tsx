@@ -6,7 +6,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@/components/ui/visually-hidden";
 import {
   Select,
   SelectContent,
@@ -479,6 +480,9 @@ export function MediaLightbox({
         ref={dialogRef}
         className="max-w-[95vw] max-h-[95vh] w-full h-full p-0 bg-background/95 backdrop-blur-sm border-border"
       >
+        <VisuallyHidden>
+          <DialogTitle>Visualização de mídia</DialogTitle>
+        </VisuallyHidden>
         {/* Slideshow progress bar */}
         {slideshowActive && isImage && (
           <div className="absolute top-0 left-0 right-0 h-1 bg-muted z-20">
