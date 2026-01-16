@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from "react";
+import { useState, lazy, Suspense, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,6 +23,9 @@ const TeamSettings = lazy(() => import("@/components/settings/TeamSettings").the
 const IntegrationsSettings = lazy(() => import("@/components/settings/IntegrationsSettings").then(m => ({ default: m.IntegrationsSettings })));
 const ProductRequestsSettings = lazy(() => import("@/components/settings/ProductRequestsSettings").then(m => ({ default: m.ProductRequestsSettings })));
 
+// Abas restritas apenas para admins
+const ADMIN_ONLY_TABS = ["team", "requests"];
+
 export default function Settings() {
 const [searchParams, setSearchParams] = useSearchParams();
   const { session } = useAuth();
@@ -33,6 +36,17 @@ const [searchParams, setSearchParams] = useSearchParams();
   
   // Sincronizar tab com URL
   const activeTab = searchParams.get("tab") || "profile";
+  
+  // Redirecionar não-admins de abas restritas para perfil
+  useEffect(() => {
+    if (!isAdmin && ADMIN_ONLY_TABS.includes(activeTab)) {
+      setSearchParams(prev => {
+        const newParams = new URLSearchParams(prev);
+        newParams.set("tab", "profile");
+        return newParams;
+      });
+    }
+  }, [activeTab, isAdmin, setSearchParams]);
   
   const handleTabChange = (value: string) => {
     setSearchParams(prev => {
