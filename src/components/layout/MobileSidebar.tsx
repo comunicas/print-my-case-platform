@@ -46,8 +46,8 @@ const stockSubItems = [
 ];
 
 const marketingSubItems = [
-  { label: "Cupons", href: "/marketing" },
-  { label: "Mídias", href: "/vitrine" },
+  { label: "Cupons", href: "/marketing?tab=cupons" },
+  { label: "Mídias", href: "/marketing?tab=midias" },
 ];
 
 interface MobileSidebarProps {
@@ -75,7 +75,7 @@ export function MobileSidebar({
   const isSuperAdmin = role === "super_admin";
   
   const isStockActive = activeItem.startsWith("/estoque");
-  const isMarketingActive = activeItem.startsWith("/marketing") || activeItem.startsWith("/vitrine");
+  const isMarketingActive = activeItem.startsWith("/marketing");
 
   const handleNavClick = (href: string) => {
     onNavigate(href);
@@ -186,7 +186,11 @@ export function MobileSidebar({
         <CollapsibleContent>
           <div className="ml-4 mt-1 space-y-1">
             {marketingSubItems.map((subItem) => {
-              const isSubActive = activeItem.startsWith(subItem.href);
+              const activeTab = activeItem.startsWith("/marketing")
+                ? new URLSearchParams(activeItem.split("?")[1]).get("tab") || "cupons"
+                : null;
+              const subItemTab = subItem.href.split("=")[1];
+              const isSubActive = activeTab === subItemTab;
               
               return (
                 <button
