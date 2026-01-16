@@ -19,6 +19,7 @@ import {
   Pause,
   Check,
   X,
+  Maximize2,
 } from "lucide-react";
 import { MarketingMedia } from "@/hooks/usePDVMarketingMedia";
 
@@ -35,6 +36,7 @@ interface MediaCardProps {
   onSaveTitle?: () => void;
   onCancelEdit?: () => void;
   formatFileSize?: (bytes: number | null) => string;
+  onClick?: () => void;
 }
 
 const defaultFormatFileSize = (bytes: number | null) => {
@@ -51,6 +53,7 @@ export function MediaCard({
   onToggleActive,
   onEdit,
   onDelete,
+  onClick,
   isEditing = false,
   editTitle = "",
   onEditTitleChange,
@@ -209,13 +212,30 @@ export function MediaCard({
 
       {/* Media preview */}
       <AspectRatio ratio={4 / 3}>
-        {media.media_type === "image" ? (
-          <img
-            src={media.file_url}
-            alt={media.title}
-            className="w-full h-full object-cover"
-          />
-        ) : media.media_type === "video" ? (
+        <div 
+          className={`relative w-full h-full ${onClick ? 'cursor-pointer group/preview' : ''}`}
+          onClick={(e) => {
+            // Don't trigger onClick if clicking on controls
+            if ((e.target as HTMLElement).closest('button, video[controls]')) return;
+            onClick?.();
+          }}
+        >
+          {/* Expand overlay on hover */}
+          {onClick && (
+            <div className="absolute inset-0 z-10 bg-black/0 group-hover/preview:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover/preview:opacity-100 pointer-events-none">
+              <div className="w-10 h-10 rounded-full bg-background/90 flex items-center justify-center shadow-lg">
+                <Maximize2 className="h-5 w-5 text-foreground" />
+              </div>
+            </div>
+          )}
+          
+          {media.media_type === "image" ? (
+            <img
+              src={media.file_url}
+              alt={media.title}
+              className="w-full h-full object-cover"
+            />
+          ) : media.media_type === "video" ? (
           <div className="w-full h-full bg-muted relative">
             <video
               ref={videoRef}
@@ -295,6 +315,7 @@ export function MediaCard({
             </div>
           </div>
         )}
+        </div>
       </AspectRatio>
 
       {/* Footer with info and actions */}
