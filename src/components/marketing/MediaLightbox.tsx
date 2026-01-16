@@ -1,7 +1,8 @@
 import { useEffect, useCallback, useState, useMemo, useRef } from "react";
 import { 
   X, ChevronLeft, ChevronRight, Download, Image, Video, Music, 
-  Play, Pause, Volume2, ZoomIn, ZoomOut, RotateCcw, PlayCircle, PauseCircle
+  Play, Pause, Volume2, ZoomIn, ZoomOut, RotateCcw, PlayCircle, PauseCircle,
+  Maximize2, Minimize2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -108,6 +109,10 @@ export function MediaLightbox({
   const [initialPinchDistance, setInitialPinchDistance] = useState(0);
   const [initialZoom, setInitialZoom] = useState(1);
   const imageContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Fullscreen state
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   // Swipe gesture for mobile navigation (only when not zoomed)
   const swipeEnabled = zoomLevel === 1 && media?.media_type === "image";
@@ -184,6 +189,29 @@ export function MediaLightbox({
     }
   }, [isOpen]);
 
+  // Fullscreen change listener
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  // Toggle fullscreen
+  const toggleFullscreen = useCallback(async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await dialogRef.current?.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (error) {
+      console.error("Erro ao alternar fullscreen:", error);
+    }
+  }, []);
+
   // Keyboard navigation
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (!isOpen) return;
@@ -233,8 +261,12 @@ export function MediaLightbox({
           setPanPosition({ x: 0, y: 0 });
         }
         break;
+      case "f":
+      case "F":
+        toggleFullscreen();
+        break;
     }
-  }, [isOpen, hasPrevious, hasNext, onPrevious, onNext, onClose, media]);
+  }, [isOpen, hasPrevious, hasNext, onPrevious, onNext, onClose, media, toggleFullscreen]);
 
   useEffect(() => {
     document.addEventListener("keydown", handleKeyDown);
@@ -443,7 +475,10 @@ export function MediaLightbox({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[95vw] max-h-[95vh] w-full h-full p-0 bg-background/95 backdrop-blur-sm border-border">
+      <DialogContent 
+        ref={dialogRef}
+        className="max-w-[95vw] max-h-[95vh] w-full h-full p-0 bg-background/95 backdrop-blur-sm border-border"
+      >
         {/* Slideshow progress bar */}
         {slideshowActive && isImage && (
           <div className="absolute top-0 left-0 right-0 h-1 bg-muted z-20">
@@ -500,6 +535,19 @@ export function MediaLightbox({
                 </Select>
               </>
             )}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={toggleFullscreen}
+              className="rounded-full"
+              title={isFullscreen ? "Sair da tela cheia (F)" : "Tela cheia (F)"}
+            >
+              {isFullscreen ? (
+                <Minimize2 className="h-5 w-5" />
+              ) : (
+                <Maximize2 className="h-5 w-5" />
+              )}
+            </Button>
             <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full">
               <X className="h-5 w-5" />
             </Button>
