@@ -5,7 +5,6 @@ import { useDefaultPdvPreference } from "@/hooks/useDefaultPdvPreference";
 import { useProfile } from "@/hooks/useProfile";
 import { PDVFilter } from "@/components/ui/PDVFilter";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Loader2 } from "lucide-react";
 import { lazy, Suspense } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -13,7 +12,6 @@ import { TabSkeleton } from "@/components/settings/TabSkeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const CouponsSettings = lazy(() => import("@/components/marketing/CouponsSettings").then(m => ({ default: m.CouponsSettings })));
-const VitrineContent = lazy(() => import("@/components/marketing/VitrineContent").then(m => ({ default: m.VitrineContent })));
 const MarketingOverview = lazy(() => import("@/components/marketing/MarketingOverview").then(m => ({ default: m.MarketingOverview })));
 const MediaSettings = lazy(() => import("@/components/marketing/MediaSettings").then(m => ({ default: m.MediaSettings })));
 
@@ -109,20 +107,22 @@ export default function Marketing() {
 
           <TabsContent value="midias" className="mt-4">
             <Suspense fallback={<TabSkeleton />}>
-              {isSuperAdmin ? (
-                <div className="space-y-4">
+              <div className="space-y-4">
+                {isSuperAdmin && (
                   <div className="flex items-center gap-2">
                     <h2 className="text-lg font-semibold">Gerenciar Mídias</h2>
                     <Badge variant="secondary">Super Admin</Badge>
                   </div>
-                  <MediaSettings organizationId={organization.id} selectedPdvId={selectedPdvId} />
-                </div>
-              ) : (
-                <div>
-                  <h2 className="text-lg font-semibold mb-4">Mídias Disponíveis</h2>
-                  <VitrineContent selectedPdvId={selectedPdvId} />
-                </div>
-              )}
+                )}
+                {!isSuperAdmin && (
+                  <h2 className="text-lg font-semibold">Mídias Disponíveis</h2>
+                )}
+                <MediaSettings 
+                  organizationId={organization.id} 
+                  selectedPdvId={selectedPdvId}
+                  isAdmin={isSuperAdmin}
+                />
+              </div>
             </Suspense>
           </TabsContent>
         </Tabs>
