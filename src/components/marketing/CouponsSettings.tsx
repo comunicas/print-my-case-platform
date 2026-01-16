@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +14,8 @@ interface CouponsSettingsProps {
   selectedPdvId?: string;
 }
 
-export function CouponsSettings({ organizationId, selectedPdvId }: CouponsSettingsProps) {
+export const CouponsSettings = React.forwardRef<HTMLDivElement, CouponsSettingsProps>(
+  function CouponsSettings({ organizationId, selectedPdvId }, ref) {
   const { pdvsWithSettings, isLoading, upsertSettings, uploadQrCode } = usePDVCatalogSettings(organizationId);
   const [uploadingPdvId, setUploadingPdvId] = useState<string | null>(null);
   const [editingPdv, setEditingPdv] = useState<Record<string, { code: string; qrUrl: string | null; modalText: string | null }>>({});
@@ -177,7 +178,7 @@ export function CouponsSettings({ organizationId, selectedPdvId }: CouponsSettin
   }
 
   return (
-    <div className="space-y-4">
+    <div ref={ref} className="space-y-4">
       {filteredPdvs.map((pdv) => {
         const isEnabled = pdv.catalog_settings?.is_enabled ?? false;
         const currentCode = getEditingValue(pdv.id, "code") as string;
@@ -338,4 +339,4 @@ export function CouponsSettings({ organizationId, selectedPdvId }: CouponsSettin
       })}
     </div>
   );
-}
+});
