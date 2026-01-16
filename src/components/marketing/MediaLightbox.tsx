@@ -190,6 +190,18 @@ export function MediaLightbox({
     }
   }, [isOpen]);
 
+  // Pause slideshow when window loses focus
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && slideshowActive) {
+        setSlideshowActive(false);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [slideshowActive]);
+
   // Fullscreen change listener
   useEffect(() => {
     const handleFullscreenChange = () => {
