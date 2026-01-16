@@ -37,7 +37,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { MediaCard } from "./MediaCard";
-import { MediaLightbox } from "./MediaLightbox";
+import { MediaLightbox } from "./lightbox";
 
 interface MediaSettingsProps {
   organizationId: string;
