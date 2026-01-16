@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import {
   DndContext,
   closestCenter,
@@ -16,7 +16,8 @@ import {
 } from "@dnd-kit/sortable";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Image, Loader2, MapPin, Plus } from "lucide-react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Image, Loader2, MapPin, Plus, Video, Music } from "lucide-react";
 import { toast } from "sonner";
 import { usePDVMarketingMedia, MarketingMedia } from "@/hooks/usePDVMarketingMedia";
 import {
@@ -36,6 +37,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { MediaCard } from "./MediaCard";
+import { MediaLightbox } from "./MediaLightbox";
 
 interface MediaSettingsProps {
   organizationId: string;
@@ -49,6 +51,13 @@ export function MediaSettings({ organizationId, selectedPdvId, isAdmin = true }:
   const [editingMedia, setEditingMedia] = useState<{ id: string; title: string } | null>(null);
   const [mediaToDelete, setMediaToDelete] = useState<string | null>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  
+  // Lightbox state
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  
+  // Media type filter
+  const [mediaTypeFilter, setMediaTypeFilter] = useState<"all" | "image" | "video" | "audio">("all");
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -172,13 +181,44 @@ export function MediaSettings({ organizationId, selectedPdvId, isAdmin = true }:
     : pdvsWithMedia;
 
   // No modo readonly, pegar apenas mídias ativas de todos os PDVs
-  const allActiveMedia = !isAdmin
-    ? filteredPdvs.flatMap((pdv) =>
-        pdv.media
-          .filter((m) => m.is_active)
-          .map((m) => ({ ...m, pdvName: pdv.name }))
-      )
-    : [];
+  const allActiveMedia = useMemo(() => {
+    if (isAdmin) return [];
+    return filteredPdvs.flatMap((pdv) =>
+      pdv.media
+        .filter((m) => m.is_active)
+        .map((m) => ({ ...m, pdvName: pdv.name }))
+    );
+  }, [isAdmin, filteredPdvs]);
+
+  // Apply media type filter
+  const filteredActiveMedia = useMemo(() => {
+    if (mediaTypeFilter === "all") return allActiveMedia;
+    return allActiveMedia.filter((m) => m.media_type === mediaTypeFilter);
+  }, [allActiveMedia, mediaTypeFilter]);
+
+  // Count by type for filter badges
+  const mediaCounts = useMemo(() => ({
+    all: allActiveMedia.length,
+    image: allActiveMedia.filter((m) => m.media_type === "image").length,
+    video: allActiveMedia.filter((m) => m.media_type === "video").length,
+    audio: allActiveMedia.filter((m) => m.media_type === "audio").length,
+  }), [allActiveMedia]);
+
+  // Lightbox handlers
+  const openLightbox = useCallback((index: number) => {
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+  }, []);
+
+  const handlePreviousMedia = useCallback(() => {
+    setLightboxIndex((prev) => Math.max(0, prev - 1));
+  }, []);
+
+  const handleNextMedia = useCallback(() => {
+    setLightboxIndex((prev) => Math.min(filteredActiveMedia.length - 1, prev + 1));
+  }, [filteredActiveMedia.length]);
+
+  const currentLightboxMedia = filteredActiveMedia[lightboxIndex] || null;
 
   if (pdvsWithMedia.length === 0) {
     return (
@@ -218,19 +258,71 @@ export function MediaSettings({ organizationId, selectedPdvId, isAdmin = true }:
 
     return (
       <div className="space-y-4">
-        <div className="text-sm text-muted-foreground">
-          Baixe imagens, vídeos e áudios disponíveis para os PDVs.
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="text-sm text-muted-foreground">
+            Baixe imagens, vídeos e áudios disponíveis para os PDVs.
+          </div>
+          
+          {/* Media type filter */}
+          <ToggleGroup 
+            type="single" 
+            value={mediaTypeFilter} 
+            onValueChange={(v) => v && setMediaTypeFilter(v as typeof mediaTypeFilter)}
+            className="justify-start"
+          >
+            <ToggleGroupItem value="all" aria-label="Todos" className="gap-1.5">
+              Todos
+              <Badge variant="secondary" className="ml-1">{mediaCounts.all}</Badge>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="image" aria-label="Imagens" className="gap-1.5">
+              <Image className="h-4 w-4" />
+              <span className="hidden sm:inline">Imagens</span>
+              <Badge variant="secondary" className="ml-1">{mediaCounts.image}</Badge>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="video" aria-label="Vídeos" className="gap-1.5">
+              <Video className="h-4 w-4" />
+              <span className="hidden sm:inline">Vídeos</span>
+              <Badge variant="secondary" className="ml-1">{mediaCounts.video}</Badge>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="audio" aria-label="Áudios" className="gap-1.5">
+              <Music className="h-4 w-4" />
+              <span className="hidden sm:inline">Áudios</span>
+              <Badge variant="secondary" className="ml-1">{mediaCounts.audio}</Badge>
+            </ToggleGroupItem>
+          </ToggleGroup>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {allActiveMedia.map((media) => (
-            <MediaCard
-              key={media.id}
-              media={media}
-              mode="readonly"
-              pdvName={media.pdvName}
-            />
-          ))}
-        </div>
+
+        {filteredActiveMedia.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-48 text-center">
+            <p className="text-sm text-muted-foreground">
+              Nenhuma mídia do tipo selecionado encontrada.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredActiveMedia.map((media, index) => (
+              <MediaCard
+                key={media.id}
+                media={media}
+                mode="readonly"
+                pdvName={media.pdvName}
+                onClick={() => openLightbox(index)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Lightbox */}
+        <MediaLightbox
+          media={currentLightboxMedia}
+          isOpen={lightboxOpen}
+          onClose={() => setLightboxOpen(false)}
+          onPrevious={handlePreviousMedia}
+          onNext={handleNextMedia}
+          hasPrevious={lightboxIndex > 0}
+          hasNext={lightboxIndex < filteredActiveMedia.length - 1}
+          pdvName={currentLightboxMedia?.pdvName}
+        />
       </div>
     );
   }
