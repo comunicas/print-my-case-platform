@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Loader2, Upload, X, ImageIcon, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { usePDVCatalogSettings } from "@/hooks/usePDVCatalogSettings";
@@ -12,10 +13,11 @@ import { cn } from "@/lib/utils";
 interface CouponsSettingsProps {
   organizationId: string;
   selectedPdvId?: string;
+  isAdmin?: boolean;
 }
 
 export const CouponsSettings = React.forwardRef<HTMLDivElement, CouponsSettingsProps>(
-  function CouponsSettings({ organizationId, selectedPdvId }, ref) {
+  function CouponsSettings({ organizationId, selectedPdvId, isAdmin = false }, ref) {
   const { pdvsWithSettings, isLoading, upsertSettings, uploadQrCode } = usePDVCatalogSettings(organizationId);
   const [uploadingPdvId, setUploadingPdvId] = useState<string | null>(null);
   const [editingPdv, setEditingPdv] = useState<Record<string, { code: string; qrUrl: string | null; modalText: string | null }>>({});
@@ -204,133 +206,184 @@ export const CouponsSettings = React.forwardRef<HTMLDivElement, CouponsSettingsP
                     </span>
                   </div>
                 </div>
-                <Switch
-                  checked={isEnabled}
-                  onCheckedChange={() => handleToggleEnabled(pdv.id, isEnabled)}
-                  disabled={upsertSettings.isPending}
-                />
+                {isAdmin ? (
+                  <Switch
+                    checked={isEnabled}
+                    onCheckedChange={() => handleToggleEnabled(pdv.id, isEnabled)}
+                    disabled={upsertSettings.isPending}
+                  />
+                ) : (
+                  <Badge variant={isEnabled ? "default" : "secondary"}>
+                    {isEnabled ? "Ativo" : "Inativo"}
+                  </Badge>
+                )}
               </div>
             </CardHeader>
 
             <CardContent className="pt-0">
               {isEnabled ? (
-                <div className="space-y-4">
+                isAdmin ? (
+                  /* Admin Mode - Full editing capabilities */
+                  <div className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-[auto_1fr]">
+                      {/* QR Code Section */}
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground uppercase tracking-wide">QR Code</Label>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          onChange={(e) => handleQrCodeUpload(pdv.id, e)}
+                          className="hidden"
+                          ref={(el) => { fileInputRefs.current[pdv.id] = el; }}
+                        />
+
+                        {currentQrUrl ? (
+                          <div className="space-y-2">
+                            <div className="relative w-24 h-24 rounded-lg border overflow-hidden bg-muted">
+                              <img
+                                src={currentQrUrl}
+                                alt="QR Code"
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div className="flex gap-1">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => fileInputRefs.current[pdv.id]?.click()}
+                                disabled={uploadingPdvId === pdv.id}
+                                className="text-xs h-7 px-2"
+                              >
+                                {uploadingPdvId === pdv.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Upload className="h-3 w-3" />
+                                )}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveQrCode(pdv.id)}
+                                className="text-destructive hover:text-destructive text-xs h-7 px-2"
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => fileInputRefs.current[pdv.id]?.click()}
+                            disabled={uploadingPdvId === pdv.id}
+                            className="w-24 h-24 border-dashed flex flex-col gap-1"
+                          >
+                            {uploadingPdvId === pdv.id ? (
+                              <Loader2 className="h-5 w-5 animate-spin" />
+                            ) : (
+                              <>
+                                <ImageIcon className="h-5 w-5" />
+                                <span className="text-xs">Upload</span>
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Text Fields Section */}
+                      <div className="space-y-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`code-${pdv.id}`} className="text-xs text-muted-foreground uppercase tracking-wide">
+                            Código do Catálogo
+                          </Label>
+                          <Input
+                            id={`code-${pdv.id}`}
+                            value={currentCode}
+                            onChange={(e) => handleCodeChange(pdv.id, e.target.value)}
+                            placeholder="PMC-001"
+                            className="font-mono h-9"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`modal-text-${pdv.id}`} className="text-xs text-muted-foreground uppercase tracking-wide">
+                            Texto da Modal
+                          </Label>
+                          <Input
+                            id={`modal-text-${pdv.id}`}
+                            value={currentModalText}
+                            onChange={(e) => handleModalTextChange(pdv.id, e.target.value)}
+                            placeholder="🎁 Presente para você: R$ 10 OFF!"
+                            className="h-9"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Deixe em branco para usar o texto padrão.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end pt-2 border-t">
+                      <Button
+                        onClick={() => handleSaveSettings(pdv.id)}
+                        disabled={upsertSettings.isPending}
+                        size="sm"
+                      >
+                        {upsertSettings.isPending && (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        )}
+                        Salvar
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Readonly Mode - View only */
                   <div className="grid gap-4 md:grid-cols-[auto_1fr]">
-                    {/* QR Code Section */}
+                    {/* QR Code Display */}
                     <div className="space-y-2">
                       <Label className="text-xs text-muted-foreground uppercase tracking-wide">QR Code</Label>
-                      <input
-                        type="file"
-                        accept="image/png,image/jpeg,image/webp"
-                        onChange={(e) => handleQrCodeUpload(pdv.id, e)}
-                        className="hidden"
-                        ref={(el) => { fileInputRefs.current[pdv.id] = el; }}
-                      />
-
                       {currentQrUrl ? (
-                        <div className="space-y-2">
-                          <div className="relative w-24 h-24 rounded-lg border overflow-hidden bg-muted">
-                            <img
-                              src={currentQrUrl}
-                              alt="QR Code"
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          <div className="flex gap-1">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => fileInputRefs.current[pdv.id]?.click()}
-                              disabled={uploadingPdvId === pdv.id}
-                              className="text-xs h-7 px-2"
-                            >
-                              {uploadingPdvId === pdv.id ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <Upload className="h-3 w-3" />
-                              )}
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemoveQrCode(pdv.id)}
-                              className="text-destructive hover:text-destructive text-xs h-7 px-2"
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </div>
+                        <div className="relative w-24 h-24 rounded-lg border overflow-hidden bg-muted">
+                          <img
+                            src={currentQrUrl}
+                            alt="QR Code"
+                            className="w-full h-full object-cover"
+                          />
                         </div>
                       ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => fileInputRefs.current[pdv.id]?.click()}
-                          disabled={uploadingPdvId === pdv.id}
-                          className="w-24 h-24 border-dashed flex flex-col gap-1"
-                        >
-                          {uploadingPdvId === pdv.id ? (
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                          ) : (
-                            <>
-                              <ImageIcon className="h-5 w-5" />
-                              <span className="text-xs">Upload</span>
-                            </>
-                          )}
-                        </Button>
+                        <div className="w-24 h-24 rounded-lg border border-dashed flex items-center justify-center bg-muted/50">
+                          <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                        </div>
                       )}
                     </div>
 
-                    {/* Text Fields Section */}
+                    {/* Text Fields Display */}
                     <div className="space-y-3">
                       <div className="space-y-1.5">
-                        <Label htmlFor={`code-${pdv.id}`} className="text-xs text-muted-foreground uppercase tracking-wide">
+                        <Label className="text-xs text-muted-foreground uppercase tracking-wide">
                           Código do Catálogo
                         </Label>
-                        <Input
-                          id={`code-${pdv.id}`}
-                          value={currentCode}
-                          onChange={(e) => handleCodeChange(pdv.id, e.target.value)}
-                          placeholder="PMC-001"
-                          className="font-mono h-9"
-                        />
+                        <p className="font-mono text-sm py-2 px-3 bg-muted rounded-md">
+                          {currentCode || <span className="text-muted-foreground italic">Não configurado</span>}
+                        </p>
                       </div>
 
                       <div className="space-y-1.5">
-                        <Label htmlFor={`modal-text-${pdv.id}`} className="text-xs text-muted-foreground uppercase tracking-wide">
+                        <Label className="text-xs text-muted-foreground uppercase tracking-wide">
                           Texto da Modal
                         </Label>
-                        <Input
-                          id={`modal-text-${pdv.id}`}
-                          value={currentModalText}
-                          onChange={(e) => handleModalTextChange(pdv.id, e.target.value)}
-                          placeholder="🎁 Presente para você: R$ 10 OFF!"
-                          className="h-9"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Deixe em branco para usar o texto padrão.
+                        <p className="text-sm py-2 px-3 bg-muted rounded-md">
+                          {currentModalText || <span className="text-muted-foreground italic">Texto padrão</span>}
                         </p>
                       </div>
                     </div>
                   </div>
-
-                  <div className="flex justify-end pt-2 border-t">
-                    <Button
-                      onClick={() => handleSaveSettings(pdv.id)}
-                      disabled={upsertSettings.isPending}
-                      size="sm"
-                    >
-                      {upsertSettings.isPending && (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      )}
-                      Salvar
-                    </Button>
-                  </div>
-                </div>
+                )
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">
-                  Ative o cupom para configurar código e QR Code.
+                  {isAdmin ? "Ative o cupom para configurar código e QR Code." : "Cupom não configurado para este PDV."}
                 </p>
               )}
             </CardContent>

@@ -21,7 +21,7 @@ export default function Marketing() {
   
   const { organization, isLoading: orgLoading } = useOrganization();
   const { pdvs = [], isLoading: pdvsLoading } = usePDVs();
-  const { role } = useProfile();
+  const { role, isAdmin } = useProfile();
   
   const { 
     selectedPdvId, 
@@ -101,7 +101,7 @@ export default function Marketing() {
 
           <TabsContent value="cupons" className="mt-4">
             <Suspense fallback={<TabSkeleton />}>
-              <CouponsSettings organizationId={organization.id} selectedPdvId={selectedPdvId} />
+              <CouponsSettings organizationId={organization.id} selectedPdvId={selectedPdvId} isAdmin={isAdmin} />
             </Suspense>
           </TabsContent>
 
