@@ -235,6 +235,7 @@ export function MediaLightbox({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent 
         ref={dialogRef}
+        hideDefaultClose
         className="max-w-[95vw] max-h-[95vh] w-full h-full p-0 bg-background/95 backdrop-blur-sm border-border"
       >
         <VisuallyHidden>
