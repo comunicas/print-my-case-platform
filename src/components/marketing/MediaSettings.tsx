@@ -168,17 +168,12 @@ export function MediaSettings({ organizationId, selectedPdvId, isAdmin = true }:
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  const filteredPdvs = selectedPdvId && selectedPdvId !== "all"
-    ? pdvsWithMedia.filter(p => p.id === selectedPdvId)
-    : pdvsWithMedia;
+  const filteredPdvs = useMemo(() => {
+    if (selectedPdvId && selectedPdvId !== "all") {
+      return pdvsWithMedia.filter(p => p.id === selectedPdvId);
+    }
+    return pdvsWithMedia;
+  }, [pdvsWithMedia, selectedPdvId]);
 
   // No modo readonly, pegar apenas mídias ativas de todos os PDVs
   const allActiveMedia = useMemo(() => {
@@ -219,6 +214,15 @@ export function MediaSettings({ organizationId, selectedPdvId, isAdmin = true }:
   }, [filteredActiveMedia.length]);
 
   const currentLightboxMedia = filteredActiveMedia[lightboxIndex] || null;
+
+  // Loading state - MUST be after all hooks
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (pdvsWithMedia.length === 0) {
     return (
