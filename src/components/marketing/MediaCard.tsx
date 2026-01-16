@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,7 @@ interface MediaCardProps {
   onCancelEdit?: () => void;
   formatFileSize?: (bytes: number | null) => string;
   onClick?: () => void;
+  onPauseMedia?: () => void; // Callback chamado antes de abrir lightbox para pausar mídia
 }
 
 const defaultFormatFileSize = (bytes: number | null) => {
@@ -54,6 +55,7 @@ export function MediaCard({
   onEdit,
   onDelete,
   onClick,
+  onPauseMedia,
   isEditing = false,
   editTitle = "",
   onEditTitleChange,
@@ -160,6 +162,15 @@ export function MediaCard({
   const handleVideoPause = () => setIsVideoPlaying(false);
   const handleVideoEnded = () => setIsVideoPlaying(false);
 
+  // Pause all media (called before opening lightbox)
+  const pauseAllMedia = useCallback(() => {
+    audioRef.current?.pause();
+    videoRef.current?.pause();
+    setIsAudioPlaying(false);
+    setIsVideoPlaying(false);
+    onPauseMedia?.();
+  }, [onPauseMedia]);
+
   // Cleanup on unmount - capture refs before cleanup
   useEffect(() => {
     const audio = audioRef.current;
@@ -217,6 +228,8 @@ export function MediaCard({
           onClick={(e) => {
             // Don't trigger onClick if clicking on controls
             if ((e.target as HTMLElement).closest('button, video[controls]')) return;
+            // Pause all media before opening lightbox
+            pauseAllMedia();
             onClick?.();
           }}
         >
@@ -260,18 +273,18 @@ export function MediaCard({
                 </div>
               </div>
             )}
-            {/* Botão de expandir quando vídeo está tocando */}
+            {/* Botão de expandir quando vídeo está tocando - posicionado no canto inferior direito para não conflitar com badge */}
             {isVideoPlaying && onClick && (
               <button
-                className="absolute top-2 right-2 z-20 w-8 h-8 rounded-full bg-background/80 flex items-center justify-center shadow-lg hover:bg-background transition-colors"
+                className="absolute bottom-3 right-3 z-20 w-10 h-10 rounded-full bg-background/90 flex items-center justify-center shadow-lg hover:bg-background transition-all hover:scale-105"
                 onClick={(e) => {
                   e.stopPropagation();
-                  videoRef.current?.pause();
+                  pauseAllMedia();
                   onClick();
                 }}
                 aria-label="Expandir vídeo"
               >
-                <Maximize2 className="h-4 w-4" />
+                <Maximize2 className="h-5 w-5" />
               </button>
             )}
           </div>
