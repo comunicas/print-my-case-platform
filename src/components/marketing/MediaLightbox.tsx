@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useSwipeGesture } from "@/hooks/useSwipeGesture";
 
 interface MarketingMedia {
   id: string;
@@ -30,6 +31,8 @@ interface MediaLightboxProps {
   onNext?: () => void;
   hasPrevious?: boolean;
   hasNext?: boolean;
+  currentIndex?: number;
+  totalCount?: number;
   pdvName?: string;
 }
 
@@ -81,6 +84,8 @@ export function MediaLightbox({
   hasPrevious = false,
   hasNext = false,
   pdvName,
+  currentIndex,
+  totalCount,
 }: MediaLightboxProps) {
   // Audio player states
   const [isPlaying, setIsPlaying] = useState(false);
@@ -103,6 +108,26 @@ export function MediaLightbox({
   const [initialPinchDistance, setInitialPinchDistance] = useState(0);
   const [initialZoom, setInitialZoom] = useState(1);
   const imageContainerRef = useRef<HTMLDivElement>(null);
+
+  // Swipe gesture for mobile navigation (only when not zoomed)
+  const swipeEnabled = zoomLevel === 1 && media?.media_type === "image";
+  
+  const { handlers: swipeHandlers, swipeOffset, isSwiping } = useSwipeGesture({
+    onSwipeLeft: () => {
+      if (hasNext && onNext) {
+        setSlideshowActive(false);
+        onNext();
+      }
+    },
+    onSwipeRight: () => {
+      if (hasPrevious && onPrevious) {
+        setSlideshowActive(false);
+        onPrevious();
+      }
+    },
+    threshold: 50,
+    enabled: swipeEnabled,
+  });
 
   // Generate random wave heights for audio visualization
   const waveHeights = useMemo(() => 
@@ -323,24 +348,31 @@ export function MediaLightbox({
     setIsDragging(false);
   }, []);
 
-  // Touch handlers for pinch-to-zoom
+  // Touch handlers for pinch-to-zoom (combined with swipe)
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (media?.media_type !== "image") return;
     
     if (e.touches.length === 2) {
+      // Pinch-to-zoom
       e.preventDefault();
       setSlideshowActive(false);
       const distance = getTouchDistance(e.touches[0], e.touches[1]);
       setInitialPinchDistance(distance);
       setInitialZoom(zoomLevel);
-    } else if (e.touches.length === 1 && zoomLevel > 1) {
-      setIsDragging(true);
-      setDragStart({ 
-        x: e.touches[0].clientX - panPosition.x, 
-        y: e.touches[0].clientY - panPosition.y 
-      });
+    } else if (e.touches.length === 1) {
+      if (zoomLevel > 1) {
+        // Pan when zoomed in
+        setIsDragging(true);
+        setDragStart({ 
+          x: e.touches[0].clientX - panPosition.x, 
+          y: e.touches[0].clientY - panPosition.y 
+        });
+      } else {
+        // Swipe navigation when at normal zoom
+        swipeHandlers.onTouchStart(e);
+      }
     }
-  }, [zoomLevel, panPosition, media?.media_type]);
+  }, [zoomLevel, panPosition, media?.media_type, swipeHandlers]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (media?.media_type !== "image") return;
@@ -355,22 +387,30 @@ export function MediaLightbox({
       if (newZoom === 1) {
         setPanPosition({ x: 0, y: 0 });
       }
-    } else if (e.touches.length === 1 && isDragging && zoomLevel > 1) {
-      const newX = e.touches[0].clientX - dragStart.x;
-      const newY = e.touches[0].clientY - dragStart.y;
-      
-      const maxPan = (zoomLevel - 1) * 150;
-      setPanPosition({
-        x: Math.max(-maxPan, Math.min(maxPan, newX)),
-        y: Math.max(-maxPan, Math.min(maxPan, newY)),
-      });
+    } else if (e.touches.length === 1) {
+      if (isDragging && zoomLevel > 1) {
+        // Pan when zoomed in
+        const newX = e.touches[0].clientX - dragStart.x;
+        const newY = e.touches[0].clientY - dragStart.y;
+        
+        const maxPan = (zoomLevel - 1) * 150;
+        setPanPosition({
+          x: Math.max(-maxPan, Math.min(maxPan, newX)),
+          y: Math.max(-maxPan, Math.min(maxPan, newY)),
+        });
+      } else if (zoomLevel === 1) {
+        // Swipe navigation when at normal zoom
+        swipeHandlers.onTouchMove(e);
+      }
     }
-  }, [initialPinchDistance, initialZoom, isDragging, dragStart, zoomLevel, media?.media_type]);
+  }, [initialPinchDistance, initialZoom, isDragging, dragStart, zoomLevel, media?.media_type, swipeHandlers]);
 
   const handleTouchEnd = useCallback(() => {
     setIsDragging(false);
     setInitialPinchDistance(0);
-  }, []);
+    // Also trigger swipe end
+    swipeHandlers.onTouchEnd();
+  }, [swipeHandlers]);
 
   const handleZoomIn = () => {
     setSlideshowActive(false);
@@ -517,7 +557,7 @@ export function MediaLightbox({
                 alt={media.title}
                 className="max-w-full max-h-[70vh] object-contain rounded-lg transition-transform duration-200 select-none"
                 style={{
-                  transform: `scale(${zoomLevel}) translate(${panPosition.x / zoomLevel}px, ${panPosition.y / zoomLevel}px)`,
+                  transform: `scale(${zoomLevel}) translate(${panPosition.x / zoomLevel}px, ${panPosition.y / zoomLevel}px)${isSwiping ? ` translateX(${swipeOffset}px)` : ''}`,
                 }}
                 draggable={false}
               />
@@ -647,6 +687,14 @@ export function MediaLightbox({
             <span className="text-sm text-muted-foreground">
               {formatFileSize(media.file_size)}
             </span>
+            {totalCount && totalCount > 1 && currentIndex !== undefined && (
+              <>
+                <span className="text-muted-foreground">•</span>
+                <span className="text-sm text-muted-foreground">
+                  {currentIndex + 1} de {totalCount}
+                </span>
+              </>
+            )}
           </div>
           <Button variant="secondary" size="sm" onClick={handleDownload}>
             <Download className="h-4 w-4 mr-2" />
