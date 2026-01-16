@@ -326,6 +326,8 @@ export function MediaSettings({ organizationId, selectedPdvId, isAdmin = true }:
           hasPrevious={lightboxIndex > 0}
           hasNext={lightboxIndex < filteredActiveMedia.length - 1}
           pdvName={currentLightboxMedia?.pdvName}
+          currentIndex={lightboxIndex}
+          totalCount={filteredActiveMedia.length}
         />
       </div>
     );
