@@ -539,7 +539,7 @@ export type Database = {
           order_completion_time: string | null
           order_number: string
           order_time: string | null
-          payment_date: string
+          payment_date: string | null
           payment_flow: string | null
           payment_method: string | null
           pdv_id: string
@@ -561,7 +561,7 @@ export type Database = {
           order_completion_time?: string | null
           order_number: string
           order_time?: string | null
-          payment_date: string
+          payment_date?: string | null
           payment_flow?: string | null
           payment_method?: string | null
           pdv_id: string
@@ -583,7 +583,7 @@ export type Database = {
           order_completion_time?: string | null
           order_number?: string
           order_time?: string | null
-          payment_date?: string
+          payment_date?: string | null
           payment_flow?: string | null
           payment_method?: string | null
           pdv_id?: string
