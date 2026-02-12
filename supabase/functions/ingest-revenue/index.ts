@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
 
     // 4. Validate required fields
-    const requiredFields = ["device_id", "order_number", "product_name", "payment_date", "amount"];
+    const requiredFields = ["device_id", "order_number", "product_name", "amount"];
     const missingFields = requiredFields.filter(f => !body[f] && body[f] !== 0);
     if (missingFields.length > 0) {
       return new Response(
