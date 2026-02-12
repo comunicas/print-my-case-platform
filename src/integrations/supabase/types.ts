@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_keys: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          is_active: boolean
+          key_hash: string
+          key_prefix: string
+          last_used_at: string | null
+          name: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          is_active?: boolean
+          key_hash: string
+          key_prefix: string
+          last_used_at?: string | null
+          name: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_active?: boolean
+          key_hash?: string
+          key_prefix?: string
+          last_used_at?: string | null
+          name?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_keys_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           actor_email: string | null
@@ -502,9 +546,10 @@ export type Database = {
           print_code: string | null
           product_name: string
           refund_amount: number | null
+          source: string
           status: string | null
           transaction_number: string | null
-          upload_id: string
+          upload_id: string | null
         }
         Insert: {
           actual_paid_amount?: number | null
@@ -523,9 +568,10 @@ export type Database = {
           print_code?: string | null
           product_name: string
           refund_amount?: number | null
+          source?: string
           status?: string | null
           transaction_number?: string | null
-          upload_id: string
+          upload_id?: string | null
         }
         Update: {
           actual_paid_amount?: number | null
@@ -544,9 +590,10 @@ export type Database = {
           print_code?: string | null
           product_name?: string
           refund_amount?: number | null
+          source?: string
           status?: string | null
           transaction_number?: string | null
-          upload_id?: string
+          upload_id?: string | null
         }
         Relationships: [
           {
