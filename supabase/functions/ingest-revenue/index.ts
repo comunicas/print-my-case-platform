@@ -206,7 +206,7 @@ Deno.serve(async (req) => {
       device_id: deviceId,
       order_number: sanitizeOrderNumber(body.order_number),
       product_name: sanitizeString(body.product_name, FIELD_LIMITS.product_name),
-      payment_date: parsePaymentDate(body.payment_date),
+      payment_date: body.payment_date ? parsePaymentDate(body.payment_date) : null,
       amount: parseAmount(body.amount),
       payment_method: sanitizeString(body.payment_method, FIELD_LIMITS.payment_method),
       status: sanitizeString(body.status, FIELD_LIMITS.status),
