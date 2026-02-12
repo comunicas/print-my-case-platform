@@ -1,0 +1,1 @@
+ALTER TABLE public.sales_records ALTER COLUMN payment_date DROP NOT NULL;
