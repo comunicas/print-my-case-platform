@@ -217,6 +217,8 @@ Deno.serve(async (req) => {
       discount_amount: body.discount_amount != null ? parseAmount(body.discount_amount) : 0,
       actual_paid_amount: body.actual_paid_amount != null ? parseAmount(body.actual_paid_amount) : null,
       payment_flow: sanitizeString(body.payment_flow, FIELD_LIMITS.payment_flow),
+      order_time: body.order_time ? parsePaymentDate(body.order_time) : null,
+      order_completion_time: body.order_completion_time ? parsePaymentDate(body.order_completion_time) : null,
     };
 
     if (!record.order_number || !record.product_name) {
