@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
     // 2. Lookup API key
     const { data: apiKeyRecord, error: keyError } = await supabase
       .from("api_keys")
-      .select("id, organization_id")
+      .select("id, organization_id, created_by")
       .eq("key_hash", keyHash)
       .eq("is_active", true)
       .maybeSingle();
@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
         pdv_id: pdv.id,
         file_name: `api-stock-${new Date().toISOString()}`,
         type: "stock" as const,
-        uploaded_by: apiKeyRecord.id,
+        uploaded_by: apiKeyRecord.created_by,
         status: "ready" as const,
         records_count: body.records.length,
         processed_at: new Date().toISOString(),
