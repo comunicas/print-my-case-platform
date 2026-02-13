@@ -1,4 +1,4 @@
-import { forwardRef, useState } from "react";
+import { forwardRef, useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -28,10 +28,33 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
     const [otpCode, setOtpCode] = useState("");
     const [copied, setCopied] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [countdown, setCountdown] = useState(0);
+    const [otpExpired, setOtpExpired] = useState(false);
 
     const displayText = modalText || "🎁 Presente para você: R$ 10 OFF na sua próxima compra!";
     const rawDigits = unformatPhoneNumber(phone);
     const isPhoneValid = rawDigits.length >= 10 && rawDigits.length <= 11;
+
+    // Countdown timer for OTP expiration
+    useEffect(() => {
+      if (step !== "otp" || countdown <= 0) return;
+      const timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            setOtpExpired(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }, [step, countdown]);
+
+    const startCountdown = useCallback(() => {
+      setCountdown(60);
+      setOtpExpired(false);
+      setOtpCode("");
+    }, []);
 
     const handleSendOtp = async () => {
       if (!isPhoneValid) return;
@@ -43,6 +66,7 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
         setStep("otp");
+        startCountdown();
         toast.success("Código enviado!", {
           description: "Verifique seu SMS.",
         });
@@ -101,6 +125,8 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
         setPhone("");
         setOtpCode("");
         setCopied(false);
+        setCountdown(0);
+        setOtpExpired(false);
       }, 300);
     };
 
@@ -177,11 +203,25 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
                   </p>
                 </div>
 
+                {/* Countdown indicator */}
+                <div className="flex justify-center">
+                  {otpExpired ? (
+                    <span className="text-sm font-medium text-destructive">
+                      ⏰ Código expirado
+                    </span>
+                  ) : (
+                    <span className="text-sm font-medium text-muted-foreground tabular-nums">
+                      ⏳ Expira em {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, "0")}
+                    </span>
+                  )}
+                </div>
+
                 <div className="flex justify-center">
                   <InputOTP
                     maxLength={6}
                     value={otpCode}
                     onChange={setOtpCode}
+                    disabled={otpExpired}
                   >
                     <InputOTPGroup>
                       <InputOTPSlot index={0} />
@@ -194,18 +234,34 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
                   </InputOTP>
                 </div>
 
-                <Button
-                  className="w-full"
-                  onClick={handleVerifyOtp}
-                  disabled={otpCode.length !== 6 || isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <Check className="h-4 w-4 mr-2" />
-                  )}
-                  Verificar e liberar cupom
-                </Button>
+                {otpExpired ? (
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    onClick={handleSendOtp}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <ShieldCheck className="h-4 w-4 mr-2" />
+                    )}
+                    Reenviar código
+                  </Button>
+                ) : (
+                  <Button
+                    className="w-full"
+                    onClick={handleVerifyOtp}
+                    disabled={otpCode.length !== 6 || isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Check className="h-4 w-4 mr-2" />
+                    )}
+                    Verificar e liberar cupom
+                  </Button>
+                )}
 
                 <button
                   type="button"
@@ -213,6 +269,8 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
                   onClick={() => {
                     setStep("phone");
                     setOtpCode("");
+                    setCountdown(0);
+                    setOtpExpired(false);
                   }}
                 >
                   Alterar número
