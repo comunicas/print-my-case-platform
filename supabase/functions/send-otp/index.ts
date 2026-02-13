@@ -57,6 +57,9 @@ Deno.serve(async (req) => {
     const toPhone = `+55${phone}`;
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
     const twilioRes = await fetch(twilioUrl, {
       method: "POST",
       headers: {
@@ -68,7 +71,10 @@ Deno.serve(async (req) => {
         From: fromPhone,
         Body: `Seu código de verificação é: ${code}. Válido por 5 minutos.`,
       }),
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (!twilioRes.ok) {
       const errBody = await twilioRes.text();
