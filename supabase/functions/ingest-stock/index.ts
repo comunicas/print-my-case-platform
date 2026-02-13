@@ -176,11 +176,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 7. Delete old stock_records for this PDV
+    // 7. Delete old stock_record for this device_id + slot_number only
     const { count: deletedCount, error: deleteError } = await supabase
       .from("stock_records")
       .delete({ count: "exact" })
-      .eq("pdv_id", pdv.id);
+      .eq("pdv_id", pdv.id)
+      .eq("device_id", deviceId)
+      .eq("slot_number", slotNumber);
 
     if (deleteError) {
       console.error("Delete error:", deleteError);
