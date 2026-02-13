@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -173,6 +174,47 @@ export function usePDVCatalogSettings(organizationId?: string) {
 
     return publicUrl;
   };
+
+  // Auto-create short links for existing enabled catalogs that don't have one
+  const autoCreatingRef = useRef(false);
+  useEffect(() => {
+    const list = pdvsWithSettings || [];
+    if (list.length === 0 || autoCreatingRef.current) return;
+
+    const needShortLink = list.filter(
+      (pdv) =>
+        pdv.catalog_settings?.is_public_enabled &&
+        pdv.catalog_settings?.public_slug &&
+        !pdv.short_link
+    );
+
+    if (needShortLink.length === 0) return;
+    autoCreatingRef.current = true;
+
+    Promise.all(
+      needShortLink.map(async (pdv) => {
+        const targetUrl = `https://printmycase.comunicas.com.br/catalogo/${pdv.catalog_settings!.public_slug}`;
+        let shortCode = generateShortCode();
+        let attempts = 0;
+        while (attempts < 5) {
+          const { error: insertError } = await supabase
+            .from("catalog_short_links")
+            .insert({ pdv_id: pdv.id, short_code: shortCode, target_url: targetUrl });
+          if (!insertError) break;
+          if (insertError.message?.includes("unique")) {
+            shortCode = generateShortCode();
+            attempts++;
+          } else {
+            console.error("Error creating short link:", insertError);
+            break;
+          }
+        }
+      })
+    ).then(() => {
+      queryClient.invalidateQueries({ queryKey: ["pdv-catalog-settings"] });
+      autoCreatingRef.current = false;
+    });
+  }, [pdvsWithSettings, queryClient]);
 
   return {
     pdvsWithSettings: pdvsWithSettings || [],
