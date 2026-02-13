@@ -13,14 +13,6 @@ export interface Organization {
   plan: string | null;
   active_since: string | null;
   created_at: string;
-  // Campos do catálogo público
-  public_slug: string | null;
-  public_catalog_enabled: boolean | null;
-  catalog_code_enabled: boolean | null;
-  catalog_code: string | null;
-  catalog_pdv_id: string | null;
-  catalog_qrcode_url: string | null;
-  catalog_modal_text: string | null;
 }
 
 interface UseOrganizationOptions {

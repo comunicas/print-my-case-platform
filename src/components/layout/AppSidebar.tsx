@@ -68,7 +68,7 @@ export function AppSidebar({
   onMarketingExpandedChange,
 }: AppSidebarProps) {
   const { role } = useProfile();
-  const { prefetchMap, prefetchStock } = usePrefetchRoutes();
+  const { prefetchMap, prefetchStock, prefetchMarketing } = usePrefetchRoutes();
   const isSuperAdmin = role === "super_admin";
   const isStockActive = activeItem.startsWith("/estoque");
   const isMarketingActive = activeItem.startsWith("/marketing");
@@ -212,6 +212,7 @@ export function AppSidebar({
       const button = (
         <button
           onClick={() => onNavigate("/marketing")}
+          onMouseEnter={prefetchMarketing}
           className={cn(
             "w-full flex items-center justify-center px-2 py-2.5 rounded-lg text-sm font-medium transition-colors",
             isMarketingActive
@@ -239,6 +240,7 @@ export function AppSidebar({
       <Collapsible open={effectiveMarketingExpanded} onOpenChange={onMarketingExpandedChange}>
         <CollapsibleTrigger asChild>
           <button
+            onMouseEnter={prefetchMarketing}
             className={cn(
               "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
               isMarketingActive
@@ -274,6 +276,7 @@ export function AppSidebar({
                 <button
                   key={subItem.href}
                   onClick={() => onNavigate(subItem.href)}
+                  onMouseEnter={prefetchMarketing}
                   className={cn(
                     "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
                     isSubActive

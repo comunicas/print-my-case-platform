@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { CUSTOM_DOMAIN } from "@/lib/constants";
 
 export interface PDVCatalogSettings {
   id: string;
@@ -112,7 +113,7 @@ export function usePDVCatalogSettings(organizationId?: string) {
 
       // Create short link if enabling public and slug exists
       if (data.is_public_enabled && data.public_slug) {
-        const targetUrl = `https://printmycase.comunicas.com.br/catalogo/${data.public_slug}`;
+        const targetUrl = `${CUSTOM_DOMAIN}/catalogo/${data.public_slug}`;
         
         const { data: existingLink } = await supabase
           .from("catalog_short_links")
@@ -193,7 +194,7 @@ export function usePDVCatalogSettings(organizationId?: string) {
 
     Promise.all(
       needShortLink.map(async (pdv) => {
-        const targetUrl = `https://printmycase.comunicas.com.br/catalogo/${pdv.catalog_settings!.public_slug}`;
+        const targetUrl = `${CUSTOM_DOMAIN}/catalogo/${pdv.catalog_settings!.public_slug}`;
         let shortCode = generateShortCode();
         let attempts = 0;
         while (attempts < 5) {

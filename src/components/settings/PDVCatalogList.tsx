@@ -7,12 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { Copy, ExternalLink, Loader2, Link2, MousePointerClick } from "lucide-react";
 import { toast } from "sonner";
 import { usePDVCatalogSettings, type ShortLink } from "@/hooks/usePDVCatalogSettings";
+import { CUSTOM_DOMAIN } from "@/lib/constants";
 
 interface PDVCatalogListProps {
   organizationId: string;
 }
-
-const CUSTOM_DOMAIN = "https://printmycase.comunicas.com.br";
 
 interface PDVCatalogRowProps {
   pdv: {
