@@ -1,83 +1,120 @@
 
 
-# Fix: Links Encurtados para Catálogos Existentes
+# Code Review - Plano Revisado com Analise de Risco
 
-## Problemas Encontrados no Teste
+## Analise de Seguranca por Etapa
 
-### 1. Links curtos nao criados para PDVs ja configurados
-Os PDVs "Tiete Plaza Shopping" e "Shopping Metro Boulevard Tatuape" ja estavam configurados com slugs antes da feature de links curtos ser adicionada. A tabela `catalog_short_links` esta vazia. O link curto so e gerado ao clicar "Salvar", mas como nao ha mudancas pendentes, o botao nao aparece.
+### Etapa 1: Remover campos legados da interface Organization - SEGURO
 
-### 2. Secao "Catalogos Publicos" dificil de visualizar
-A secao existe no DOM entre o formulario da organizacao e "Plano e Faturamento", mas nao aparece claramente na tela — pode estar sendo sobreposta por outros cards.
+**Risco avaliado: NENHUM**
 
-### 3. Edge function funcionando
-A edge function `redirect-short-link` esta deployada e respondendo corretamente (404 para codigos inexistentes, como esperado).
+A pagina publica (`PublicStock.tsx`) usa `organization.catalog_code_enabled`, `catalog_code`, etc. mas esses dados vem da interface `PublicOrganization` definida em `usePublicStock.ts`, que e completamente separada. A interface `Organization` de `useOrganization.ts` nao e usada em nenhum lugar para acessar esses campos de catalogo.
+
+Verificacao feita: busquei `organization.catalog_code` em todo o `src/` e so encontrei em `PublicStock.tsx`, que importa de `usePublicStock`, nao de `useOrganization`.
+
+**Acao**: Remover os 7 campos de catalogo da interface `Organization` em `useOrganization.ts`. A query `.select("*")` continua trazendo os dados do banco, apenas nao serao mais tipados no frontend (o que e correto, pois nao sao usados).
+
+---
+
+### Etapa 2: Consolidar organizationFormSchema - SEGURO
+
+**Risco avaliado: NENHUM**
+
+Existem 2 schemas identicos:
+- `src/lib/schemas/settings.ts` - usado em `OrganizationSettings.tsx`
+- `src/lib/schemas/organization.ts` - usado em `Organizations.tsx` (super admin)
+
+Ambos validam os mesmos campos (name, email, phone, address). A diferenca e que `organization.ts` aceita `nullable()` em mais campos, o que e mais correto. Vamos manter `organization.ts` e fazer `OrganizationSettings.tsx` importar dele.
+
+**Acao**: Remover `organizationFormSchema` e `OrganizationFormData` de `settings.ts`. Atualizar import em `OrganizationSettings.tsx`.
+
+**Atencao**: O schema de `organization.ts` tem `email` como `.optional().nullable().or(z.literal(""))`, enquanto `settings.ts` tem `email` como `.email("Email invalido")`. Precisamos ajustar para que o schema unificado valide email corretamente no contexto de settings (email obrigatorio). Solucao: manter a validacao de email no schema unificado como obrigatoria (o campo e obrigatorio para orgs com admin).
 
 ---
 
-## Correcoes Necessarias
+### Etapa 3: Remover `: any` em useDashboard.ts - SEGURO
 
-### 1. Auto-criar links curtos para PDVs existentes
+**Risco avaliado: NENHUM**
 
-No hook `usePDVCatalogSettings`, apos carregar os dados, verificar se algum PDV tem `is_public_enabled = true` e `public_slug` definido mas nao tem `short_link`. Se sim, criar o short link automaticamente.
-
-**Arquivo:** `src/hooks/usePDVCatalogSettings.ts`
-
-- Adicionar um `useEffect` que, apos o carregamento dos dados, verifica PDVs sem short link
-- Para cada PDV sem short link (mas com catalogo ativo), gerar e inserir automaticamente no banco
-- Invalidar a query apos a criacao para atualizar a UI
-
-### 2. Garantir visibilidade da secao de Catalogos
-
-**Arquivo:** `src/components/settings/OrganizationSettings.tsx`
-
-- Verificar se o Card de "Catalogos Publicos" esta sendo renderizado com estilo correto
-- Adicionar uma `Separator` ou espacamento adequado entre as secoes
-
-### 3. Testar o fluxo completo apos as correcoes
-
-1. Acessar `/settings?tab=organization`
-2. Verificar que os links curtos foram criados automaticamente
-3. Copiar um link curto
-4. Acessar o link curto no navegador
-5. Verificar redirect para o catalogo
-6. Verificar que o contador de cliques foi incrementado
+Apenas troca `: any` por tipos concretos que ja existem (`SaleRecord`, `CancellationRecord`). Os campos mapeados sao exatamente os mesmos. Zero impacto funcional.
 
 ---
+
+### Etapa 4: Remover console.error do NotFound.tsx - SEGURO
+
+**Risco avaliado: NENHUM**
+
+Remove apenas um `console.error` no useEffect da pagina 404. Nenhum impacto funcional.
+
+---
+
+### Etapa 5: Centralizar CUSTOM_DOMAIN - SEGURO
+
+**Risco avaliado: BAIXO**
+
+Move a string `https://printmycase.comunicas.com.br` para `src/lib/constants.ts`. Os 3 locais que usam passam a importar de la. Risco unico: erro de digitacao na constante, mas vou copiar exatamente o valor existente.
+
+---
+
+### Etapa 6: Prefetch Marketing no Sidebar - SEGURO
+
+**Risco avaliado: NENHUM**
+
+Adiciona `onMouseEnter` nos botoes de Marketing no sidebar. Se falhar, o pior que acontece e nao fazer prefetch (comportamento atual).
+
+---
+
+### Etapa 7 e 8: Apenas documentacao - SEM ALTERACAO DE CODIGO
+
+---
+
+### Etapa 9: Remover imports nao utilizados - SEGURO
+
+**Risco avaliado: NENHUM**
+
+Remove apenas imports que nao sao referenciados. O build ja alertaria sobre isso.
+
+---
+
+## Ordem de Execucao (mais seguro primeiro)
+
+1. **Etapa 4** - Remover console.error do NotFound (trivial)
+2. **Etapa 9** - Limpar imports nao utilizados (trivial)
+3. **Etapa 3** - Tipar `any` em useDashboard (tipagem apenas)
+4. **Etapa 5** - Centralizar CUSTOM_DOMAIN (refactor simples)
+5. **Etapa 6** - Prefetch Marketing (aditivio, sem quebra)
+6. **Etapa 1** - Limpar interface Organization (seguro, verificado)
+7. **Etapa 2** - Consolidar schema (requer cuidado no email)
 
 ## Detalhes Tecnicos
 
-### Hook - Auto-create missing short links
+### Etapa 2 - Cuidado com validacao de email
 
+O schema em `settings.ts` exige email valido:
 ```text
-// No usePDVCatalogSettings, adicionar useEffect:
-useEffect(() => {
-  if (pdvsWithSettings.length === 0) return;
-  
-  const pdvsNeedingShortLink = pdvsWithSettings.filter(
-    pdv => pdv.catalog_settings?.is_public_enabled 
-        && pdv.catalog_settings?.public_slug 
-        && !pdv.short_link
-  );
-  
-  if (pdvsNeedingShortLink.length === 0) return;
-  
-  // Para cada PDV sem short link, criar um
-  Promise.all(pdvsNeedingShortLink.map(async (pdv) => {
-    const targetUrl = `https://printmycase.comunicas.com.br/catalogo/${pdv.catalog_settings.public_slug}`;
-    const shortCode = generateShortCode();
-    await supabase.from("catalog_short_links").insert({
-      pdv_id: pdv.id,
-      short_code: shortCode,
-      target_url: targetUrl,
-    });
-  })).then(() => {
-    queryClient.invalidateQueries({ queryKey: ["pdv-catalog-settings"] });
-  });
-}, [pdvsWithSettings]);
+email: z.string().email("Email invalido")
 ```
 
-### Arquivos Modificados
-- `src/hooks/usePDVCatalogSettings.ts` — adicionar auto-criacao de short links
-- `src/components/settings/OrganizationSettings.tsx` — ajustar layout/espacamento da secao de catalogos (se necessario)
+O schema em `organization.ts` permite vazio:
+```text
+email: z.string().email("Email invalido").optional().nullable().or(z.literal(""))
+```
 
+Para unificar, o schema em `organization.ts` sera ajustado para ter uma versao que valida email como obrigatorio (para uso em OrganizationSettings) e outra mais permissiva (para uso em Organizations.tsx do super admin). Alternativa mais simples: manter o schema de `organization.ts` como esta e adicionar `.refine()` no componente que precisa de email obrigatorio.
+
+### Arquivos modificados por etapa
+
+| Etapa | Arquivo | Tipo de mudanca |
+|-------|---------|----------------|
+| 1 | `src/hooks/useOrganization.ts` | Remover 7 linhas da interface |
+| 2 | `src/lib/schemas/settings.ts` | Remover schema duplicado |
+| 2 | `src/components/settings/OrganizationSettings.tsx` | Atualizar import |
+| 3 | `src/hooks/useDashboard.ts` | Trocar `any` por tipo correto |
+| 4 | `src/pages/NotFound.tsx` | Remover useEffect |
+| 5 | `src/lib/constants.ts` | Adicionar CUSTOM_DOMAIN |
+| 5 | `src/components/settings/PDVCatalogList.tsx` | Importar constante |
+| 5 | `src/hooks/usePDVCatalogSettings.ts` | Importar constante |
+| 6 | `src/components/layout/AppSidebar.tsx` | Adicionar onMouseEnter |
+| 9 | `src/pages/Settings.tsx` | Remover import nao usado |
+
+Nenhuma mudanca afeta funcionalidade existente. Todas sao refatoracoes de tipagem, limpeza e organizacao.
