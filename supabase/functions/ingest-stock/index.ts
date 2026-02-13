@@ -12,9 +12,6 @@ const FIELD_LIMITS = {
   record_number: 100,
 };
 
-const MAX_RECORDS_PER_REQUEST = 1000;
-const BATCH_SIZE = 500;
-
 function sanitizeString(value: unknown, maxLength: number): string | null {
   if (value === null || value === undefined || value === "") return null;
   let str = String(value).trim();
@@ -110,26 +107,12 @@ Deno.serve(async (req) => {
 
     const organizationId = apiKeyRecord.organization_id;
 
-    // 3. Parse body
+    // 3. Parse body — single record
     const body = await req.json();
 
     if (!body.device_id) {
       return new Response(
         JSON.stringify({ error: "Campo obrigatório faltando: device_id" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (!Array.isArray(body.records) || body.records.length === 0) {
-      return new Response(
-        JSON.stringify({ error: "Campo 'records' deve ser um array não vazio" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (body.records.length > MAX_RECORDS_PER_REQUEST) {
-      return new Response(
-        JSON.stringify({ error: `Máximo de ${MAX_RECORDS_PER_REQUEST} registros por request` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -158,19 +141,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 5. Validate and sanitize records
-    const sanitizedRecords: Array<{
-      pdv_id: string;
-      device_id: string;
-      slot_number: string;
-      product_name: string;
-      quantity: number;
-      is_active: boolean;
-      upload_id: string;
-      record_number: string | null;
-    }> = [];
+    // 5. Validate single record fields
+    const slotNumber = sanitizeString(body.slot_number, FIELD_LIMITS.slot_number);
+    const productName = sanitizeString(body.product_name, FIELD_LIMITS.product_name);
+    const quantity = parseQuantity(body.quantity);
 
-    // We need an upload_id for stock_records — create a synthetic upload entry
+    if (!slotNumber || !productName) {
+      return new Response(
+        JSON.stringify({ error: "Campos obrigatórios: slot_number e product_name" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // 6. Create upload record for traceability
     const { data: upload, error: uploadError } = await supabase
       .from("uploads")
       .insert({
@@ -179,7 +162,7 @@ Deno.serve(async (req) => {
         type: "stock" as const,
         uploaded_by: apiKeyRecord.created_by,
         status: "ready" as const,
-        records_count: body.records.length,
+        records_count: 1,
         processed_at: new Date().toISOString(),
       })
       .select("id")
@@ -193,33 +176,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    for (let i = 0; i < body.records.length; i++) {
-      const rec = body.records[i];
-
-      const slotNumber = sanitizeString(rec.slot_number, FIELD_LIMITS.slot_number);
-      const productName = sanitizeString(rec.product_name, FIELD_LIMITS.product_name);
-      const quantity = parseQuantity(rec.quantity);
-
-      if (!slotNumber || !productName) {
-        return new Response(
-          JSON.stringify({ error: `Registro ${i}: slot_number e product_name são obrigatórios` }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      sanitizedRecords.push({
-        pdv_id: pdv.id,
-        device_id: deviceId,
-        slot_number: slotNumber,
-        product_name: productName,
-        quantity,
-        is_active: rec.is_active !== false,
-        upload_id: upload.id,
-        record_number: sanitizeString(rec.record_number, FIELD_LIMITS.record_number),
-      });
-    }
-
-    // 6. Delete old stock_records for this PDV
+    // 7. Delete old stock_records for this PDV
     const { count: deletedCount, error: deleteError } = await supabase
       .from("stock_records")
       .delete({ count: "exact" })
@@ -233,71 +190,66 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 7. Insert new records one by one
-    let insertedCount = 0;
-    for (let i = 0; i < sanitizedRecords.length; i++) {
-      const record = sanitizedRecords[i];
-      const { error: insertError } = await supabase
-        .from("stock_records")
-        .insert(record);
+    // 8. Insert single record
+    const record = {
+      pdv_id: pdv.id,
+      device_id: deviceId,
+      slot_number: slotNumber,
+      product_name: productName,
+      quantity,
+      is_active: body.is_active !== false,
+      upload_id: upload.id,
+      record_number: sanitizeString(body.record_number, FIELD_LIMITS.record_number),
+    };
 
-      if (insertError) {
-        console.error("Insert error at record", i, insertError);
-        return new Response(
-          JSON.stringify({ error: `Erro ao inserir registro ${i}`, details: insertError.message }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      insertedCount += 1;
+    const { error: insertError } = await supabase
+      .from("stock_records")
+      .insert(record);
+
+    if (insertError) {
+      console.error("Insert error:", insertError);
+      return new Response(
+        JSON.stringify({ error: "Erro ao inserir registro", details: insertError.message }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // 8. Generate stock_history snapshot
+    // 9. Generate stock_history snapshot
     const today = new Date().toISOString().split("T")[0];
-    const brandMap = new Map<string, { quantity: number; activeSlots: number }>();
+    const brand = extractBrand(productName);
 
-    for (const rec of sanitizedRecords) {
-      const brand = extractBrand(rec.product_name);
-      const existing = brandMap.get(brand) || { quantity: 0, activeSlots: 0 };
-      existing.quantity += rec.quantity;
-      if (rec.is_active) existing.activeSlots += 1;
-      brandMap.set(brand, existing);
-    }
+    const { data: existingHistory } = await supabase
+      .from("stock_history")
+      .select("id")
+      .eq("pdv_id", pdv.id)
+      .eq("snapshot_date", today)
+      .eq("brand", brand)
+      .maybeSingle();
 
-    for (const [brand, stats] of brandMap) {
-      // Try update first, then insert (upsert by pdv_id + snapshot_date + brand)
-      const { data: existingHistory } = await supabase
+    if (existingHistory) {
+      await supabase
         .from("stock_history")
-        .select("id")
-        .eq("pdv_id", pdv.id)
-        .eq("snapshot_date", today)
-        .eq("brand", brand)
-        .maybeSingle();
-
-      if (existingHistory) {
-        await supabase
-          .from("stock_history")
-          .update({
-            total_quantity: stats.quantity,
-            active_slots: stats.activeSlots,
-            upload_id: upload.id,
-          })
-          .eq("id", existingHistory.id);
-      } else {
-        await supabase
-          .from("stock_history")
-          .insert({
-            pdv_id: pdv.id,
-            organization_id: organizationId,
-            snapshot_date: today,
-            brand,
-            total_quantity: stats.quantity,
-            active_slots: stats.activeSlots,
-            upload_id: upload.id,
-          });
-      }
+        .update({
+          total_quantity: quantity,
+          active_slots: record.is_active ? 1 : 0,
+          upload_id: upload.id,
+        })
+        .eq("id", existingHistory.id);
+    } else {
+      await supabase
+        .from("stock_history")
+        .insert({
+          pdv_id: pdv.id,
+          organization_id: organizationId,
+          snapshot_date: today,
+          brand,
+          total_quantity: quantity,
+          active_slots: record.is_active ? 1 : 0,
+          upload_id: upload.id,
+        });
     }
 
-    // 9. Update last_used_at
+    // 10. Update last_used_at
     await supabase
       .from("api_keys")
       .update({ last_used_at: new Date().toISOString() })
@@ -308,7 +260,7 @@ Deno.serve(async (req) => {
         success: true,
         pdv_id: pdv.id,
         upload_id: upload.id,
-        records_inserted: insertedCount,
+        records_inserted: 1,
         records_deleted: deletedCount ?? 0,
       }),
       { status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" } }
