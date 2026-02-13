@@ -233,22 +233,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 7. Insert new records in batches
+    // 7. Insert new records one by one
     let insertedCount = 0;
-    for (let i = 0; i < sanitizedRecords.length; i += BATCH_SIZE) {
-      const batch = sanitizedRecords.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < sanitizedRecords.length; i++) {
+      const record = sanitizedRecords[i];
       const { error: insertError } = await supabase
         .from("stock_records")
-        .insert(batch);
+        .insert(record);
 
       if (insertError) {
-        console.error("Insert error at batch", i, insertError);
+        console.error("Insert error at record", i, insertError);
         return new Response(
-          JSON.stringify({ error: "Erro ao inserir registros", details: insertError.message }),
+          JSON.stringify({ error: `Erro ao inserir registro ${i}`, details: insertError.message }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      insertedCount += batch.length;
+      insertedCount += 1;
     }
 
     // 8. Generate stock_history snapshot
