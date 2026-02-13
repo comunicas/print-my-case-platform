@@ -40,10 +40,8 @@ export function useProductStock() {
     isFetching: salesFetching,
     refetch: refetchSales,
   } = useQuery({
-    queryKey: ['sales-summary', filters.selectedPdv],
+    queryKey: ['sales-summary', filters.selectedPdv, allowedPdvIds],
     queryFn: async () => {
-      // Use count query to get sales counts without fetching all records
-      // This avoids hitting the 1000 row limit
       let query = supabase
         .from('sales_records')
         .select('product_name, pdv_id')
@@ -52,13 +50,15 @@ export function useProductStock() {
       
       if (filters.selectedPdv && filters.selectedPdv !== 'all') {
         query = query.eq('pdv_id', filters.selectedPdv);
+      } else if (allowedPdvIds && allowedPdvIds.length > 0) {
+        query = query.in('pdv_id', allowedPdvIds);
       }
       
       const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
-    staleTime: 5 * 60 * 1000, // 5 minutos
+    staleTime: 5 * 60 * 1000,
     placeholderData: (previousData) => previousData,
   });
   
