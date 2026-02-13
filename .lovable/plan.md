@@ -1,100 +1,89 @@
 
 
-# Captura de Lead (WhatsApp) no Modal de Cupom
+# Tela de Leads Capturados - Area Administrativa
 
-## Conceito de UX
+## Resumo
 
-O modal atual mostra o codigo do cupom e QR code imediatamente ao clicar no produto. A ideia e adicionar uma **etapa intermediaria** antes de revelar o cupom: o usuario precisa informar seu WhatsApp para "desbloquear" o desconto.
+Criar uma nova aba "Leads" na pagina de Settings (admin-only) para visualizar, filtrar e exportar os leads capturados pelo catalogo publico (tabela `catalog_leads`).
 
-### Fluxo proposto (2 etapas no mesmo modal):
+## Arquitetura
 
-```text
-+----------------------------------+         +----------------------------------+
-|  Etapa 1: Captura do Lead        |         |  Etapa 2: Cupom Revelado         |
-|                                  |         |                                  |
-|  "Presente para voce:            |         |  "Presente para voce:            |
-|   R$ 10 OFF na proxima compra!"  |         |   R$ 10 OFF na proxima compra!"  |
-|                                  |         |                                  |
-|  [QR Code borrado/desfocado]     |   -->   |  [QR Code nitido]                |
-|                                  |         |                                  |
-|  "Informe seu WhatsApp           |         |  [CUPOM2025]  [Copiar]           |
-|   para liberar seu cupom"        |         |                                  |
-|                                  |         |  Modelo: Galaxy S24              |
-|  [(00) 00000-0000           ]    |         |                                  |
-|                                  |         |  "Enviamos o cupom para           |
-|  [    Liberar meu cupom     ]    |         |   seu WhatsApp tambem!"          |
-|                                  |         |                                  |
-|  "Nao se preocupe, nao vamos     |         +----------------------------------+
-|   enviar spam"                   |
-+----------------------------------+
-```
+Seguir exatamente o padrao ja estabelecido por `ProductRequestsSettings` + `useProductRequests`:
 
-### Por que esse UX funciona:
+1. **Hook de dados**: `useCatalogLeads.ts`
+2. **Componente de listagem**: `CatalogLeadsSettings.tsx`
+3. **Integrar na pagina Settings**: nova aba "Leads"
 
-1. **QR Code borrado** cria curiosidade e urgencia visual (o usuario ve que existe algo valioso ali)
-2. **Campo unico** (so WhatsApp) minimiza friccao - nao pede nome, email, etc.
-3. **Mascara de telefone** ja existe no projeto (`PhoneInput`)
-4. **Texto de confianca** ("nao vamos enviar spam") reduz resistencia
-5. **Transicao suave** do blur para nitido com animacao ao desbloquear
+## Implementacao
 
----
+### 1. Novo hook `src/hooks/useCatalogLeads.ts`
 
-## Implementacao Tecnica
+- Query principal com filtros: `dateFrom`, `dateTo`, `search` (busca por telefone ou produto)
+- Query de stats: total de leads, leads hoje, leads na semana, top produto
+- Mutation de delete (admin pode limpar leads)
+- Exportar CSV: funcao utilitaria que converte os leads filtrados em CSV e faz download
+- Usar `useDebounce` para o campo de busca (mesmo padrao de ProductRequests)
 
-### 1. Nova tabela `catalog_leads`
+### 2. Novo componente `src/components/settings/CatalogLeadsSettings.tsx`
 
-Armazena os leads capturados com contexto do PDV e produto selecionado:
+Layout seguindo `ProductRequestsSettings`:
 
-- `id` (uuid, PK)
-- `organization_id` (uuid, FK organizations)
-- `pdv_id` (uuid, nullable, FK pdvs)
-- `phone` (text, WhatsApp formatado)
-- `product_name` (text, modelo que o usuario clicou)
-- `catalog_slug` (text, slug do catalogo de origem)
-- `created_at` (timestamptz)
+**KPI Cards (4 cards)**:
+- Total de leads
+- Leads hoje
+- Leads esta semana
+- Top produto (produto mais solicitado)
 
-RLS: INSERT para `anon` (pagina publica), SELECT para `authenticated` (admin ve os leads).
+**Filtros**:
+- Campo de busca (telefone ou produto) com icone de Search
+- Filtro de data com `DateRangeFilter` (componente ja existente no projeto)
+- Botao "Exportar CSV" alinhado a direita
 
-### 2. Modificar `ProductCodeModal`
+**Tabela (desktop)** com colunas:
+- Data (formatada dd/MM/yyyy HH:mm)
+- WhatsApp (com link para abrir wa.me)
+- Produto
+- Catalogo (slug)
+- Acoes (abrir WhatsApp, excluir)
 
-Adicionar estado de 2 etapas:
-- **Etapa 1**: Mostra QR com `filter: blur(8px)`, campo `PhoneInput` e botao "Liberar meu cupom"
-- **Etapa 2**: Remove blur, mostra codigo e botao copiar (comportamento atual)
+**Cards (mobile)**:
+- Layout empilhado com telefone, produto, data e botao WhatsApp
 
-Ao submeter o WhatsApp:
-1. Insere na tabela `catalog_leads`
-2. Transiciona para etapa 2 com animacao
+**Delete com confirmacao**: AlertDialog antes de excluir (mesmo padrao).
 
-### 3. Props adicionais no `ProductCodeModal`
+**Empty state**: Icone + mensagem quando nao houver leads.
 
-Novas props para enviar contexto:
-- `organizationId: string`
-- `pdvId: string | null`
-- `catalogSlug: string`
+### 3. Atualizar `src/pages/Settings.tsx`
 
-### 4. Validacao
+- Adicionar lazy import do `CatalogLeadsSettings`
+- Adicionar nova aba "Leads" (admin-only, ao lado de "Pedidos")
+- Adicionar "leads" ao array `ADMIN_ONLY_TABS`
+- Usar icone `Users` ou `UserPlus` do lucide-react
+- Grid de tabs passa de `md:grid-cols-7` para `md:grid-cols-8`
 
-- Usar `PhoneInput` existente com mascara brasileira
-- Validar minimo 10 digitos (fixo) ou 11 (celular) antes de habilitar o botao
-- Usar `unformatPhoneNumber()` para salvar apenas numeros no banco
+### 4. Atualizar `src/components/settings/index.ts`
 
-### 5. Visualizacao de leads (admin)
+- Exportar `CatalogLeadsSettings`
 
-Nesta primeira versao, os leads ficam acessiveis apenas via banco. Uma tela de visualizacao pode ser adicionada depois como melhoria.
+### 5. Funcao de exportacao CSV
 
----
+Implementada direto no hook ou como utilitario no componente:
+- Gera arquivo CSV com colunas: Data, WhatsApp, Produto, Catalogo
+- Usa `encodeURIComponent` e `Blob` para download
+- Nome do arquivo: `leads-catalogo-YYYY-MM-DD.csv`
 
-## Arquivos Modificados
+## Arquivos modificados
 
-| Arquivo | Mudanca |
-|---------|---------|
-| **Nova migration SQL** | Criar tabela `catalog_leads` com RLS |
-| `src/components/public/ProductCodeModal.tsx` | Adicionar fluxo de 2 etapas com captura de WhatsApp |
-| `src/pages/PublicStock.tsx` | Passar `organizationId`, `pdvId` e `catalogSlug` ao modal |
+| Arquivo | Tipo | Mudanca |
+|---------|------|---------|
+| `src/hooks/useCatalogLeads.ts` | Novo | Hook com queries, delete e export CSV |
+| `src/components/settings/CatalogLeadsSettings.tsx` | Novo | Componente de listagem com filtros |
+| `src/components/settings/index.ts` | Editar | Adicionar export |
+| `src/pages/Settings.tsx` | Editar | Adicionar aba "Leads" |
 
 ## Riscos
 
-- **NENHUM** para funcionalidade existente - o modal so ganha uma etapa antes
-- Se `catalog_code_enabled` estiver desativado, o modal nem aparece (sem impacto)
-- A mascara de telefone e o componente `PhoneInput` ja existem e estao testados
+- **NENHUM** para funcionalidade existente
+- Tabela `catalog_leads` ja existe com RLS configurado (SELECT para admins, INSERT para anon)
+- Nenhuma migration necessaria
 
