@@ -1,12 +1,13 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Ticket, Image, ArrowRight } from "lucide-react";
+import { Ticket, Image, ArrowRight, UserPlus, BarChart3 } from "lucide-react";
 
 interface MarketingOverviewProps {
   onNavigate: (tab: string) => void;
+  isAdmin?: boolean;
 }
 
-export function MarketingOverview({ onNavigate }: MarketingOverviewProps) {
+export function MarketingOverview({ onNavigate, isAdmin }: MarketingOverviewProps) {
   const cards = [
     {
       id: "cupons",
@@ -20,6 +21,22 @@ export function MarketingOverview({ onNavigate }: MarketingOverviewProps) {
       description: "Gerencie fotos e vídeos promocionais para suas vitrines digitais.",
       icon: Image,
     },
+    ...(isAdmin
+      ? [
+          {
+            id: "leads",
+            title: "Leads",
+            description: "Visualize os leads capturados pelo catálogo público.",
+            icon: UserPlus,
+          },
+          {
+            id: "analytics",
+            title: "Analytics",
+            description: "Acompanhe métricas de desempenho do seu marketing.",
+            icon: BarChart3,
+          },
+        ]
+      : []),
   ];
 
   return (

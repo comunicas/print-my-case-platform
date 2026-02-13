@@ -14,6 +14,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const CouponsSettings = lazy(() => import("@/components/marketing/CouponsSettings").then(m => ({ default: m.CouponsSettings })));
 const MarketingOverview = lazy(() => import("@/components/marketing/MarketingOverview").then(m => ({ default: m.MarketingOverview })));
 const MediaSettings = lazy(() => import("@/components/marketing/MediaSettings").then(m => ({ default: m.MediaSettings })));
+const CatalogLeadsSettings = lazy(() => import("@/components/settings/CatalogLeadsSettings").then(m => ({ default: m.CatalogLeadsSettings })));
+const MarketingAnalytics = lazy(() => import("@/components/marketing/MarketingAnalytics").then(m => ({ default: m.MarketingAnalytics })));
 
 export default function Marketing() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -68,7 +70,7 @@ export default function Marketing() {
             </p>
           </div>
           <Suspense fallback={<TabSkeleton />}>
-            <MarketingOverview onNavigate={handleTabChange} />
+            <MarketingOverview onNavigate={handleTabChange} isAdmin={isAdmin} />
           </Suspense>
         </div>
       </AppLayout>
@@ -97,6 +99,8 @@ export default function Marketing() {
           <TabsList>
             <TabsTrigger value="cupons">Cupons</TabsTrigger>
             <TabsTrigger value="midias">Mídias</TabsTrigger>
+            {isAdmin && <TabsTrigger value="leads">Leads</TabsTrigger>}
+            {isAdmin && <TabsTrigger value="analytics">Analytics</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="cupons" className="mt-4">
@@ -125,6 +129,22 @@ export default function Marketing() {
               </div>
             </Suspense>
           </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="leads" className="mt-4">
+              <Suspense fallback={<TabSkeleton />}>
+                <CatalogLeadsSettings />
+              </Suspense>
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="analytics" className="mt-4">
+              <Suspense fallback={<TabSkeleton />}>
+                <MarketingAnalytics selectedPdvId={selectedPdvId} />
+              </Suspense>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </AppLayout>
