@@ -30,10 +30,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // THEN check for existing session
+    // THEN check for existing session with timeout to prevent hanging on slow connections
+    const sessionTimeout = setTimeout(() => {
+      setLoading(false);
+    }, 5000);
+
     supabase.auth.getSession().then(({ data: { session } }) => {
+      clearTimeout(sessionTimeout);
       setSession(session);
       setUser(session?.user ?? null);
+      setLoading(false);
+    }).catch(() => {
+      clearTimeout(sessionTimeout);
       setLoading(false);
     });
 
