@@ -112,6 +112,51 @@ export type Database = {
         }
         Relationships: []
       }
+      catalog_leads: {
+        Row: {
+          catalog_slug: string
+          created_at: string
+          id: string
+          organization_id: string
+          pdv_id: string | null
+          phone: string
+          product_name: string
+        }
+        Insert: {
+          catalog_slug: string
+          created_at?: string
+          id?: string
+          organization_id: string
+          pdv_id?: string | null
+          phone: string
+          product_name: string
+        }
+        Update: {
+          catalog_slug?: string
+          created_at?: string
+          id?: string
+          organization_id?: string
+          pdv_id?: string | null
+          phone?: string
+          product_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_leads_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_leads_pdv_id_fkey"
+            columns: ["pdv_id"]
+            isOneToOne: false
+            referencedRelation: "pdvs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       catalog_short_links: {
         Row: {
           click_count: number
