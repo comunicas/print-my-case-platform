@@ -1,4 +1,5 @@
 import { z } from "zod";
+export { organizationSchema as organizationFormSchema, type OrganizationFormData } from "./organization";
 
 export const profileFormSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
@@ -19,13 +20,6 @@ export const passwordFormSchema = z.object({
   path: ["confirmPassword"],
 });
 
-export const organizationFormSchema = z.object({
-  name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
-  email: z.string().email("Email inválido"),
-  phone: z.string().optional(),
-  address: z.string().optional(),
-});
-
 export const preferencesSchema = z.object({
   theme: z.enum(["light", "dark", "system"]),
   language: z.enum(["pt-BR", "en", "es"]),
@@ -43,5 +37,4 @@ export const preferencesSchema = z.object({
 
 export type ProfileFormData = z.infer<typeof profileFormSchema>;
 export type PasswordFormData = z.infer<typeof passwordFormSchema>;
-export type OrganizationFormData = z.infer<typeof organizationFormSchema>;
 export type PreferencesData = z.infer<typeof preferencesSchema>;

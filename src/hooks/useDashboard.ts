@@ -247,7 +247,7 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
 
       // Process full sales records for charts
       const salesRecordsRaw = fullSalesRecordsResult.data || [];
-      const salesRecordsForCharts: SaleRecord[] = salesRecordsRaw.map((r: any) => ({
+      const salesRecordsForCharts: SaleRecord[] = salesRecordsRaw.map((r) => ({
         id: r.id,
         payment_date: r.payment_date,
         amount: Number(r.amount),
@@ -264,7 +264,7 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
       const quickStats = getQuickStats(salesRecordsForCharts);
       
       // Calculate losses by day for chart
-      const cancellationsForChart: CancellationRecord[] = currentCancellations.map((c: any) => ({
+      const cancellationsForChart: CancellationRecord[] = currentCancellations.map((c) => ({
         payment_date: c.payment_date,
         amount: Number(c.amount),
       }));
