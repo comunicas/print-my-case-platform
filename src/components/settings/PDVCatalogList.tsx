@@ -4,9 +4,9 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Copy, ExternalLink, Loader2 } from "lucide-react";
+import { Copy, ExternalLink, Loader2, Link2, MousePointerClick } from "lucide-react";
 import { toast } from "sonner";
-import { usePDVCatalogSettings } from "@/hooks/usePDVCatalogSettings";
+import { usePDVCatalogSettings, type ShortLink } from "@/hooks/usePDVCatalogSettings";
 
 interface PDVCatalogListProps {
   organizationId: string;
@@ -23,6 +23,7 @@ interface PDVCatalogRowProps {
       public_slug: string | null;
       is_public_enabled: boolean;
     } | null;
+    short_link: ShortLink | null;
   };
   onSave: (pdvId: string, slug: string, enabled: boolean) => void;
   isSaving: boolean;
@@ -37,12 +38,11 @@ function PDVCatalogRow({ pdv, onSave, isSaving }: PDVCatalogRowProps) {
     slug !== (pdv.catalog_settings?.public_slug || "");
 
   const catalogUrl = slug ? `${CUSTOM_DOMAIN}/catalogo/${slug}` : "";
+  const shortLinkUrl = pdv.short_link ? `${CUSTOM_DOMAIN}/s/${pdv.short_link.short_code}` : "";
 
-  const handleCopyLink = () => {
-    if (catalogUrl) {
-      navigator.clipboard.writeText(catalogUrl);
-      toast.success("Link copiado!");
-    }
+  const handleCopy = (url: string) => {
+    navigator.clipboard.writeText(url);
+    toast.success("Link copiado!");
   };
 
   return (
@@ -81,16 +81,40 @@ function PDVCatalogRow({ pdv, onSave, isSaving }: PDVCatalogRowProps) {
           </div>
 
           {catalogUrl && slug && (
-            <div className="flex gap-2">
-              <Input value={catalogUrl} readOnly className="font-mono text-sm" />
-              <Button type="button" variant="outline" size="icon" onClick={handleCopyLink}>
-                <Copy className="h-4 w-4" />
-              </Button>
-              <Button type="button" variant="outline" size="icon" asChild>
-                <a href={catalogUrl} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-              </Button>
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Link completo</Label>
+              <div className="flex gap-2">
+                <Input value={catalogUrl} readOnly className="font-mono text-sm" />
+                <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(catalogUrl)}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button type="button" variant="outline" size="icon" asChild>
+                  <a href={catalogUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {pdv.short_link && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Link2 className="h-3.5 w-3.5 text-muted-foreground" />
+                <Label className="text-xs text-muted-foreground">Link curto</Label>
+                <div className="flex items-center gap-1 ml-auto">
+                  <MousePointerClick className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {pdv.short_link.click_count} {pdv.short_link.click_count === 1 ? "clique" : "cliques"}
+                  </span>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Input value={shortLinkUrl} readOnly className="font-mono text-sm" />
+                <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(shortLinkUrl)}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           )}
 

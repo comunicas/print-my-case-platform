@@ -112,6 +112,79 @@ export type Database = {
         }
         Relationships: []
       }
+      catalog_short_links: {
+        Row: {
+          click_count: number
+          created_at: string
+          id: string
+          pdv_id: string
+          short_code: string
+          target_url: string
+          updated_at: string
+        }
+        Insert: {
+          click_count?: number
+          created_at?: string
+          id?: string
+          pdv_id: string
+          short_code: string
+          target_url: string
+          updated_at?: string
+        }
+        Update: {
+          click_count?: number
+          created_at?: string
+          id?: string
+          pdv_id?: string
+          short_code?: string
+          target_url?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_short_links_pdv_id_fkey"
+            columns: ["pdv_id"]
+            isOneToOne: false
+            referencedRelation: "pdvs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      link_click_events: {
+        Row: {
+          clicked_at: string
+          id: string
+          ip_hash: string | null
+          referrer: string | null
+          short_link_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          clicked_at?: string
+          id?: string
+          ip_hash?: string | null
+          referrer?: string | null
+          short_link_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          clicked_at?: string
+          id?: string
+          ip_hash?: string | null
+          referrer?: string | null
+          short_link_id?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "link_click_events_short_link_id_fkey"
+            columns: ["short_link_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_short_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string | null
@@ -924,6 +997,13 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_click_count: {
+        Args: { p_short_code: string }
+        Returns: {
+          short_link_id: string
+          target_url: string
+        }[]
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }

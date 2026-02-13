@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.ingest-revenue]
 verify_jwt = false
+
+[functions.redirect-short-link]
+verify_jwt = false

@@ -15,11 +15,29 @@ export interface PDVCatalogSettings {
   updated_at: string;
 }
 
+export interface ShortLink {
+  id: string;
+  pdv_id: string;
+  short_code: string;
+  target_url: string;
+  click_count: number;
+}
+
 interface PDVWithCatalogSettings {
   id: string;
   name: string;
   location: string;
   catalog_settings: PDVCatalogSettings | null;
+  short_link: ShortLink | null;
+}
+
+function generateShortCode(): string {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let code = "";
+  for (let i = 0; i < 6; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
 }
 
 export function usePDVCatalogSettings(organizationId?: string) {
@@ -40,16 +58,19 @@ export function usePDVCatalogSettings(organizationId?: string) {
       if (pdvsError) throw pdvsError;
 
       const pdvIds = pdvs.map(p => p.id);
-      const { data: settings, error: settingsError } = await supabase
-        .from("pdv_catalog_settings")
-        .select("*")
-        .in("pdv_id", pdvIds);
+      
+      const [settingsRes, shortLinksRes] = await Promise.all([
+        supabase.from("pdv_catalog_settings").select("*").in("pdv_id", pdvIds),
+        supabase.from("catalog_short_links").select("*").in("pdv_id", pdvIds),
+      ]);
 
-      if (settingsError) throw settingsError;
+      if (settingsRes.error) throw settingsRes.error;
+      if (shortLinksRes.error) throw shortLinksRes.error;
 
       const result: PDVWithCatalogSettings[] = pdvs.map(pdv => ({
         ...pdv,
-        catalog_settings: settings?.find(s => s.pdv_id === pdv.id) as PDVCatalogSettings | undefined || null,
+        catalog_settings: settingsRes.data?.find(s => s.pdv_id === pdv.id) as PDVCatalogSettings | undefined || null,
+        short_link: shortLinksRes.data?.find(s => s.pdv_id === pdv.id) as ShortLink | undefined || null,
       }));
 
       return result;
@@ -86,6 +107,39 @@ export function usePDVCatalogSettings(organizationId?: string) {
           .from("pdv_catalog_settings")
           .insert({ pdv_id, ...updateData });
         if (error) throw error;
+      }
+
+      // Create short link if enabling public and slug exists
+      if (data.is_public_enabled && data.public_slug) {
+        const targetUrl = `https://printmycase.comunicas.com.br/catalogo/${data.public_slug}`;
+        
+        const { data: existingLink } = await supabase
+          .from("catalog_short_links")
+          .select("id")
+          .eq("pdv_id", pdv_id)
+          .single();
+
+        if (existingLink) {
+          await supabase
+            .from("catalog_short_links")
+            .update({ target_url: targetUrl })
+            .eq("pdv_id", pdv_id);
+        } else {
+          let shortCode = generateShortCode();
+          let attempts = 0;
+          while (attempts < 5) {
+            const { error: insertError } = await supabase
+              .from("catalog_short_links")
+              .insert({ pdv_id, short_code: shortCode, target_url: targetUrl });
+            if (!insertError) break;
+            if (insertError.message?.includes("unique")) {
+              shortCode = generateShortCode();
+              attempts++;
+            } else {
+              throw insertError;
+            }
+          }
+        }
       }
     },
     onSuccess: () => {
