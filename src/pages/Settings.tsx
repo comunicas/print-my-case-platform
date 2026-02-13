@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-import { User, Settings as SettingsIcon, Building2, Plug, ExternalLink, Cloud, Loader2, MapPin, Users, MessageSquare } from "lucide-react";
+import { User, Settings as SettingsIcon, Building2, Plug, ExternalLink, Cloud, Loader2, MapPin, Users, MessageSquare, UserPlus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -22,9 +22,10 @@ const PDVsSettings = lazy(() => import("@/components/settings/PDVsSettings").the
 const TeamSettings = lazy(() => import("@/components/settings/TeamSettings").then(m => ({ default: m.TeamSettings })));
 const IntegrationsSettings = lazy(() => import("@/components/settings/IntegrationsSettings").then(m => ({ default: m.IntegrationsSettings })));
 const ProductRequestsSettings = lazy(() => import("@/components/settings/ProductRequestsSettings").then(m => ({ default: m.ProductRequestsSettings })));
+const CatalogLeadsSettings = lazy(() => import("@/components/settings/CatalogLeadsSettings").then(m => ({ default: m.CatalogLeadsSettings })));
 
 // Abas restritas apenas para admins
-const ADMIN_ONLY_TABS = ["team", "requests"];
+const ADMIN_ONLY_TABS = ["team", "requests", "leads"];
 
 export default function Settings() {
 const [searchParams, setSearchParams] = useSearchParams();
@@ -81,7 +82,7 @@ const [searchParams, setSearchParams] = useSearchParams();
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 md:grid-cols-7 h-auto">
+          <TabsList className="grid w-full grid-cols-4 md:grid-cols-8 h-auto">
             <TabsTrigger value="profile" className="gap-2 py-2">
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">Perfil</span>
@@ -102,6 +103,12 @@ const [searchParams, setSearchParams] = useSearchParams();
               <TabsTrigger value="requests" className="gap-2 py-2">
                 <MessageSquare className="h-4 w-4" />
                 <span className="hidden sm:inline">Pedidos</span>
+              </TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="leads" className="gap-2 py-2">
+                <UserPlus className="h-4 w-4" />
+                <span className="hidden sm:inline">Leads</span>
               </TabsTrigger>
             )}
             {isAdmin && (
@@ -237,6 +244,15 @@ const [searchParams, setSearchParams] = useSearchParams();
             <TabsContent value="requests" className="space-y-6">
               <Suspense fallback={<TabSkeleton />}>
                 <ProductRequestsSettings />
+              </Suspense>
+            </TabsContent>
+          )}
+
+          {/* Leads Tab */}
+          {isAdmin && (
+            <TabsContent value="leads" className="space-y-6">
+              <Suspense fallback={<TabSkeleton />}>
+                <CatalogLeadsSettings />
               </Suspense>
             </TabsContent>
           )}
