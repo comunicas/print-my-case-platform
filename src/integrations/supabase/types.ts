@@ -224,7 +224,9 @@ export type Database = {
           created_at: string | null
           id: string
           is_enabled: boolean | null
+          is_public_enabled: boolean | null
           pdv_id: string
+          public_slug: string | null
           updated_at: string | null
         }
         Insert: {
@@ -234,7 +236,9 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_enabled?: boolean | null
+          is_public_enabled?: boolean | null
           pdv_id: string
+          public_slug?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -244,7 +248,9 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_enabled?: boolean | null
+          is_public_enabled?: boolean | null
           pdv_id?: string
+          public_slug?: string | null
           updated_at?: string | null
         }
         Relationships: [

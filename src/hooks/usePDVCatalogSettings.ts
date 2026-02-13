@@ -9,6 +9,8 @@ export interface PDVCatalogSettings {
   catalog_qrcode_url: string | null;
   catalog_modal_text: string | null;
   is_enabled: boolean;
+  public_slug: string | null;
+  is_public_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -28,7 +30,6 @@ export function usePDVCatalogSettings(organizationId?: string) {
     queryFn: async () => {
       if (!organizationId) return [];
 
-      // Fetch PDVs
       const { data: pdvs, error: pdvsError } = await supabase
         .from("pdvs")
         .select("id, name, location")
@@ -38,7 +39,6 @@ export function usePDVCatalogSettings(organizationId?: string) {
 
       if (pdvsError) throw pdvsError;
 
-      // Fetch catalog settings for these PDVs
       const pdvIds = pdvs.map(p => p.id);
       const { data: settings, error: settingsError } = await supabase
         .from("pdv_catalog_settings")
@@ -47,10 +47,9 @@ export function usePDVCatalogSettings(organizationId?: string) {
 
       if (settingsError) throw settingsError;
 
-      // Merge PDVs with their settings
       const result: PDVWithCatalogSettings[] = pdvs.map(pdv => ({
         ...pdv,
-        catalog_settings: settings?.find(s => s.pdv_id === pdv.id) || null,
+        catalog_settings: settings?.find(s => s.pdv_id === pdv.id) as PDVCatalogSettings | undefined || null,
       }));
 
       return result;
@@ -65,10 +64,11 @@ export function usePDVCatalogSettings(organizationId?: string) {
       catalog_qrcode_url?: string | null;
       catalog_modal_text?: string | null;
       is_enabled?: boolean;
+      public_slug?: string | null;
+      is_public_enabled?: boolean;
     }) => {
       const { pdv_id, ...updateData } = data;
 
-      // Check if settings exist
       const { data: existing } = await supabase
         .from("pdv_catalog_settings")
         .select("id")
@@ -76,19 +76,15 @@ export function usePDVCatalogSettings(organizationId?: string) {
         .single();
 
       if (existing) {
-        // Update
         const { error } = await supabase
           .from("pdv_catalog_settings")
           .update(updateData)
           .eq("pdv_id", pdv_id);
-
         if (error) throw error;
       } else {
-        // Insert
         const { error } = await supabase
           .from("pdv_catalog_settings")
           .insert({ pdv_id, ...updateData });
-
         if (error) throw error;
       }
     },
@@ -100,9 +96,10 @@ export function usePDVCatalogSettings(organizationId?: string) {
     },
     onError: (error) => {
       console.error("Error saving catalog settings:", error);
-      toast.error("Erro ao salvar", {
-        description: "Não foi possível salvar as configurações.",
-      });
+      const msg = error.message?.includes("unique")
+        ? "Este slug já está em uso. Escolha outro."
+        : "Não foi possível salvar as configurações.";
+      toast.error("Erro ao salvar", { description: msg });
     },
   });
 
