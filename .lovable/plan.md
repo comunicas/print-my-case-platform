@@ -1,79 +1,104 @@
 
-# Catálogos Públicos por PDV
 
-## Problema Atual
-O sistema permite apenas **1 URL de catálogo por organização**. O slug e o PDV ficam na tabela `organizations`, impossibilitando ter URLs separadas para cada PDV (ex: `/catalogo/tiete-plaza` e `/catalogo/boulevard-tatuape`).
+# Links Encurtados para Catálogos com Rastreamento
 
-## Solução
-Mover a configuração do catálogo público para a tabela `pdv_catalog_settings`, permitindo que cada PDV tenha seu próprio slug e URL independente.
+## Objetivo
+Gerar um link curto dedicado para cada catálogo de PDV (ex: `printmycase.comunicas.com.br/s/abc123`) que redireciona para o catálogo completo e registra cada clique para análise de interação.
 
-## Mudanças Necessárias
+## Arquitetura
 
 ### 1. Banco de Dados
-- Adicionar coluna `public_slug` na tabela `pdv_catalog_settings` (unique, nullable)
-- Adicionar coluna `is_public_enabled` na tabela `pdv_catalog_settings` (boolean, default false)
-- Criar/atualizar a function `get_public_organization` para buscar por slug na `pdv_catalog_settings` ao invés de `organizations`
-- Manter compatibilidade: se o slug existir na `organizations`, continuar funcionando (fallback)
 
-### 2. Tela de Configuracao (OrganizationSettings)
-- Substituir o bloco atual de "Catalogo Publico" (slug unico + PDV selector) por uma lista de PDVs, onde cada PDV pode:
-  - Ativar/desativar seu catalogo publico individualmente
-  - Ter seu proprio slug
-  - Exibir seu link proprio
+**Tabela `catalog_short_links`** - armazena os links curtos:
+- `id` (uuid, PK)
+- `pdv_id` (uuid, FK para pdvs)
+- `short_code` (text, unique) - codigo curto de 6-8 caracteres
+- `target_url` (text) - URL completa do catálogo
+- `click_count` (integer, default 0) - contador rápido de cliques
+- `created_at`, `updated_at`
 
-### 3. Function `get_public_organization`
-- Primeiro busca o slug em `pdv_catalog_settings.public_slug`
-- Se encontrar, retorna os dados do PDV e da organizacao associada
-- Se nao encontrar, faz fallback para `organizations.public_slug` (compatibilidade)
+**Tabela `link_click_events`** - log detalhado de cada clique:
+- `id` (uuid, PK)
+- `short_link_id` (uuid, FK)
+- `clicked_at` (timestamptz)
+- `referrer` (text, nullable)
+- `user_agent` (text, nullable)
+- `ip_hash` (text, nullable) - hash do IP para privacidade
 
-### 4. Pagina Publica (PublicStock)
-- Nenhuma mudanca necessaria na estrutura, pois ja recebe os dados via `get_public_organization`
-- Os dados retornados terao o PDV correto baseado no slug
+**RLS:**
+- Admins podem gerenciar `catalog_short_links` dos PDVs da sua org
+- Leitura pública nos short links (para o redirect funcionar)
+- Admins podem ver `link_click_events` dos seus links
 
-## Detalhes Tecnicos
+### 2. Edge Function `redirect-short-link`
 
-### Migration SQL
+Uma edge function leve que:
+1. Recebe o `short_code` via query param
+2. Busca a URL de destino na tabela `catalog_short_links`
+3. Registra o clique em `link_click_events` (async, sem bloquear)
+4. Incrementa `click_count` na tabela
+5. Retorna um redirect 302 para a URL do catálogo
 
+### 3. Rota no App `/s/:code`
+
+Uma rota React simples que:
+1. Extrai o código curto da URL
+2. Chama a edge function de redirect
+3. Exibe um loader enquanto redireciona
+
+### 4. UI - PDVCatalogList
+
+Para cada PDV com catálogo ativo:
+- Gerar automaticamente um short code ao salvar (se ainda nao existir)
+- Exibir o link curto ao lado do link completo
+- Botao de copiar o link curto
+- Mostrar o contador de cliques ao lado do link
+
+Layout atualizado de cada PDV:
 ```text
--- Novas colunas em pdv_catalog_settings
-ALTER TABLE pdv_catalog_settings
-  ADD COLUMN public_slug TEXT UNIQUE,
-  ADD COLUMN is_public_enabled BOOLEAN DEFAULT false;
-
--- Migrar dados existentes da organizacao para o PDV configurado
-UPDATE pdv_catalog_settings pcs
-SET public_slug = o.public_slug,
-    is_public_enabled = true
-FROM organizations o
-WHERE o.catalog_pdv_id = pcs.pdv_id
-  AND o.public_catalog_enabled = true
-  AND o.public_slug IS NOT NULL;
-
--- Se nao existe registro em pdv_catalog_settings para o PDV configurado, criar
-INSERT INTO pdv_catalog_settings (pdv_id, public_slug, is_public_enabled)
-SELECT o.catalog_pdv_id, o.public_slug, true
-FROM organizations o
-WHERE o.public_catalog_enabled = true
-  AND o.catalog_pdv_id IS NOT NULL
-  AND o.public_slug IS NOT NULL
-  AND NOT EXISTS (
-    SELECT 1 FROM pdv_catalog_settings pcs WHERE pcs.pdv_id = o.catalog_pdv_id
-  );
-
--- Atualizar function get_public_organization
--- Buscar primeiro em pdv_catalog_settings, fallback para organizations
++------------------------------------------+
+| Tiete Plaza Shopping          [Ativo] [x] |
+| Av. Raimundo Pereira de Magalhaes        |
+|                                          |
+| Slug: /catalogo/tiete-plaza              |
+|                                          |
+| Link completo:                           |
+| https://printmycase.../catalogo/tiete..  |
+|                                          |
+| Link curto:              42 cliques      |
+| https://printmycase.../s/abc123  [copy]  |
+|                                [Salvar]  |
++------------------------------------------+
 ```
 
-### Componente OrganizationSettings
-- Remover campos de slug unico e PDV selector
-- Adicionar secao com lista de PDVs, cada um com toggle + campo de slug
-- Usar o hook `usePDVCatalogSettings` existente (estender com novos campos)
+### 5. Geração do Short Code
 
-### Hook usePDVCatalogSettings
-- Estender para incluir `public_slug` e `is_public_enabled`
-- Adicionar mutacao para salvar essas configs por PDV
+Função utilitária que gera códigos únicos de 6 caracteres alfanuméricos (base62). Verificação de unicidade no banco antes de salvar.
 
-## Resultado Final
-- Cada PDV tera sua propria URL: `/catalogo/tiete-plaza`, `/catalogo/boulevard-tatuape`
-- A UI mostrara todos os PDVs com seus respectivos toggles e slugs
-- Compatibilidade mantida com a configuracao atual do Tiete Plaza
+## Detalhes Técnicos
+
+### Migration SQL
+- Criar tabela `catalog_short_links` com unique constraint em `short_code`
+- Criar tabela `link_click_events` com índice em `short_link_id`
+- RLS policies para ambas as tabelas
+- Função SQL `increment_click_count` para atomicidade
+
+### Edge Function
+- Path: `supabase/functions/redirect-short-link/index.ts`
+- Usa service role key para inserir cliques (acesso anônimo)
+- Resposta rápida com redirect 302
+
+### Arquivos Modificados
+- `src/components/settings/PDVCatalogList.tsx` - adicionar exibição do link curto e contador
+- `src/hooks/usePDVCatalogSettings.ts` - incluir query dos short links e mutation para criar
+- `src/App.tsx` - adicionar rota `/s/:code`
+- Novo: `src/pages/ShortLinkRedirect.tsx` - página de redirect
+- Novo: `supabase/functions/redirect-short-link/index.ts`
+
+### Fluxo do Clique
+1. Usuário acessa `printmycase.comunicas.com.br/s/abc123`
+2. App carrega a rota `/s/:code`
+3. Componente chama edge function com o código
+4. Edge function registra o clique e retorna a URL de destino
+5. Componente faz `window.location.replace(targetUrl)` para o catálogo
+
