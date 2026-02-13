@@ -1,89 +1,104 @@
 
 
-# Tela de Leads Capturados - Area Administrativa
+# Migrar Leads e Expandir Marketing
 
-## Resumo
+## Visao Geral
 
-Criar uma nova aba "Leads" na pagina de Settings (admin-only) para visualizar, filtrar e exportar os leads capturados pelo catalogo publico (tabela `catalog_leads`).
+Mover a aba "Leads" de Settings para Marketing, adicionar analytics detalhado (grafico de leads por dia + cliques nos links curtos) e um card de "Leads" na MarketingOverview. O modulo de Marketing passara a ter 4 abas: **Cupons**, **Midias**, **Leads** e **Analytics**.
 
-## Arquitetura
+## Estrutura Final das Abas
 
-Seguir exatamente o padrao ja estabelecido por `ProductRequestsSettings` + `useProductRequests`:
+```text
+Marketing (sem tab) -> MarketingOverview com 4 cards
+  ?tab=cupons  -> CouponsSettings (existente, sem mudanca)
+  ?tab=midias  -> MediaSettings (existente, sem mudanca)
+  ?tab=leads   -> CatalogLeadsSettings (movido de Settings)
+  ?tab=analytics -> MarketingAnalytics (NOVO)
+```
 
-1. **Hook de dados**: `useCatalogLeads.ts`
-2. **Componente de listagem**: `CatalogLeadsSettings.tsx`
-3. **Integrar na pagina Settings**: nova aba "Leads"
+## Etapas
 
-## Implementacao
+### Etapa 1: Mover Leads de Settings para Marketing
 
-### 1. Novo hook `src/hooks/useCatalogLeads.ts`
+**Remover de Settings:**
+- Remover lazy import, TabsTrigger e TabsContent de `CatalogLeadsSettings` em `src/pages/Settings.tsx`
+- Remover `"leads"` de `ADMIN_ONLY_TABS`
+- Voltar grid de `md:grid-cols-8` para `md:grid-cols-7`
 
-- Query principal com filtros: `dateFrom`, `dateTo`, `search` (busca por telefone ou produto)
-- Query de stats: total de leads, leads hoje, leads na semana, top produto
-- Mutation de delete (admin pode limpar leads)
-- Exportar CSV: funcao utilitaria que converte os leads filtrados em CSV e faz download
-- Usar `useDebounce` para o campo de busca (mesmo padrao de ProductRequests)
+**Adicionar em Marketing:**
+- Adicionar lazy import de `CatalogLeadsSettings` em `src/pages/Marketing.tsx`
+- Adicionar nova aba "Leads" no `TabsList` (com icone `UserPlus`)
+- Adicionar `TabsContent` correspondente
+- Visivel apenas para admins (`isAdmin`)
 
-### 2. Novo componente `src/components/settings/CatalogLeadsSettings.tsx`
+### Etapa 2: Atualizar MarketingOverview
 
-Layout seguindo `ProductRequestsSettings`:
+Adicionar 2 novos cards na overview:
 
-**KPI Cards (4 cards)**:
-- Total de leads
-- Leads hoje
-- Leads esta semana
-- Top produto (produto mais solicitado)
+- **Leads**: "Visualize os leads capturados pelo catalogo publico" (icone `UserPlus`)
+- **Analytics**: "Acompanhe metricas de desempenho do seu marketing" (icone `BarChart3`)
 
-**Filtros**:
-- Campo de busca (telefone ou produto) com icone de Search
-- Filtro de data com `DateRangeFilter` (componente ja existente no projeto)
-- Botao "Exportar CSV" alinhado a direita
+Grid passa de `md:grid-cols-2` para `md:grid-cols-2` (2x2 = 4 cards, mantendo 2 colunas).
 
-**Tabela (desktop)** com colunas:
-- Data (formatada dd/MM/yyyy HH:mm)
-- WhatsApp (com link para abrir wa.me)
-- Produto
-- Catalogo (slug)
-- Acoes (abrir WhatsApp, excluir)
+Cards de Leads e Analytics visiveis apenas para admins.
 
-**Cards (mobile)**:
-- Layout empilhado com telefone, produto, data e botao WhatsApp
+### Etapa 3: Criar componente MarketingAnalytics
 
-**Delete com confirmacao**: AlertDialog antes de excluir (mesmo padrao).
+Novo componente `src/components/marketing/MarketingAnalytics.tsx` com:
 
-**Empty state**: Icone + mensagem quando nao houver leads.
+**KPIs (4 cards):**
+- Total de leads no periodo
+- Total de cliques nos links curtos no periodo
+- Taxa de conversao (leads / cliques, em %)
+- Media de leads por dia
 
-### 3. Atualizar `src/pages/Settings.tsx`
+**Grafico 1 - Leads por dia (AreaChart):**
+- Usando Recharts (mesmo padrao do Dashboard)
+- Eixo X: dias, Eixo Y: quantidade de leads
+- Dados da tabela `catalog_leads` agrupados por dia
 
-- Adicionar lazy import do `CatalogLeadsSettings`
-- Adicionar nova aba "Leads" (admin-only, ao lado de "Pedidos")
-- Adicionar "leads" ao array `ADMIN_ONLY_TABS`
-- Usar icone `Users` ou `UserPlus` do lucide-react
-- Grid de tabs passa de `md:grid-cols-7` para `md:grid-cols-8`
+**Grafico 2 - Cliques por dia (BarChart):**
+- Dados da tabela `link_click_events` agrupados por dia
+- Mostra quantos cliques os links curtos receberam
 
-### 4. Atualizar `src/components/settings/index.ts`
+**Filtros:**
+- DateRangeFilter (componente existente)
+- PDVFilter (componente existente, ja disponivel na pagina Marketing)
 
-- Exportar `CatalogLeadsSettings`
+### Etapa 4: Criar hook useMarketingAnalytics
 
-### 5. Funcao de exportacao CSV
+Novo hook `src/hooks/useMarketingAnalytics.ts`:
 
-Implementada direto no hook ou como utilitario no componente:
-- Gera arquivo CSV com colunas: Data, WhatsApp, Produto, Catalogo
-- Usa `encodeURIComponent` e `Blob` para download
-- Nome do arquivo: `leads-catalogo-YYYY-MM-DD.csv`
+- Recebe `dateFrom`, `dateTo`, `pdvId` como parametros
+- Query 1: busca `catalog_leads` agrupando por dia (count por `created_at::date`)
+- Query 2: busca `link_click_events` via join com `catalog_short_links` agrupando por dia
+- Calcula KPIs: total leads, total cliques, taxa de conversao, media diaria
+- Retorna dados formatados para os graficos Recharts
 
-## Arquivos modificados
+### Etapa 5: Atualizar exports e index
+
+- Adicionar `MarketingAnalytics` em `src/components/marketing/index.ts`
+- Nao precisa mexer em `src/components/settings/index.ts` (o export do CatalogLeadsSettings pode permanecer la sem impacto)
+
+## Arquivos Modificados
 
 | Arquivo | Tipo | Mudanca |
 |---------|------|---------|
-| `src/hooks/useCatalogLeads.ts` | Novo | Hook com queries, delete e export CSV |
-| `src/components/settings/CatalogLeadsSettings.tsx` | Novo | Componente de listagem com filtros |
-| `src/components/settings/index.ts` | Editar | Adicionar export |
-| `src/pages/Settings.tsx` | Editar | Adicionar aba "Leads" |
+| `src/pages/Settings.tsx` | Editar | Remover aba Leads |
+| `src/pages/Marketing.tsx` | Editar | Adicionar abas Leads e Analytics |
+| `src/components/marketing/MarketingOverview.tsx` | Editar | Adicionar cards Leads e Analytics |
+| `src/components/marketing/MarketingAnalytics.tsx` | Novo | Componente com KPIs e graficos |
+| `src/hooks/useMarketingAnalytics.ts` | Novo | Hook de dados para analytics |
+| `src/components/marketing/index.ts` | Editar | Adicionar export |
+
+## Permissoes
+
+- Abas "Leads" e "Analytics" visiveis apenas para `isAdmin` (org_admin e super_admin)
+- Abas "Cupons" e "Midias" continuam visiveis para todos os papeis (com modo readonly para nao-admins)
 
 ## Riscos
 
-- **NENHUM** para funcionalidade existente
-- Tabela `catalog_leads` ja existe com RLS configurado (SELECT para admins, INSERT para anon)
-- Nenhuma migration necessaria
+- **BAIXO**: A unica mudanca destrutiva e remover a aba de Settings, mas o conteudo e o mesmo componente sendo renderizado em outro lugar
+- Se um usuario tiver bookmark de `/settings?tab=leads`, nao encontrara mais (sera redirecionado para profile) - risco aceitavel
+- Dados de `link_click_events` dependem do sistema de short links ja funcional
 
