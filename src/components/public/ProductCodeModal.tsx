@@ -3,7 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
-import { Copy, Check, Lock, Loader2 } from "lucide-react";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { Copy, Check, Lock, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { unformatPhoneNumber } from "@/lib/utils/phone-mask";
@@ -22,8 +23,9 @@ interface ProductCodeModalProps {
 
 export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps>(
   ({ isOpen, onClose, code, productName, qrcodeUrl, modalText, organizationId, pdvId, catalogSlug }, ref) => {
-    const [step, setStep] = useState<"lead" | "revealed">("lead");
+    const [step, setStep] = useState<"phone" | "otp" | "revealed">("phone");
     const [phone, setPhone] = useState("");
+    const [otpCode, setOtpCode] = useState("");
     const [copied, setCopied] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -31,21 +33,53 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
     const rawDigits = unformatPhoneNumber(phone);
     const isPhoneValid = rawDigits.length >= 10 && rawDigits.length <= 11;
 
-    const handleSubmitLead = async () => {
+    const handleSendOtp = async () => {
       if (!isPhoneValid) return;
       setIsSubmitting(true);
       try {
-        const { error } = await supabase.from("catalog_leads" as any).insert({
+        const { data, error } = await supabase.functions.invoke("send-otp", {
+          body: { phone: rawDigits },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        setStep("otp");
+        toast.success("Código enviado!", {
+          description: "Verifique seu SMS.",
+        });
+      } catch (err: any) {
+        toast.error(err?.message || "Erro ao enviar código. Tente novamente.");
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
+    const handleVerifyOtp = async () => {
+      if (otpCode.length !== 6) return;
+      setIsSubmitting(true);
+      try {
+        const { data, error } = await supabase.functions.invoke("verify-otp", {
+          body: { phone: rawDigits, code: otpCode },
+        });
+        if (error) throw error;
+        if (!data?.verified) {
+          toast.error(data?.error || "Código inválido ou expirado.");
+          setIsSubmitting(false);
+          return;
+        }
+
+        // OTP verified — save lead
+        const { error: leadError } = await supabase.from("catalog_leads" as any).insert({
           organization_id: organizationId,
           pdv_id: pdvId,
           phone: rawDigits,
           product_name: productName,
           catalog_slug: catalogSlug,
         });
-        if (error) throw error;
+        if (leadError) throw leadError;
+
         setStep("revealed");
       } catch {
-        toast.error("Não foi possível salvar. Tente novamente.");
+        toast.error("Não foi possível verificar. Tente novamente.");
       } finally {
         setIsSubmitting(false);
       }
@@ -62,13 +96,15 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
 
     const handleClose = () => {
       onClose();
-      // Reset state after animation
       setTimeout(() => {
-        setStep("lead");
+        setStep("phone");
         setPhone("");
+        setOtpCode("");
         setCopied(false);
       }, 300);
     };
+
+    const blurred = step !== "revealed";
 
     return (
       <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
@@ -78,23 +114,22 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
           </DialogHeader>
 
           <div className="flex flex-col items-center gap-6 py-4">
-            {/* QR Code - blurred on lead step, clear on revealed */}
+            {/* QR Code */}
             <div className="p-4 bg-white rounded-lg relative">
               <img
                 src={qrcodeUrl}
                 alt="QR Code"
                 className="w-40 h-40 object-contain transition-all duration-500"
-                style={{ filter: step === "lead" ? "blur(8px)" : "none" }}
+                style={{ filter: blurred ? "blur(8px)" : "none" }}
               />
-              {step === "lead" && (
+              {blurred && (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <Lock className="h-8 w-8 text-muted-foreground/60" />
                 </div>
               )}
             </div>
 
-            {step === "lead" ? (
-              /* Step 1: Lead capture */
+            {step === "phone" && (
               <div className="w-full space-y-4">
                 <div className="text-center space-y-1">
                   <p className="text-sm font-medium">
@@ -114,25 +149,79 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
 
                 <Button
                   className="w-full"
-                  onClick={handleSubmitLead}
+                  onClick={handleSendOtp}
                   disabled={!isPhoneValid || isSubmitting}
                 >
                   {isSubmitting ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   ) : (
-                    <Lock className="h-4 w-4 mr-2" />
+                    <ShieldCheck className="h-4 w-4 mr-2" />
                   )}
-                  Liberar meu cupom
+                  Enviar código de verificação
                 </Button>
 
                 <p className="text-xs text-muted-foreground text-center">
-                  🔒 Não se preocupe, não vamos enviar spam
+                  🔒 Enviaremos um código SMS para confirmar seu número
                 </p>
               </div>
-            ) : (
-              /* Step 2: Coupon revealed */
+            )}
+
+            {step === "otp" && (
+              <div className="w-full space-y-4">
+                <div className="text-center space-y-1">
+                  <p className="text-sm font-medium">
+                    Digite o código de 6 dígitos enviado por SMS
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Enviado para +55 {rawDigits}
+                  </p>
+                </div>
+
+                <div className="flex justify-center">
+                  <InputOTP
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={setOtpCode}
+                  >
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} />
+                      <InputOTPSlot index={1} />
+                      <InputOTPSlot index={2} />
+                      <InputOTPSlot index={3} />
+                      <InputOTPSlot index={4} />
+                      <InputOTPSlot index={5} />
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
+
+                <Button
+                  className="w-full"
+                  onClick={handleVerifyOtp}
+                  disabled={otpCode.length !== 6 || isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Check className="h-4 w-4 mr-2" />
+                  )}
+                  Verificar e liberar cupom
+                </Button>
+
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground underline mx-auto block"
+                  onClick={() => {
+                    setStep("phone");
+                    setOtpCode("");
+                  }}
+                >
+                  Alterar número
+                </button>
+              </div>
+            )}
+
+            {step === "revealed" && (
               <>
-                {/* Code */}
                 <div className="flex items-center gap-2">
                   <div className="px-6 py-3 bg-muted rounded-lg border-2 border-dashed border-primary/30">
                     <span className="text-2xl font-bold font-mono tracking-wider">{code}</span>
@@ -151,14 +240,13 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
                   </Button>
                 </div>
 
-                {/* Selected model */}
                 <div className="text-center">
                   <p className="text-sm text-muted-foreground">Modelo selecionado:</p>
                   <p className="font-medium">{productName}</p>
                 </div>
 
                 <p className="text-xs text-muted-foreground text-center">
-                  📱 Enviamos o cupom para seu WhatsApp também!
+                  ✅ Número verificado! Cupom liberado com sucesso.
                 </p>
               </>
             )}
