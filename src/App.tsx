@@ -20,7 +20,7 @@ const Auth = lazy(() => import("./pages/Auth"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const PublicStock = lazy(() => import("./pages/PublicStock"));
 const Marketing = lazy(() => import("./pages/Marketing"));
-// Vitrine foi unificado em Marketing
+const ShortLinkRedirect = lazy(() => import("./pages/ShortLinkRedirect"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -53,6 +53,7 @@ const App = () => (
                 <Routes>
                   {/* Public routes */}
                   <Route path="/catalogo/:orgSlug" element={<PublicStock />} />
+                  <Route path="/s/:code" element={<ShortLinkRedirect />} />
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
                   <Route path="/uploads" element={<ProtectedRoute><Uploads /></ProtectedRoute>} />
