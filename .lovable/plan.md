@@ -1,104 +1,100 @@
+# API para Atualizar Stock Records
 
+## Objetivo
 
-# Migrar Leads e Expandir Marketing
+Criar uma edge function `ingest-stock` que recebe registros de estoque via API (autenticada por API key), deleta os registros antigos do PDV e insere os novos -- seguindo o mesmo padrao atomico que ja existe no `process-spreadsheet`.
 
-## Visao Geral
+## Arquitetura
 
-Mover a aba "Leads" de Settings para Marketing, adicionar analytics detalhado (grafico de leads por dia + cliques nos links curtos) e um card de "Leads" na MarketingOverview. O modulo de Marketing passara a ter 4 abas: **Cupons**, **Midias**, **Leads** e **Analytics**.
+A function seguira o mesmo padrao do `ingest-revenue`:
 
-## Estrutura Final das Abas
+1. Autenticacao via API key (Bearer token)
+2. Resolucao do PDV via `device_id` 
+3. Delecao dos `stock_records` antigos do PDV, usando a chave device_id + slot_number
+4. Insercao dos novos registros em batch
+5. Geracao do snapshot `stock_history`
 
-```text
-Marketing (sem tab) -> MarketingOverview com 4 cards
-  ?tab=cupons  -> CouponsSettings (existente, sem mudanca)
-  ?tab=midias  -> MediaSettings (existente, sem mudanca)
-  ?tab=leads   -> CatalogLeadsSettings (movido de Settings)
-  ?tab=analytics -> MarketingAnalytics (NOVO)
+## Contrato da API
+
+**Endpoint:** `POST /ingest-stock`  
+**Auth:** `Authorization: Bearer <api_key>`
+
+**Body (JSON):**
+
+```json
+{
+  "device_id": "ABC123",
+  "records": [
+    {
+      "slot_number": "1",
+      "product_name": "APPLE iPhone 15",
+      "quantity": 5,
+      "is_active": true
+    },
+    {
+      "slot_number": "2",
+      "product_name": "SAMSUNG Galaxy S24",
+      "quantity": 3,
+      "is_active": true
+    }
+  ]
+}
 ```
 
-## Etapas
+**Response (201):**
 
-### Etapa 1: Mover Leads de Settings para Marketing
+```json
+{
+  "success": true,
+  "pdv_id": "uuid",
+  "records_inserted": 10,
+  "records_deleted": 8
+}
+```
 
-**Remover de Settings:**
-- Remover lazy import, TabsTrigger e TabsContent de `CatalogLeadsSettings` em `src/pages/Settings.tsx`
-- Remover `"leads"` de `ADMIN_ONLY_TABS`
-- Voltar grid de `md:grid-cols-8` para `md:grid-cols-7`
+## Detalhes Tecnicos
 
-**Adicionar em Marketing:**
-- Adicionar lazy import de `CatalogLeadsSettings` em `src/pages/Marketing.tsx`
-- Adicionar nova aba "Leads" no `TabsList` (com icone `UserPlus`)
-- Adicionar `TabsContent` correspondente
-- Visivel apenas para admins (`isAdmin`)
+### 1. Criar `supabase/functions/ingest-stock/index.ts`
 
-### Etapa 2: Atualizar MarketingOverview
+- Reutilizar helpers de sanitizacao do `ingest-revenue` (inline, pois edge functions nao compartilham codigo)
+- Fluxo:
+  1. Validar API key via hash lookup em `api_keys`
+  2. Validar `device_id` e resolver PDV
+  3. Validar array `records` (campos obrigatorios: `slot_number`, `product_name`, `quantity`)
+  4. Deletar todos `stock_records` do PDV (`WHERE pdv_id = ?`)
+  5. Inserir novos registros em chunks de 500
+  6. Gerar snapshot `stock_history` (upsert por `pdv_id + snapshot_date + brand`)
+  7. Atualizar `last_used_at` da API key
 
-Adicionar 2 novos cards na overview:
+### 2. Configurar `supabase/config.toml`
 
-- **Leads**: "Visualize os leads capturados pelo catalogo publico" (icone `UserPlus`)
-- **Analytics**: "Acompanhe metricas de desempenho do seu marketing" (icone `BarChart3`)
+```toml
+[functions.ingest-stock]
+verify_jwt = false
+```
 
-Grid passa de `md:grid-cols-2` para `md:grid-cols-2` (2x2 = 4 cards, mantendo 2 colunas).
+JWT desabilitado pois a autenticacao e feita via API key (mesmo padrao do `ingest-revenue`).
 
-Cards de Leads e Analytics visiveis apenas para admins.
+### 3. Seguranca
 
-### Etapa 3: Criar componente MarketingAnalytics
+- Usa `SUPABASE_SERVICE_ROLE_KEY` para operacoes de banco (bypass RLS), mesmo padrao do `ingest-revenue`
+- API key hashada com SHA-256 antes de lookup
+- Sanitizacao de todos os campos de entrada (previne injection)
+- Validacao de limites de tamanho dos campos
+- Limite maximo de registros por request (ex: 1000) para evitar abuse
 
-Novo componente `src/components/marketing/MarketingAnalytics.tsx` com:
+### 4. Logica de Substituicao Atomica
 
-**KPIs (4 cards):**
-- Total de leads no periodo
-- Total de cliques nos links curtos no periodo
-- Taxa de conversao (leads / cliques, em %)
-- Media de leads por dia
+A delecao + insercao acontece no mesmo request. Diferente do `process-spreadsheet` que deleta por `upload_id`, aqui deletamos por `machine_id` diretamente, ja que nao ha upload associado (source = "api").
 
-**Grafico 1 - Leads por dia (AreaChart):**
-- Usando Recharts (mesmo padrao do Dashboard)
-- Eixo X: dias, Eixo Y: quantidade de leads
-- Dados da tabela `catalog_leads` agrupados por dia
+```text
+[Request] --> [Validate API Key] --> [Resolve PDV]
+    --> [DELETE stock_records WHERE machine_id = X AND slot_number = Y]
+    --> [INSERT new records]
+    --> [UPSERT stock_history]
+    --> [Response 201]
+```
 
-**Grafico 2 - Cliques por dia (BarChart):**
-- Dados da tabela `link_click_events` agrupados por dia
-- Mostra quantos cliques os links curtos receberam
+### 5. Nenhuma mudanca no banco necessaria
 
-**Filtros:**
-- DateRangeFilter (componente existente)
-- PDVFilter (componente existente, ja disponivel na pagina Marketing)
-
-### Etapa 4: Criar hook useMarketingAnalytics
-
-Novo hook `src/hooks/useMarketingAnalytics.ts`:
-
-- Recebe `dateFrom`, `dateTo`, `pdvId` como parametros
-- Query 1: busca `catalog_leads` agrupando por dia (count por `created_at::date`)
-- Query 2: busca `link_click_events` via join com `catalog_short_links` agrupando por dia
-- Calcula KPIs: total leads, total cliques, taxa de conversao, media diaria
-- Retorna dados formatados para os graficos Recharts
-
-### Etapa 5: Atualizar exports e index
-
-- Adicionar `MarketingAnalytics` em `src/components/marketing/index.ts`
-- Nao precisa mexer em `src/components/settings/index.ts` (o export do CatalogLeadsSettings pode permanecer la sem impacto)
-
-## Arquivos Modificados
-
-| Arquivo | Tipo | Mudanca |
-|---------|------|---------|
-| `src/pages/Settings.tsx` | Editar | Remover aba Leads |
-| `src/pages/Marketing.tsx` | Editar | Adicionar abas Leads e Analytics |
-| `src/components/marketing/MarketingOverview.tsx` | Editar | Adicionar cards Leads e Analytics |
-| `src/components/marketing/MarketingAnalytics.tsx` | Novo | Componente com KPIs e graficos |
-| `src/hooks/useMarketingAnalytics.ts` | Novo | Hook de dados para analytics |
-| `src/components/marketing/index.ts` | Editar | Adicionar export |
-
-## Permissoes
-
-- Abas "Leads" e "Analytics" visiveis apenas para `isAdmin` (org_admin e super_admin)
-- Abas "Cupons" e "Midias" continuam visiveis para todos os papeis (com modo readonly para nao-admins)
-
-## Riscos
-
-- **BAIXO**: A unica mudanca destrutiva e remover a aba de Settings, mas o conteudo e o mesmo componente sendo renderizado em outro lugar
-- Se um usuario tiver bookmark de `/settings?tab=leads`, nao encontrara mais (sera redirecionado para profile) - risco aceitavel
-- Dados de `link_click_events` dependem do sistema de short links ja funcional
-
+As tabelas `stock_records`, `stock_history`, e `api_keys` ja existem com as colunas necessarias. As RLS policies existentes permitem operacoes via service role key.
