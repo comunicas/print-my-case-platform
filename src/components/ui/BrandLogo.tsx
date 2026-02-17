@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import { getBrandLogo, getBrandColor, getCanonicalBrand } from '@/lib/brandAssets';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -23,7 +24,7 @@ const fontSizeClasses = {
   lg: 'text-sm',
 };
 
-export function BrandLogo({ brand, size = 'md', showTooltip = true, className }: BrandLogoProps) {
+export const BrandLogo = forwardRef<HTMLSpanElement, BrandLogoProps>(function BrandLogo({ brand, size = 'md', showTooltip = true, className }, ref) {
   const canonical = getCanonicalBrand(brand);
   const logo = getBrandLogo(brand);
   const color = getBrandColor(brand);
@@ -49,17 +50,17 @@ export function BrandLogo({ brand, size = 'md', showTooltip = true, className }:
   );
   
   if (!showTooltip) {
-    return content;
+    return <span ref={ref} className="inline-flex">{content}</span>;
   }
   
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span className="inline-flex">{content}</span>
+        <span ref={ref} className="inline-flex">{content}</span>
       </TooltipTrigger>
       <TooltipContent>
         <p>{canonical}</p>
       </TooltipContent>
     </Tooltip>
   );
-}
+});
