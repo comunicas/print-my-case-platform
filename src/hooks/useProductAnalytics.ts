@@ -40,9 +40,10 @@ export function useProductAnalytics(productName: string | null, pdvId?: string) 
       // Buscar todas as vendas e filtrar client-side para matching exato
       // Exclude cancelled transactions (pre-payment cancellations)
       // Only include successful payment statuses (excludes Cancelado, Cancelled, etc.)
+      // Include order_time for accurate hour/day analytics
       let query = supabase
         .from('sales_records')
-        .select('*')
+        .select('*, order_time')
         .in('status', ['Completed', 'Pago', 'Concluído'])
         .not('payment_date', 'is', null)
         .order('payment_date', { ascending: false })
@@ -66,14 +67,16 @@ export function useProductAnalytics(productName: string | null, pdvId?: string) 
       const totalRefunds = salesData.reduce((sum, s) => sum + Number(s.refund_amount || 0), 0);
       const refundRate = totalRevenue > 0 ? (totalRefunds / totalRevenue) * 100 : 0;
 
-      // Vendas por hora
+      // Vendas por hora - usar order_time (hora real do pedido) quando disponível, senão payment_date
       const hourCounts: Record<number, { count: number; revenue: number }> = {};
       for (let h = 0; h < 24; h++) {
         hourCounts[h] = { count: 0, revenue: 0 };
       }
       
       salesData.forEach(sale => {
-        const date = new Date(sale.payment_date);
+        const timeSource = sale.order_time || sale.payment_date;
+        if (!timeSource) return;
+        const date = new Date(timeSource);
         const hour = date.getHours();
         hourCounts[hour].count++;
         hourCounts[hour].revenue += Number(sale.amount || 0);
@@ -96,8 +99,11 @@ export function useProductAnalytics(productName: string | null, pdvId?: string) 
         dayCounts[d] = { count: 0, revenue: 0 };
       }
 
+      // Vendas por dia da semana - usar order_time quando disponível
       salesData.forEach(sale => {
-        const date = new Date(sale.payment_date);
+        const timeSource = sale.order_time || sale.payment_date;
+        if (!timeSource) return;
+        const date = new Date(timeSource);
         const day = date.getDay();
         dayCounts[day].count++;
         dayCounts[day].revenue += Number(sale.amount || 0);
