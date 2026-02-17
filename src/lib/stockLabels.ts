@@ -6,7 +6,7 @@ import type { ProductActionStatus, SlotVisualStatus, SalesIndex } from './stockT
 export const productActionLabels: Record<ProductActionStatus, string> = {
   ok: 'Ok',
   redistribute: 'Redistribuir',
-  restock: 'Repor!',
+  restock: 'Repor',
 };
 
 export const productActionColors: Record<ProductActionStatus, string> = {

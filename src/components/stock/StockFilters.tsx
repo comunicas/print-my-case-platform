@@ -110,7 +110,7 @@ export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockF
           <SelectValue placeholder="Vendas" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">Todas vendas</SelectItem>
+          <SelectItem value="all">Todas as vendas</SelectItem>
           <SelectItem value="high">Alta</SelectItem>
           <SelectItem value="medium">Média</SelectItem>
           <SelectItem value="low">Baixa</SelectItem>

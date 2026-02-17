@@ -45,7 +45,7 @@ export function useProductStock() {
       let query = supabase
         .from('sales_records')
         .select('product_name, pdv_id')
-        .eq('status', 'Completed')
+        .in('status', ['Completed', 'Pago', 'Concluído'])
         .order('payment_date', { ascending: false })
         .limit(PRODUCT_STOCK_SALES_LIMIT);
       
