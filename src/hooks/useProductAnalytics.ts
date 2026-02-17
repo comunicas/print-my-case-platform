@@ -39,11 +39,12 @@ export function useProductAnalytics(productName: string | null, pdvId?: string) 
 
       // Buscar todas as vendas e filtrar client-side para matching exato
       // Exclude cancelled transactions (pre-payment cancellations)
+      // Only include successful payment statuses (excludes Cancelado, Cancelled, etc.)
       let query = supabase
         .from('sales_records')
         .select('*')
-        .not('status', 'ilike', '%cancelled%')
-        .not('status', 'ilike', '%canceled%')
+        .in('status', ['Completed', 'Pago', 'Concluído'])
+        .not('payment_date', 'is', null)
         .order('payment_date', { ascending: false })
         .limit(10000);
 

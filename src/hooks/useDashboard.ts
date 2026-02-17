@@ -104,31 +104,28 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
       }
 
       // Build base queries - exclude cancelled transactions (pre-payment cancellations)
+      // Only include successful payment statuses (excludes Cancelado, Cancelled, etc.)
       let currentSalesQuery = supabase
         .from("sales_records")
         .select("amount, refund_amount")
         .gte("payment_date", startDate.toISOString())
         .lte("payment_date", endDate.toISOString())
-        .not("status", "ilike", "%cancelled%")
-        .not("status", "ilike", "%canceled%");
+        .in("status", ["Completed", "Pago", "Concluído"]);
 
       let previousSalesQuery = supabase
         .from("sales_records")
         .select("amount, refund_amount")
         .gte("payment_date", previousStartDate.toISOString())
         .lte("payment_date", previousEndDate.toISOString())
-        .not("status", "ilike", "%cancelled%")
-        .not("status", "ilike", "%canceled%");
+        .in("status", ["Completed", "Pago", "Concluído"]);
 
       // Query for full sales records (for charts) - limit to prevent performance issues
-      // Use a higher limit since we need data for charts, but cap it to avoid memory issues
       let fullSalesRecordsQuery = supabase
         .from("sales_records")
         .select("id, payment_date, amount, refund_amount, product_name, payment_method, pdv_id")
         .gte("payment_date", startDate.toISOString())
         .lte("payment_date", endDate.toISOString())
-        .not("status", "ilike", "%cancelled%")
-        .not("status", "ilike", "%canceled%")
+        .in("status", ["Completed", "Pago", "Concluído"])
         .order("payment_date", { ascending: true })
         .limit(DASHBOARD_SALES_LIMIT);
 
