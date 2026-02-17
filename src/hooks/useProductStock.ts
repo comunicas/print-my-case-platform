@@ -40,12 +40,21 @@ export function useProductStock() {
     isFetching: salesFetching,
     refetch: refetchSales,
   } = useQuery({
-    queryKey: ['sales-summary', filters.selectedPdv, allowedPdvIds],
+    queryKey: ['sales-summary', filters.selectedPdv, filters.saleStatusFilter, allowedPdvIds],
     queryFn: async () => {
+      // Map filter value to database status values
+      const statusMap: Record<string, string[]> = {
+        completed: ['Completed', 'Pago', 'Concluído'],
+        cancelled: ['Cancelado', 'Cancelled'],
+        refunded: ['Refunded'],
+        all: ['Completed', 'Pago', 'Concluído', 'Cancelado', 'Cancelled', 'Refunded'],
+      };
+      const statuses = statusMap[filters.saleStatusFilter] || statusMap.completed;
+      
       let query = supabase
         .from('sales_records')
         .select('product_name, pdv_id')
-        .in('status', ['Completed', 'Pago', 'Concluído'])
+        .in('status', statuses)
         .order('payment_date', { ascending: false })
         .limit(PRODUCT_STOCK_SALES_LIMIT);
       

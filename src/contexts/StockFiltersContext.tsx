@@ -3,12 +3,15 @@ import { usePreferences } from '@/hooks/usePreferences';
 import { usePDVs } from '@/hooks/usePDVs';
 import { toast } from 'sonner';
 
+export type SaleStatusFilter = 'completed' | 'cancelled' | 'refunded' | 'all';
+
 interface StockFiltersState {
   selectedPdv: string;
   searchTerm: string;
   brandFilter: string;
   statusFilter: string;
   salesIndexFilter: string;
+  saleStatusFilter: SaleStatusFilter;
 }
 
 interface StockFiltersContextType extends StockFiltersState {
@@ -17,6 +20,7 @@ interface StockFiltersContextType extends StockFiltersState {
   setBrandFilter: (brand: string) => void;
   setStatusFilter: (status: string) => void;
   setSalesIndexFilter: (index: string) => void;
+  setSaleStatusFilter: (status: SaleStatusFilter) => void;
   clearFilters: () => void;
   hasActiveFilters: boolean;
   pdvWasAutoApplied: boolean;
@@ -28,6 +32,7 @@ const defaultState: StockFiltersState = {
   brandFilter: 'all',
   statusFilter: 'all',
   salesIndexFilter: 'all',
+  saleStatusFilter: 'completed',
 };
 
 const StockFiltersContext = createContext<StockFiltersContextType | undefined>(undefined);
@@ -73,6 +78,7 @@ export function StockFiltersProvider({ children }: { children: ReactNode }) {
   const setBrandFilter = (brand: string) => setState(s => ({ ...s, brandFilter: brand }));
   const setStatusFilter = (status: string) => setState(s => ({ ...s, statusFilter: status }));
   const setSalesIndexFilter = (index: string) => setState(s => ({ ...s, salesIndexFilter: index }));
+  const setSaleStatusFilter = (status: SaleStatusFilter) => setState(s => ({ ...s, saleStatusFilter: status }));
   
   const clearFilters = () => setState(defaultState);
   
@@ -80,7 +86,8 @@ export function StockFiltersProvider({ children }: { children: ReactNode }) {
     state.searchTerm !== '' ||
     state.brandFilter !== 'all' ||
     state.statusFilter !== 'all' ||
-    state.salesIndexFilter !== 'all';
+    state.salesIndexFilter !== 'all' ||
+    state.saleStatusFilter !== 'completed';
 
   return (
     <StockFiltersContext.Provider value={{
@@ -90,6 +97,7 @@ export function StockFiltersProvider({ children }: { children: ReactNode }) {
       setBrandFilter,
       setStatusFilter,
       setSalesIndexFilter,
+      setSaleStatusFilter,
       clearFilters,
       hasActiveFilters,
       pdvWasAutoApplied,
@@ -116,11 +124,13 @@ export function useStockFiltersOptional() {
     brandFilter: 'all',
     statusFilter: 'all',
     salesIndexFilter: 'all',
+    saleStatusFilter: 'completed' as SaleStatusFilter,
     setSelectedPdv: () => {},
     setSearchTerm: () => {},
     setBrandFilter: () => {},
     setStatusFilter: () => {},
     setSalesIndexFilter: () => {},
+    setSaleStatusFilter: () => {},
     clearFilters: () => {},
     hasActiveFilters: false,
     pdvWasAutoApplied: false,
