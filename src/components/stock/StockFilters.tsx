@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { X, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -7,7 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useStockFilters } from '@/contexts/StockFiltersContext';
+import { useStockFilters, SaleStatusFilter } from '@/contexts/StockFiltersContext';
 import { usePDVs } from '@/hooks/usePDVs';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { KNOWN_BRANDS } from '@/lib/brandAssets';
@@ -26,11 +26,13 @@ export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockF
     brandFilter,
     statusFilter,
     salesIndexFilter,
+    saleStatusFilter,
     setSelectedPdv,
     setSearchTerm,
     setBrandFilter,
     setStatusFilter,
     setSalesIndexFilter,
+    setSaleStatusFilter,
     clearFilters,
     hasActiveFilters,
     pdvWasAutoApplied,
@@ -115,6 +117,39 @@ export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockF
           <SelectItem value="medium">Média</SelectItem>
           <SelectItem value="low">Baixa</SelectItem>
           <SelectItem value="none">Nenhuma</SelectItem>
+        </SelectContent>
+      </Select>
+
+      {/* Sale Status Filter */}
+      <Select value={saleStatusFilter} onValueChange={(v) => setSaleStatusFilter(v as SaleStatusFilter)}>
+        <SelectTrigger className="w-full sm:w-[160px]" data-testid="sale-status-filter">
+          <SelectValue placeholder="Status venda" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="completed">
+            <span className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-green-500" />
+              Concluídas
+            </span>
+          </SelectItem>
+          <SelectItem value="cancelled">
+            <span className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-destructive" />
+              Canceladas
+            </span>
+          </SelectItem>
+          <SelectItem value="refunded">
+            <span className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-orange-500" />
+              Reembolsadas
+            </span>
+          </SelectItem>
+          <SelectItem value="all">
+            <span className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-muted-foreground" />
+              Todas
+            </span>
+          </SelectItem>
         </SelectContent>
       </Select>
 
