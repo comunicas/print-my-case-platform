@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -58,18 +59,31 @@ export function useUploads(filters: UploadsFilters = {}) {
 
   const { pdvId, type, status, search } = filters;
 
+  // Correção: resetar para página 1 sempre que algum filtro mudar
+  // Evita resultado vazio quando a página atual excede as páginas disponíveis do novo filtro
+  useEffect(() => {
+    pagination.setPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pdvId, type, status, search]);
+
   const uploadsQuery = useQuery({
     queryKey: ["uploads", profile?.organization_id, pagination.page, pagination.pageSize, pdvId, type, status, search],
     queryFn: async (): Promise<UploadsQueryResult> => {
       const { from, to } = pagination.getRange();
+      const searchTerm = search?.trim();
 
-      // Contagem total com filtros server-side
+      // Contagem total com filtros server-side (incluindo search para totalCount preciso)
       let countQuery = supabase
         .from("uploads")
         .select("*", { count: "exact", head: true });
       if (pdvId && pdvId !== "all") countQuery = countQuery.eq("pdv_id", pdvId);
       if (type && type !== "all") countQuery = countQuery.eq("type", type);
       if (status && status !== "all") countQuery = countQuery.eq("status", status);
+      // Filtro de file_name e period server-side para que o totalCount reflita a busca
+      if (searchTerm) {
+        const term = `%${searchTerm}%`;
+        countQuery = countQuery.or(`file_name.ilike.${term},period.ilike.${term}`);
+      }
       const { count, error: countError } = await countQuery;
       if (countError) throw countError;
 
@@ -82,6 +96,11 @@ export function useUploads(filters: UploadsFilters = {}) {
       if (pdvId && pdvId !== "all") dataQuery = dataQuery.eq("pdv_id", pdvId);
       if (type && type !== "all") dataQuery = dataQuery.eq("type", type);
       if (status && status !== "all") dataQuery = dataQuery.eq("status", status);
+      // file_name e period filtrados server-side; pdv.name é aplicado client-side abaixo
+      if (searchTerm) {
+        const term = `%${searchTerm}%`;
+        dataQuery = dataQuery.or(`file_name.ilike.${term},period.ilike.${term}`);
+      }
 
       const { data: uploadsData, error } = await dataQuery;
       if (error) throw error;
@@ -99,15 +118,11 @@ export function useUploads(filters: UploadsFilters = {}) {
         uploader: profilesMap.get(upload.uploaded_by) || { name: "Usuário" },
       })) as UploadListItem[];
 
-      // Filtro de busca client-side (cobre file_name, period e pdv.name — pdv.name não é coluna de uploads)
-      if (search?.trim()) {
-        const term = search.trim().toLowerCase();
-        uploads = uploads.filter(
-          (u) =>
-            u.pdv?.name?.toLowerCase().includes(term) ||
-            u.file_name?.toLowerCase().includes(term) ||
-            u.period?.toLowerCase().includes(term)
-        );
+      // Filtro complementar client-side: busca por nome do PDV (não é coluna de uploads)
+      // file_name e period já vêm filtrados pelo banco acima
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        uploads = uploads.filter((u) => u.pdv?.name?.toLowerCase().includes(term));
       }
 
       return { uploads, totalCount: count || 0 };
