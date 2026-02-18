@@ -62,6 +62,15 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Guard against excessively large password payloads before running regex
+    if (newPassword.length > 1024) {
+      console.error(`Password too long for user ${user.email}: ${newPassword.length} chars`);
+      return new Response(
+        JSON.stringify({ error: 'Senha inválida: comprimento máximo é 1024 caracteres' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Server-side password strength validation (same as create-user)
     const passwordValidation = {
       minLength: newPassword.length >= 8,
