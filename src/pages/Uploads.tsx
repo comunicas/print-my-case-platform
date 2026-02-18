@@ -61,8 +61,8 @@ import { DataPagination } from "@/components/ui/data-pagination";
 
 export default function Uploads() {
   const navigate = useNavigate();
-  const { pdvs, isLoading: pdvsLoading } = usePDVs();
-  const { isAdmin } = useProfile();
+  const { profile, isAdmin } = useProfile();
+  const { pdvs, isLoading: pdvsLoading } = usePDVs({ organizationId: profile?.organization_id ?? undefined });
 
   const [searchQuery, setSearchQuery] = useState("");
   const { 
