@@ -128,7 +128,9 @@ describe('normalizeProductName', () => {
   });
 
   it('should remove special characters', () => {
-    expect(normalizeProductName('iPhone-16_Pro!')).toBe('iphone16pro');
+    // '_' é removido; '-' é preservado para distinguir modelos (ex: Pro-Max)
+    // '!' é removido como caracter sem sentido em nomes de produto
+    expect(normalizeProductName('iPhone-16_Pro!')).toBe('iphone-16pro');
   });
 
   it('should trim whitespace', () => {
@@ -136,7 +138,8 @@ describe('normalizeProductName', () => {
   });
 
   it('should handle complex names', () => {
-    expect(normalizeProductName('Galaxy S24+ Ultra (256GB)')).toBe('galaxy s24 ultra 256gb');
+    // '+' é preservado (distingue Galaxy S24 de S24+); parênteses são removidos
+    expect(normalizeProductName('Galaxy S24+ Ultra (256GB)')).toBe('galaxy s24+ ultra 256gb');
   });
 });
 

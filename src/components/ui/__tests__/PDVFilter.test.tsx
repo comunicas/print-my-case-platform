@@ -109,9 +109,7 @@ describe('PDVFilter', () => {
         </Wrapper>
       );
       
-      // Star button should be visible (save as default)
-      const buttons = screen.getAllByRole('button');
-      expect(buttons.length).toBeGreaterThan(1); // combobox + star button
+      expect(screen.getByTestId('save-default-pdv')).toBeInTheDocument();
     });
 
     it('hides save button when value is "all"', () => {
@@ -121,9 +119,8 @@ describe('PDVFilter', () => {
         </Wrapper>
       );
       
-      // Only the combobox button should be present
-      const buttons = screen.getAllByRole('button');
-      expect(buttons).toHaveLength(1);
+      expect(screen.queryByTestId('save-default-pdv')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('clear-default-pdv')).not.toBeInTheDocument();
     });
 
     it('calls updatePreferences.mutate when save button clicked', async () => {
@@ -135,10 +132,7 @@ describe('PDVFilter', () => {
         </Wrapper>
       );
       
-      const buttons = screen.getAllByRole('button');
-      const saveButton = buttons[1]; // Second button is the save button
-      
-      fireEvent.click(saveButton);
+      fireEvent.click(screen.getByTestId('save-default-pdv'));
       
       expect(mockMutate).toHaveBeenCalledWith({ default_pdv: 'pdv-1' });
     });
@@ -154,9 +148,7 @@ describe('PDVFilter', () => {
         </Wrapper>
       );
       
-      // StarOff button should be visible (clear default)
-      const buttons = screen.getAllByRole('button');
-      expect(buttons.length).toBeGreaterThan(1);
+      expect(screen.getByTestId('clear-default-pdv')).toBeInTheDocument();
     });
 
     it('calls updatePreferences.mutate with null when clear button clicked', async () => {
@@ -168,10 +160,7 @@ describe('PDVFilter', () => {
         </Wrapper>
       );
       
-      const buttons = screen.getAllByRole('button');
-      const clearButton = buttons[1];
-      
-      fireEvent.click(clearButton);
+      fireEvent.click(screen.getByTestId('clear-default-pdv'));
       
       expect(mockMutate).toHaveBeenCalledWith({ default_pdv: null });
     });
@@ -188,10 +177,7 @@ describe('PDVFilter', () => {
         </Wrapper>
       );
       
-      const buttons = screen.getAllByRole('button');
-      const actionButton = buttons[1];
-      
-      expect(actionButton).toBeDisabled();
+      expect(screen.getByTestId('save-default-pdv')).toBeDisabled();
     });
   });
 

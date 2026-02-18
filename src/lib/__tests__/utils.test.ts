@@ -102,33 +102,37 @@ describe('pluralize', () => {
   });
 });
 
+// Normaliza espaços Unicode (narrow no-break space \u202F) que o Intl usa em pt-BR
+// para espaço normal, garantindo testes cross-platform
+const normalizeCurrency = (s: string) => s.replace(/\u202F/g, ' ').replace(/\u00A0/g, ' ');
+
 describe('formatCurrency', () => {
   it('deve formatar valor em reais brasileiro', () => {
-    expect(formatCurrency(1000)).toBe('R$ 1.000,00');
+    expect(normalizeCurrency(formatCurrency(1000))).toBe('R$ 1.000,00');
   });
 
   it('deve formatar valor com centavos', () => {
-    expect(formatCurrency(99.99)).toBe('R$ 99,99');
+    expect(normalizeCurrency(formatCurrency(99.99))).toBe('R$ 99,99');
   });
 
   it('deve formatar zero', () => {
-    expect(formatCurrency(0)).toBe('R$ 0,00');
+    expect(normalizeCurrency(formatCurrency(0))).toBe('R$ 0,00');
   });
 
   it('deve formatar valores negativos', () => {
-    expect(formatCurrency(-100)).toBe('-R$ 100,00');
+    expect(normalizeCurrency(formatCurrency(-100))).toBe('-R$ 100,00');
   });
 
   it('deve formatar valores muito grandes', () => {
-    expect(formatCurrency(1000000)).toBe('R$ 1.000.000,00');
+    expect(normalizeCurrency(formatCurrency(1000000))).toBe('R$ 1.000.000,00');
   });
 
   it('deve arredondar valores com muitas casas decimais', () => {
-    expect(formatCurrency(99.999)).toBe('R$ 100,00');
+    expect(normalizeCurrency(formatCurrency(99.999))).toBe('R$ 100,00');
   });
 
   it('deve formatar valores pequenos', () => {
-    expect(formatCurrency(0.01)).toBe('R$ 0,01');
+    expect(normalizeCurrency(formatCurrency(0.01))).toBe('R$ 0,01');
   });
 });
 
