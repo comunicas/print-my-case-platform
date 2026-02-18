@@ -196,21 +196,6 @@ Deno.serve(async (req) => {
       }
     });
 
-    // Sanitize and validate input lengths/formats
-    name = typeof name === 'string' ? name.trim().substring(0, 255) : '';
-    email = typeof email === 'string' ? email.trim().substring(0, 255) : '';
-    organizationName = typeof organizationName === 'string' ? organizationName.trim().substring(0, 255) : organizationName;
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-    if (organizationId && !uuidRegex.test(organizationId)) {
-      return new Response(
-        JSON.stringify({ error: 'Formato de ID de organização inválido' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     if (!name || !email || !password) {
       await logAuditEvent(supabaseAdmin, {
         event_type: 'user_creation_failed',
@@ -227,27 +212,6 @@ Deno.serve(async (req) => {
       
       return new Response(
         JSON.stringify({ error: 'Nome, email e senha são obrigatórios' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Validate email format server-side
-    if (!emailRegex.test(email)) {
-      await logAuditEvent(supabaseAdmin, {
-        event_type: 'user_creation_failed',
-        actor_id: callingUser.id,
-        actor_email: callingUser.email,
-        actor_role: callerRole,
-        target_email: email,
-        success: false,
-        error_message: 'Formato de email inválido',
-        ip_address: ipAddress,
-        user_agent: userAgent,
-        metadata: { invalid_email: email }
-      });
-
-      return new Response(
-        JSON.stringify({ error: 'Formato de email inválido' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

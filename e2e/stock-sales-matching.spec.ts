@@ -35,12 +35,11 @@ test.describe('Stock-Sales Matching Integration', () => {
   test('should filter products by search term', async ({ authenticatedPage }) => {
     const page = authenticatedPage;
     
-    // Clicar no trigger do autocomplete (Button com role=combobox) para abrir o popover
-    await page.click('[role="combobox"]');
-    // Aguardar o input aparecer dentro do popover
+    // Abrir o autocomplete de busca
+    await page.click('[data-testid="search-autocomplete"]');
     await page.waitForSelector('[data-testid="search-input"]');
     
-    // Digitar termo de busca no input do CommandInput
+    // Digitar termo de busca
     await page.fill('[data-testid="search-input"]', 'iPhone');
     await page.waitForTimeout(500); // debounce
     
@@ -51,9 +50,8 @@ test.describe('Stock-Sales Matching Integration', () => {
   test('should match specific product variants correctly', async ({ authenticatedPage }) => {
     const page = authenticatedPage;
     
-    // Buscar por produto específico "Pro" via trigger do autocomplete
-    await page.click('[role="combobox"]');
-    await page.waitForSelector('[data-testid="search-input"]');
+    // Buscar por produto específico "Pro"
+    await page.click('[data-testid="search-autocomplete"]');
     await page.fill('[data-testid="search-input"]', 'Pro');
     await page.waitForTimeout(500);
     
@@ -120,9 +118,8 @@ test.describe('Stock-Sales Matching Integration', () => {
   test('should handle empty search results gracefully', async ({ authenticatedPage }) => {
     const page = authenticatedPage;
     
-    // Buscar termo que não existe via trigger do autocomplete
-    await page.click('[role="combobox"]');
-    await page.waitForSelector('[data-testid="search-input"]');
+    // Buscar termo que não existe
+    await page.click('[data-testid="search-autocomplete"]');
     await page.fill('[data-testid="search-input"]', 'produto-inexistente-xyz123456');
     await page.waitForTimeout(500);
     
@@ -134,9 +131,8 @@ test.describe('Stock-Sales Matching Integration', () => {
   test('should handle special characters in search', async ({ authenticatedPage }) => {
     const page = authenticatedPage;
     
-    // Buscar com caracteres especiais via trigger do autocomplete
-    await page.click('[role="combobox"]');
-    await page.waitForSelector('[data-testid="search-input"]');
+    // Buscar com caracteres especiais
+    await page.click('[data-testid="search-autocomplete"]');
     await page.fill('[data-testid="search-input"]', 'película');
     await page.waitForTimeout(500);
     
@@ -147,9 +143,8 @@ test.describe('Stock-Sales Matching Integration', () => {
   test('should clear filters correctly', async ({ authenticatedPage }) => {
     const page = authenticatedPage;
     
-    // Aplicar um filtro via trigger do autocomplete
-    await page.click('[role="combobox"]');
-    await page.waitForSelector('[data-testid="search-input"]');
+    // Aplicar um filtro
+    await page.click('[data-testid="search-autocomplete"]');
     await page.fill('[data-testid="search-input"]', 'iPhone');
     await page.waitForTimeout(500);
     
@@ -172,12 +167,15 @@ test.describe('Stock-Sales Matching Integration', () => {
     await expect(page.locator('text=Tabela')).toBeVisible();
     await expect(page.locator('text=Mapa')).toBeVisible();
     
-    // Navegar para mapa — verificar conteúdo em vez de URL (query params podem não atualizar)
+    // Navegar para mapa
     await page.click('text=Mapa');
+    await page.waitForURL('**/estoque?tab=mapa');
+    
+    // Verificar que mapa carregou
     await expect(page.locator('[data-testid="stock-content"]')).toBeVisible();
     
-    // Voltar para tabela — verificar conteúdo em vez de URL
+    // Voltar para tabela
     await page.click('text=Tabela');
-    await expect(page.locator('[data-testid="stock-content"]')).toBeVisible();
+    await page.waitForURL('**/estoque?tab=tabela');
   });
 });

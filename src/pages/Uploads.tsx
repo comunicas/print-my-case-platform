@@ -42,7 +42,6 @@ import {
   ExternalLink,
   Eye,
   AlertTriangle,
-  FilterX,
 } from "lucide-react";
 import { UploadDialog } from "@/components/upload/UploadDialog";
 import {
@@ -84,23 +83,6 @@ export default function Uploads() {
     status: filterStatus as UploadStatus | "all",
     search: searchQuery,
   });
-
-  // Contagem de filtros ativos (excluindo o padrão "all" e busca vazia)
-  const activeFilterCount = [
-    searchQuery.trim() !== "",
-    filterPdv !== "all",
-    filterType !== "all",
-    filterStatus !== "all",
-  ].filter(Boolean).length;
-
-  
-
-  const handleClearFilters = () => {
-    setSearchQuery("");
-    handlePdvChange("all");
-    setFilterType("all");
-    setFilterStatus("all");
-  };
 
   const handleUploadSubmit = (data: {
     pdvId: string;
@@ -227,7 +209,7 @@ export default function Uploads() {
             />
           </div>
 
-          <div className="flex gap-2 flex-wrap items-center">
+          <div className="flex gap-2 flex-wrap">
             <PDVFilter
               value={filterPdv}
               onChange={handlePdvChange}
@@ -258,21 +240,6 @@ export default function Uploads() {
                 <SelectItem value="error">Erro</SelectItem>
               </SelectContent>
             </Select>
-
-            {activeFilterCount > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleClearFilters}
-                className="gap-2 h-9"
-              >
-                <FilterX className="h-4 w-4" />
-                Limpar filtros
-                <Badge variant="secondary" className="h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
-                  {activeFilterCount}
-                </Badge>
-              </Button>
-            )}
           </div>
         </div>
 
@@ -432,24 +399,13 @@ export default function Uploads() {
           <div className="text-center py-12">
             <FileSpreadsheet className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium text-foreground">
-              {activeFilterCount > 0 ? "Nenhum resultado para estes filtros" : "Nenhum upload encontrado"}
+              Nenhum upload encontrado
             </h3>
             <p className="text-sm text-muted-foreground mt-1">
-              {activeFilterCount > 0
-                ? "Tente remover ou ajustar os filtros aplicados."
+              {searchQuery || filterPdv !== "all" || filterType !== "all" || filterStatus !== "all"
+                ? "Tente ajustar seus filtros."
                 : "Comece enviando sua primeira planilha."}
             </p>
-            {activeFilterCount > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleClearFilters}
-                className="mt-4 gap-2"
-              >
-                <FilterX className="h-4 w-4" />
-                Limpar {activeFilterCount} filtro{activeFilterCount > 1 ? "s" : ""}
-              </Button>
-            )}
           </div>
         )}
       </div>

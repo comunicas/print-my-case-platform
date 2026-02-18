@@ -3,6 +3,7 @@ import {
   DEFAULT_PAGE_SIZE,
   UPLOAD_DETAILS_PAGE_SIZE,
   NOTIFICATIONS_DEFAULT_LIMIT,
+  MAX_SLOT_CAPACITY,
   LOW_STOCK_THRESHOLD,
   REDISTRIBUTE_THRESHOLD,
   STOCK_HISTORY_DAYS,
@@ -13,7 +14,6 @@ import {
   DASHBOARD_SALES_LIMIT,
   PRODUCT_STOCK_SALES_LIMIT,
 } from '../constants';
-import { MAX_CAPACITY } from '../stockTypes';
 
 describe('Constantes de Paginação', () => {
   it('DEFAULT_PAGE_SIZE deve ser 50', () => {
@@ -30,8 +30,8 @@ describe('Constantes de Paginação', () => {
 });
 
 describe('Constantes de Estoque', () => {
-  it('MAX_CAPACITY deve ser 7', () => {
-    expect(MAX_CAPACITY).toBe(7);
+  it('MAX_SLOT_CAPACITY deve ser 7', () => {
+    expect(MAX_SLOT_CAPACITY).toBe(7);
   });
 
   it('LOW_STOCK_THRESHOLD deve ser 2', () => {
@@ -46,8 +46,8 @@ describe('Constantes de Estoque', () => {
     expect(LOW_STOCK_THRESHOLD).toBeLessThan(REDISTRIBUTE_THRESHOLD);
   });
 
-  it('REDISTRIBUTE_THRESHOLD < MAX_CAPACITY', () => {
-    expect(REDISTRIBUTE_THRESHOLD).toBeLessThan(MAX_CAPACITY);
+  it('REDISTRIBUTE_THRESHOLD < MAX_SLOT_CAPACITY', () => {
+    expect(REDISTRIBUTE_THRESHOLD).toBeLessThan(MAX_SLOT_CAPACITY);
   });
 });
 

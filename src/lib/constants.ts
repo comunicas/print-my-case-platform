@@ -9,6 +9,7 @@ export const UPLOAD_DETAILS_PAGE_SIZE = 10;
 export const NOTIFICATIONS_DEFAULT_LIMIT = 20;
 
 // ===== Estoque =====
+export const MAX_SLOT_CAPACITY = 7;
 export const LOW_STOCK_THRESHOLD = 2;
 export const REDISTRIBUTE_THRESHOLD = 5;
 
