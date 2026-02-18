@@ -1,56 +1,69 @@
 
-# Diagnóstico Definitivo: Dois Bugs Distintos com Causa Raiz Clara
+# Contagem Prévia de Dados no Diálogo de Exclusão de PDV
 
-## O Que os Dados Revelam
+## Objetivo
 
-O usuário `rafa bruno` é **super_admin** — isso muda completamente a análise.
+Antes de o usuário confirmar a exclusão de um PDV, o sistema consulta o banco e exibe quantos registros de vendas e estoque serão removidos em cascata. Isso dá visibilidade completa do impacto da ação antes que ela seja irreversível.
 
-### Bug 1 — PDVs: Query sem filtro de status retorna PDVs de outras organizações
+## Fluxo da Experiência
 
-Sendo super_admin, a query `SELECT * FROM pdvs ORDER BY name` retorna **todos os PDVs de todas as organizações** via RLS. Isso inclui "PRINTMYCASE GERAL" (org PryntMyCase), que aparece na lista de Settings > PDVs do usuário. Quando ele exclui um PDV da sua própria org, o PRINTMYCASE GERAL continua aparecendo porque:
-1. O optimistic update remove corretamente o item da cache local
-2. O `refetchQueries` traz de volta a lista completa do banco — incluindo PDVs de outras orgs
-3. O PDV excluído não reaparece, mas a lista mostra PDVs "estranhos" de outras orgs
+```text
+Usuário clica em [Excluir] no card do PDV
+        ↓
+Diálogo abre com spinner "Verificando dados..."
+        ↓
+Query paralela: COUNT de sales_records + COUNT de stock_records para o pdv_id
+        ↓
+Diálogo exibe o resumo completo:
+  "Tem certeza que deseja excluir 'Nome do PDV'?"
+  ┌─────────────────────────────────────────────┐
+  │ ⚠️  Dados que serão excluídos permanentemente │
+  │  📊  103 registros de vendas                  │
+  │  📦  85  registros de estoque                 │
+  └─────────────────────────────────────────────┘
+  "Esta ação não pode ser desfeita."
+        ↓
+Usuário clica [Excluir Permanentemente] ou [Cancelar]
+```
 
-**A lista de PDVs em Configurações deveria mostrar apenas os PDVs da organização selecionada/ativa, não todos os PDVs de todas as organizações.**
+## Detalhes Técnicos
 
-### Bug 2 — Team: Query sem filtro de status retorna membros inativos
+### Novo hook: `usePDVImpact`
 
-Para super_admin, a query em `useTeamMembers` não filtra por status. Após "Desvincular" `flavio` e `Danilo`, eles ficam com `organization_id = null` e `status = inactive`. O `refetchQueries` sobrescreve o optimistic update com a resposta do banco, que ainda inclui esses usuários porque a query retorna TODOS os profiles sem filtrar por `status = active` ou `organization_id IS NOT NULL`.
+Será criado um novo hook dedicado em `src/hooks/usePDVImpact.ts` que:
 
-**A query deveria filtrar usuários inativos ou sem organização da lista de membros da equipe.**
+- Recebe um `pdvId: string | null`
+- Só executa a query quando `pdvId` é não-nulo (`enabled: !!pdvId`)
+- Faz **duas queries paralelas** com `{ count: "exact", head: true }` (não traz dados, só conta):
+  - `supabase.from("sales_records").select("*", { count: "exact", head: true }).eq("pdv_id", pdvId)`
+  - `supabase.from("stock_records").select("*", { count: "exact", head: true }).eq("pdv_id", pdvId)`
+- Retorna `{ salesCount, stockCount, isLoading }`
+- `staleTime: 0` — sempre busca dados frescos ao abrir o diálogo
 
-## Solução Cirúrgica
+### Mudanças em `PDVsSettings.tsx`
 
-### Fix 1 — `usePDVs.ts`: Não chamar `refetchQueries` após o optimistic update
+- O state `deletingPdv` já existe — ele será passado como `pdvId` para o novo hook
+- O `AlertDialog` recebe o resultado do hook para mostrar os counts
+- Enquanto o hook está carregando, o diálogo mostra um skeleton/spinner no lugar dos números
+- O botão "Excluir" fica desabilitado enquanto os dados ainda estão sendo carregados (para evitar exclusão antes de o usuário ver o aviso)
+- Se não houver registros (PDV novo/vazio), exibe uma mensagem neutra: "Este PDV não possui registros de vendas ou estoque vinculados."
+- O texto do botão de confirmação muda para "Excluir Permanentemente" para reforçar a gravidade da ação
 
-O padrão correto do React Query é: `onMutate` faz optimistic update → `onSuccess` invalida a query → React Query refaz o fetch em background quando o componente está em foco. Chamar `refetchQueries` imediatamente após `invalidateQueries` anula o optimistic update ao sobrescrever a cache antes que o usuário perceba o efeito visual.
+## Arquivos a Modificar/Criar
 
-**Remover o `refetchQueries` do `onSuccess` de `deletePDV`** — deixar o `invalidateQueries` trabalhar sozinho. Com `staleTime: 30s`, o refetch acontecerá na próxima vez que o componente ganhar foco.
+| Arquivo | Tipo | Mudança |
+|---|---|---|
+| `src/hooks/usePDVImpact.ts` | Novo | Hook que conta sales_records e stock_records por pdv_id |
+| `src/components/settings/PDVsSettings.tsx` | Editar | Integrar o hook e atualizar o AlertDialog com a contagem |
 
-### Fix 2 — `useTeamMembers.ts`: Filtrar membros inativos na query para non-super-admin e adicionar filtro para super_admin
+## Nenhuma mudança no banco de dados
 
-Para **org_admin**: a query já filtra por `organization_id`, então membros desvinculados (com `organization_id = null`) não aparecem — correto.
-
-Para **super_admin**: a query retorna todos os profiles sem filtro. Após desvincular, o membro fica com `status = inactive`. A query deve adicionar `.neq("status", "inactive")` para não mostrar membros inativos (ou ser filtrada para mostrar apenas membros com `organization_id IS NOT NULL`).
-
-**Remover também o `refetchQueries` do `onSuccess` de `removeMember`** pelo mesmo motivo do Fix 1.
-
-### Fix 3 — `PDVsSettings.tsx`: Para super_admin, filtrar para mostrar apenas PDVs da organização ativa
-
-O componente `PDVsSettings` chama `usePDVs()` sem nenhum filtro. Para super_admin, isso traz PDVs de todas as organizações. A solução é passar o `organization_id` do profile como filtro — garantindo que a tela de Settings mostre apenas os PDVs da organização que o usuário está gerenciando.
-
-## Arquivos a Modificar
-
-| Arquivo | Mudança |
-|---|---|
-| `src/hooks/usePDVs.ts` | Remover `refetchQueries` do `onSuccess` de `deletePDV`; o optimistic update + `invalidateQueries` é suficiente |
-| `src/hooks/useTeamMembers.ts` | Adicionar filtro `.neq("status", "inactive")` na query de profiles (para super_admin também); remover `refetchQueries` do `onSuccess` de `removeMember` |
-| `src/components/settings/PDVsSettings.tsx` | Passar `{ organizationId: profile?.organization_id }` para `usePDVs()` para limitar a lista ao contexto correto |
+As tabelas `sales_records` e `stock_records` já existem com as políticas RLS corretas que permitem aos admins consultar registros de PDVs da sua organização — as queries de COUNT funcionarão com as permissões atuais.
 
 ## Resultado Esperado
 
-- Ao excluir um PDV, o card some **imediatamente** (optimistic update) e não reaparece
-- A lista de PDVs em Configurações mostra apenas os PDVs da organização do usuário logado (sem PDVs de outras organizações)
-- Ao desvincular um membro, o card some **imediatamente** e não reaparece após o refetch
-- A lista de membros não mostra usuários com `status = inactive`
+- Ao clicar no ícone de lixeira de um PDV, o diálogo abre imediatamente
+- Enquanto busca os dados (milissegundos), exibe um pequeno indicador de carregamento dentro do diálogo
+- Exibe a contagem real de registros que serão deletados em cascata
+- O botão de confirmação só fica ativo após a consulta terminar
+- Para PDVs sem dados, exibe mensagem específica sem alerta de perda de dados
