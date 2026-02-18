@@ -1,303 +1,260 @@
 
-# Revisão do Code Review — Checklist Completo e Próximos Passos
+# Fase 7 — Auditoria 100% do Frontend: Limpeza de Legados, Bugs e Conflitos
 
-## Metodologia de Mapeamento
+## Sumário Executivo
 
-Este documento consolida o estado atual da aplicação após 6 fases de code review já executadas, cruza com o que foi implementado no codebase, e identifica o que ainda falta para considerar a aplicação 100% revisada, refatorada e documentada.
-
----
-
-## Estado Atual: O que foi Feito (Fases 1–6)
-
-### Fase 1 — Rotas e Dados Reais
-- Rota `/upload` corrigida para `/uploads` (consistência)
-- `UploadDetails.tsx` refatorado para usar dados reais (sem mock)
-- Redirecionamentos legados: `/reports → /estoque`, `/vitrine → /marketing?tab=midias`, `/pdvs → /settings?tab=pdvs`, `/team → /settings?tab=team`
-
-### Fase 2 — Remoção de Código Legado
-- `mock-data.ts` removido (~110 linhas)
-- `formatCurrency` duplicado removido e centralizado em `src/lib/utils.ts`
-- Constantes centralizadas em `src/lib/constants.ts`
-
-### Fase 3 — TypeScript e Tipagem
-- Todos os `any` removidos
-- Tipos de banco criados via `Tables<"...">` do Supabase
-- Hierarquia de tipos de Upload documentada em `src/lib/schemas/upload.ts`
-
-### Fase 4 — Segurança RLS (Banco de Dados)
-- Todas as 22 tabelas com RLS habilitado
-- Multi-tenant isolado por `get_user_org_id()` e `is_super_admin()`
-
-### Fase 5 — Correções de RLS (5 gaps)
-- **Bug crítico corrigido:** `catalog_leads` — `cl.phone = cl.phone` → `cl.phone = catalog_leads.phone`
-- **audit_logs INSERT:** `WITH CHECK: true` → `WITH CHECK: (actor_id = auth.uid())`
-- **organizations UPDATE:** adicionado `WITH CHECK` explícito
-- **notifications UPDATE:** adicionado `WITH CHECK` explícito
-- **products ALL:** `WITH CHECK` explícito adicionado
-
-### Fase 6 — Edge Functions (3 fixes)
-- **verify-otp:** proteção contra brute-force com `attempt_count` (máx 5 tentativas por OTP)
-- **create-user:** validação de comprimento (255 chars), formato de email (regex), UUID format para `organizationId`
-- **update-password:** limite de 1024 chars para senha antes das regex de força
+Foram lidos e analisados **todos** os arquivos do frontend: 10 páginas, 35+ hooks, 80+ componentes, 6 contextos, 15+ arquivos lib. A seguir o inventário completo com severidade de cada achado.
 
 ---
 
-## Checklist Completo de Implementação
+## Bugs Críticos (Quebram funcionalidade real)
 
-### CAMADA DE SEGURANÇA
+### Bug 1 — Rota `tab=perfil` quebrada no AppHeader
 
-#### Banco de Dados (RLS)
-- Todas as tabelas com RLS: catalog_leads, otp_verifications, uploads, sales_records, stock_records, products, notifications, organizations, profiles, audit_logs, user_roles, pdvs, api_keys, preferences, user_pdvs, catalog_short_links, link_click_events, pdv_marketing_media, pdv_catalog_settings, stock_history, product_requests, upload_anomalies
-- Bug de rate limit corrigido (catalog_leads)
-- WITH CHECK em todas as UPDATE policies relevantes
-- Políticas DENY-by-default (otp_verifications: `USING: false`)
+**Arquivo:** `src/components/layout/AppHeader.tsx`, linha 100
 
-#### Edge Functions
-- create-user: JWT + dupla verificação + hierarquia de roles + sanitização de inputs
-- process-spreadsheet: JWT + sanitização + limite 50k linhas + validação UUID
-- update-password: JWT + força de senha server-side + limite 1024 chars
-- reprocess-refunds: JWT manual + verificação super_admin no banco
-- ingest-revenue: API Key SHA-256 + sanitização completa + clamping de valores
-- ingest-stock: API Key SHA-256 + sanitização completa
-- send-otp: público por design + rate limit por telefone (3/10min) + validação regex
-- verify-otp: público por design + `attempt_count` anti-brute-force (5 tentativas)
+```tsx
+// ATUAL — aba "perfil" não existe no Settings.tsx
+navigate("/settings?tab=perfil")
 
-#### Itens de segurança ainda ausentes
-- Rate limiting por IP em todas as Edge Functions — ausente por design (aceito como gap documentado na memória do sistema; mitigado por rate limit por telefone no send-otp e attempt_count no verify-otp)
+// CORRETO — o tab real chama-se "profile"
+navigate("/settings?tab=profile")
+```
+
+**Impacto:** O menu "Meu Perfil" no dropdown do cabeçalho leva a `/settings?tab=perfil` que não corresponde a nenhuma aba definida no `Settings.tsx`. O `activeTab` cai para `"profile"` (fallback do `|| "profile"`), mas o comportamento é indeterminado e o usuário não vê o tab selecionado visualmente.
 
 ---
 
-### CAMADA DE FRONTEND
+### Bug 2 — Rota `tab=notificacoes` inexistente no NotificationsPopover
 
-#### Páginas
-- `/` — Dashboard: KPIs, gráficos Recharts, lazy loading de charts, pull-to-refresh mobile, filtros PDV + org + data, visão consolidada super_admin
-- `/estoque` — Estoque: tabela + mapa, filtros, KPIs, pull-to-refresh, keyboard navigation
-- `/uploads` — Uploads: lista paginada, filtros server-side (PDV + tipo + status + busca), upload, delete, paginação
-- `/uploads/:id` — Detalhes do upload: dados reais, paginação
-- `/marketing` — Marketing: cupons, mídias, leads, analytics, PDV filter
-- `/settings` — Configurações: perfil, preferências, organização, PDVs, equipe, integrações, pedidos de produto
-- `/organizations` — Super admin: gestão de organizações
-- `/catalogo/:orgSlug` — Catálogo público: estoque público, filtros de marca, busca, OTP, cupom
-- `/s/:code` — Redirect de short links
-- `/auth` — Login
-- `*` — NotFound
+**Arquivo:** `src/components/layout/NotificationsPopover.tsx`, linha 209
 
-#### Componentes
-- Layout responsivo com sidebar colapsável (desktop) + mobile sidebar
-- PDVFilter com save-as-default e badge "Auto"
-- DataPagination reutilizável
-- Lightbox de mídias (imagem, áudio, vídeo)
-- ProductDetailModal com analytics completo
-- Pull-to-refresh para mobile
-- Skeleton shimmer para loading states
-- NotificationsPopover com polling
+```tsx
+// ATUAL — aba "notificacoes" não existe em Settings.tsx
+navigate("/settings?tab=notificacoes")
 
-#### Itens de frontend pendentes (identificados)
-- Botão "Limpar filtros" na página de Uploads com badge de contagem de filtros ativos (pedido anteriormente, nunca implementado)
-- Empty state da página de Uploads quando filtros ativos não retornam resultados usa texto genérico — não diferencia "sem uploads" vs "filtros não encontraram nada" com sugestão de reset
+// CORRETO — remover ou redirecionar para preferences onde ficam preferências
+navigate("/settings?tab=preferences")
+```
+
+**Impacto:** Botão "Gerenciar preferências de notificação" no popover navega para uma aba inexistente.
 
 ---
 
-### CAMADA DE HOOKS E LÓGICA
+### Bug 3 — Rota `tab=pedidos` e `tab=equipe` inconsistentes no NotificationsPopover
 
-#### Hooks implementados (35+)
-- useUploads — query paginada com filtros server-side, reset de página ao mudar filtros
-- useProductStock — agregação multi-PDV, filtros de marca/status/vendas/busca
-- useDashboard — KPIs, gráficos, memoização, período comparativo
-- useNotifications — polling 60s, mark-as-read
-- usePreferences — default_pdv, sidebar, tema, idioma, período padrão
-- useDefaultPdvPreference — auto-apply com badge de indicação
-- usePaginatedQuery (usePagination) — controle de páginas com validação de limites
-- useOrganizations, useOrganization, useOrganizationsCRUD
-- usePDVs, useUserPDVs, useUserAllowedPDVs
-- useProductAnalytics, useProductSalesHistory, useMarketingAnalytics
-- usePDVMarketingMedia, usePDVCatalogSettings
-- useTeamMembers, useProfile
-- usePublicStock, useProductRequests, useCatalogLeads
-- useApiKeys, useUploads, useUploadDetails
-- useStockHistory, useSlotsData
-- usePrefetchRoutes — prefetch de rotas ao hover na sidebar
-- useGridKeyboardNavigation — navegação por teclado no mapa de estoque
-- useSwipeGesture, useHapticFeedback — UX mobile
-- useSidebarPreferences — persistência do estado da sidebar
+**Arquivo:** `src/components/layout/NotificationsPopover.tsx`, linhas 24 e 39
 
-#### Itens de lógica pendentes
-- Nenhum gap crítico identificado. O hook `useUploads` ainda não expõe `hasActiveFilters` calculado para facilitar o botão "Limpar filtros"
+```tsx
+// ATUAL — nomes errados
+route: "/settings?tab=pedidos",  // linha 24
+route: "/settings?tab=equipe",   // linha 39
+
+// CORRETO — nomes reais definidos em Settings.tsx
+route: "/settings?tab=requests", // corresponde ao TabsTrigger value="requests"
+route: "/settings?tab=team",     // corresponde ao TabsTrigger value="team"
+```
+
+**Impacto:** Clicar em uma notificação de `product_request` ou `team_member` navega para abas que não existem.
 
 ---
 
-### CAMADA DE TESTES
+### Bug 4 — `catalog_leads as any` — cast de tipo desnecessário
 
-#### Testes unitários (vitest) — existentes e passando
-- `src/lib/__tests__/dashboardUtils.test.ts` — 884 linhas, cobertura completa de: calculateTotalRevenue, calculatePercentageChange, calculateKPIs, getSalesByDay, getSalesByHourAndDay, getHeatmapPeak, getTopProducts, getStockByBrand, getQuickStats, getLowStockItems, getLossesByDay
-- `src/lib/__tests__/productNormalization.test.ts` — extractBrandFromProductName, extractModelFromProductName, normalizeProductName, matchesProduct, getExactProductKey, filterSalesByProduct, countSalesForProduct — incluindo casos críticos de sufixos +/- e variantes Pro/Pro Max
-- `src/lib/__tests__/brandAssets.test.ts` — getCanonicalBrand, getBrandChartColor, getBrandColor, getBrandLogo, aliases de marcas
-- `src/lib/__tests__/constants.test.ts` — todas as constantes centralizadas
-- `src/lib/__tests__/utils.test.ts` — utilitários gerais
-- `src/hooks/__tests__/usePagination.test.ts` — usePagination: estado inicial, setPage com limites, setPageSize com reset, getRange, totalPages, hasNextPage/hasPrevPage, nextPage/prevPage
-- `src/hooks/__tests__/useUploads.test.ts` — reset de página ao mudar filtros (pdvId, type, status, search, múltiplos simultâneos)
-- `src/components/ui/__tests__/PDVFilter.test.tsx` — rendering, Auto badge, save-as-default, clear-default, loading states, onChange callback
-- `src/components/dashboard/__tests__/StockAlertsTable.test.tsx` — empty state, with data, status badges, pagination interna, product click
-- `src/components/dashboard/__tests__/TopProductsChart.test.tsx` — empty state, with data, interactions, truncação de nomes
+**Arquivo:** `src/components/public/ProductCodeModal.tsx`, linha 95
 
-#### Testes E2E (playwright) — existentes
-- `e2e/pdv-filter.spec.ts` — 8 cenários: save default, persist after reload, Auto badge, clear default, revert to "Todos os PDVs", animação de saída do badge
-- `e2e/stock-sales-matching.spec.ts` — 9 cenários: stock page load, product count, search filter, variant matching, sales index badges, filter by sales index, aggregate across PDVs, empty results, special characters
-- `e2e/product-analytics.spec.ts` — analytics de produto
+```tsx
+// ATUAL — workaround desnecessário de tipo
+await supabase.from("catalog_leads" as any).insert({...});
 
-#### Testes ausentes (gaps identificados)
-- `spreadsheet-validator.ts` — ZERO cobertura de testes. Função `validateSpreadsheetColumns` sem nenhum teste unitário. Esta função foi pedida em versões anteriores do code review mas nunca implementada.
-- Testes para `usePublicStock`, `useCatalogLeads`, `useMarketingAnalytics` — hooks públicos sem cobertura
-- Testes de integração para o fluxo OTP (send-otp + verify-otp + attempt_count)
+// CORRETO — a tabela está no schema gerado automaticamente
+await supabase.from("catalog_leads").insert({...});
+```
+
+**Impacto:** Suprime o type-checking do Supabase SDK para esta operação, tornando-a invisível para o TypeScript em caso de mudanças de schema.
 
 ---
 
-### CAMADA DE BANCO DE DADOS E MIGRAÇÕES
+### Bug 5 — `err: any` sem tipagem em ProductCodeModal
 
-#### Migrações aplicadas (48 migrações)
-- Schema completo com 22 tabelas
-- Todas as funções SQL: `get_user_org_id`, `is_admin`, `is_super_admin`, `has_role`, `can_assign_role`, `user_can_access_pdv`, `get_org_user_ids`, `target_user_is_super_admin`, `create_notification`, `notify_new_product_request`, `increment_click_count`, `cleanup_expired_otps`, `get_public_stock`, `get_public_organization`, `prevent_orphan_profile`, `audit_orphan_user`, `handle_new_user`, `update_updated_at_column`
-- Trigger de limpeza automática de OTPs expirados
-- Coluna `attempt_count` adicionada em `otp_verifications` (Fase 6)
-- 5 correções de RLS aplicadas (Fase 5)
+**Arquivo:** `src/components/public/ProductCodeModal.tsx`, linha 73
 
-#### Itens de banco pendentes
-- Nenhum gap crítico. Todos os índices essenciais parecem presentes (não auditados explicitamente)
-- Trigger `notify_new_product_request` está definido como função mas precisa ser verificado se o trigger em si está attachado à tabela `product_requests`
+```tsx
+// ATUAL
+} catch (err: any) {
+  toast.error(err?.message || "Erro ao enviar código. Tente novamente.");
 
----
-
-### CAMADA DE DOCUMENTAÇÃO
-
-#### Documentação existente
-- `.lovable/plan.md` — plano da Fase 6 (Edge Functions)
-- Memórias do sistema: 15+ entradas documentando arquitetura, segurança, features
-- Comentários inline nos schemas (`src/lib/schemas/upload.ts` — hierarquia de tipos documentada)
-- Constantes comentadas em `src/lib/constants.ts`
-- JSDoc em funções críticas de `dashboardUtils.ts` e `productNormalization.ts`
-
-#### Documentação ausente
-- Nenhum `README.md` funcional — o arquivo atual tem apenas o template padrão do Lovable com `REPLACE_WITH_PROJECT_ID`
-- Nenhum diagrama de arquitetura documentado no repositório
-- Nenhuma documentação de API para as Edge Functions (endpoints, payloads esperados, respostas)
-- Nenhum documento de onboarding para novos desenvolvedores
-
----
-
-## Resumo Visual do Estado Atual
-
-```text
-ÁREA                    ESTADO      COBERTURA
-────────────────────────────────────────────────────────
-Páginas (10/10)         COMPLETO    100%
-Componentes core        COMPLETO    ~95%
-Hooks (35+)             COMPLETO    ~95%
-Segurança RLS           COMPLETO    100% (22 tabelas)
-Edge Functions          COMPLETO    100% (8 funções)
-Testes unitários        PARCIAL     ~75% (gaps: spreadsheet-validator, hooks públicos)
-Testes E2E              PARCIAL     ~60% (gaps: fluxo OTP, catalog público)
-Banco de dados          COMPLETO    ~98%
-Documentação            AUSENTE     ~20% (apenas README placeholder + memórias)
+// CORRETO
+} catch (err) {
+  const message = err instanceof Error ? err.message : "Erro ao enviar código. Tente novamente.";
+  toast.error(message);
 ```
 
 ---
 
-## Próximos Passos para 100%
+### Bug 6 — NotFound em inglês (inconsistência crítica de idioma)
 
-Os 4 itens restantes para completar o code review estão ordenados por impacto decrescente:
+**Arquivo:** `src/pages/NotFound.tsx`
 
----
+A única página em inglês da aplicação toda. Texto "Page not found" e "Return to Home" em app 100% em português.
 
-### Próximo Passo 1 — Testes Unitários: `spreadsheet-validator.ts`
+```tsx
+// ATUAL
+<p className="mb-4 text-xl text-muted-foreground">Oops! Page not found</p>
+<a href="/" className="text-primary underline hover:text-primary/90">Return to Home</a>
 
-**Arquivo alvo:** `src/lib/utils/spreadsheet-validator.ts`
-**Arquivo de teste a criar:** `src/lib/utils/__tests__/spreadsheetValidator.test.ts`
-
-A função `validateSpreadsheetColumns` é crítica — ela é o guardião da qualidade dos uploads e foi pedida explicitamente em rounds anteriores do code review. Tem zero cobertura.
-
-Cenários a cobrir:
-- Planilhas de vendas válidas com colunas em português
-- Planilhas de vendas válidas com colunas em inglês (aliases de `SALES_COLUMN_ALIASES`)
-- Planilhas de estoque válidas com colunas em português
-- Planilhas de estoque válidas com colunas em inglês (aliases de `STOCK_COLUMN_ALIASES`)
-- Planilha com coluna faltando (uma obrigatória ausente)
-- Planilha com todas as colunas faltando
-- Planilha vazia (sem headers)
-- Headers com espaços extras (trim deve funcionar)
-- `totalRows` calculado corretamente
-
-Estratégia: usar `xlsx` para criar buffers de arquivo in-memory no teste (sem File API real), ou mockar `XLSX.read` para retornar dados controlados.
-
----
-
-### Próximo Passo 2 — Feature: Botão "Limpar Filtros" na página de Uploads
-
-**Arquivo alvo:** `src/pages/Uploads.tsx`
-
-Pedido anteriormente e nunca implementado. A página de Uploads tem 4 filtros (PDV, tipo, status, busca) e não oferece ao usuário uma forma rápida de resetar tudo. Quando filtros estão ativos e não há resultados, o empty state mostra "Tente ajustar seus filtros" mas sem botão de ação.
-
-Implementação:
-- Calcular `activeFilterCount` (quantos dos 4 filtros estão ativos, ou seja, diferentes do padrão)
-- Mostrar botão "Limpar filtros" com badge de contagem (`activeFilterCount`) quando `activeFilterCount > 0`
-- Função `handleClearFilters` que reseta: `setSearchQuery("")`, `handlePdvChange("all")`, `setFilterType("all")`, `setFilterStatus("all")`
-- No empty state quando há filtros ativos, adicionar botão de ação direto que chama `handleClearFilters`
-- Posição: ao lado dos seletores de filtro na barra de filtros
-
----
-
-### Próximo Passo 3 — Verificação do Trigger de Notificação de Pedidos de Produto
-
-**Verificação necessária:** O banco tem a função `notify_new_product_request()` definida, mas é necessário confirmar via SQL se o trigger está de fato attachado à tabela `product_requests`.
-
-```sql
-SELECT trigger_name, event_manipulation, action_statement
-FROM information_schema.triggers
-WHERE event_object_table = 'product_requests';
-```
-
-Se o trigger não existir, ele precisa ser criado:
-```sql
-CREATE TRIGGER on_new_product_request
-AFTER INSERT ON public.product_requests
-FOR EACH ROW EXECUTE FUNCTION notify_new_product_request();
+// CORRETO
+<p className="mb-4 text-xl text-muted-foreground">Ops! Página não encontrada</p>
+<a href="/" className="text-primary underline hover:text-primary/90">Voltar ao início</a>
 ```
 
 ---
 
-### Próximo Passo 4 — Documentação: README Funcional e Arquitetura
+## Código Morto / Legado
 
-**Arquivos a criar/atualizar:**
-- `README.md` — substituir o template padrão com documentação real
-- `docs/ARCHITECTURE.md` — diagrama de arquitetura, fluxos principais, decisões técnicas
+### Legado 1 — Constante duplicada: `MAX_SLOT_CAPACITY` vs `MAX_CAPACITY`
 
-Conteúdo do README funcional:
-- Descrição do produto (SaaS multi-tenant para gestão de PDVs de vending machine)
-- Stack tecnológica (React 18, Vite, TypeScript, Tailwind, Supabase/Lovable Cloud, Twilio)
-- Hierarquia de roles (super_admin, org_admin, operator, viewer)
-- Fluxos principais (upload de planilha, catálogo público, OTP, ingestão por API)
-- Variáveis de ambiente necessárias (secrets do Twilio, Supabase)
-- Como rodar localmente (npm install + npm run dev)
-- Como rodar testes (vitest + playwright)
-- Estrutura de pastas comentada
+**Arquivos:** `src/lib/constants.ts` (linha 12) e `src/lib/stockTypes.ts` (linha 6)
 
-Conteúdo da documentação de arquitetura:
-- Diagrama de tabelas do banco e relacionamentos
-- Diagrama de fluxo de Edge Functions
-- Política de segurança RLS (resumo das camadas)
-- Glossário de termos do domínio (PDV, slot, brand, OTP, catalog_lead)
+Ambos definem a mesma constante com valor `7`:
+
+```ts
+// constants.ts
+export const MAX_SLOT_CAPACITY = 7; // ← NUNCA IMPORTADA em nenhum arquivo
+
+// stockTypes.ts
+export const MAX_CAPACITY = 7; // ← USADA em stockUtils.ts, stockGridUtils.ts, ProductDetailModal.tsx
+```
+
+`MAX_SLOT_CAPACITY` em `constants.ts` é código morto — nunca foi importada em nenhum arquivo do projeto.
+
+**Ação:** Remover `MAX_SLOT_CAPACITY` de `constants.ts`.
 
 ---
 
-## Tabela Final: 100% do Code Review
+### Legado 2 — `PAGE_SIZE = 50` hardcoded dentro do hook vs `DEFAULT_PAGE_SIZE` em constants
 
-```text
-ITEM                                    ESTADO ATUAL   PRÓXIMA AÇÃO
-─────────────────────────────────────────────────────────────────────────────
-Fases 1-6 do code review                CONCLUÍDO      —
-Testes: spreadsheet-validator           AUSENTE        Criar (Passo 1)
-Feature: Limpar filtros em Uploads      AUSENTE        Implementar (Passo 2)
-Trigger product_requests                A VERIFICAR    Verificar e corrigir se necessário (Passo 3)
-README e documentação de arquitetura    AUSENTE        Criar (Passo 4)
+**Arquivo:** `src/hooks/useUploads.ts`, linha 53
+
+```ts
+// ATUAL — número mágico duplicado
+const PAGE_SIZE = 50;
+
+// CORRETO — usar a constante centralizada
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
+// ... usar DEFAULT_PAGE_SIZE no lugar de PAGE_SIZE
 ```
 
-Completar os 4 passos acima fecha o code review em 100%.
+`DEFAULT_PAGE_SIZE = 50` já existe em `constants.ts` exatamente para isso.
+
+---
+
+### Legado 3 — `exportToExcel` usa `Record<string, any>[]` desnecessariamente
+
+**Arquivo:** `src/lib/dashboardUtils.ts`, linha 471
+
+```ts
+// ATUAL — any desnecessário
+export function exportToExcel(data: Record<string, any>[], filename: string)
+
+// CORRETO
+export function exportToExcel(data: Record<string, unknown>[], filename: string)
+```
+
+Função apenas repassa dados para XLSX — nenhum campo precisa de `any`.
+
+---
+
+### Legado 4 — `Record<string, any>` em SalesHeatmapChart e StockHistoryChart
+
+**Arquivos:**
+- `src/components/dashboard/SalesHeatmapChart.tsx`, linha 55-56
+- `src/components/dashboard/StockHistoryChart.tsx`, linha 44
+
+Ambos criam objetos `Record<string, any>` localmente para passar para `exportToExcel`. Com a correção do Legado 3, basta alterar para `Record<string, unknown>`.
+
+---
+
+## Conflitos de Navegação / Inconsistências de Rota
+
+### Conflito 1 — Tabs do Settings com nomes inconsistentes entre arquivos
+
+Mapeamento completo do estado atual:
+
+| Tab real (Settings.tsx) | Rota errada usada |
+|---|---|
+| `profile` | `perfil` (AppHeader) |
+| `requests` | `pedidos` (NotificationsPopover) |
+| `team` | `equipe` (NotificationsPopover) |
+| `preferences` | `notificacoes` (NotificationsPopover — destino errado) |
+
+Todos os 4 casos corretos já identificados nos Bugs 1–3 acima.
+
+---
+
+## Outros Achados de Qualidade (Baixo Risco)
+
+### Qualidade 1 — `hasActiveFilters` em `PublicStock.tsx` com tipo `string | null` em vez de `boolean`
+
+**Arquivo:** `src/pages/PublicStock.tsx`, linha 122
+
+```tsx
+// ATUAL — truthy/falsy implícito, mas não boolean explícito
+const hasActiveFilters = searchTerm || selectedBrand;
+
+// CORRETO — boolean explícito
+const hasActiveFilters = !!searchTerm || !!selectedBrand;
+```
+
+---
+
+### Qualidade 2 — Animação CSS de badge não definida no Tailwind/CSS global
+
+**Arquivo:** `src/components/ui/PDVFilter.tsx`, linhas 104-105
+
+As classes `animate-badge-fade-in` e `animate-badge-fade-out` são usadas mas **não estão definidas** em `src/index.css` nem em `tailwind.config.ts`. Isso significa que a animação de entrada/saída do badge "Auto" nunca funciona — o badge simplesmente aparece e desaparece sem transição.
+
+**Ação:** Adicionar as keyframes e utilitários no `tailwind.config.ts` ou `index.css`.
+
+---
+
+## Resumo dos Arquivos a Modificar
+
+| Arquivo | Tipo de mudança | Severidade |
+|---|---|---|
+| `src/components/layout/AppHeader.tsx` | CORRIGIR `tab=perfil` → `tab=profile` | CRÍTICO |
+| `src/components/layout/NotificationsPopover.tsx` | CORRIGIR 3 rotas de tabs (`pedidos`, `equipe`, `notificacoes`) | CRÍTICO |
+| `src/components/public/ProductCodeModal.tsx` | CORRIGIR `as any` e `err: any` | MÉDIO |
+| `src/pages/NotFound.tsx` | CORRIGIR textos para português | MÉDIO |
+| `src/lib/constants.ts` | REMOVER `MAX_SLOT_CAPACITY` (código morto) | BAIXO |
+| `src/hooks/useUploads.ts` | SUBSTITUIR `PAGE_SIZE = 50` por `DEFAULT_PAGE_SIZE` | BAIXO |
+| `src/lib/dashboardUtils.ts` | CORRIGIR `Record<string, any>[]` → `Record<string, unknown>[]` | BAIXO |
+| `src/components/dashboard/SalesHeatmapChart.tsx` | CORRIGIR `Record<string, any>` → `Record<string, unknown>` | BAIXO |
+| `src/components/dashboard/StockHistoryChart.tsx` | CORRIGIR `Record<string, any>` → `Record<string, unknown>` | BAIXO |
+| `src/pages/PublicStock.tsx` | CORRIGIR `hasActiveFilters` para boolean explícito | BAIXO |
+| `tailwind.config.ts` ou `src/index.css` | ADICIONAR animações `badge-fade-in` / `badge-fade-out` | BAIXO |
+
+**Total: 11 arquivos com 12 correções distintas, nenhuma envolve migrações de banco ou Edge Functions.**
+
+---
+
+## O que foi verificado e está CORRETO (sem alterações)
+
+- Todas as páginas principais (Dashboard, Stock, Marketing, Settings, Organizations, Auth, PublicStock, UploadDetails, Uploads) — sem bugs estruturais
+- `StockFiltersContext.tsx` — lógica correta, tipos corretos, clearFilters completo
+- `useProductStock` — filtros, agregação, sales index — sem problemas
+- `useNotifications` — polling, markAsRead, markAllAsRead, deleteNotification — corretos
+- `useSlotsData` — query, transforms, `placeholderData` — correto
+- `PDVFilter` — lógica de default, Auto badge, save/clear — correto (apenas animação CSS ausente)
+- `useDefaultPdvPreference` — auto-apply, initialized flag — correto
+- `AppLayout`, `AppSidebar`, `MobileSidebar` — navegação, collapsed, prefetch — corretos
+- `AppHeader` — theme toggle, signOut, avatar, role labels — correto (exceto rota `tab=perfil`)
+- `ProductModalContext` — lazy load, open/close — correto
+- `ProductDetailModal` — tabs, analytics, slots, skeleton — correto
+- Todos os `console.log` já removidos (busca retornou zero resultados)
+- `src/index.css` — design system completo, dark mode, sem conflitos
+- `src/lib/utils.ts` — `cn`, `formatCurrency`, `formatNumber`, `parseZodErrors`, `getInitials`, `pluralize` — sem duplicações
+- `src/lib/trendUtils.ts` — correto
+- `src/lib/stockTypes.ts`, `stockLabels.ts`, `stockViewModes.ts`, `stockGridUtils.ts` — corretos
+- `NotFound.tsx` — estrutura correta, só i18n errado
+- `ShortLinkRedirect.tsx` — correto
