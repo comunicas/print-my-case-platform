@@ -46,8 +46,8 @@ export function usePDVs(options?: UsePDVsOptions) {
       return data as PDV[];
     },
     enabled: !!profile?.organization_id,
-    staleTime: 30 * 1000,    // 30 seconds — força refetch rápido após mutações
-    gcTime: 5 * 60 * 1000,   // 5 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes
   });
 
   const createPDV = useMutation({
@@ -118,36 +118,14 @@ export function usePDVs(options?: UsePDVsOptions) {
 
       if (error) throw error;
     },
-    onMutate: async (id: string) => {
-      // Cancela qualquer refetch pendente para evitar sobrescrever o optimistic update
-      await queryClient.cancelQueries({ queryKey: ["pdvs"] });
-
-      // Snapshot do estado anterior para rollback em caso de erro
-      const previousPDVs = queryClient.getQueryData<PDV[]>(["pdvs", profile?.organization_id, filterOrgId]);
-
-      // Remove imediatamente o PDV da lista local
-      queryClient.setQueryData<PDV[]>(
-        ["pdvs", profile?.organization_id, filterOrgId],
-        (old) => old?.filter((pdv) => pdv.id !== id) ?? []
-      );
-
-      return { previousPDVs };
-    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pdvs"] });
       toast.success("PDV excluído", {
         description: "O PDV foi removido com sucesso.",
       });
     },
-    onError: (error, _id, context) => {
-      // Restaura o estado anterior em caso de erro
-      if (context?.previousPDVs) {
-        queryClient.setQueryData(
-          ["pdvs", profile?.organization_id, filterOrgId],
-          context.previousPDVs
-        );
-      }
-      toast.error("Erro ao excluir PDV", {
+    onError: (error) => {
+      toast.error("Erro ao excluir", {
         description: error.message,
       });
     },

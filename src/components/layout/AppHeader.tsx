@@ -80,7 +80,7 @@ export function AppHeader({ isMobile, onMenuClick }: AppHeaderProps) {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button data-testid="user-menu-trigger" variant="ghost" className="gap-2 px-1 md:px-2">
+            <Button variant="ghost" className="gap-2 px-1 md:px-2">
               <Avatar className="h-7 w-7 md:h-8 md:w-8">
                 <AvatarImage src={profile?.avatar_url || ""} />
                 <AvatarFallback className="bg-primary text-primary-foreground text-xs md:text-sm">

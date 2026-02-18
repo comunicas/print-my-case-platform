@@ -33,7 +33,7 @@ const [searchParams, setSearchParams] = useSearchParams();
   const { profile, role, isAdmin, isLoading: profileLoading, updateProfile } = useProfile();
   const { organization, isLoading: orgLoading, updateOrganization } = useOrganization({ readOnly: true });
   const { preferences, isLoading: prefsLoading, updatePreferences } = usePreferences();
-  const { pdvs, isLoading: pdvsLoading } = usePDVs({ organizationId: profile?.organization_id ?? undefined });
+  const { pdvs, isLoading: pdvsLoading } = usePDVs();
   
   // Sincronizar tab com URL
   const activeTab = searchParams.get("tab") || "profile";
