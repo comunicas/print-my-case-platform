@@ -46,7 +46,7 @@ function extractBrand(productName: string): string {
   const name = productName.toUpperCase();
   const brands = ["APPLE", "SAMSUNG", "MOTOROLA", "XIAOMI", "LG", "HUAWEI", "SONY", "NOKIA", "REALME", "POCO"];
   for (const brand of brands) {
-    if (name.startsWith(brand + " ") || name.includes(" " + brand + " ")) return brand;
+    if (name.startsWith(brand + " ") || name.includes(" " + brand + " ") || name === brand) return brand;
   }
   return "OUTROS";
 }
@@ -145,6 +145,7 @@ Deno.serve(async (req) => {
     const slotNumber = sanitizeString(body.slot_number, FIELD_LIMITS.slot_number);
     const productName = sanitizeString(body.product_name, FIELD_LIMITS.product_name);
     const quantity = parseQuantity(body.quantity);
+    const isActive = body.is_active !== false;
 
     if (!slotNumber || !productName) {
       return new Response(
@@ -153,27 +154,54 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 6. Create upload record for traceability
-    const { data: upload, error: uploadError } = await supabase
-      .from("uploads")
-      .insert({
-        pdv_id: pdv.id,
-        file_name: `api-stock-${new Date().toISOString()}`,
-        type: "stock" as const,
-        uploaded_by: apiKeyRecord.created_by,
-        status: "ready" as const,
-        records_count: 1,
-        processed_at: new Date().toISOString(),
-      })
-      .select("id")
-      .single();
+    const today = new Date().toISOString().split("T")[0];
 
-    if (uploadError || !upload) {
-      console.error("Upload creation error:", uploadError);
-      return new Response(
-        JSON.stringify({ error: "Erro ao criar registro de upload", details: uploadError?.message }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // 6. Upsert upload diário — 1 upload por PDV por dia (não 1 por slot)
+    const dailyFileName = `api-stock-${today}`;
+
+    const { data: existingUpload } = await supabase
+      .from("uploads")
+      .select("id, records_count")
+      .eq("pdv_id", pdv.id)
+      .eq("file_name", dailyFileName)
+      .maybeSingle();
+
+    let uploadId: string;
+
+    if (existingUpload) {
+      // Reutilizar upload do dia e incrementar o contador
+      await supabase
+        .from("uploads")
+        .update({
+          records_count: (existingUpload.records_count ?? 0) + 1,
+          processed_at: new Date().toISOString(),
+        })
+        .eq("id", existingUpload.id);
+      uploadId = existingUpload.id;
+    } else {
+      // Criar novo upload do dia para este PDV
+      const { data: newUpload, error: uploadError } = await supabase
+        .from("uploads")
+        .insert({
+          pdv_id: pdv.id,
+          file_name: dailyFileName,
+          type: "stock" as const,
+          uploaded_by: apiKeyRecord.created_by,
+          status: "ready" as const,
+          records_count: 1,
+          processed_at: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
+
+      if (uploadError || !newUpload) {
+        console.error("Upload creation error:", uploadError);
+        return new Response(
+          JSON.stringify({ error: "Erro ao criar registro de upload", details: uploadError?.message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      uploadId = newUpload.id;
     }
 
     // 7. Delete old stock_record for this device_id + slot_number only
@@ -199,8 +227,8 @@ Deno.serve(async (req) => {
       slot_number: slotNumber,
       product_name: productName,
       quantity,
-      is_active: body.is_active !== false,
-      upload_id: upload.id,
+      is_active: isActive,
+      upload_id: uploadId,
       record_number: sanitizeString(body.record_number, FIELD_LIMITS.record_number),
     };
 
@@ -216,39 +244,59 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 9. Generate stock_history snapshot
-    const today = new Date().toISOString().split("T")[0];
+    // 9. Atualizar stock_history com totais AGREGADOS do brand (não valor de um único slot)
     const brand = extractBrand(productName);
 
-    const { data: existingHistory } = await supabase
-      .from("stock_history")
-      .select("id")
+    // Buscar todos os slots do brand neste PDV para calcular totais corretos
+    const { data: brandRecords, error: brandError } = await supabase
+      .from("stock_records")
+      .select("quantity, is_active")
       .eq("pdv_id", pdv.id)
-      .eq("snapshot_date", today)
-      .eq("brand", brand)
-      .maybeSingle();
+      .ilike("product_name", `${brand === "OUTROS" ? "" : brand}%`);
 
-    if (existingHistory) {
-      await supabase
-        .from("stock_history")
-        .update({
-          total_quantity: quantity,
-          active_slots: record.is_active ? 1 : 0,
-          upload_id: upload.id,
+    // Para OUTROS, filtrar manualmente os que não são de marcas conhecidas
+    const knownBrands = ["APPLE", "SAMSUNG", "MOTOROLA", "XIAOMI", "LG", "HUAWEI", "SONY", "NOKIA", "REALME", "POCO"];
+    const filteredRecords = brand === "OUTROS"
+      ? (brandRecords ?? []).filter(r => {
+          const upper = (r as any).product_name?.toUpperCase() ?? "";
+          return !knownBrands.some(b => upper.startsWith(b + " ") || upper.includes(" " + b + " ") || upper === b);
         })
-        .eq("id", existingHistory.id);
-    } else {
-      await supabase
+      : (brandRecords ?? []);
+
+    if (!brandError && filteredRecords.length > 0) {
+      const totalQty = filteredRecords.reduce((sum, r) => sum + (r.quantity ?? 0), 0);
+      const activeSlots = filteredRecords.filter(r => r.is_active).length;
+
+      const { data: existingHistory } = await supabase
         .from("stock_history")
-        .insert({
-          pdv_id: pdv.id,
-          organization_id: organizationId,
-          snapshot_date: today,
-          brand,
-          total_quantity: quantity,
-          active_slots: record.is_active ? 1 : 0,
-          upload_id: upload.id,
-        });
+        .select("id")
+        .eq("pdv_id", pdv.id)
+        .eq("snapshot_date", today)
+        .eq("brand", brand)
+        .maybeSingle();
+
+      if (existingHistory) {
+        await supabase
+          .from("stock_history")
+          .update({
+            total_quantity: totalQty,
+            active_slots: activeSlots,
+            upload_id: uploadId,
+          })
+          .eq("id", existingHistory.id);
+      } else {
+        await supabase
+          .from("stock_history")
+          .insert({
+            pdv_id: pdv.id,
+            organization_id: organizationId,
+            snapshot_date: today,
+            brand,
+            total_quantity: totalQty,
+            active_slots: activeSlots,
+            upload_id: uploadId,
+          });
+      }
     }
 
     // 10. Update last_used_at
@@ -261,7 +309,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         pdv_id: pdv.id,
-        upload_id: upload.id,
+        upload_id: uploadId,
         records_inserted: 1,
         records_deleted: deletedCount ?? 0,
       }),
