@@ -336,6 +336,7 @@ export type Database = {
       }
       otp_verifications: {
         Row: {
+          attempt_count: number
           code: string
           created_at: string
           expires_at: string
@@ -344,6 +345,7 @@ export type Database = {
           verified: boolean
         }
         Insert: {
+          attempt_count?: number
           code: string
           created_at?: string
           expires_at?: string
@@ -352,6 +354,7 @@ export type Database = {
           verified?: boolean
         }
         Update: {
+          attempt_count?: number
           code?: string
           created_at?: string
           expires_at?: string

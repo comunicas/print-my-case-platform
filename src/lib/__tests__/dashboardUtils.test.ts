@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   calculateTotalRevenue,
-  calculatePercentageChange,
   calculateKPIs,
   SalesAmountRecord,
   getSalesByDay,
@@ -16,6 +15,7 @@ import {
   SaleRecord,
   HeatmapCell,
 } from '../dashboardUtils';
+import { calculatePercentageChange } from '../trendUtils';
 
 // ===== HELPERS =====
 
@@ -137,8 +137,9 @@ describe('calculatePercentageChange', () => {
   });
 
   describe('casos especiais', () => {
-    it('deve retornar 0 quando valor anterior é zero', () => {
-      expect(calculatePercentageChange(100, 0)).toBe(0);
+    it('deve retornar null quando valor anterior é zero (sem base de comparação)', () => {
+      // trendUtils retorna null quando previous === 0 (sem dados anteriores)
+      expect(calculatePercentageChange(100, 0)).toBeNull();
     });
 
     it('deve retornar 0 quando valores são iguais', () => {
@@ -875,9 +876,9 @@ describe('getLossesByDay — cancelamentos em português e inglês', () => {
   });
 
   describe('período anterior zerado', () => {
-    it('calculatePercentageChange deve retornar 0 quando período anterior = 0', () => {
-      // Simula o comportamento do useDashboard: cancellationsChange = calculatePercentageChange(current, 0)
-      expect(calculatePercentageChange(500, 0)).toBe(0);
+    it('calculatePercentageChange deve retornar null quando período anterior = 0 (sem base)', () => {
+      // trendUtils retorna null quando previous === 0: sem dados anteriores para comparar
+      expect(calculatePercentageChange(500, 0)).toBeNull();
     });
   });
 });

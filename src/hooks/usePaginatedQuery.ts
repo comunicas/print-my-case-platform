@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
 export interface PaginationState {
   page: number;
@@ -20,8 +21,6 @@ export interface PaginationControls {
   setTotalCount: (count: number) => void;
   getRange: () => { from: number; to: number };
 }
-
-const DEFAULT_PAGE_SIZE = 50;
 
 /**
  * Hook for managing pagination state
