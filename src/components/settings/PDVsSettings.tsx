@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -430,16 +429,16 @@ export function PDVsSettings() {
 
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
+            <Button
+              variant="destructive"
               onClick={handleDeletePdv}
               disabled={deletePDV.isPending || isImpactLoading || !isConfirmationValid}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deletePDV.isPending && (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               )}
               Excluir Permanentemente
-            </AlertDialogAction>
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
