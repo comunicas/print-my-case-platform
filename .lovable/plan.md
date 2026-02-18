@@ -1,66 +1,56 @@
 
-# Diagnóstico: PDV e Usuário Ainda Aparecem Após Exclusão
+# Diagnóstico Definitivo: Dois Bugs Distintos com Causa Raiz Clara
 
-## O Que o Banco Confirma
+## O Que os Dados Revelam
 
-- O PDV "Shopping Metrô Boulevard Tatuapé" (id: `4cad2572...`) **ainda existe** no banco com 103 vendas e 85 registros de estoque — ou seja, ele não foi excluído. As FKs CASCADE estão corretas e aplicadas.
-- Os usuários "flavio" e "Danilo" foram corretamente desvinculados: `organization_id = null`, `status = inactive`. A RLS da query de team já os filtra. Eles não devem aparecer na lista quando a query for refrescada.
+O usuário `rafa bruno` é **super_admin** — isso muda completamente a análise.
 
-## Causas Identificadas
+### Bug 1 — PDVs: Query sem filtro de status retorna PDVs de outras organizações
 
-### Causa 1 — Cache stale agressivo em `usePDVs`
+Sendo super_admin, a query `SELECT * FROM pdvs ORDER BY name` retorna **todos os PDVs de todas as organizações** via RLS. Isso inclui "PRINTMYCASE GERAL" (org PryntMyCase), que aparece na lista de Settings > PDVs do usuário. Quando ele exclui um PDV da sua própria org, o PRINTMYCASE GERAL continua aparecendo porque:
+1. O optimistic update remove corretamente o item da cache local
+2. O `refetchQueries` traz de volta a lista completa do banco — incluindo PDVs de outras orgs
+3. O PDV excluído não reaparece, mas a lista mostra PDVs "estranhos" de outras orgs
 
-```typescript
-// src/hooks/usePDVs.ts
-staleTime: 5 * 60 * 1000, // 5 minutos!
-gcTime: 30 * 60 * 1000,   // 30 minutos!
-```
+**A lista de PDVs em Configurações deveria mostrar apenas os PDVs da organização selecionada/ativa, não todos os PDVs de todas as organizações.**
 
-Com `staleTime` de 5 minutos, o React Query **não refaz a requisição ao banco** mesmo após o `invalidateQueries`. O `invalidateQueries` marca a query como stale, mas o refetch só acontece quando o componente é remontado ou a janela ganha foco. Se o usuário está na mesma tela sem sair, pode ver o dado antigo por até 5 minutos.
+### Bug 2 — Team: Query sem filtro de status retorna membros inativos
 
-### Causa 2 — A exclusão do PDV pode estar sendo bloqueada silenciosamente
+Para super_admin, a query em `useTeamMembers` não filtra por status. Após "Desvincular" `flavio` e `Danilo`, eles ficam com `organization_id = null` e `status = inactive`. O `refetchQueries` sobrescreve o optimistic update com a resposta do banco, que ainda inclui esses usuários porque a query retorna TODOS os profiles sem filtrar por `status = active` ou `organization_id IS NOT NULL`.
 
-O usuário logado é `rafabruno` com `email: rafael@comunicas.com.br`. A query de rede mostra que os 3 PDVs **ainda retornam** — incluindo o "Shopping Metrô", confirmando que ele **não foi excluído**. O botão de exclusão usa a condição `isAdmin` que é verdadeira para `org_admin`, mas há uma verificação no hook que pode estar falhando silenciosamente sem exibir erro na UI em certos casos.
+**A query deveria filtrar usuários inativos ou sem organização da lista de membros da equipe.**
 
-### Causa 3 — Query de usuários com `staleTime` padrão não refrescando
+## Solução Cirúrgica
 
-O `useTeamMembers` não define `staleTime` explícito (usa o padrão de 0), mas o React Query pode estar servindo cache quando a query key não muda. Após o `invalidateQueries({ queryKey: ["team-members"] })`, se o componente não forçar o refetch imediatamente, o dado antigo permanece.
+### Fix 1 — `usePDVs.ts`: Não chamar `refetchQueries` após o optimistic update
 
-### Causa 4 — Otimistic update ausente / feedback visual enganoso
+O padrão correto do React Query é: `onMutate` faz optimistic update → `onSuccess` invalida a query → React Query refaz o fetch em background quando o componente está em foco. Chamar `refetchQueries` imediatamente após `invalidateQueries` anula o optimistic update ao sobrescrever a cache antes que o usuário perceba o efeito visual.
 
-O `deletePDV.mutate` chama `onSuccess` → `invalidateQueries` → mas o React Query não remove imediatamente o item da lista. O item some apenas quando o refetch completa. Se o refetch não acontece (por staleTime ou falha silenciosa), o item permanece.
+**Remover o `refetchQueries` do `onSuccess` de `deletePDV`** — deixar o `invalidateQueries` trabalhar sozinho. Com `staleTime: 30s`, o refetch acontecerá na próxima vez que o componente ganhar foco.
 
-## Solução
+### Fix 2 — `useTeamMembers.ts`: Filtrar membros inativos na query para non-super-admin e adicionar filtro para super_admin
 
-### Fix 1 — Reduzir drasticamente o `staleTime` de `usePDVs`
+Para **org_admin**: a query já filtra por `organization_id`, então membros desvinculados (com `organization_id = null`) não aparecem — correto.
 
-Reduzir de 5 minutos para 30 segundos, e `gcTime` para 5 minutos. Após exclusão/criação/edição, a lista vai refrescar rapidamente.
+Para **super_admin**: a query retorna todos os profiles sem filtro. Após desvincular, o membro fica com `status = inactive`. A query deve adicionar `.neq("status", "inactive")` para não mostrar membros inativos (ou ser filtrada para mostrar apenas membros com `organization_id IS NOT NULL`).
 
-### Fix 2 — Adicionar Optimistic Update na exclusão de PDV
+**Remover também o `refetchQueries` do `onSuccess` de `removeMember`** pelo mesmo motivo do Fix 1.
 
-Ao confirmar a exclusão, remover imediatamente o item da lista local enquanto a requisição está em andamento — e restaurar se falhar. Isso elimina o delay visual.
+### Fix 3 — `PDVsSettings.tsx`: Para super_admin, filtrar para mostrar apenas PDVs da organização ativa
 
-### Fix 3 — Adicionar Optimistic Update na remoção de membro da equipe
-
-Mesma abordagem: remover imediatamente o membro da lista local, restaurar em caso de erro.
-
-### Fix 4 — Forçar refetch explícito após mutações críticas
-
-Após `invalidateQueries`, chamar `refetchQueries` para garantir que os dados sejam atualizados imediatamente, sem depender do comportamento de stale/background refetch.
-
-### Fix 5 — Melhorar feedback de erro na exclusão de PDV
-
-Adicionar captura de erro mais visível no `deletePDV.mutate` para o caso em que a exclusão realmente falha, tornando o comportamento claro para o usuário.
+O componente `PDVsSettings` chama `usePDVs()` sem nenhum filtro. Para super_admin, isso traz PDVs de todas as organizações. A solução é passar o `organization_id` do profile como filtro — garantindo que a tela de Settings mostre apenas os PDVs da organização que o usuário está gerenciando.
 
 ## Arquivos a Modificar
 
 | Arquivo | Mudança |
 |---|---|
-| `src/hooks/usePDVs.ts` | Reduzir `staleTime` para 30s, `gcTime` para 5min; adicionar optimistic update no `deletePDV` |
-| `src/hooks/useTeamMembers.ts` | Adicionar optimistic update no `removeMember`; forçar `refetchQueries` após mutações |
+| `src/hooks/usePDVs.ts` | Remover `refetchQueries` do `onSuccess` de `deletePDV`; o optimistic update + `invalidateQueries` é suficiente |
+| `src/hooks/useTeamMembers.ts` | Adicionar filtro `.neq("status", "inactive")` na query de profiles (para super_admin também); remover `refetchQueries` do `onSuccess` de `removeMember` |
+| `src/components/settings/PDVsSettings.tsx` | Passar `{ organizationId: profile?.organization_id }` para `usePDVs()` para limitar a lista ao contexto correto |
 
 ## Resultado Esperado
 
-- Ao clicar "Excluir" em um PDV, o card desaparece **imediatamente** da lista (optimistic update), e se houver erro real, retorna com mensagem clara
-- Ao clicar "Desvincular" em um membro, o card some **imediatamente** da lista
-- A lista sempre reflete o estado real do banco sem delay de cache
+- Ao excluir um PDV, o card some **imediatamente** (optimistic update) e não reaparece
+- A lista de PDVs em Configurações mostra apenas os PDVs da organização do usuário logado (sem PDVs de outras organizações)
+- Ao desvincular um membro, o card some **imediatamente** e não reaparece após o refetch
+- A lista de membros não mostra usuários com `status = inactive`
