@@ -1,69 +1,61 @@
 
-# Contagem Prévia de Dados no Diálogo de Exclusão de PDV
+# Verificação de 100% da Plataforma — Impacto de Exclusão de PDVs
 
-## Objetivo
+## Situação Atual
 
-Antes de o usuário confirmar a exclusão de um PDV, o sistema consulta o banco e exibe quantos registros de vendas e estoque serão removidos em cascata. Isso dá visibilidade completa do impacto da ação antes que ela seja irreversível.
+A correção anterior resolveu os fluxos de Settings > PDVs e Settings > Equipe. Porém, a varredura completa da plataforma revelou 3 pontos adicionais que precisam de atenção:
 
-## Fluxo da Experiência
+## Pontos Identificados
 
-```text
-Usuário clica em [Excluir] no card do PDV
-        ↓
-Diálogo abre com spinner "Verificando dados..."
-        ↓
-Query paralela: COUNT de sales_records + COUNT de stock_records para o pdv_id
-        ↓
-Diálogo exibe o resumo completo:
-  "Tem certeza que deseja excluir 'Nome do PDV'?"
-  ┌─────────────────────────────────────────────┐
-  │ ⚠️  Dados que serão excluídos permanentemente │
-  │  📊  103 registros de vendas                  │
-  │  📦  85  registros de estoque                 │
-  └─────────────────────────────────────────────┘
-  "Esta ação não pode ser desfeita."
-        ↓
-Usuário clica [Excluir Permanentemente] ou [Cancelar]
+### Ponto 1 — `Uploads.tsx`: `usePDVs()` sem `organizationId`
+
+```typescript
+// src/pages/Uploads.tsx, linha 64
+const { pdvs, isLoading: pdvsLoading } = usePDVs();
 ```
 
-## Detalhes Técnicos
+Para super_admin, este hook sem filtro retorna PDVs de **todas as organizações**. O filtro de PDV na página de Uploads exibe essas opções misturadas, podendo mostrar PDVs de outras organizações.
 
-### Novo hook: `usePDVImpact`
+**Fix:** Passar `{ organizationId: profile?.organization_id ?? undefined }` — o mesmo padrão já aplicado em `PDVsSettings.tsx`.
 
-Será criado um novo hook dedicado em `src/hooks/usePDVImpact.ts` que:
+### Ponto 2 — `Settings.tsx`: bloco "PDVs Ativos" sem `organizationId`
 
-- Recebe um `pdvId: string | null`
-- Só executa a query quando `pdvId` é não-nulo (`enabled: !!pdvId`)
-- Faz **duas queries paralelas** com `{ count: "exact", head: true }` (não traz dados, só conta):
-  - `supabase.from("sales_records").select("*", { count: "exact", head: true }).eq("pdv_id", pdvId)`
-  - `supabase.from("stock_records").select("*", { count: "exact", head: true }).eq("pdv_id", pdvId)`
-- Retorna `{ salesCount, stockCount, isLoading }`
-- `staleTime: 0` — sempre busca dados frescos ao abrir o diálogo
+```typescript
+// src/pages/Settings.tsx, linha 36
+const { pdvs, isLoading: pdvsLoading } = usePDVs();
+```
 
-### Mudanças em `PDVsSettings.tsx`
+A aba Organização exibe um bloco "PDVs Ativos" com até 5 PDVs. Para super_admin, pode mostrar PDVs de orgs diferentes misturadas.
 
-- O state `deletingPdv` já existe — ele será passado como `pdvId` para o novo hook
-- O `AlertDialog` recebe o resultado do hook para mostrar os counts
-- Enquanto o hook está carregando, o diálogo mostra um skeleton/spinner no lugar dos números
-- O botão "Excluir" fica desabilitado enquanto os dados ainda estão sendo carregados (para evitar exclusão antes de o usuário ver o aviso)
-- Se não houver registros (PDV novo/vazio), exibe uma mensagem neutra: "Este PDV não possui registros de vendas ou estoque vinculados."
-- O texto do botão de confirmação muda para "Excluir Permanentemente" para reforçar a gravidade da ação
+**Fix:** Passar `{ organizationId: profile?.organization_id ?? undefined }` no `usePDVs()` do `Settings.tsx`.
 
-## Arquivos a Modificar/Criar
+### Ponto 3 — `default_pdv` em Preferências não é limpo após exclusão
 
-| Arquivo | Tipo | Mudança |
-|---|---|---|
-| `src/hooks/usePDVImpact.ts` | Novo | Hook que conta sales_records e stock_records por pdv_id |
-| `src/components/settings/PDVsSettings.tsx` | Editar | Integrar o hook e atualizar o AlertDialog com a contagem |
+Quando um PDV é excluído, o campo `default_pdv` na tabela `preferences` do usuário permanece com o ID morto. O hook `useDefaultPdvPreference` já tem uma guarda que verifica se o PDV existe antes de aplicá-lo (`pdvExists`), então não há bug visual — mas o banco fica com um dado inválido.
 
-## Nenhuma mudança no banco de dados
+**Fix:** No `onSuccess` do `deletePDV` em `usePDVs.ts`, verificar se algum usuário tem esse PDV como padrão e limpar o campo. Isso pode ser feito via `queryClient` + chamada ao Supabase para `UPDATE preferences SET default_pdv = null WHERE default_pdv = deletedId`.
 
-As tabelas `sales_records` e `stock_records` já existem com as políticas RLS corretas que permitem aos admins consultar registros de PDVs da sua organização — as queries de COUNT funcionarão com as permissões atuais.
+Como alternativa mais simples e eficiente: adicionar um banco de dados trigger (migration SQL) que limpa `preferences.default_pdv` automaticamente quando um PDV é deletado — assim a limpeza acontece em cascata sem depender do frontend.
+
+## Arquivos a Modificar
+
+| Arquivo | Mudança |
+|---|---|
+| `src/pages/Uploads.tsx` | Adicionar `{ organizationId: profile?.organization_id ?? undefined }` no `usePDVs()` e importar `useProfile` |
+| `src/pages/Settings.tsx` | Adicionar `{ organizationId: profile?.organization_id ?? undefined }` no `usePDVs()` |
+| `supabase/migrations/` | Trigger SQL: após DELETE em `pdvs`, limpar `preferences.default_pdv` onde `default_pdv = OLD.id` |
+
+## O que NÃO precisa de mudança
+
+- `src/pages/Index.tsx` — já usa `usePDVs({ organizationId: isSuperAdmin ? selectedOrgId : undefined })` corretamente
+- `src/hooks/useDashboard.ts` — já filtra por `organization_id` corretamente
+- `src/hooks/useSlotsData.ts` — usa RLS do banco, não lista PDVs
+- `src/hooks/useUserAllowedPDVs.ts` — correto
+- `src/components/settings/PDVsSettings.tsx` — já corrigido
 
 ## Resultado Esperado
 
-- Ao clicar no ícone de lixeira de um PDV, o diálogo abre imediatamente
-- Enquanto busca os dados (milissegundos), exibe um pequeno indicador de carregamento dentro do diálogo
-- Exibe a contagem real de registros que serão deletados em cascata
-- O botão de confirmação só fica ativo após a consulta terminar
-- Para PDVs sem dados, exibe mensagem específica sem alerta de perda de dados
+Após os fixes:
+- A lista de PDVs em **qualquer tela** da plataforma mostrará apenas os PDVs da organização do usuário logado, sem misturar PDVs de outras organizações
+- Ao excluir um PDV, o campo `default_pdv` de todas as `preferences` que referenciam esse PDV será automaticamente limpo pelo trigger do banco
+- O comportamento é consistente para todos os roles (org_admin, super_admin, operator)
