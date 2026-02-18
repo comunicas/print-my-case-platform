@@ -1,136 +1,79 @@
 
-# Testes E2E — Fluxo de Notificações
+# Correção do Seletor Frágil no Cenário 09 dos Testes E2E
 
-## Análise do Componente
+## Diagnóstico Completo
 
-Ao ler o `NotificationsPopover.tsx`, identifiquei 3 estados possíveis do popover:
+### O que foi verificado manualmente
 
-1. **Sem notificações** — exibe "Nenhuma notificação" e **NÃO** renderiza o botão "Gerenciar preferências"
-2. **Com notificações** — exibe lista de itens clicáveis + botão "Gerenciar preferências"
-3. **Carregando** — exibe "Carregando..."
+Todos os 9 cenários foram inspecionados no browser em sessão autenticada real. Resultado:
 
-Isso cria um desafio real: os testes não podem assumir que o usuário de teste tem notificações no banco. A estratégia é:
+- **Cenários 01, 02, 03, 04, 06, 07, 08** — passam corretamente. A lógica, os `data-testid` e as rotas estão funcionando conforme esperado.
+- **Cenário 05** (`product_request`) — não há notificações desse tipo no banco do ambiente de teste. O skip implícito está correto e o cenário retorna sem executar `expect`. Não é um bug.
+- **Cenário 09** ("Meu Perfil" → `?tab=profile`) — **tem um seletor que vai falhar em Playwright**.
 
-- **Testes condicionais com `skip` automático** quando não há notificações (mesmo padrão dos outros spec files com `if (count > 0)`)
-- **Teste de abertura do popover** — sempre executa, verifica que o popover abre e exibe um dos dois estados válidos
-- **Teste de navegação "Gerenciar preferências"** — executa somente se houver notificações
-- **Teste de navegação por notificação de produto** — executa somente se houver notificação do tipo `product_request`
-- **Teste de fallback de rota** — verifica diretamente a URL de destino `/settings?tab=requests` sem depender de notificações
+### Causa raiz do problema no Cenário 09
 
-## Seletores Identificados
-
-A partir do código do componente:
-
-| Elemento | Seletor a usar |
-|---|---|
-| Botão do sino (trigger) | `button:has(svg[data-lucide="bell"])` ou texto do aria + `[data-testid="notifications-trigger"]` (a adicionar) |
-| Header "Notificações" | `h4:has-text("Notificações")` |
-| Empty state | `text=Nenhuma notificação` |
-| Botão "Gerenciar preferências" | `text=Gerenciar preferências de notificação` |
-| Notificação de produto (ShoppingBag) | ícone + tipo no container |
-| Botão "Marcar todas como lidas" | `text=Marcar todas como lidas` |
-
-Para tornar os seletores mais robustos, vou adicionar `data-testid` a 3 elementos críticos no `NotificationsPopover.tsx`:
-- `data-testid="notifications-trigger"` no `PopoverTrigger`
-- `data-testid="notifications-popover-content"` no `PopoverContent`
-- `data-testid="notification-item"` em cada `NotificationItem`
-- `data-testid="manage-preferences-btn"` no botão "Gerenciar preferências"
-
-## Arquivos a Criar/Editar
-
-| Arquivo | Operação | Motivo |
-|---|---|---|
-| `e2e/notifications.spec.ts` | CRIAR | Arquivo principal com todos os testes |
-| `src/components/layout/NotificationsPopover.tsx` | EDITAR | Adicionar `data-testid` nos elementos testáveis |
-
-## Estrutura dos Testes (9 cenários)
-
-### Suite principal: `Notifications Popover — Navigation Flow`
-
-**Cenário 1 — Abertura do Popover**
-- Navega para `/` (dashboard)
-- Aguarda carregamento
-- Clica no botão do sino (trigger)
-- Verifica que `h4` com texto "Notificações" está visível
-- Verifica que está em um dos estados válidos: empty state OU lista de notificações
-
-**Cenário 2 — Estado vazio exibe mensagem correta**
-- Abre o popover
-- Se empty state visível: confirma texto "Nenhuma notificação"
-- Confirma que botão "Gerenciar preferências" NÃO está visível (comportamento correto do componente)
-
-**Cenário 3 — Fecha o popover ao pressionar Escape**
-- Abre o popover
-- Pressiona `Escape`
-- Verifica que popover fechou
-
-**Cenário 4 — Botão "Gerenciar preferências" navega para `?tab=preferences`**
-- Abre o popover
-- `if` botão "Gerenciar preferências" visível: clica nele
-- Aguarda navegação
-- Verifica URL contém `/settings`
-- Verifica que a aba "Preferências" está visualmente ativa (via `TabsTrigger[data-state="active"]` com texto "Preferências") **OU** verifica `searchParams.tab=preferences` na URL
-- Este é o teste central do Bug 2 corrigido na Fase 7
-
-**Cenário 5 — Notificação de `product_request` navega para `?tab=requests`**
-- Abre o popover
-- Busca por notificação com ícone ShoppingBag (`[data-testid="notification-item"][data-type="product_request"]`)
-- Se encontrado: clica na notificação
-- Verifica URL contém `/settings?tab=requests` **OU** verifica aba "Pedidos" ativa
-- Este é o teste central do Bug 3 corrigido na Fase 7
-
-**Cenário 6 — Notificação de `upload_processed` navega para `/uploads/:id`**
-- Abre o popover
-- Busca por notificação do tipo `upload_processed`
-- Se encontrado com `metadata.upload_id`: verifica que navega para `/uploads/[uuid]`
-- Se sem upload_id: verifica que navega para `/uploads`
-
-**Cenário 7 — Notificação de `stock_alert` navega para `/estoque`**
-- Abre o popover, clica em stock_alert se disponível
-- Verifica navegação para `/estoque`
-
-**Cenário 8 — Notificação de `team_member` navega para `?tab=team`**
-- Abre o popover, clica em team_member se disponível
-- Verifica URL com `tab=team` e aba "Equipe" ativa
-
-**Cenário 9 — "Meu Perfil" no header navega para `?tab=profile`**
-- Clica no dropdown de avatar no header
-- Clica em "Meu Perfil"
-- Verifica URL com `tab=profile` e aba "Perfil" ativa visualmente
-- Este testa o Bug 1 corrigido na Fase 7
-
-## Estratégia de Resiliência
-
-Seguindo o padrão do projeto (`if (count > 0)`):
-- Testes que dependem de notificações existentes usam `const hasNotifications = await notificationItems.count() > 0`
-- Se não houver dados: o teste passa com skip implícito (sem `expect` executado), evitando falhas em CI com banco vazio
-- A verificação de navegação usa `page.waitForURL` com timeout de 5s para ser resiliente a latência
-
-## Verificação de Tab Ativa
-
-Para confirmar que a aba correta está selecionada após navegação (mais robusto que verificar apenas a URL):
-
+O teste usa:
 ```typescript
-// Verifica aba ativa pelo atributo data-state do Radix UI Tabs
-await expect(
-  page.locator('[role="tab"][data-state="active"]')
-).toContainText("Preferências"); // ou "Pedidos", "Perfil", "Equipe"
+const avatarBtn = page.locator('header button').filter({
+  has: page.locator('span[class*="AvatarFallback"]'),
+}).first();
 ```
 
-Isso garante que o routing funcionou E o componente React respondeu à mudança de URL, validando o fluxo completo de ponta a ponta.
+O componente `AvatarFallback` do Radix UI, após compilação pelo Tailwind, **não gera uma classe com o nome literal `AvatarFallback`**. As classes no DOM são Tailwind puras:
+```html
+<span class="bg-primary text-primary-foreground text-xs md:text-sm ...">RB</span>
+```
 
-## Atributos `data-testid` a Adicionar no Componente
+O seletor `span[class*="AvatarFallback"]` não encontra nenhum elemento → o `filter()` retorna zero resultados → `avatarBtn.click()` falha com timeout.
+
+**Confirmado visualmente:** o dropdown de avatar abre corretamente quando o terceiro botão do header é clicado diretamente. A funcionalidade está 100% correta — só o seletor do teste está errado.
+
+## Solução
+
+Substituir o seletor frágil por um seletor robusto baseado em estrutura estável do header. Existem duas abordagens válidas:
+
+**Opção A (mais robusta):** Adicionar `data-testid="user-menu-trigger"` no `DropdownMenuTrigger` do `AppHeader.tsx`, igual ao padrão já adotado para `notifications-trigger`.
+
+**Opção B (sem mudança de componente):** Usar `page.locator('[role="button"]', { hasText: /^[A-Z]{1,2}$/ })` no header — mas isso é mais frágil se o nome do usuário mudar.
+
+**Decisão: Opção A** — adicionar o `data-testid` no `AppHeader.tsx` e atualizar o seletor no teste. Isso segue o padrão já estabelecido no projeto (`notifications-trigger`, `manage-preferences-btn`) e torna o teste completamente independente de classes CSS geradas pelo Radix UI.
+
+## Arquivos a Modificar
+
+| Arquivo | Mudança |
+|---|---|
+| `src/components/layout/AppHeader.tsx` | Adicionar `data-testid="user-menu-trigger"` no `Button` do `DropdownMenuTrigger` |
+| `e2e/notifications.spec.ts` | Substituir o seletor do Cenário 09 por `[data-testid="user-menu-trigger"]` |
+
+## Detalhe das Alterações
+
+### `AppHeader.tsx` — linha 83
 
 ```tsx
-// PopoverTrigger Button
-<Button data-testid="notifications-trigger" ...>
+// ANTES
+<Button variant="ghost" className="gap-2 px-1 md:px-2">
 
-// PopoverContent
-<PopoverContent data-testid="notifications-popover-content" ...>
-
-// Div do NotificationItem
-<div data-testid="notification-item" data-type={notification.type} data-id={notification.id} ...>
-
-// Botão "Gerenciar preferências"
-<Button data-testid="manage-preferences-btn" ...>
+// DEPOIS
+<Button data-testid="user-menu-trigger" variant="ghost" className="gap-2 px-1 md:px-2">
 ```
+
+### `e2e/notifications.spec.ts` — Cenário 09 (linhas 196-221)
+
+```typescript
+// ANTES — seletor frágil que não funciona
+const avatarBtn = page.locator('header button').filter({
+  has: page.locator('span[class*="AvatarFallback"]'),
+}).first();
+
+await avatarBtn.click();
+
+// DEPOIS — seletor robusto via data-testid
+await page.click('[data-testid="user-menu-trigger"]');
+```
+
+O restante do Cenário 09 (aguardar "Meu Perfil", clicar, verificar URL e aba ativa) permanece idêntico e está correto.
+
+## Escopo Mínimo
+
+Apenas 2 arquivos, 2 linhas modificadas. Nenhuma lógica de negócio, nenhuma migração de banco, nenhuma Edge Function envolvida.
