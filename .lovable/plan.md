@@ -1,183 +1,210 @@
 
-# Fase 5 do Code Review: Correção dos 5 Gaps de Segurança nas Políticas RLS
+# Audit Completo das Edge Functions — Fase 6 do Code Review
 
-## Contexto e Análise
+## Metodologia
 
-Após auditoria completa das políticas RLS de todas as 22 tabelas públicas do banco, foram identificados 5 gaps de segurança com diferentes níveis de severidade. Este plano propõe correções cirúrgicas via uma única migração SQL.
+Foram analisadas 7 Edge Functions completas (`create-user`, `process-spreadsheet`, `update-password`, `reprocess-refunds`, `ingest-revenue`, `ingest-stock`, `send-otp`, `verify-otp`) em 4 eixos: validação de JWT, sanitização de inputs, rate limiting por IP, e privilege escalation.
 
-## Análise Detalhada de Cada Gap
+---
 
-### Gap 1 — CRÍTICO: Bug no Rate Limit de `catalog_leads`
+## Resumo Executivo
 
-**Tabela:** `catalog_leads`
-**Política:** `Anyone can insert catalog leads with rate limit`
-**Problema:** A expressão `WITH CHECK` contém `cl.phone = cl.phone`, que é uma auto-comparação e sempre retorna `true` (qualquer valor é igual a si mesmo). A intenção era comparar com o telefone do novo registro sendo inserido (`catalog_leads.phone`), mas o alias `cl` foi usado nos dois lados.
-
-```sql
--- BUGGY (sempre true):
-NOT (EXISTS (SELECT 1 FROM catalog_leads cl
-  WHERE (cl.phone = cl.phone)           -- ← bug: cl.phone = cl.phone
-    AND (cl.organization_id = catalog_leads.organization_id)
-    AND (cl.created_at > (now() - interval '1 minute'))
-))
-
--- CORRETO:
-NOT (EXISTS (SELECT 1 FROM catalog_leads cl
-  WHERE (cl.phone = catalog_leads.phone)  -- ← compara com o novo registro
-    AND (cl.organization_id = catalog_leads.organization_id)
-    AND (cl.created_at > (now() - interval '1 minute'))
-))
+```text
+┌─────────────────────────┬──────────────┬──────────────┬───────────────┬────────────────────┐
+│ Edge Function           │ Auth JWT     │ Sanitização  │ Rate Limit IP │ Privilege Escalation│
+├─────────────────────────┼──────────────┼──────────────┼───────────────┼────────────────────┤
+│ create-user             │ APROVADO     │ APROVADO     │ AUSENTE 🟡   │ APROVADO            │
+│ process-spreadsheet     │ APROVADO     │ APROVADO     │ AUSENTE 🟡   │ APROVADO            │
+│ update-password         │ APROVADO     │ APROVADO     │ AUSENTE 🟡   │ APROVADO            │
+│ reprocess-refunds       │ APROVADO     │ APROVADO     │ AUSENTE 🟡   │ APROVADO            │
+│ ingest-revenue          │ API KEY ✅   │ APROVADO     │ AUSENTE 🟡   │ APROVADO            │
+│ ingest-stock            │ API KEY ✅   │ APROVADO     │ AUSENTE 🟡   │ APROVADO            │
+│ send-otp                │ PÚBLICO ✅   │ APROVADO     │ DB-ONLY 🟡   │ N/A                 │
+│ verify-otp              │ PÚBLICO ✅   │ APROVADO     │ AUSENTE 🔴   │ N/A                 │
+└─────────────────────────┴──────────────┴──────────────┴───────────────┴────────────────────┘
 ```
 
-**Impacto:** O rate limit de 1 inserção por minuto por telefone/organização está completamente inativo. Qualquer pessoa pode inserir leads ilimitados via catálogo público, podendo poluir a tabela com spam massivo.
+---
 
-**Correção:** DROP da política atual e CREATE com a expressão corrigida.
+## Análise Detalhada por Eixo
+
+### 1. Validação de JWT
+
+**Estratégia atual — correta e bem implementada:**
+
+- `create-user`, `process-spreadsheet`, `update-password`: `verify_jwt = true` no `config.toml`. Além disso, fazem dupla verificação chamando `supabaseUser.auth.getUser()` para validar o token com o servidor. **APROVADO.**
+- `reprocess-refunds`: `verify_jwt = false`, porém verifica o JWT manualmente via `getClaims()` + checa se o usuário é `super_admin` na tabela `user_roles`. **APROVADO — padrão correto para funções que precisam de lógica customizada.**
+- `ingest-revenue`, `ingest-stock`: `verify_jwt = false`, sem JWT — usam API Key com hash SHA-256. **APROVADO — o design intencional está documentado em memória.**
+- `send-otp`, `verify-otp`: `verify_jwt = false`, sem JWT nem API Key — endpoints públicos para o fluxo de catálogo. **APROVADO — público por design.**
+
+**Conclusão JWT:** Nenhum problema crítico. O design de cada função é consistente com seu caso de uso.
 
 ---
 
-### Gap 2 — ALTO: `audit_logs` INSERT aberto com `WITH CHECK: true`
+### 2. Sanitização de Inputs
 
-**Tabela:** `audit_logs`
-**Política:** `Authenticated users can insert audit logs`
-**Problema:** `WITH CHECK: true` permite que qualquer usuário autenticado insira qualquer dado na tabela, incluindo:
-- Falsificar `actor_id` de outro usuário
-- Forjar entradas com `organization_id` de outra organização
-- Criar entradas falsas de `event_type` como `permission_violation` para incriminar outros usuários
+**Análise por função:**
 
-**Contexto importante:** Confirmado na análise das Edge Functions que **todas** as inserções reais em `audit_logs` ocorrem via `supabaseAdmin` (client com `SUPABASE_SERVICE_ROLE_KEY`), que bypassa RLS completamente. A política de INSERT para usuários autenticados via anon key, portanto, nunca é necessária para o funcionamento normal do sistema — ela é apenas uma superfície de ataque.
+**`create-user`:**
+- `name`, `email`, `password` são validados como presentes, mas **não há sanitização de comprimento máximo** em `name`, `email`, ou `organizationName`.
+- `role` é validado contra uma allowlist (`validRoles`). **Correto.**
+- `organizationId` é passado diretamente para uma query como `.eq('id', organizationId)` — como o parâmetro não é tratado como SQL raw, isso é seguro via ORM, mas idealmente deveria validar o formato UUID antes de usar.
+- Não há limite de tamanho no body JSON — um atacante poderia enviar um `name` de 100 MB.
 
-**Correção:** Substituir `WITH CHECK: true` por `WITH CHECK: (actor_id = auth.uid())`, garantindo que usuários autenticados só possam inserir logs onde são o próprio ator. Isso não afeta as Edge Functions (que usam service_role e ignoram RLS).
+**Gap identificado — BAIXO:**
+```typescript
+// Atual: sem validação de tamanho
+let { name, email, password, ... } = await req.json();
+
+// Ideal:
+name = String(name ?? '').substring(0, 255).trim();
+email = String(email ?? '').substring(0, 255).trim();
+organizationName = String(organizationName ?? '').substring(0, 255).trim();
+// + validate email format server-side
+// + validate organizationId is UUID format
+```
+
+**`process-spreadsheet`:**
+- Excelente sanitização: `sanitizeString()`, `sanitizeDeviceId()`, `sanitizeOrderNumber()` com limites de campo, remoção de caracteres de controle, e `substring(0, maxLength)`. 
+- Limite de 50.000 linhas para prevenir DoS. **APROVADO.**
+
+**`update-password`:**
+- `newPassword` tem validação robusta de força (8+ chars, maiúsculas, minúsculas, números, especiais) server-side.
+- Sem sanitização de comprimento máximo para `newPassword` — uma senha de 1 MB seria aceita até a validação de força.
+
+**Gap — MUITO BAIXO:** Adicionar `if (newPassword.length > 1024) return error` antes da validação de força.
+
+**`reprocess-refunds`:**
+- Não recebe inputs do usuário além do token JWT. Sem parâmetros no body. **APROVADO.**
+
+**`ingest-revenue`:**
+- Todos os campos textuais passam por `sanitizeString()` com limites.
+- `amount`, `refund_amount`, `discount_amount`, `actual_paid_amount` passam por `parseAmount()` com clamping entre 0 e 10M.
+- `device_id` passa por `sanitizeDeviceId()` (apenas alphanum + hífens).
+- `order_number` passa por `sanitizeOrderNumber()` (apenas alphanum + `-_.`).
+- **APROVADO.**
+
+**`ingest-stock`:**
+- Mesma qualidade que `ingest-revenue`. Todos os campos têm limites e sanitização.
+- **APROVADO.**
+
+**`send-otp`:**
+- `phone` validado com regex `/^\d{10,11}$/`. Aceita exatamente 10 ou 11 dígitos. **Correto.**
+- **APROVADO.**
+
+**`verify-otp`:**
+- `phone` validado com `/^\d{10,11}$/`. **Correto.**
+- `code` validado com `/^\d{6}$/`. **Correto.**
+- **APROVADO.**
 
 ---
 
-### Gap 3 — ALTO: `organizations` UPDATE sem `WITH CHECK`
+### 3. Rate Limiting por IP
 
-**Tabela:** `organizations`
-**Política:** `Org admins can update their organization`
-**Problema:** A política tem apenas `USING: ((id = get_user_org_id(auth.uid())) AND is_admin(auth.uid()))` sem `WITH CHECK`. No PostgreSQL, para UPDATE, `USING` controla quais linhas podem ser selecionadas para atualização, mas `WITH CHECK` valida o estado da linha **após** a atualização. Sem `WITH CHECK`, um org_admin poderia:
-- Alterar o `id` da organização (se a coluna não for PK imutável)
-- Mais relevante: não há validação explícita de que a linha resultante ainda pertence à mesma organização
+**Este é o principal gap do audit.** Nenhuma função implementa rate limiting baseado em IP — apenas `send-otp` tem rate limiting baseado em número de telefone (no banco de dados, máx 3 OTPs por 10 minutos), mas mesmo essa proteção não usa IP.
 
-**Correção:** Adicionar `WITH CHECK: ((id = get_user_org_id(auth.uid())) AND is_admin(auth.uid()))` — mesma expressão do USING, garantindo que a linha resultante da UPDATE também satisfaça a condição de pertencimento.
+**Mapeamento de risco por função:**
 
----
-
-### Gap 4 — MÉDIO: `notifications` UPDATE sem `WITH CHECK`
-
-**Tabela:** `notifications`
-**Política:** `Users can update their notifications`
-**Problema:** A política tem `USING: ((organization_id = get_user_org_id(auth.uid())) AND ((user_id IS NULL) OR (user_id = auth.uid())))` sem `WITH CHECK`. Sem essa proteção, um usuário autenticado com acesso a uma notificação pode modificar campos não intencionais como `title`, `message`, `type`, `metadata` ou até `organization_id`, além de apenas marcar como lida (`is_read`). A intenção declarada no hook `useNotifications.ts` é apenas marcar notificações como lidas.
-
-**Correção:** Adicionar `WITH CHECK` com a mesma expressão do USING, garantindo que a linha resultante ainda pertença à mesma organização e ao mesmo usuário.
-
----
-
-### Gap 5 — BAIXO: `products` ALL sem `WITH CHECK` explícito
-
-**Tabela:** `products`
-**Política:** `Admins can manage products`
-**Análise:** Esta é a menos crítica dos 5. No PostgreSQL, quando uma política `ALL` é criada com apenas `USING` e sem `WITH CHECK`, o banco de dados **automaticamente usa a expressão USING como WITH CHECK** para operações de INSERT e UPDATE. Portanto, tecnicamente o comportamento atual já é seguro.
-
-**Por que corrigir mesmo assim:** A ausência de `WITH CHECK` explícito é um risco de manutenção — qualquer desenvolvedor que leia a política no futuro pode incorretamente assumir que não há validação para INSERT/UPDATE, ou uma futura versão do Postgres poderia mudar o comportamento padrão. Explicitar é uma boa prática de segurança defensiva.
-
-**Correção:** Recriar a política com `WITH CHECK` explícito idêntico ao `USING`.
-
----
-
-## Impacto em Código Frontend/Edge Functions
-
-| Tabela | Edge Functions afetadas | Frontend afetado |
+| Função | Risco sem rate limit por IP | Severidade |
 |---|---|---|
-| `catalog_leads` | `send-otp`, `verify-otp` (usam service_role, não afetados) | `PublicStockList.tsx` — inserção anônima via anon key pode ser afetada |
-| `audit_logs` | Nenhuma (usam service_role) | Nenhum (não há insert direto de audit_logs no frontend) |
-| `organizations` | Nenhuma | `OrganizationSettings.tsx` — UPDATE normal, não afetado |
-| `notifications` | Nenhuma | `useNotifications.ts` — apenas marca `is_read`, não afetado |
-| `products` | Nenhuma | Funcionalidade de produtos, não afetada |
+| `verify-otp` | Força bruta no código de 6 dígitos (1.000.000 combinações). Com 3 req/s: ~4 dias para quebrar. Com 1000 req/s: ~17 minutos. | **ALTA** |
+| `send-otp` | Rate limit por telefone existe (DB), mas um atacante com múltiplos telefones pode fazer flood da Twilio, gerando custos. | **MÉDIA** |
+| `create-user` | Um org_admin poderia criar muitos usuários rapidamente. | **BAIXA** |
+| `ingest-revenue`, `ingest-stock` | Protegidos por API Key; múltiplos IPs precisariam da mesma chave. | **MUITO BAIXA** |
+| `process-spreadsheet`, `update-password`, `reprocess-refunds` | Exigem JWT válido. | **MUITO BAIXA** |
 
-**Importante para `catalog_leads`:** A correção do rate limit pode bloquear inserções que atualmente passam sem restrição. O fluxo real de inserção passa pela Edge Function `verify-otp` com service_role — portanto não é afetado. O único caso afetado seria uma inserção direta via anon key (que não deveria existir no fluxo atual).
+**Gap Crítico: `verify-otp` sem proteção contra brute-force:**
+
+O código OTP é de 6 dígitos (1.000.000 combinações). A função não limita tentativas por IP nem por número de telefone. Um atacante poderia:
+1. Interceptar que um telefone recebeu um OTP (via `send-otp`)
+2. Fazer chamadas paralelas a `verify-otp` até adivinhar o código dentro dos 5 minutos de validade
+
+**Correção necessária:** Adicionar à tabela `otp_verifications` uma coluna `attempt_count` e rejeitar após 5 tentativas falhas para o mesmo telefone. Isso é mais robusto que rate limit por IP (que pode ser contornado com proxies).
 
 ---
 
-## Arquivo de Migração SQL
+### 4. Privilege Escalation
 
-Uma única migração com 5 blocos, um por tabela:
+**Análise de `create-user` — função mais sensível:**
+
+A função implementa uma hierarquia de permissões bem construída:
+- `org_admin` não pode criar `org_admin` ou `super_admin` (linhas 359-382).
+- `org_admin` não pode criar usuários em outra organização — o `organizationId` recebido no body é **ignorado** e substituído pelo `callerOrgId` obtido do banco (linha 355). **Excelente proteção.**
+- `org_admin` não pode criar nova organização (linha 290-311).
+- Apenas `super_admin` pode criar `super_admin` (linha 386-405).
+
+**Único risco teórico restante — MUITO BAIXO:**
+O `createNewOrganization` e `organizationId` são lidos do body JSON *antes* das verificações de permissão, e o audit log no `user_creation_attempt` inclui `requested_organization_id: organizationId`. Se um `org_admin` tentasse injetar um UUID de outra organização, ele seria **loggado mas não usado** (linha 355 força o `callerOrgId`). Comportamento correto.
+
+**Análise de `reprocess-refunds`:**
+- Verifica `role === 'super_admin'` no banco via `user_roles`. Um `org_admin` não pode acessar.
+- **APROVADO.**
+
+**Análise de `ingest-revenue` e `ingest-stock`:**
+- A `organization_id` **não vem do body da requisição** — é sempre derivada da `api_key` consultada no banco. Um atacante não pode enviar `organization_id` diferente para acessar dados de outra org.
+- O `device_id` também é validado: deve pertencer a um PDV da mesma organização da API Key.
+- **APROVADO — arquitetura de privilege escalation sólida.**
+
+---
+
+## Problemas Identificados para Correção
+
+### Problema 1 — ALTO: `verify-otp` vulnerável a brute-force
+
+**Arquivo:** `supabase/functions/verify-otp/index.ts`
+
+Sem limite de tentativas, um atacante pode tentar sistematicamente todos os 1.000.000 de combinações de 6 dígitos dentro dos 5 minutos de validade do OTP.
+
+**Solução:** Adicionar coluna `attempt_count` à tabela `otp_verifications` e rejeitar após 5 tentativas para o mesmo `phone`. Adicionar lógica na Edge Function para incrementar e verificar antes de comparar o código.
 
 ```sql
--- ============================================================
--- Fase 5: Correção de 5 gaps de segurança nas políticas RLS
--- ============================================================
-
--- Gap 1: Corrigir bug cl.phone = cl.phone em catalog_leads
-DROP POLICY IF EXISTS "Anyone can insert catalog leads with rate limit" ON public.catalog_leads;
-CREATE POLICY "Anyone can insert catalog leads with rate limit"
-  ON public.catalog_leads
-  FOR INSERT
-  WITH CHECK (
-    NOT (EXISTS (
-      SELECT 1
-      FROM catalog_leads cl
-      WHERE cl.phone = catalog_leads.phone    -- ← corrigido: era cl.phone = cl.phone
-        AND cl.organization_id = catalog_leads.organization_id
-        AND cl.created_at > (now() - interval '1 minute')
-    ))
-  );
-
--- Gap 2: Restringir audit_logs INSERT para apenas o próprio ator
-DROP POLICY IF EXISTS "Authenticated users can insert audit logs" ON public.audit_logs;
-CREATE POLICY "Authenticated users can insert audit logs"
-  ON public.audit_logs
-  FOR INSERT
-  WITH CHECK (actor_id = auth.uid());
-
--- Gap 3: Adicionar WITH CHECK em organizations UPDATE
-DROP POLICY IF EXISTS "Org admins can update their organization" ON public.organizations;
-CREATE POLICY "Org admins can update their organization"
-  ON public.organizations
-  FOR UPDATE
-  USING ((id = get_user_org_id(auth.uid())) AND is_admin(auth.uid()))
-  WITH CHECK ((id = get_user_org_id(auth.uid())) AND is_admin(auth.uid()));
-
--- Gap 4: Adicionar WITH CHECK em notifications UPDATE
-DROP POLICY IF EXISTS "Users can update their notifications" ON public.notifications;
-CREATE POLICY "Users can update their notifications"
-  ON public.notifications
-  FOR UPDATE
-  USING (
-    (organization_id = get_user_org_id(auth.uid()))
-    AND ((user_id IS NULL) OR (user_id = auth.uid()))
-  )
-  WITH CHECK (
-    (organization_id = get_user_org_id(auth.uid()))
-    AND ((user_id IS NULL) OR (user_id = auth.uid()))
-  );
-
--- Gap 5: Tornar WITH CHECK explícito em products ALL
-DROP POLICY IF EXISTS "Admins can manage products" ON public.products;
-CREATE POLICY "Admins can manage products"
-  ON public.products
-  FOR ALL
-  USING ((organization_id = get_user_org_id(auth.uid())) AND is_admin(auth.uid()))
-  WITH CHECK ((organization_id = get_user_org_id(auth.uid())) AND is_admin(auth.uid()));
+-- Migração necessária:
+ALTER TABLE public.otp_verifications ADD COLUMN attempt_count integer NOT NULL DEFAULT 0;
 ```
 
+```typescript
+// verify-otp/index.ts — lógica a adicionar:
+// 1. Buscar OTP válido pelo phone apenas (sem checar code ainda)
+// 2. Se attempt_count >= 5, rejeitar com "Muitas tentativas"
+// 3. Incrementar attempt_count
+// 4. ENTÃO comparar o code
+// 5. Se incorreto, retornar erro (attempt_count já foi incrementado)
+// 6. Se correto, marcar verified = true
+```
+
+### Problema 2 — BAIXO: `create-user` sem validação de comprimento/formato de inputs de texto
+
+**Arquivo:** `supabase/functions/create-user/index.ts`
+
+`name`, `email`, e `organizationName` não têm limite de tamanho máximo nem validação de formato de email server-side. Permite payloads muito grandes.
+
+**Solução:** Adicionar validação de comprimento e formato antes do uso:
+```typescript
+if (!name || name.length > 255 || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  return error response;
+}
+if (organizationId && !/^[0-9a-f]{8}-...-[0-9a-f]{12}$/i.test(organizationId)) {
+  return error response;
+}
+```
+
+### Problema 3 — MUITO BAIXO: `update-password` sem limite de tamanho de senha
+
+**Arquivo:** `supabase/functions/update-password/index.ts`
+
+Uma senha de comprimento arbitrário (ex: 10 MB) seria processada pelas 5 expressões regulares de validação de força, causando possível lentidão.
+
+**Solução:** `if (newPassword.length > 1024) return error;` antes da validação.
+
 ---
 
-## Resumo dos Arquivos Alterados
+## Arquivos a Modificar
 
-| Arquivo | Tipo de mudança |
-|---|---|
-| `supabase/migrations/<timestamp>_security_rls_fixes.sql` | CRIAR — migração com as 5 correções |
+| Arquivo | Tipo de mudança | Severidade |
+|---|---|---|
+| `supabase/migrations/<ts>_otp_attempt_count.sql` | CRIAR — adicionar coluna `attempt_count` | ALTO |
+| `supabase/functions/verify-otp/index.ts` | EDITAR — lógica de contagem de tentativas | ALTO |
+| `supabase/functions/create-user/index.ts` | EDITAR — validação de tamanho e formato de email + UUID | BAIXO |
+| `supabase/functions/update-password/index.ts` | EDITAR — limite de tamanho de senha | MUITO BAIXO |
 
-Nenhum arquivo de frontend ou Edge Function precisa ser modificado. As correções são puramente no banco de dados.
-
----
-
-## Verificação Pós-Migração
-
-Após aplicar a migração, os pontos a verificar são:
-
-1. **catalog_leads:** Tentar inserir 2 leads com o mesmo telefone em menos de 1 minuto — o segundo deve ser rejeitado com erro de política RLS
-2. **audit_logs:** Um usuário autenticado com `actor_id` diferente do seu `auth.uid()` deve ter o INSERT rejeitado
-3. **organizations:** UPDATE normal de nome/email por org_admin deve continuar funcionando
-4. **notifications:** Marcar como lida (`is_read: true`) deve continuar funcionando; tentativa de alterar `organization_id` deve ser rejeitada
-5. **products:** CRUD normal de produtos por admins deve continuar funcionando sem alteração
+**`send-otp`, `process-spreadsheet`, `reprocess-refunds`, `ingest-revenue`, `ingest-stock` não precisam de nenhuma alteração** — estão bem implementados dentro do modelo de segurança do sistema.
