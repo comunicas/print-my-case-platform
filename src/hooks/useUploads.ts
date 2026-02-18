@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { UploadStatus, UploadType, uploadTypeLabels } from "@/lib/schemas/upload";
 import { usePagination } from "@/hooks/usePaginatedQuery";
 import { parseUploadError, parseDeleteError } from "@/lib/errors/uploadErrors";
+import { ANOMALY_VALUE_THRESHOLD } from "@/lib/constants";
 
 /** Interface para upload com dados de PDV e uploader (resultado de query com joins) */
 export interface UploadListItem {
@@ -118,13 +119,6 @@ export function useUploads(filters: UploadsFilters = {}) {
         uploader: profilesMap.get(upload.uploaded_by) || { name: "Usuário" },
       })) as UploadListItem[];
 
-      // Filtro complementar client-side: busca por nome do PDV (não é coluna de uploads)
-      // file_name e period já vêm filtrados pelo banco acima
-      if (searchTerm) {
-        const term = searchTerm.toLowerCase();
-        uploads = uploads.filter((u) => u.pdv?.name?.toLowerCase().includes(term));
-      }
-
       return { uploads, totalCount: count || 0 };
     },
     enabled: !!profile?.organization_id,
@@ -202,7 +196,7 @@ export function useUploads(filters: UploadsFilters = {}) {
           const data = response.data;
           if (data?.hasAnomalies && data?.anomalyCount > 0) {
             toast.warning("Valores anormais detectados!", {
-              description: `${data.anomalyCount} transação(ões) com valores acima de R$ 500. Verifique os dados importados.`,
+              description: `${data.anomalyCount} transação(ões) com valores acima de R$ ${ANOMALY_VALUE_THRESHOLD.toLocaleString("pt-BR")}. Verifique os dados importados.`,
               duration: 10000,
             });
           }
