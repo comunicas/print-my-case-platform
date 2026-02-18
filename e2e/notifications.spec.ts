@@ -196,14 +196,9 @@ test.describe('Notifications Popover — Navigation Flow', () => {
   test('09 — header "Meu Perfil" dropdown navigates to /settings?tab=profile', async ({ authenticatedPage }) => {
     const page = authenticatedPage;
 
-    // O AppHeader renderiza um DropdownMenuTrigger com Avatar + ChevronDown.
-    // O botão fica no header e contém um span com as iniciais (AvatarFallback).
-    // Localizamos pelo role e presença do elemento de avatar (span com iniciais).
-    const avatarBtn = page.locator('header button').filter({
-      has: page.locator('span[class*="AvatarFallback"]'),
-    }).first();
-
-    await avatarBtn.click();
+    // Usa data-testid robusto adicionado ao AppHeader, seguindo o mesmo padrão
+    // de notifications-trigger e manage-preferences-btn já existentes no projeto.
+    await page.click('[data-testid="user-menu-trigger"]');
 
     // Aguarda o item "Meu Perfil" aparecer no dropdown
     const myProfileItem = page.locator('[role="menuitem"]', { hasText: 'Meu Perfil' });
