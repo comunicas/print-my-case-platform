@@ -28,6 +28,7 @@ import { pdvFormSchema, PDVFormData } from "@/lib/schemas/pdv";
 import { parseZodErrors } from "@/lib/utils";
 import { usePDVs, PDV } from "@/hooks/usePDVs";
 import { useProfile } from "@/hooks/useProfile";
+import { usePDVImpact } from "@/hooks/usePDVImpact";
 
 interface EditingPDV {
   id: string;
@@ -42,13 +43,14 @@ export function PDVsSettings() {
   const { pdvs, isLoading, createPDV, updatePDV, deletePDV } = usePDVs({
     organizationId: profile?.organization_id ?? undefined,
   });
-  
+
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editingPdv, setEditingPdv] = useState<EditingPDV | null>(null);
   const [deletingPdv, setDeletingPdv] = useState<PDV | null>(null);
+  const { salesCount, stockCount, isLoading: isImpactLoading } = usePDVImpact(deletingPdv?.id ?? null);
   const [newPdv, setNewPdv] = useState<PDVFormData>({
     name: "",
     location: "",
@@ -355,21 +357,55 @@ export function PDVsSettings() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir o PDV "{deletingPdv?.name}"? Esta
-              ação não pode ser desfeita.
+              Tem certeza que deseja excluir o PDV "{deletingPdv?.name}"?
             </AlertDialogDescription>
           </AlertDialogHeader>
+
+          {/* Impact summary */}
+          <div className="rounded-md border border-border bg-muted/50 p-4 space-y-2">
+            {isImpactLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+                Verificando dados vinculados...
+              </div>
+            ) : salesCount === 0 && stockCount === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Este PDV não possui registros de vendas ou estoque vinculados.
+              </p>
+            ) : (
+              <>
+                <p className="text-sm font-medium text-destructive">
+                  ⚠️ Dados que serão excluídos permanentemente:
+                </p>
+                {salesCount > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">📊 Registros de vendas</span>
+                    <span className="font-semibold tabular-nums">{salesCount.toLocaleString("pt-BR")}</span>
+                  </div>
+                )}
+                {stockCount > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">📦 Registros de estoque</span>
+                    <span className="font-semibold tabular-nums">{stockCount.toLocaleString("pt-BR")}</span>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          <p className="text-xs text-muted-foreground">Esta ação não pode ser desfeita.</p>
+
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeletePdv}
-              disabled={deletePDV.isPending}
+              disabled={deletePDV.isPending || isImpactLoading}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deletePDV.isPending && (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               )}
-              Excluir
+              Excluir Permanentemente
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
