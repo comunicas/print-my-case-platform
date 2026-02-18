@@ -1,118 +1,183 @@
 
-# Próxima Etapa: Code Review dos Testes E2E (Fase 4)
+# Fase 5 do Code Review: Correção dos 5 Gaps de Segurança nas Políticas RLS
 
-## Contexto
+## Contexto e Análise
 
-Os testes unitários (314 testes) estão todos passando. A próxima etapa natural do code review é auditar e corrigir os 3 arquivos de testes E2E em `e2e/`, que nunca foram atualizados após as fases 1-3 do code review.
+Após auditoria completa das políticas RLS de todas as 22 tabelas públicas do banco, foram identificados 5 gaps de segurança com diferentes níveis de severidade. Este plano propõe correções cirúrgicas via uma única migração SQL.
 
-## Problemas Identificados por Análise Estática
+## Análise Detalhada de Cada Gap
 
-### Problema 1 — `product-analytics.spec.ts`: data-testid inexistente
+### Gap 1 — CRÍTICO: Bug no Rate Limit de `catalog_leads`
 
-O teste espera `[data-testid="kpi-stock-level"]`, mas o componente `ProductAnalyticsKPIs` não usa esse identificador. O componente recebe `stockPercentage` e renderiza o bloco de estoque dentro da própria aba, não como um KPI separado com esse testid.
+**Tabela:** `catalog_leads`
+**Política:** `Anyone can insert catalog leads with rate limit`
+**Problema:** A expressão `WITH CHECK` contém `cl.phone = cl.phone`, que é uma auto-comparação e sempre retorna `true` (qualquer valor é igual a si mesmo). A intenção era comparar com o telefone do novo registro sendo inserido (`catalog_leads.phone`), mas o alias `cl` foi usado nos dois lados.
 
-```
-// Teste atual (ERRADO):
-await expect(page.locator('[data-testid="kpi-stock-level"]')).toBeVisible();
+```sql
+-- BUGGY (sempre true):
+NOT (EXISTS (SELECT 1 FROM catalog_leads cl
+  WHERE (cl.phone = cl.phone)           -- ← bug: cl.phone = cl.phone
+    AND (cl.organization_id = catalog_leads.organization_id)
+    AND (cl.created_at > (now() - interval '1 minute'))
+))
 
-// O componente ProductAnalyticsKPIs expõe:
-// data-testid="kpi-total-sales"
-// data-testid="kpi-total-revenue"
-// data-testid="kpi-average-ticket"
-// (sem kpi-stock-level)
-```
-
-**Correção:** Remover a asserção de `kpi-stock-level` ou substituir por verificação do bloco de estoque existente na aba Resumo.
-
-### Problema 2 — `stock-sales-matching.spec.ts`: fluxo de busca incorreto
-
-O teste clica em `[data-testid="search-autocomplete"]` e depois preenche `[data-testid="search-input"]` como dois elementos separados. No componente `ProductSearchAutocomplete`, o `data-testid="search-autocomplete"` está no wrapper `<div>` e o input está dentro do componente Command. O `page.fill()` num `<div>` não funciona — precisa interagir diretamente com o `<input>`.
-
-```
-// Teste atual (FRÁGIL):
-await page.click('[data-testid="search-autocomplete"]');
-await page.fill('[data-testid="search-input"]', 'iPhone');
-
-// Correto — verificar se há data-testid="search-input" dentro do componente,
-// caso não exista, usar seletor de input dentro do wrapper
+-- CORRETO:
+NOT (EXISTS (SELECT 1 FROM catalog_leads cl
+  WHERE (cl.phone = catalog_leads.phone)  -- ← compara com o novo registro
+    AND (cl.organization_id = catalog_leads.organization_id)
+    AND (cl.created_at > (now() - interval '1 minute'))
+))
 ```
 
-### Problema 3 — `stock-sales-matching.spec.ts`: URLs com query params não verificadas
+**Impacto:** O rate limit de 1 inserção por minuto por telefone/organização está completamente inativo. Qualquer pessoa pode inserir leads ilimitados via catálogo público, podendo poluir a tabela com spam massivo.
 
-O teste espera `waitForURL('**/estoque?tab=mapa')` mas a navegação por tabs no componente pode não atualizar a URL com query params, dependendo de como o React Router está configurado para essa rota.
+**Correção:** DROP da política atual e CREATE com a expressão corrigida.
 
-### Problema 4 — `e2e/fixtures/auth.ts`: variáveis de ambiente não carregadas
+---
 
-O `playwright.config.ts` não configura `dotenv` para carregar `.env.test`. As variáveis `TEST_USER_EMAIL` e `TEST_USER_PASSWORD` usadas no fixture `auth.ts` ficarão como `undefined` em ambiente de CI, fazendo os testes falharem silenciosamente com credenciais `test@example.com` / `testpassword123`.
+### Gap 2 — ALTO: `audit_logs` INSERT aberto com `WITH CHECK: true`
 
-### Problema 5 — `product-analytics.spec.ts`: fluxo de abertura de modal por linha
+**Tabela:** `audit_logs`
+**Política:** `Authenticated users can insert audit logs`
+**Problema:** `WITH CHECK: true` permite que qualquer usuário autenticado insira qualquer dado na tabela, incluindo:
+- Falsificar `actor_id` de outro usuário
+- Forjar entradas com `organization_id` de outra organização
+- Criar entradas falsas de `event_type` como `permission_violation` para incriminar outros usuários
 
-Os testes de tab navigation (`tab-resumo`, `tab-vendas`, etc.) e abertura do modal estão corretos — os `data-testid` existem no `ProductDetailModal`. Porém, o teste "filter analytics by PDV" usa `[data-testid="pdv-select-trigger"]` que existe em `PDVFilter`. Isso está correto.
+**Contexto importante:** Confirmado na análise das Edge Functions que **todas** as inserções reais em `audit_logs` ocorrem via `supabaseAdmin` (client com `SUPABASE_SERVICE_ROLE_KEY`), que bypassa RLS completamente. A política de INSERT para usuários autenticados via anon key, portanto, nunca é necessária para o funcionamento normal do sistema — ela é apenas uma superfície de ataque.
 
-## Arquivos a Editar
+**Correção:** Substituir `WITH CHECK: true` por `WITH CHECK: (actor_id = auth.uid())`, garantindo que usuários autenticados só possam inserir logs onde são o próprio ator. Isso não afeta as Edge Functions (que usam service_role e ignoram RLS).
 
-| Arquivo | Mudança |
+---
+
+### Gap 3 — ALTO: `organizations` UPDATE sem `WITH CHECK`
+
+**Tabela:** `organizations`
+**Política:** `Org admins can update their organization`
+**Problema:** A política tem apenas `USING: ((id = get_user_org_id(auth.uid())) AND is_admin(auth.uid()))` sem `WITH CHECK`. No PostgreSQL, para UPDATE, `USING` controla quais linhas podem ser selecionadas para atualização, mas `WITH CHECK` valida o estado da linha **após** a atualização. Sem `WITH CHECK`, um org_admin poderia:
+- Alterar o `id` da organização (se a coluna não for PK imutável)
+- Mais relevante: não há validação explícita de que a linha resultante ainda pertence à mesma organização
+
+**Correção:** Adicionar `WITH CHECK: ((id = get_user_org_id(auth.uid())) AND is_admin(auth.uid()))` — mesma expressão do USING, garantindo que a linha resultante da UPDATE também satisfaça a condição de pertencimento.
+
+---
+
+### Gap 4 — MÉDIO: `notifications` UPDATE sem `WITH CHECK`
+
+**Tabela:** `notifications`
+**Política:** `Users can update their notifications`
+**Problema:** A política tem `USING: ((organization_id = get_user_org_id(auth.uid())) AND ((user_id IS NULL) OR (user_id = auth.uid())))` sem `WITH CHECK`. Sem essa proteção, um usuário autenticado com acesso a uma notificação pode modificar campos não intencionais como `title`, `message`, `type`, `metadata` ou até `organization_id`, além de apenas marcar como lida (`is_read`). A intenção declarada no hook `useNotifications.ts` é apenas marcar notificações como lidas.
+
+**Correção:** Adicionar `WITH CHECK` com a mesma expressão do USING, garantindo que a linha resultante ainda pertença à mesma organização e ao mesmo usuário.
+
+---
+
+### Gap 5 — BAIXO: `products` ALL sem `WITH CHECK` explícito
+
+**Tabela:** `products`
+**Política:** `Admins can manage products`
+**Análise:** Esta é a menos crítica dos 5. No PostgreSQL, quando uma política `ALL` é criada com apenas `USING` e sem `WITH CHECK`, o banco de dados **automaticamente usa a expressão USING como WITH CHECK** para operações de INSERT e UPDATE. Portanto, tecnicamente o comportamento atual já é seguro.
+
+**Por que corrigir mesmo assim:** A ausência de `WITH CHECK` explícito é um risco de manutenção — qualquer desenvolvedor que leia a política no futuro pode incorretamente assumir que não há validação para INSERT/UPDATE, ou uma futura versão do Postgres poderia mudar o comportamento padrão. Explicitar é uma boa prática de segurança defensiva.
+
+**Correção:** Recriar a política com `WITH CHECK` explícito idêntico ao `USING`.
+
+---
+
+## Impacto em Código Frontend/Edge Functions
+
+| Tabela | Edge Functions afetadas | Frontend afetado |
+|---|---|---|
+| `catalog_leads` | `send-otp`, `verify-otp` (usam service_role, não afetados) | `PublicStockList.tsx` — inserção anônima via anon key pode ser afetada |
+| `audit_logs` | Nenhuma (usam service_role) | Nenhum (não há insert direto de audit_logs no frontend) |
+| `organizations` | Nenhuma | `OrganizationSettings.tsx` — UPDATE normal, não afetado |
+| `notifications` | Nenhuma | `useNotifications.ts` — apenas marca `is_read`, não afetado |
+| `products` | Nenhuma | Funcionalidade de produtos, não afetada |
+
+**Importante para `catalog_leads`:** A correção do rate limit pode bloquear inserções que atualmente passam sem restrição. O fluxo real de inserção passa pela Edge Function `verify-otp` com service_role — portanto não é afetado. O único caso afetado seria uma inserção direta via anon key (que não deveria existir no fluxo atual).
+
+---
+
+## Arquivo de Migração SQL
+
+Uma única migração com 5 blocos, um por tabela:
+
+```sql
+-- ============================================================
+-- Fase 5: Correção de 5 gaps de segurança nas políticas RLS
+-- ============================================================
+
+-- Gap 1: Corrigir bug cl.phone = cl.phone em catalog_leads
+DROP POLICY IF EXISTS "Anyone can insert catalog leads with rate limit" ON public.catalog_leads;
+CREATE POLICY "Anyone can insert catalog leads with rate limit"
+  ON public.catalog_leads
+  FOR INSERT
+  WITH CHECK (
+    NOT (EXISTS (
+      SELECT 1
+      FROM catalog_leads cl
+      WHERE cl.phone = catalog_leads.phone    -- ← corrigido: era cl.phone = cl.phone
+        AND cl.organization_id = catalog_leads.organization_id
+        AND cl.created_at > (now() - interval '1 minute')
+    ))
+  );
+
+-- Gap 2: Restringir audit_logs INSERT para apenas o próprio ator
+DROP POLICY IF EXISTS "Authenticated users can insert audit logs" ON public.audit_logs;
+CREATE POLICY "Authenticated users can insert audit logs"
+  ON public.audit_logs
+  FOR INSERT
+  WITH CHECK (actor_id = auth.uid());
+
+-- Gap 3: Adicionar WITH CHECK em organizations UPDATE
+DROP POLICY IF EXISTS "Org admins can update their organization" ON public.organizations;
+CREATE POLICY "Org admins can update their organization"
+  ON public.organizations
+  FOR UPDATE
+  USING ((id = get_user_org_id(auth.uid())) AND is_admin(auth.uid()))
+  WITH CHECK ((id = get_user_org_id(auth.uid())) AND is_admin(auth.uid()));
+
+-- Gap 4: Adicionar WITH CHECK em notifications UPDATE
+DROP POLICY IF EXISTS "Users can update their notifications" ON public.notifications;
+CREATE POLICY "Users can update their notifications"
+  ON public.notifications
+  FOR UPDATE
+  USING (
+    (organization_id = get_user_org_id(auth.uid()))
+    AND ((user_id IS NULL) OR (user_id = auth.uid()))
+  )
+  WITH CHECK (
+    (organization_id = get_user_org_id(auth.uid()))
+    AND ((user_id IS NULL) OR (user_id = auth.uid()))
+  );
+
+-- Gap 5: Tornar WITH CHECK explícito em products ALL
+DROP POLICY IF EXISTS "Admins can manage products" ON public.products;
+CREATE POLICY "Admins can manage products"
+  ON public.products
+  FOR ALL
+  USING ((organization_id = get_user_org_id(auth.uid())) AND is_admin(auth.uid()))
+  WITH CHECK ((organization_id = get_user_org_id(auth.uid())) AND is_admin(auth.uid()));
+```
+
+---
+
+## Resumo dos Arquivos Alterados
+
+| Arquivo | Tipo de mudança |
 |---|---|
-| `playwright.config.ts` | Adicionar `require('dotenv').config({ path: '.env.test' })` no topo para carregar credenciais de teste |
-| `e2e/product-analytics.spec.ts` | Remover asserção de `kpi-stock-level` (testid inexistente), corrigir para verificar os 3 KPIs corretos |
-| `e2e/stock-sales-matching.spec.ts` | Corrigir fluxo de busca (fill direto no input), remover `waitForURL` com tab params, adicionar `waitForSearchInput` adequado |
+| `supabase/migrations/<timestamp>_security_rls_fixes.sql` | CRIAR — migração com as 5 correções |
 
-## Detalhes técnicos das correções
+Nenhum arquivo de frontend ou Edge Function precisa ser modificado. As correções são puramente no banco de dados.
 
-### playwright.config.ts
+---
 
-```typescript
-// Adicionar no topo antes de defineConfig:
-import * as dotenv from 'dotenv';
-dotenv.config({ path: '.env.test' });
-```
+## Verificação Pós-Migração
 
-### product-analytics.spec.ts — teste de KPIs
+Após aplicar a migração, os pontos a verificar são:
 
-```typescript
-// ANTES (linha 38-41):
-await expect(page.locator('[data-testid="kpi-total-sales"]')).toBeVisible();
-await expect(page.locator('[data-testid="kpi-total-revenue"]')).toBeVisible();
-await expect(page.locator('[data-testid="kpi-average-ticket"]')).toBeVisible();
-await expect(page.locator('[data-testid="kpi-stock-level"]')).toBeVisible(); // ← NÃO EXISTE
-
-// DEPOIS (corrigido):
-await expect(page.locator('[data-testid="kpi-total-sales"]')).toBeVisible();
-await expect(page.locator('[data-testid="kpi-total-revenue"]')).toBeVisible();
-await expect(page.locator('[data-testid="kpi-average-ticket"]')).toBeVisible();
-// kpi-stock-level removido — estoque aparece como barra de progresso, não KPI separado
-```
-
-### stock-sales-matching.spec.ts — fluxo de busca
-
-```typescript
-// ANTES (frágil — fill em div wrapper):
-await page.click('[data-testid="search-autocomplete"]');
-await page.waitForSelector('[data-testid="search-input"]');
-await page.fill('[data-testid="search-input"]', 'iPhone');
-
-// DEPOIS (robusto — fill direto no input dentro do wrapper):
-await page.click('[data-testid="search-autocomplete"] input');
-await page.fill('[data-testid="search-autocomplete"] input', 'iPhone');
-await page.waitForTimeout(500); // debounce
-```
-
-### stock-sales-matching.spec.ts — navegação por tabs
-
-```typescript
-// ANTES (pode falhar se URL não atualiza):
-await page.waitForURL('**/estoque?tab=mapa');
-
-// DEPOIS (verifica conteúdo, não URL):
-await page.click('text=Mapa');
-await expect(page.locator('[data-testid="stock-content"]')).toBeVisible();
-```
-
-## Resultado esperado
-
-- `playwright.config.ts` — carrega `.env.test` corretamente
-- `product-analytics.spec.ts` — remove 1 asserção inválida, mantém 8 testes sólidos
-- `stock-sales-matching.spec.ts` — corrige 4 seletores frágeis, mantém 10 testes funcionais
-- `pdv-filter.spec.ts` — já está correto (usa `data-testid` que existem em `PDVFilter`)
-
-Total: 3 arquivos editados, sem novos testes criados — apenas os existentes tornados corretos e resilientes.
+1. **catalog_leads:** Tentar inserir 2 leads com o mesmo telefone em menos de 1 minuto — o segundo deve ser rejeitado com erro de política RLS
+2. **audit_logs:** Um usuário autenticado com `actor_id` diferente do seu `auth.uid()` deve ter o INSERT rejeitado
+3. **organizations:** UPDATE normal de nome/email por org_admin deve continuar funcionando
+4. **notifications:** Marcar como lida (`is_read: true`) deve continuar funcionando; tentativa de alterar `organization_id` deve ser rejeitada
+5. **products:** CRUD normal de produtos por admins deve continuar funcionando sem alteração
