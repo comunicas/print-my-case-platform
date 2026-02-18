@@ -232,13 +232,42 @@ export function useTeamMembers() {
         throw new Error("Não foi possível remover o membro. Verifique suas permissões.");
       }
     },
+    onMutate: async (userId: string) => {
+      // Cancela refetches pendentes
+      await queryClient.cancelQueries({ queryKey: ["team-members"] });
+
+      // Snapshot para rollback
+      const previousMembers = queryClient.getQueryData<TeamMember[]>([
+        "team-members",
+        profile?.organization_id,
+        isSuperAdmin,
+        isAdmin,
+      ]);
+
+      // Remove imediatamente o membro da lista local
+      queryClient.setQueryData<TeamMember[]>(
+        ["team-members", profile?.organization_id, isSuperAdmin, isAdmin],
+        (old) => old?.filter((m) => m.id !== userId) ?? []
+      );
+
+      return { previousMembers };
+    },
     onSuccess: () => {
+      // Força refetch imediato para sincronizar com o banco
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
+      queryClient.refetchQueries({ queryKey: ["team-members"] });
       toast.success("Membro removido", {
         description: "O membro foi removido da organização.",
       });
     },
-    onError: (error) => {
+    onError: (error, _userId, context) => {
+      // Restaura o estado anterior em caso de erro
+      if (context?.previousMembers) {
+        queryClient.setQueryData(
+          ["team-members", profile?.organization_id, isSuperAdmin, isAdmin],
+          context.previousMembers
+        );
+      }
       toast.error("Erro ao remover", {
         description: error.message,
       });
