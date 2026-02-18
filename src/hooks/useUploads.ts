@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { UploadStatus, UploadType, uploadTypeLabels } from "@/lib/schemas/upload";
 import { usePagination } from "@/hooks/usePaginatedQuery";
 import { parseUploadError, parseDeleteError } from "@/lib/errors/uploadErrors";
-import { ANOMALY_VALUE_THRESHOLD } from "@/lib/constants";
+import { ANOMALY_VALUE_THRESHOLD, DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
 /** Interface para upload com dados de PDV e uploader (resultado de query com joins) */
 export interface UploadListItem {
@@ -50,13 +50,11 @@ export interface UploadsFilters {
   search?: string;
 }
 
-const PAGE_SIZE = 50;
-
 export function useUploads(filters: UploadsFilters = {}) {
   const { user } = useAuth();
   const { profile, isAdmin } = useProfile();
   const queryClient = useQueryClient();
-  const pagination = usePagination(PAGE_SIZE);
+  const pagination = usePagination(DEFAULT_PAGE_SIZE);
 
   const { pdvId, type, status, search } = filters;
 

@@ -468,7 +468,7 @@ export function getLossesByDay(
 /**
  * Exporta dados para Excel
  */
-export function exportToExcel(data: Record<string, any>[], filename: string) {
+export function exportToExcel(data: Record<string, unknown>[], filename: string) {
   // Usa a lib xlsx já instalada
   import('xlsx').then((XLSX) => {
     const ws = XLSX.utils.json_to_sheet(data);

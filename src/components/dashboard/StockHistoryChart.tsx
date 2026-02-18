@@ -41,7 +41,7 @@ export function StockHistoryChart({ data, brands, animationDelay = 0 }: StockHis
   const handleExport = () => {
     exportToExcel(
       filteredData.map(d => {
-        const row: Record<string, any> = { Data: d.dateDisplay };
+        const row: Record<string, unknown> = { Data: d.dateDisplay };
         brands.forEach(brand => {
           row[brand] = d[brand] || 0;
         });

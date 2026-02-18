@@ -97,7 +97,7 @@ export function AppHeader({ isMobile, onMenuClick }: AppHeaderProps) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem onClick={() => navigate("/settings?tab=perfil")}>
+            <DropdownMenuItem onClick={() => navigate("/settings?tab=profile")}>
               <User className="mr-2 h-4 w-4" />
               Meu Perfil
             </DropdownMenuItem>

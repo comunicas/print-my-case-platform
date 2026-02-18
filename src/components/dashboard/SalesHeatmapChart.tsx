@@ -52,8 +52,8 @@ export function SalesHeatmapChart({ data, animationDelay = 0 }: SalesHeatmapChar
   };
   
   const handleExport = () => {
-    const exportData: Record<string, any>[] = TIME_RANGES.map(range => {
-      const row: Record<string, any> = { Horário: range.label };
+    const exportData: Record<string, unknown>[] = TIME_RANGES.map(range => {
+      const row: Record<string, unknown> = { Horário: range.label };
       DAYS.forEach((day, idx) => {
         const cell = data.find(c => c.rangeId === range.id && c.dayOfWeek === idx);
         row[day] = cell?.revenue || 0;
