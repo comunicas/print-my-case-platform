@@ -63,6 +63,9 @@ function NotificationItem({
 
   return (
     <div
+      data-testid="notification-item"
+      data-type={notification.type}
+      data-id={notification.id}
       className={cn(
         "flex items-start gap-3 p-3 hover:bg-accent/50 cursor-pointer transition-colors rounded-md group",
         !notification.is_read && "bg-accent/30"
@@ -138,7 +141,7 @@ export function NotificationsPopover() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
+        <Button data-testid="notifications-trigger" variant="ghost" size="icon" className="relative">
           <Bell className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
           {unreadCount > 0 && (
             <span className="absolute -top-0.5 -right-0.5 h-4 w-4 md:h-5 md:w-5 bg-primary rounded-full flex items-center justify-center">
@@ -150,7 +153,7 @@ export function NotificationsPopover() {
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent align="end" className="w-80 md:w-96 p-0">
+      <PopoverContent data-testid="notifications-popover-content" align="end" className="w-80 md:w-96 p-0">
         <div className="flex items-center justify-between p-3 border-b border-border">
           <h4 className="font-semibold text-sm">Notificações</h4>
           {unreadCount > 0 && (
@@ -203,6 +206,7 @@ export function NotificationsPopover() {
             <Separator />
             <div className="p-2">
               <Button
+                data-testid="manage-preferences-btn"
                 variant="ghost"
                 size="sm"
                 className="w-full text-xs text-muted-foreground"
