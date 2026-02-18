@@ -349,9 +349,10 @@ export function calculateTotalRevenue(sales: SalesAmountRecord[]): number {
 }
 
 /**
- * Calcula a variação percentual entre dois valores
+ * Calcula a variação percentual entre dois valores (uso interno)
+ * API pública: use calculatePercentageChange de trendUtils.ts
  */
-export function calculatePercentageChange(current: number, previous: number): number {
+function calculateRawPercentage(current: number, previous: number): number {
   if (previous === 0) return 0;
   return ((current - previous) / previous) * 100;
 }
@@ -394,9 +395,9 @@ export function calculateKPIs(
     0
   );
 
-  const revenueChange = calculatePercentageChange(totalRevenue, previousRevenue);
-  const transactionsChange = calculatePercentageChange(transactions, previousTransactions);
-  const refundsChange = calculatePercentageChange(totalRefunds, previousRefunds);
+  const revenueChange = calculateRawPercentage(totalRevenue, previousRevenue);
+  const transactionsChange = calculateRawPercentage(transactions, previousTransactions);
+  const refundsChange = calculateRawPercentage(totalRefunds, previousRefunds);
 
   return {
     totalRevenue,

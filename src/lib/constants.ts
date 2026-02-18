@@ -8,14 +8,9 @@ export const DEFAULT_PAGE_SIZE = 50;
 export const UPLOAD_DETAILS_PAGE_SIZE = 10;
 export const NOTIFICATIONS_DEFAULT_LIMIT = 20;
 
-// ===== Estoque =====
-export const MAX_SLOT_CAPACITY = 7;
-export const LOW_STOCK_THRESHOLD = 2;
-export const REDISTRIBUTE_THRESHOLD = 5;
-
 // ===== Dashboard =====
+/** Janela de histórico de estoque em dias */
 export const STOCK_HISTORY_DAYS = 90;
-export const CHART_ANIMATION_DELAY_STEP = 50; // ms entre cada gráfico
 
 // ===== Anomalias =====
 export const ANOMALY_VALUE_THRESHOLD = 10000; // R$ acima deste valor é considerado anomalia

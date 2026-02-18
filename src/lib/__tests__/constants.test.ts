@@ -3,11 +3,7 @@ import {
   DEFAULT_PAGE_SIZE,
   UPLOAD_DETAILS_PAGE_SIZE,
   NOTIFICATIONS_DEFAULT_LIMIT,
-  MAX_SLOT_CAPACITY,
-  LOW_STOCK_THRESHOLD,
-  REDISTRIBUTE_THRESHOLD,
   STOCK_HISTORY_DAYS,
-  CHART_ANIMATION_DELAY_STEP,
   ANOMALY_VALUE_THRESHOLD,
   NOTIFICATIONS_POLL_INTERVAL,
   NOTIFICATIONS_STALE_TIME,
@@ -29,35 +25,9 @@ describe('Constantes de Paginação', () => {
   });
 });
 
-describe('Constantes de Estoque', () => {
-  it('MAX_SLOT_CAPACITY deve ser 7', () => {
-    expect(MAX_SLOT_CAPACITY).toBe(7);
-  });
-
-  it('LOW_STOCK_THRESHOLD deve ser 2', () => {
-    expect(LOW_STOCK_THRESHOLD).toBe(2);
-  });
-
-  it('REDISTRIBUTE_THRESHOLD deve ser 5', () => {
-    expect(REDISTRIBUTE_THRESHOLD).toBe(5);
-  });
-
-  it('LOW_STOCK_THRESHOLD < REDISTRIBUTE_THRESHOLD', () => {
-    expect(LOW_STOCK_THRESHOLD).toBeLessThan(REDISTRIBUTE_THRESHOLD);
-  });
-
-  it('REDISTRIBUTE_THRESHOLD < MAX_SLOT_CAPACITY', () => {
-    expect(REDISTRIBUTE_THRESHOLD).toBeLessThan(MAX_SLOT_CAPACITY);
-  });
-});
-
 describe('Constantes de Dashboard', () => {
-  it('STOCK_HISTORY_DAYS deve ser 90', () => {
+  it('STOCK_HISTORY_DAYS deve ser 90 dias', () => {
     expect(STOCK_HISTORY_DAYS).toBe(90);
-  });
-
-  it('CHART_ANIMATION_DELAY_STEP deve ser 50ms', () => {
-    expect(CHART_ANIMATION_DELAY_STEP).toBe(50);
   });
 });
 

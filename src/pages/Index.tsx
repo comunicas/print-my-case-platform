@@ -29,6 +29,7 @@ import { formatCurrency } from "@/lib/utils";
 import { calculateTrend } from "@/lib/trendUtils";
 import { getStockByBrand, getLowStockItems } from "@/lib/dashboardUtils";
 import { getDateRangeFromPeriod, type DateRange } from "@/lib/utils/date-presets";
+import { STOCK_HISTORY_DAYS } from "@/lib/constants";
 import { PDVFilter } from "@/components/ui/PDVFilter";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -111,7 +112,7 @@ export default function Index() {
     dateRange: { from: dateRange.from, to: dateRange.to }
   });
   const { data: slotsData, refetch: refetchSlots } = useSlotsData({ pdvId: selectedPdvId !== 'all' ? selectedPdvId : undefined });
-  const { data: stockHistory, refetch: refetchStockHistory } = useStockHistory({ days: 90, organizationId: selectedOrgId, pdvId: selectedPdvId !== 'all' ? selectedPdvId : undefined });
+  const { data: stockHistory, refetch: refetchStockHistory } = useStockHistory({ days: STOCK_HISTORY_DAYS, organizationId: selectedOrgId, pdvId: selectedPdvId !== 'all' ? selectedPdvId : undefined });
 
   // Pull-to-refresh handler
   const handleRefresh = useCallback(async () => {
