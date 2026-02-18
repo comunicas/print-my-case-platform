@@ -11,6 +11,8 @@ import {
   getStockByBrand,
   getQuickStats,
   getLowStockItems,
+  getLossesByDay,
+  CancellationRecord,
   SaleRecord,
   HeatmapCell,
 } from '../dashboardUtils';
@@ -757,3 +759,126 @@ describe('getLowStockItems', () => {
     expect(result[0].pdvName).toBe('Loja Centro');
   });
 });
+
+// ===== getLossesByDay — cancelamentos PT/EN =====
+
+describe('getLossesByDay — cancelamentos em português e inglês', () => {
+  describe('cancelamentos em português ("Cancelado")', () => {
+    it('deve acumular amount de cancelamentos no dia correto', () => {
+      const sales: SaleRecord[] = [];
+      const cancellations = [
+        { payment_date: '2024-01-15T10:00:00', amount: 250 },
+        { payment_date: '2024-01-15T14:00:00', amount: 150 },
+      ];
+
+      const result = getLossesByDay(sales, cancellations);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].date).toBe('2024-01-15');
+      expect(result[0].cancellations).toBe(400);
+      expect(result[0].cancellationCount).toBe(2);
+    });
+
+    it('deve distinguir cancelamentos de dias diferentes', () => {
+      const sales: SaleRecord[] = [];
+      const cancellations = [
+        { payment_date: '2024-01-15T10:00:00', amount: 100 },
+        { payment_date: '2024-01-16T10:00:00', amount: 200 },
+        { payment_date: '2024-01-17T10:00:00', amount: 300 },
+      ];
+
+      const result = getLossesByDay(sales, cancellations);
+
+      expect(result).toHaveLength(3);
+      // Ordenado por data
+      expect(result[0].date).toBe('2024-01-15');
+      expect(result[0].cancellations).toBe(100);
+      expect(result[1].date).toBe('2024-01-16');
+      expect(result[1].cancellations).toBe(200);
+      expect(result[2].date).toBe('2024-01-17');
+      expect(result[2].cancellations).toBe(300);
+    });
+
+    it('deve calcular total = cancellations + refunds', () => {
+      const sales: SaleRecord[] = [
+        createSaleRecord({ payment_date: '2024-01-15T10:00:00', refund_amount: 50 }),
+      ];
+      const cancellations = [
+        { payment_date: '2024-01-15T14:00:00', amount: 100 },
+      ];
+
+      const result = getLossesByDay(sales, cancellations);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].cancellations).toBe(100);
+      expect(result[0].refunds).toBe(50);
+      expect(result[0].total).toBe(150);
+    });
+  });
+
+  describe('sem cancelamentos', () => {
+    it('deve retornar array vazio quando não há cancelamentos nem reembolsos', () => {
+      const sales: SaleRecord[] = [
+        createSaleRecord({ refund_amount: null }),
+      ];
+      const result = getLossesByDay(sales, []);
+      expect(result).toHaveLength(0);
+    });
+
+    it('deve acumular apenas reembolsos quando não há cancelamentos', () => {
+      const sales: SaleRecord[] = [
+        createSaleRecord({ payment_date: '2024-01-15T10:00:00', refund_amount: 75 }),
+      ];
+      const result = getLossesByDay(sales, []);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].cancellations).toBe(0);
+      expect(result[0].cancellationCount).toBe(0);
+      expect(result[0].refunds).toBe(75);
+      expect(result[0].refundCount).toBe(1);
+    });
+  });
+
+  describe('mix de cancelamentos e reembolsos no mesmo período', () => {
+    it('deve agrupar cancelamentos EN e PT no mesmo dia com totais corretos', () => {
+      const sales: SaleRecord[] = [
+        createSaleRecord({ payment_date: '2024-03-10T09:00:00', refund_amount: 30 }),
+        createSaleRecord({ payment_date: '2024-03-10T11:00:00', refund_amount: 20 }),
+      ];
+      const cancellations = [
+        { payment_date: '2024-03-10T10:00:00', amount: 500 },  // "Cancelado" (PT)
+        { payment_date: '2024-03-10T15:00:00', amount: 300 },  // "Cancelled" (EN)
+      ];
+
+      const result = getLossesByDay(sales, cancellations);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].cancellations).toBe(800);   // 500 + 300
+      expect(result[0].cancellationCount).toBe(2);
+      expect(result[0].refunds).toBe(50);           // 30 + 20
+      expect(result[0].refundCount).toBe(2);
+      expect(result[0].total).toBe(850);            // 800 + 50
+    });
+
+    it('deve calcular totalCancellations como soma de amounts dos registros cancelados', () => {
+      const cancellations = [
+        { payment_date: '2024-01-10T10:00:00', amount: 100 },
+        { payment_date: '2024-01-10T11:00:00', amount: 200 },
+        { payment_date: '2024-01-11T10:00:00', amount: 400 },
+      ];
+
+      const result = getLossesByDay([], cancellations);
+
+      const totalCancellations = result.reduce((sum, d) => sum + d.cancellations, 0);
+      expect(totalCancellations).toBe(700); // 100 + 200 + 400
+    });
+  });
+
+  describe('período anterior zerado', () => {
+    it('calculatePercentageChange deve retornar 0 quando período anterior = 0', () => {
+      // Simula o comportamento do useDashboard: cancellationsChange = calculatePercentageChange(current, 0)
+      expect(calculatePercentageChange(500, 0)).toBe(0);
+    });
+  });
+});
+

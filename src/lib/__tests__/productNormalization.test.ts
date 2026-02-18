@@ -326,3 +326,131 @@ describe('countSalesForProduct', () => {
     expect(countSalesForProduct('', salesMap)).toBe(0);
   });
 });
+
+// ===== filterSalesByProduct — sufixos críticos + e - =====
+
+describe('filterSalesByProduct — CRÍTICO: sufixos + e - distinguem modelos', () => {
+  /**
+   * Dataset realista: simula product_name no formato exato retornado pelo banco
+   * (ex: "SAMSUNG Galaxy S24+", "Samsung Galaxy S24", em uppercase ou mixed case)
+   */
+  const salesWithSuffixes = [
+    { product_name: 'SAMSUNG Galaxy S24',       amount: 100 },
+    { product_name: 'SAMSUNG Galaxy S24+',      amount: 200 },
+    { product_name: 'SAMSUNG Galaxy S24 Ultra', amount: 300 },
+    { product_name: 'Galaxy S24',               amount: 400 },  // sem marca
+    { product_name: 'Galaxy S24+',              amount: 500 },  // sem marca
+    { product_name: 'APPLE iPhone 15',          amount: 600 },
+    { product_name: 'APPLE iPhone 15 Pro',      amount: 700 },
+    { product_name: 'APPLE iPhone 15 Pro Max',  amount: 800 },
+    { product_name: 'iPhone 15 Pro-Max',        amount: 900 },  // formato com hífen
+  ];
+
+  describe('Galaxy S24 vs Galaxy S24+', () => {
+    it('Galaxy S24 NÃO deve incluir Galaxy S24+ (caso real do code review)', () => {
+      const result = filterSalesByProduct(salesWithSuffixes, 'Galaxy S24');
+      const names = result.map(s => s.product_name);
+
+      // Deve incluir apenas os S24 sem sufixo
+      expect(names).toContain('SAMSUNG Galaxy S24');
+      expect(names).toContain('Galaxy S24');
+
+      // NÃO deve incluir S24+ nem S24 Ultra
+      expect(names).not.toContain('SAMSUNG Galaxy S24+');
+      expect(names).not.toContain('Galaxy S24+');
+      expect(names).not.toContain('SAMSUNG Galaxy S24 Ultra');
+    });
+
+    it('Galaxy S24+ SÓ deve incluir Galaxy S24+ (mesmo modelo, com e sem marca)', () => {
+      const result = filterSalesByProduct(salesWithSuffixes, 'Galaxy S24+');
+      const names = result.map(s => s.product_name);
+
+      expect(names).toContain('SAMSUNG Galaxy S24+');
+      expect(names).toContain('Galaxy S24+');
+
+      // NÃO deve incluir S24 sem plus, nem Ultra
+      expect(names).not.toContain('SAMSUNG Galaxy S24');
+      expect(names).not.toContain('Galaxy S24');
+      expect(names).not.toContain('SAMSUNG Galaxy S24 Ultra');
+    });
+
+    it('Galaxy S24 Ultra não deve confundir com Galaxy S24', () => {
+      const result = filterSalesByProduct(salesWithSuffixes, 'Galaxy S24 Ultra');
+      const names = result.map(s => s.product_name);
+
+      expect(names).toContain('SAMSUNG Galaxy S24 Ultra');
+      expect(names).not.toContain('SAMSUNG Galaxy S24');
+      expect(names).not.toContain('SAMSUNG Galaxy S24+');
+    });
+  });
+
+  describe('Galaxy S24+ com nome do banco em uppercase', () => {
+    it('SAMSUNG Galaxy S24+ (banco) deve bater com Galaxy S24+ (referência sem marca)', () => {
+      const bankData = [{ product_name: 'SAMSUNG Galaxy S24+', amount: 999 }];
+      const result = filterSalesByProduct(bankData, 'Galaxy S24+');
+      expect(result).toHaveLength(1);
+      expect(result[0].amount).toBe(999);
+    });
+
+    it('SAMSUNG Galaxy S24 (banco) NÃO deve bater com Galaxy S24+', () => {
+      const bankData = [{ product_name: 'SAMSUNG Galaxy S24', amount: 999 }];
+      const result = filterSalesByProduct(bankData, 'Galaxy S24+');
+      expect(result).toHaveLength(0);
+    });
+  });
+
+  describe('iPhone 15 vs iPhone 15 Pro vs iPhone 15 Pro Max', () => {
+    it('iPhone 15 não deve incluir iPhone 15 Pro', () => {
+      const result = filterSalesByProduct(salesWithSuffixes, 'iPhone 15');
+      const names = result.map(s => s.product_name);
+
+      expect(names).toContain('APPLE iPhone 15');
+      expect(names).not.toContain('APPLE iPhone 15 Pro');
+      expect(names).not.toContain('APPLE iPhone 15 Pro Max');
+    });
+
+    it('iPhone 15 Pro não deve incluir iPhone 15 Pro Max', () => {
+      const result = filterSalesByProduct(salesWithSuffixes, 'iPhone 15 Pro');
+      const names = result.map(s => s.product_name);
+
+      expect(names).toContain('APPLE iPhone 15 Pro');
+      expect(names).not.toContain('APPLE iPhone 15');
+      expect(names).not.toContain('APPLE iPhone 15 Pro Max');
+    });
+
+    it('iPhone 15 Pro-Max (com hífen) não deve bater com iPhone 15 Pro', () => {
+      const result = filterSalesByProduct(salesWithSuffixes, 'iPhone 15 Pro');
+      const names = result.map(s => s.product_name);
+
+      // "iPhone 15 Pro-Max" normaliza para "iphone 15 pro-max" (hífen preservado como separador de modelo)
+      // portanto NÃO deve bater com "iphone 15 pro"
+      expect(names).not.toContain('iPhone 15 Pro-Max');
+    });
+  });
+
+  describe('formato exato do banco — dados de useProductAnalytics', () => {
+    it('deve retornar todos os registros quando o produto é exato e há vários PDVs', () => {
+      const multiPdvData = [
+        { product_name: 'SAMSUNG Galaxy S24+', amount: 100, pdv_id: 'pdv-1' },
+        { product_name: 'SAMSUNG Galaxy S24+', amount: 200, pdv_id: 'pdv-2' },
+        { product_name: 'SAMSUNG Galaxy S24',  amount: 300, pdv_id: 'pdv-1' },
+      ];
+
+      const result = filterSalesByProduct(multiPdvData, 'SAMSUNG Galaxy S24+');
+      expect(result).toHaveLength(2);
+      expect(result.every(r => r.product_name === 'SAMSUNG Galaxy S24+')).toBe(true);
+    });
+
+    it('deve funcionar com product_name em caixa baixa (normalização)', () => {
+      const lowerCaseData = [{ product_name: 'samsung galaxy s24+', amount: 150 }];
+      const result = filterSalesByProduct(lowerCaseData, 'Galaxy S24+');
+      expect(result).toHaveLength(1);
+    });
+
+    it('deve retornar array vazio para produto inexistente', () => {
+      const result = filterSalesByProduct(salesWithSuffixes, 'Motorola Edge 50');
+      expect(result).toHaveLength(0);
+    });
+  });
+});
+
