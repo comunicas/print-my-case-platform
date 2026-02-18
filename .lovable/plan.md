@@ -1,210 +1,303 @@
 
-# Audit Completo das Edge Functions — Fase 6 do Code Review
+# Revisão do Code Review — Checklist Completo e Próximos Passos
 
-## Metodologia
+## Metodologia de Mapeamento
 
-Foram analisadas 7 Edge Functions completas (`create-user`, `process-spreadsheet`, `update-password`, `reprocess-refunds`, `ingest-revenue`, `ingest-stock`, `send-otp`, `verify-otp`) em 4 eixos: validação de JWT, sanitização de inputs, rate limiting por IP, e privilege escalation.
+Este documento consolida o estado atual da aplicação após 6 fases de code review já executadas, cruza com o que foi implementado no codebase, e identifica o que ainda falta para considerar a aplicação 100% revisada, refatorada e documentada.
 
 ---
 
-## Resumo Executivo
+## Estado Atual: O que foi Feito (Fases 1–6)
+
+### Fase 1 — Rotas e Dados Reais
+- Rota `/upload` corrigida para `/uploads` (consistência)
+- `UploadDetails.tsx` refatorado para usar dados reais (sem mock)
+- Redirecionamentos legados: `/reports → /estoque`, `/vitrine → /marketing?tab=midias`, `/pdvs → /settings?tab=pdvs`, `/team → /settings?tab=team`
+
+### Fase 2 — Remoção de Código Legado
+- `mock-data.ts` removido (~110 linhas)
+- `formatCurrency` duplicado removido e centralizado em `src/lib/utils.ts`
+- Constantes centralizadas em `src/lib/constants.ts`
+
+### Fase 3 — TypeScript e Tipagem
+- Todos os `any` removidos
+- Tipos de banco criados via `Tables<"...">` do Supabase
+- Hierarquia de tipos de Upload documentada em `src/lib/schemas/upload.ts`
+
+### Fase 4 — Segurança RLS (Banco de Dados)
+- Todas as 22 tabelas com RLS habilitado
+- Multi-tenant isolado por `get_user_org_id()` e `is_super_admin()`
+
+### Fase 5 — Correções de RLS (5 gaps)
+- **Bug crítico corrigido:** `catalog_leads` — `cl.phone = cl.phone` → `cl.phone = catalog_leads.phone`
+- **audit_logs INSERT:** `WITH CHECK: true` → `WITH CHECK: (actor_id = auth.uid())`
+- **organizations UPDATE:** adicionado `WITH CHECK` explícito
+- **notifications UPDATE:** adicionado `WITH CHECK` explícito
+- **products ALL:** `WITH CHECK` explícito adicionado
+
+### Fase 6 — Edge Functions (3 fixes)
+- **verify-otp:** proteção contra brute-force com `attempt_count` (máx 5 tentativas por OTP)
+- **create-user:** validação de comprimento (255 chars), formato de email (regex), UUID format para `organizationId`
+- **update-password:** limite de 1024 chars para senha antes das regex de força
+
+---
+
+## Checklist Completo de Implementação
+
+### CAMADA DE SEGURANÇA
+
+#### Banco de Dados (RLS)
+- Todas as tabelas com RLS: catalog_leads, otp_verifications, uploads, sales_records, stock_records, products, notifications, organizations, profiles, audit_logs, user_roles, pdvs, api_keys, preferences, user_pdvs, catalog_short_links, link_click_events, pdv_marketing_media, pdv_catalog_settings, stock_history, product_requests, upload_anomalies
+- Bug de rate limit corrigido (catalog_leads)
+- WITH CHECK em todas as UPDATE policies relevantes
+- Políticas DENY-by-default (otp_verifications: `USING: false`)
+
+#### Edge Functions
+- create-user: JWT + dupla verificação + hierarquia de roles + sanitização de inputs
+- process-spreadsheet: JWT + sanitização + limite 50k linhas + validação UUID
+- update-password: JWT + força de senha server-side + limite 1024 chars
+- reprocess-refunds: JWT manual + verificação super_admin no banco
+- ingest-revenue: API Key SHA-256 + sanitização completa + clamping de valores
+- ingest-stock: API Key SHA-256 + sanitização completa
+- send-otp: público por design + rate limit por telefone (3/10min) + validação regex
+- verify-otp: público por design + `attempt_count` anti-brute-force (5 tentativas)
+
+#### Itens de segurança ainda ausentes
+- Rate limiting por IP em todas as Edge Functions — ausente por design (aceito como gap documentado na memória do sistema; mitigado por rate limit por telefone no send-otp e attempt_count no verify-otp)
+
+---
+
+### CAMADA DE FRONTEND
+
+#### Páginas
+- `/` — Dashboard: KPIs, gráficos Recharts, lazy loading de charts, pull-to-refresh mobile, filtros PDV + org + data, visão consolidada super_admin
+- `/estoque` — Estoque: tabela + mapa, filtros, KPIs, pull-to-refresh, keyboard navigation
+- `/uploads` — Uploads: lista paginada, filtros server-side (PDV + tipo + status + busca), upload, delete, paginação
+- `/uploads/:id` — Detalhes do upload: dados reais, paginação
+- `/marketing` — Marketing: cupons, mídias, leads, analytics, PDV filter
+- `/settings` — Configurações: perfil, preferências, organização, PDVs, equipe, integrações, pedidos de produto
+- `/organizations` — Super admin: gestão de organizações
+- `/catalogo/:orgSlug` — Catálogo público: estoque público, filtros de marca, busca, OTP, cupom
+- `/s/:code` — Redirect de short links
+- `/auth` — Login
+- `*` — NotFound
+
+#### Componentes
+- Layout responsivo com sidebar colapsável (desktop) + mobile sidebar
+- PDVFilter com save-as-default e badge "Auto"
+- DataPagination reutilizável
+- Lightbox de mídias (imagem, áudio, vídeo)
+- ProductDetailModal com analytics completo
+- Pull-to-refresh para mobile
+- Skeleton shimmer para loading states
+- NotificationsPopover com polling
+
+#### Itens de frontend pendentes (identificados)
+- Botão "Limpar filtros" na página de Uploads com badge de contagem de filtros ativos (pedido anteriormente, nunca implementado)
+- Empty state da página de Uploads quando filtros ativos não retornam resultados usa texto genérico — não diferencia "sem uploads" vs "filtros não encontraram nada" com sugestão de reset
+
+---
+
+### CAMADA DE HOOKS E LÓGICA
+
+#### Hooks implementados (35+)
+- useUploads — query paginada com filtros server-side, reset de página ao mudar filtros
+- useProductStock — agregação multi-PDV, filtros de marca/status/vendas/busca
+- useDashboard — KPIs, gráficos, memoização, período comparativo
+- useNotifications — polling 60s, mark-as-read
+- usePreferences — default_pdv, sidebar, tema, idioma, período padrão
+- useDefaultPdvPreference — auto-apply com badge de indicação
+- usePaginatedQuery (usePagination) — controle de páginas com validação de limites
+- useOrganizations, useOrganization, useOrganizationsCRUD
+- usePDVs, useUserPDVs, useUserAllowedPDVs
+- useProductAnalytics, useProductSalesHistory, useMarketingAnalytics
+- usePDVMarketingMedia, usePDVCatalogSettings
+- useTeamMembers, useProfile
+- usePublicStock, useProductRequests, useCatalogLeads
+- useApiKeys, useUploads, useUploadDetails
+- useStockHistory, useSlotsData
+- usePrefetchRoutes — prefetch de rotas ao hover na sidebar
+- useGridKeyboardNavigation — navegação por teclado no mapa de estoque
+- useSwipeGesture, useHapticFeedback — UX mobile
+- useSidebarPreferences — persistência do estado da sidebar
+
+#### Itens de lógica pendentes
+- Nenhum gap crítico identificado. O hook `useUploads` ainda não expõe `hasActiveFilters` calculado para facilitar o botão "Limpar filtros"
+
+---
+
+### CAMADA DE TESTES
+
+#### Testes unitários (vitest) — existentes e passando
+- `src/lib/__tests__/dashboardUtils.test.ts` — 884 linhas, cobertura completa de: calculateTotalRevenue, calculatePercentageChange, calculateKPIs, getSalesByDay, getSalesByHourAndDay, getHeatmapPeak, getTopProducts, getStockByBrand, getQuickStats, getLowStockItems, getLossesByDay
+- `src/lib/__tests__/productNormalization.test.ts` — extractBrandFromProductName, extractModelFromProductName, normalizeProductName, matchesProduct, getExactProductKey, filterSalesByProduct, countSalesForProduct — incluindo casos críticos de sufixos +/- e variantes Pro/Pro Max
+- `src/lib/__tests__/brandAssets.test.ts` — getCanonicalBrand, getBrandChartColor, getBrandColor, getBrandLogo, aliases de marcas
+- `src/lib/__tests__/constants.test.ts` — todas as constantes centralizadas
+- `src/lib/__tests__/utils.test.ts` — utilitários gerais
+- `src/hooks/__tests__/usePagination.test.ts` — usePagination: estado inicial, setPage com limites, setPageSize com reset, getRange, totalPages, hasNextPage/hasPrevPage, nextPage/prevPage
+- `src/hooks/__tests__/useUploads.test.ts` — reset de página ao mudar filtros (pdvId, type, status, search, múltiplos simultâneos)
+- `src/components/ui/__tests__/PDVFilter.test.tsx` — rendering, Auto badge, save-as-default, clear-default, loading states, onChange callback
+- `src/components/dashboard/__tests__/StockAlertsTable.test.tsx` — empty state, with data, status badges, pagination interna, product click
+- `src/components/dashboard/__tests__/TopProductsChart.test.tsx` — empty state, with data, interactions, truncação de nomes
+
+#### Testes E2E (playwright) — existentes
+- `e2e/pdv-filter.spec.ts` — 8 cenários: save default, persist after reload, Auto badge, clear default, revert to "Todos os PDVs", animação de saída do badge
+- `e2e/stock-sales-matching.spec.ts` — 9 cenários: stock page load, product count, search filter, variant matching, sales index badges, filter by sales index, aggregate across PDVs, empty results, special characters
+- `e2e/product-analytics.spec.ts` — analytics de produto
+
+#### Testes ausentes (gaps identificados)
+- `spreadsheet-validator.ts` — ZERO cobertura de testes. Função `validateSpreadsheetColumns` sem nenhum teste unitário. Esta função foi pedida em versões anteriores do code review mas nunca implementada.
+- Testes para `usePublicStock`, `useCatalogLeads`, `useMarketingAnalytics` — hooks públicos sem cobertura
+- Testes de integração para o fluxo OTP (send-otp + verify-otp + attempt_count)
+
+---
+
+### CAMADA DE BANCO DE DADOS E MIGRAÇÕES
+
+#### Migrações aplicadas (48 migrações)
+- Schema completo com 22 tabelas
+- Todas as funções SQL: `get_user_org_id`, `is_admin`, `is_super_admin`, `has_role`, `can_assign_role`, `user_can_access_pdv`, `get_org_user_ids`, `target_user_is_super_admin`, `create_notification`, `notify_new_product_request`, `increment_click_count`, `cleanup_expired_otps`, `get_public_stock`, `get_public_organization`, `prevent_orphan_profile`, `audit_orphan_user`, `handle_new_user`, `update_updated_at_column`
+- Trigger de limpeza automática de OTPs expirados
+- Coluna `attempt_count` adicionada em `otp_verifications` (Fase 6)
+- 5 correções de RLS aplicadas (Fase 5)
+
+#### Itens de banco pendentes
+- Nenhum gap crítico. Todos os índices essenciais parecem presentes (não auditados explicitamente)
+- Trigger `notify_new_product_request` está definido como função mas precisa ser verificado se o trigger em si está attachado à tabela `product_requests`
+
+---
+
+### CAMADA DE DOCUMENTAÇÃO
+
+#### Documentação existente
+- `.lovable/plan.md` — plano da Fase 6 (Edge Functions)
+- Memórias do sistema: 15+ entradas documentando arquitetura, segurança, features
+- Comentários inline nos schemas (`src/lib/schemas/upload.ts` — hierarquia de tipos documentada)
+- Constantes comentadas em `src/lib/constants.ts`
+- JSDoc em funções críticas de `dashboardUtils.ts` e `productNormalization.ts`
+
+#### Documentação ausente
+- Nenhum `README.md` funcional — o arquivo atual tem apenas o template padrão do Lovable com `REPLACE_WITH_PROJECT_ID`
+- Nenhum diagrama de arquitetura documentado no repositório
+- Nenhuma documentação de API para as Edge Functions (endpoints, payloads esperados, respostas)
+- Nenhum documento de onboarding para novos desenvolvedores
+
+---
+
+## Resumo Visual do Estado Atual
 
 ```text
-┌─────────────────────────┬──────────────┬──────────────┬───────────────┬────────────────────┐
-│ Edge Function           │ Auth JWT     │ Sanitização  │ Rate Limit IP │ Privilege Escalation│
-├─────────────────────────┼──────────────┼──────────────┼───────────────┼────────────────────┤
-│ create-user             │ APROVADO     │ APROVADO     │ AUSENTE 🟡   │ APROVADO            │
-│ process-spreadsheet     │ APROVADO     │ APROVADO     │ AUSENTE 🟡   │ APROVADO            │
-│ update-password         │ APROVADO     │ APROVADO     │ AUSENTE 🟡   │ APROVADO            │
-│ reprocess-refunds       │ APROVADO     │ APROVADO     │ AUSENTE 🟡   │ APROVADO            │
-│ ingest-revenue          │ API KEY ✅   │ APROVADO     │ AUSENTE 🟡   │ APROVADO            │
-│ ingest-stock            │ API KEY ✅   │ APROVADO     │ AUSENTE 🟡   │ APROVADO            │
-│ send-otp                │ PÚBLICO ✅   │ APROVADO     │ DB-ONLY 🟡   │ N/A                 │
-│ verify-otp              │ PÚBLICO ✅   │ APROVADO     │ AUSENTE 🔴   │ N/A                 │
-└─────────────────────────┴──────────────┴──────────────┴───────────────┴────────────────────┘
+ÁREA                    ESTADO      COBERTURA
+────────────────────────────────────────────────────────
+Páginas (10/10)         COMPLETO    100%
+Componentes core        COMPLETO    ~95%
+Hooks (35+)             COMPLETO    ~95%
+Segurança RLS           COMPLETO    100% (22 tabelas)
+Edge Functions          COMPLETO    100% (8 funções)
+Testes unitários        PARCIAL     ~75% (gaps: spreadsheet-validator, hooks públicos)
+Testes E2E              PARCIAL     ~60% (gaps: fluxo OTP, catalog público)
+Banco de dados          COMPLETO    ~98%
+Documentação            AUSENTE     ~20% (apenas README placeholder + memórias)
 ```
 
 ---
 
-## Análise Detalhada por Eixo
+## Próximos Passos para 100%
 
-### 1. Validação de JWT
-
-**Estratégia atual — correta e bem implementada:**
-
-- `create-user`, `process-spreadsheet`, `update-password`: `verify_jwt = true` no `config.toml`. Além disso, fazem dupla verificação chamando `supabaseUser.auth.getUser()` para validar o token com o servidor. **APROVADO.**
-- `reprocess-refunds`: `verify_jwt = false`, porém verifica o JWT manualmente via `getClaims()` + checa se o usuário é `super_admin` na tabela `user_roles`. **APROVADO — padrão correto para funções que precisam de lógica customizada.**
-- `ingest-revenue`, `ingest-stock`: `verify_jwt = false`, sem JWT — usam API Key com hash SHA-256. **APROVADO — o design intencional está documentado em memória.**
-- `send-otp`, `verify-otp`: `verify_jwt = false`, sem JWT nem API Key — endpoints públicos para o fluxo de catálogo. **APROVADO — público por design.**
-
-**Conclusão JWT:** Nenhum problema crítico. O design de cada função é consistente com seu caso de uso.
+Os 4 itens restantes para completar o code review estão ordenados por impacto decrescente:
 
 ---
 
-### 2. Sanitização de Inputs
+### Próximo Passo 1 — Testes Unitários: `spreadsheet-validator.ts`
 
-**Análise por função:**
+**Arquivo alvo:** `src/lib/utils/spreadsheet-validator.ts`
+**Arquivo de teste a criar:** `src/lib/utils/__tests__/spreadsheetValidator.test.ts`
 
-**`create-user`:**
-- `name`, `email`, `password` são validados como presentes, mas **não há sanitização de comprimento máximo** em `name`, `email`, ou `organizationName`.
-- `role` é validado contra uma allowlist (`validRoles`). **Correto.**
-- `organizationId` é passado diretamente para uma query como `.eq('id', organizationId)` — como o parâmetro não é tratado como SQL raw, isso é seguro via ORM, mas idealmente deveria validar o formato UUID antes de usar.
-- Não há limite de tamanho no body JSON — um atacante poderia enviar um `name` de 100 MB.
+A função `validateSpreadsheetColumns` é crítica — ela é o guardião da qualidade dos uploads e foi pedida explicitamente em rounds anteriores do code review. Tem zero cobertura.
 
-**Gap identificado — BAIXO:**
-```typescript
-// Atual: sem validação de tamanho
-let { name, email, password, ... } = await req.json();
+Cenários a cobrir:
+- Planilhas de vendas válidas com colunas em português
+- Planilhas de vendas válidas com colunas em inglês (aliases de `SALES_COLUMN_ALIASES`)
+- Planilhas de estoque válidas com colunas em português
+- Planilhas de estoque válidas com colunas em inglês (aliases de `STOCK_COLUMN_ALIASES`)
+- Planilha com coluna faltando (uma obrigatória ausente)
+- Planilha com todas as colunas faltando
+- Planilha vazia (sem headers)
+- Headers com espaços extras (trim deve funcionar)
+- `totalRows` calculado corretamente
 
-// Ideal:
-name = String(name ?? '').substring(0, 255).trim();
-email = String(email ?? '').substring(0, 255).trim();
-organizationName = String(organizationName ?? '').substring(0, 255).trim();
-// + validate email format server-side
-// + validate organizationId is UUID format
-```
-
-**`process-spreadsheet`:**
-- Excelente sanitização: `sanitizeString()`, `sanitizeDeviceId()`, `sanitizeOrderNumber()` com limites de campo, remoção de caracteres de controle, e `substring(0, maxLength)`. 
-- Limite de 50.000 linhas para prevenir DoS. **APROVADO.**
-
-**`update-password`:**
-- `newPassword` tem validação robusta de força (8+ chars, maiúsculas, minúsculas, números, especiais) server-side.
-- Sem sanitização de comprimento máximo para `newPassword` — uma senha de 1 MB seria aceita até a validação de força.
-
-**Gap — MUITO BAIXO:** Adicionar `if (newPassword.length > 1024) return error` antes da validação de força.
-
-**`reprocess-refunds`:**
-- Não recebe inputs do usuário além do token JWT. Sem parâmetros no body. **APROVADO.**
-
-**`ingest-revenue`:**
-- Todos os campos textuais passam por `sanitizeString()` com limites.
-- `amount`, `refund_amount`, `discount_amount`, `actual_paid_amount` passam por `parseAmount()` com clamping entre 0 e 10M.
-- `device_id` passa por `sanitizeDeviceId()` (apenas alphanum + hífens).
-- `order_number` passa por `sanitizeOrderNumber()` (apenas alphanum + `-_.`).
-- **APROVADO.**
-
-**`ingest-stock`:**
-- Mesma qualidade que `ingest-revenue`. Todos os campos têm limites e sanitização.
-- **APROVADO.**
-
-**`send-otp`:**
-- `phone` validado com regex `/^\d{10,11}$/`. Aceita exatamente 10 ou 11 dígitos. **Correto.**
-- **APROVADO.**
-
-**`verify-otp`:**
-- `phone` validado com `/^\d{10,11}$/`. **Correto.**
-- `code` validado com `/^\d{6}$/`. **Correto.**
-- **APROVADO.**
+Estratégia: usar `xlsx` para criar buffers de arquivo in-memory no teste (sem File API real), ou mockar `XLSX.read` para retornar dados controlados.
 
 ---
 
-### 3. Rate Limiting por IP
+### Próximo Passo 2 — Feature: Botão "Limpar Filtros" na página de Uploads
 
-**Este é o principal gap do audit.** Nenhuma função implementa rate limiting baseado em IP — apenas `send-otp` tem rate limiting baseado em número de telefone (no banco de dados, máx 3 OTPs por 10 minutos), mas mesmo essa proteção não usa IP.
+**Arquivo alvo:** `src/pages/Uploads.tsx`
 
-**Mapeamento de risco por função:**
+Pedido anteriormente e nunca implementado. A página de Uploads tem 4 filtros (PDV, tipo, status, busca) e não oferece ao usuário uma forma rápida de resetar tudo. Quando filtros estão ativos e não há resultados, o empty state mostra "Tente ajustar seus filtros" mas sem botão de ação.
 
-| Função | Risco sem rate limit por IP | Severidade |
-|---|---|---|
-| `verify-otp` | Força bruta no código de 6 dígitos (1.000.000 combinações). Com 3 req/s: ~4 dias para quebrar. Com 1000 req/s: ~17 minutos. | **ALTA** |
-| `send-otp` | Rate limit por telefone existe (DB), mas um atacante com múltiplos telefones pode fazer flood da Twilio, gerando custos. | **MÉDIA** |
-| `create-user` | Um org_admin poderia criar muitos usuários rapidamente. | **BAIXA** |
-| `ingest-revenue`, `ingest-stock` | Protegidos por API Key; múltiplos IPs precisariam da mesma chave. | **MUITO BAIXA** |
-| `process-spreadsheet`, `update-password`, `reprocess-refunds` | Exigem JWT válido. | **MUITO BAIXA** |
-
-**Gap Crítico: `verify-otp` sem proteção contra brute-force:**
-
-O código OTP é de 6 dígitos (1.000.000 combinações). A função não limita tentativas por IP nem por número de telefone. Um atacante poderia:
-1. Interceptar que um telefone recebeu um OTP (via `send-otp`)
-2. Fazer chamadas paralelas a `verify-otp` até adivinhar o código dentro dos 5 minutos de validade
-
-**Correção necessária:** Adicionar à tabela `otp_verifications` uma coluna `attempt_count` e rejeitar após 5 tentativas falhas para o mesmo telefone. Isso é mais robusto que rate limit por IP (que pode ser contornado com proxies).
+Implementação:
+- Calcular `activeFilterCount` (quantos dos 4 filtros estão ativos, ou seja, diferentes do padrão)
+- Mostrar botão "Limpar filtros" com badge de contagem (`activeFilterCount`) quando `activeFilterCount > 0`
+- Função `handleClearFilters` que reseta: `setSearchQuery("")`, `handlePdvChange("all")`, `setFilterType("all")`, `setFilterStatus("all")`
+- No empty state quando há filtros ativos, adicionar botão de ação direto que chama `handleClearFilters`
+- Posição: ao lado dos seletores de filtro na barra de filtros
 
 ---
 
-### 4. Privilege Escalation
+### Próximo Passo 3 — Verificação do Trigger de Notificação de Pedidos de Produto
 
-**Análise de `create-user` — função mais sensível:**
-
-A função implementa uma hierarquia de permissões bem construída:
-- `org_admin` não pode criar `org_admin` ou `super_admin` (linhas 359-382).
-- `org_admin` não pode criar usuários em outra organização — o `organizationId` recebido no body é **ignorado** e substituído pelo `callerOrgId` obtido do banco (linha 355). **Excelente proteção.**
-- `org_admin` não pode criar nova organização (linha 290-311).
-- Apenas `super_admin` pode criar `super_admin` (linha 386-405).
-
-**Único risco teórico restante — MUITO BAIXO:**
-O `createNewOrganization` e `organizationId` são lidos do body JSON *antes* das verificações de permissão, e o audit log no `user_creation_attempt` inclui `requested_organization_id: organizationId`. Se um `org_admin` tentasse injetar um UUID de outra organização, ele seria **loggado mas não usado** (linha 355 força o `callerOrgId`). Comportamento correto.
-
-**Análise de `reprocess-refunds`:**
-- Verifica `role === 'super_admin'` no banco via `user_roles`. Um `org_admin` não pode acessar.
-- **APROVADO.**
-
-**Análise de `ingest-revenue` e `ingest-stock`:**
-- A `organization_id` **não vem do body da requisição** — é sempre derivada da `api_key` consultada no banco. Um atacante não pode enviar `organization_id` diferente para acessar dados de outra org.
-- O `device_id` também é validado: deve pertencer a um PDV da mesma organização da API Key.
-- **APROVADO — arquitetura de privilege escalation sólida.**
-
----
-
-## Problemas Identificados para Correção
-
-### Problema 1 — ALTO: `verify-otp` vulnerável a brute-force
-
-**Arquivo:** `supabase/functions/verify-otp/index.ts`
-
-Sem limite de tentativas, um atacante pode tentar sistematicamente todos os 1.000.000 de combinações de 6 dígitos dentro dos 5 minutos de validade do OTP.
-
-**Solução:** Adicionar coluna `attempt_count` à tabela `otp_verifications` e rejeitar após 5 tentativas para o mesmo `phone`. Adicionar lógica na Edge Function para incrementar e verificar antes de comparar o código.
+**Verificação necessária:** O banco tem a função `notify_new_product_request()` definida, mas é necessário confirmar via SQL se o trigger está de fato attachado à tabela `product_requests`.
 
 ```sql
--- Migração necessária:
-ALTER TABLE public.otp_verifications ADD COLUMN attempt_count integer NOT NULL DEFAULT 0;
+SELECT trigger_name, event_manipulation, action_statement
+FROM information_schema.triggers
+WHERE event_object_table = 'product_requests';
 ```
 
-```typescript
-// verify-otp/index.ts — lógica a adicionar:
-// 1. Buscar OTP válido pelo phone apenas (sem checar code ainda)
-// 2. Se attempt_count >= 5, rejeitar com "Muitas tentativas"
-// 3. Incrementar attempt_count
-// 4. ENTÃO comparar o code
-// 5. Se incorreto, retornar erro (attempt_count já foi incrementado)
-// 6. Se correto, marcar verified = true
+Se o trigger não existir, ele precisa ser criado:
+```sql
+CREATE TRIGGER on_new_product_request
+AFTER INSERT ON public.product_requests
+FOR EACH ROW EXECUTE FUNCTION notify_new_product_request();
 ```
-
-### Problema 2 — BAIXO: `create-user` sem validação de comprimento/formato de inputs de texto
-
-**Arquivo:** `supabase/functions/create-user/index.ts`
-
-`name`, `email`, e `organizationName` não têm limite de tamanho máximo nem validação de formato de email server-side. Permite payloads muito grandes.
-
-**Solução:** Adicionar validação de comprimento e formato antes do uso:
-```typescript
-if (!name || name.length > 255 || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-  return error response;
-}
-if (organizationId && !/^[0-9a-f]{8}-...-[0-9a-f]{12}$/i.test(organizationId)) {
-  return error response;
-}
-```
-
-### Problema 3 — MUITO BAIXO: `update-password` sem limite de tamanho de senha
-
-**Arquivo:** `supabase/functions/update-password/index.ts`
-
-Uma senha de comprimento arbitrário (ex: 10 MB) seria processada pelas 5 expressões regulares de validação de força, causando possível lentidão.
-
-**Solução:** `if (newPassword.length > 1024) return error;` antes da validação.
 
 ---
 
-## Arquivos a Modificar
+### Próximo Passo 4 — Documentação: README Funcional e Arquitetura
 
-| Arquivo | Tipo de mudança | Severidade |
-|---|---|---|
-| `supabase/migrations/<ts>_otp_attempt_count.sql` | CRIAR — adicionar coluna `attempt_count` | ALTO |
-| `supabase/functions/verify-otp/index.ts` | EDITAR — lógica de contagem de tentativas | ALTO |
-| `supabase/functions/create-user/index.ts` | EDITAR — validação de tamanho e formato de email + UUID | BAIXO |
-| `supabase/functions/update-password/index.ts` | EDITAR — limite de tamanho de senha | MUITO BAIXO |
+**Arquivos a criar/atualizar:**
+- `README.md` — substituir o template padrão com documentação real
+- `docs/ARCHITECTURE.md` — diagrama de arquitetura, fluxos principais, decisões técnicas
 
-**`send-otp`, `process-spreadsheet`, `reprocess-refunds`, `ingest-revenue`, `ingest-stock` não precisam de nenhuma alteração** — estão bem implementados dentro do modelo de segurança do sistema.
+Conteúdo do README funcional:
+- Descrição do produto (SaaS multi-tenant para gestão de PDVs de vending machine)
+- Stack tecnológica (React 18, Vite, TypeScript, Tailwind, Supabase/Lovable Cloud, Twilio)
+- Hierarquia de roles (super_admin, org_admin, operator, viewer)
+- Fluxos principais (upload de planilha, catálogo público, OTP, ingestão por API)
+- Variáveis de ambiente necessárias (secrets do Twilio, Supabase)
+- Como rodar localmente (npm install + npm run dev)
+- Como rodar testes (vitest + playwright)
+- Estrutura de pastas comentada
+
+Conteúdo da documentação de arquitetura:
+- Diagrama de tabelas do banco e relacionamentos
+- Diagrama de fluxo de Edge Functions
+- Política de segurança RLS (resumo das camadas)
+- Glossário de termos do domínio (PDV, slot, brand, OTP, catalog_lead)
+
+---
+
+## Tabela Final: 100% do Code Review
+
+```text
+ITEM                                    ESTADO ATUAL   PRÓXIMA AÇÃO
+─────────────────────────────────────────────────────────────────────────────
+Fases 1-6 do code review                CONCLUÍDO      —
+Testes: spreadsheet-validator           AUSENTE        Criar (Passo 1)
+Feature: Limpar filtros em Uploads      AUSENTE        Implementar (Passo 2)
+Trigger product_requests                A VERIFICAR    Verificar e corrigir se necessário (Passo 3)
+README e documentação de arquitetura    AUSENTE        Criar (Passo 4)
+```
+
+Completar os 4 passos acima fecha o code review em 100%.
