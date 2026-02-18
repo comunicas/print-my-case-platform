@@ -134,9 +134,7 @@ export function usePDVs(options?: UsePDVsOptions) {
       return { previousPDVs };
     },
     onSuccess: () => {
-      // Força refetch imediato para sincronizar com o banco
       queryClient.invalidateQueries({ queryKey: ["pdvs"] });
-      queryClient.refetchQueries({ queryKey: ["pdvs"] });
       toast.success("PDV excluído", {
         description: "O PDV foi removido com sucesso.",
       });

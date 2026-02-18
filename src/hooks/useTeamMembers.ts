@@ -40,6 +40,9 @@ export function useTeamMembers() {
         profilesQuery = profilesQuery.eq("organization_id", profile.organization_id);
       }
 
+      // Always exclude inactive members (unlinked users)
+      profilesQuery = profilesQuery.neq("status", "inactive");
+
       const { data: profiles, error: profilesError } = await profilesQuery;
 
       if (profilesError) throw profilesError;
@@ -253,9 +256,7 @@ export function useTeamMembers() {
       return { previousMembers };
     },
     onSuccess: () => {
-      // Força refetch imediato para sincronizar com o banco
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
-      queryClient.refetchQueries({ queryKey: ["team-members"] });
       toast.success("Membro removido", {
         description: "O membro foi removido da organização.",
       });

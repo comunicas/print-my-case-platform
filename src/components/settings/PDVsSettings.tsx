@@ -38,8 +38,10 @@ interface EditingPDV {
 }
 
 export function PDVsSettings() {
-  const { pdvs, isLoading, createPDV, updatePDV, deletePDV } = usePDVs();
-  const { isAdmin } = useProfile();
+  const { profile, isAdmin } = useProfile();
+  const { pdvs, isLoading, createPDV, updatePDV, deletePDV } = usePDVs({
+    organizationId: profile?.organization_id ?? undefined,
+  });
   
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
