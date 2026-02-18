@@ -328,12 +328,14 @@ describe('getSalesByDay', () => {
   });
 
   describe('formatação', () => {
-    it('deve formatar dateDisplay como dd/MM', () => {
+    it('deve formatar dateDisplay contendo dd/MM', () => {
       const sales = [createSaleRecord({ payment_date: '2024-01-15T10:00:00', amount: 100 })];
       
       const result = getSalesByDay(sales);
       
-      expect(result[0].dateDisplay).toBe('15/01');
+      // O locale pode variar entre ambientes (seg. / segunda / mon.)
+      // O que importa é que a data dd/MM esteja presente
+      expect(result[0].dateDisplay).toContain('15/01');
     });
   });
 });

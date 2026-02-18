@@ -86,8 +86,13 @@ export function normalizeProductName(name: string): string {
   return name
     .toLowerCase()
     .trim()
+    // Remove apenas chars que NÃO são letra, dígito, espaço ou sufixos de modelo (+, -)
+    // Preserva '+' e '-' pois distinguem modelos (Galaxy S24 vs S24+)
+    .replace(/[^\w\s+\-]/g, '')
+    // Remove underscores (não fazem parte de nomes de modelo)
+    .replace(/_/g, '')
     .replace(/\s+/g, ' ')
-    .replace(/[^\w\s]/g, '');
+    .trim();
 }
 
 /**
