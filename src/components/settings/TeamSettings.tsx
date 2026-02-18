@@ -456,10 +456,16 @@ export function TeamSettings() {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar remoção</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja remover "{deletingMember?.name}" da organização? 
-              O usuário perderá acesso ao sistema.
+            <AlertDialogTitle>Desvincular membro</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  Tem certeza que deseja desvincular <strong>{deletingMember?.name}</strong> da organização?
+                </p>
+                <p className="text-sm">
+                  O usuário perderá o acesso imediatamente, mas sua conta não será excluída do sistema.
+                </p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -470,7 +476,7 @@ export function TeamSettings() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {removeMember.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Remover
+              Desvincular
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
