@@ -28,8 +28,9 @@ const QUANTITY_MIN = 0;
 const QUANTITY_MAX = 100000; // reasonable max for stock quantity
 
 // Anomaly detection thresholds
+// R$ 10.000 para cobrir produtos legítimos de alto valor (ex: iPhone Pro R$ 6.990)
 const ANOMALY_THRESHOLDS = {
-  maxSingleAmount: 500, // Maximum expected amount for a single transaction (phone cases)
+  maxSingleAmount: 10000, // Limite máximo por transação (capas de celular raramente passam de R$ 500; iPhones até ~R$ 9.000)
 };
 
 // Interface for detected anomalies
@@ -640,6 +641,9 @@ Deno.serve(async (req) => {
     let recordsInserted = 0;
     let skippedRecords = 0;
     let deletedPreviousRecords = 0;
+    // Anomalias detectadas (apenas para tipo sales) — reutilizadas depois para evitar recalcular
+    let detectedAnomalies: AnomalyRecord[] = [];
+    let anomalySkipped = 0;
 
     if (upload.type === "sales") {
       // === DELETE PREVIOUS RECORDS FOR THIS PDV ===
@@ -691,30 +695,30 @@ Deno.serve(async (req) => {
       
       skippedRecords = rows.length - validRecords.length;
 
-      // Detect amount anomalies before insertion
-      const anomalies = detectAmountAnomalies(validRecords as Record<string, unknown>[]);
-      if (anomalies.length > 0) {
-        console.warn(`[process-spreadsheet] Upload ${uploadId}: Detected ${anomalies.length} amount anomalies:`, 
-          JSON.stringify(anomalies.slice(0, 10)));
+      // Detect amount anomalies before insertion — atribui à variável do escopo externo para reutilização
+      detectedAnomalies = detectAmountAnomalies(validRecords as Record<string, unknown>[]);
+      if (detectedAnomalies.length > 0) {
+        console.warn(`[process-spreadsheet] Upload ${uploadId}: Detected ${detectedAnomalies.length} amount anomalies:`, 
+          JSON.stringify(detectedAnomalies.slice(0, 10)));
       }
 
       // Create set of anomalous order numbers for quick lookup
-      const anomalousOrderNumbers = new Set(anomalies.map(a => a.orderNumber));
+      const anomalousOrderNumbers = new Set(detectedAnomalies.map(a => a.orderNumber));
 
       // FILTER OUT ANOMALOUS RECORDS BEFORE INSERTION
       const cleanRecords = validRecords.filter(r => 
         !anomalousOrderNumbers.has(r?.order_number as string)
       );
 
-      // Update skipped count to include anomalies
-      const anomalySkipped = validRecords.length - cleanRecords.length;
+      // Update skipped count to include anomalies — atribui à variável do escopo externo
+      anomalySkipped = validRecords.length - cleanRecords.length;
       skippedRecords = rows.length - cleanRecords.length;
 
       if (anomalySkipped > 0) {
         console.log(`[process-spreadsheet] Upload ${uploadId}: EXCLUDED ${anomalySkipped} records with anomalous amounts (> R$ ${ANOMALY_THRESHOLDS.maxSingleAmount})`);
         
         // Persist anomalies to database for history/reporting
-        const anomalyRecords = anomalies.map(a => ({
+        const anomalyRecords = detectedAnomalies.map(a => ({
           upload_id: uploadId,
           order_number: a.orderNumber,
           product_name: a.productName,
@@ -729,7 +733,7 @@ Deno.serve(async (req) => {
         if (anomalyError) {
           console.error(`Upload ${uploadId}: Failed to save anomalies`, anomalyError.message);
         } else {
-          console.log(`[process-spreadsheet] Upload ${uploadId}: Saved ${anomalies.length} anomalies to database`);
+          console.log(`[process-spreadsheet] Upload ${uploadId}: Saved ${detectedAnomalies.length} anomalies to database`);
         }
       }
 
@@ -867,15 +871,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Calculate anomaly count for the upload record
-    let uploadAnomalyCount = 0;
-    if (upload.type === "sales") {
-      const salesRecords = rows.map(row => mapSalesRow(row, pdvId, uploadId)).filter(Boolean);
-      const validRecords = salesRecords.filter(r => 
-        r && r.device_id && r.order_number && r.product_name && r.amount !== null && r.amount !== undefined
-      );
-      uploadAnomalyCount = detectAmountAnomalies(validRecords as Record<string, unknown>[]).length;
-    }
+    // Reutiliza anomalias e contagem já calculadas no bloco de vendas acima
+    // (evita recalcular rows.map(mapSalesRow) 3x extras — bug original)
+    const uploadAnomalyCount = anomalySkipped;
 
     // 5. Update upload status to ready
     await supabase
@@ -891,7 +889,6 @@ Deno.serve(async (req) => {
 
     // 6. Create notification for the user who uploaded
     try {
-      // Get organization_id from PDV
       const { data: pdvInfo } = await supabase
         .from("pdvs")
         .select("organization_id")
@@ -900,20 +897,8 @@ Deno.serve(async (req) => {
 
       if (pdvInfo?.organization_id) {
         const typeLabel = upload.type === "sales" ? "vendas" : "estoque";
-        
-        // Get anomalies for notification (only for sales)
-        let anomalyCount = 0;
-        if (upload.type === "sales") {
-          const salesRecords = rows.map(row => mapSalesRow(row, pdvId, uploadId)).filter(Boolean);
-          const validRecords = salesRecords.filter(r => 
-            r && r.device_id && r.order_number && r.product_name && r.amount !== null && r.amount !== undefined
-          );
-          const anomalies = detectAmountAnomalies(validRecords as Record<string, unknown>[]);
-          anomalyCount = anomalies.length;
-        }
-        
-        const anomalyWarning = anomalyCount > 0 
-          ? ` ATENÇÃO: ${anomalyCount} registro(s) com valor acima de R$ ${ANOMALY_THRESHOLDS.maxSingleAmount} foram EXCLUÍDOS.` 
+        const anomalyWarning = uploadAnomalyCount > 0 
+          ? ` ATENÇÃO: ${uploadAnomalyCount} registro(s) com valor acima de R$ ${ANOMALY_THRESHOLDS.maxSingleAmount} foram EXCLUÍDOS.` 
           : "";
         
         await supabase
@@ -922,30 +907,22 @@ Deno.serve(async (req) => {
             organization_id: pdvInfo.organization_id,
             user_id: upload.uploaded_by,
             type: "upload_processed",
-            title: anomalyCount > 0 ? "Upload processado com alertas" : "Upload processado",
+            title: uploadAnomalyCount > 0 ? "Upload processado com alertas" : "Upload processado",
             message: `Seu arquivo de ${typeLabel} foi processado com ${recordsInserted} registros.${anomalyWarning}`,
             metadata: { 
               upload_id: uploadId, 
               records_count: recordsInserted,
               type: upload.type,
-              anomaly_count: anomalyCount,
+              anomaly_count: uploadAnomalyCount,
             },
           });
       }
     } catch (notifError) {
       console.error(`Upload ${uploadId}: Failed to create notification`, notifError);
-      // Don't fail the upload because of notification error
     }
 
-    // Calculate anomalies for response (only for sales)
-    let responseAnomalies: AnomalyRecord[] = [];
-    if (upload.type === "sales") {
-      const salesRecords = rows.map(row => mapSalesRow(row, pdvId, uploadId)).filter(Boolean);
-      const validRecords = salesRecords.filter(r => 
-        r && r.device_id && r.order_number && r.product_name && r.amount !== null && r.amount !== undefined
-      );
-      responseAnomalies = detectAmountAnomalies(validRecords as Record<string, unknown>[]);
-    }
+    // Reutiliza anomalias já detectadas no bloco de sales — sem recálculo extra
+    const responseAnomalies: AnomalyRecord[] = detectedAnomalies;
 
     return new Response(
       JSON.stringify({ 

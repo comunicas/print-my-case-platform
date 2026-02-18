@@ -135,19 +135,21 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
         .eq("status", "active");
 
       // Queries for cancelled transactions (pre-payment cancellations)
+      // Filtro de cancelamentos cobre inglês e português:
+      // "Cancelled" (EN planilha Tietê), "Canceled" (variação EN), "Cancelado" (PT futuro)
       let currentCancellationsQuery = supabase
         .from("sales_records")
         .select("amount, payment_date")
         .gte("payment_date", startDate.toISOString())
         .lte("payment_date", endDate.toISOString())
-        .or("status.ilike.%cancelled%,status.ilike.%canceled%");
+        .or("status.ilike.%cancelled%,status.ilike.%canceled%,status.ilike.%cancelado%");
 
       let previousCancellationsQuery = supabase
         .from("sales_records")
         .select("amount")
         .gte("payment_date", previousStartDate.toISOString())
         .lte("payment_date", previousEndDate.toISOString())
-        .or("status.ilike.%cancelled%,status.ilike.%canceled%");
+        .or("status.ilike.%cancelled%,status.ilike.%canceled%,status.ilike.%cancelado%");
 
       // Apply PDV filter if needed
       if (pdvIds !== null) {
