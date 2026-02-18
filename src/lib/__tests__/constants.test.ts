@@ -62,8 +62,8 @@ describe('Constantes de Dashboard', () => {
 });
 
 describe('Constantes de Anomalias', () => {
-  it('ANOMALY_VALUE_THRESHOLD deve ser R$ 500', () => {
-    expect(ANOMALY_VALUE_THRESHOLD).toBe(500);
+  it('ANOMALY_VALUE_THRESHOLD deve ser R$ 10.000', () => {
+    expect(ANOMALY_VALUE_THRESHOLD).toBe(10000);
   });
 });
 
