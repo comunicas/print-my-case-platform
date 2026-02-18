@@ -1,100 +1,132 @@
-# API para Atualizar Stock Records
 
-## Objetivo
+# Zerar Dados e Corrigir a Edge Function ingest-stock
 
-Criar uma edge function `ingest-stock` que recebe registros de estoque via API (autenticada por API key), deleta os registros antigos do PDV e insere os novos -- seguindo o mesmo padrao atomico que ja existe no `process-spreadsheet`.
+## Diagnostico Atual
 
-## Arquitetura
+Estado do banco confirmado por queries:
 
-A function seguira o mesmo padrao do `ingest-revenue`:
+| Tabela | Registros | Problema |
+|---|---|---|
+| uploads | 99.143 | 99.141 criados pela API (1 por slot por chamada) |
+| sales_records | 1.032 | 873 planilha Out/2025 (PRINTMYCASE GERAL) + 159 via API/planilha Feb/2026 |
+| stock_records | 259 | 85 planilha (PRINTMYCASE GERAL) + 174 via API fragmentados |
+| stock_history | 149 | Snapshots gerados por cada chamada de API |
 
-1. Autenticacao via API key (Bearer token)
-2. Resolucao do PDV via `device_id` 
-3. Delecao dos `stock_records` antigos do PDV, usando a chave device_id + slot_number
-4. Insercao dos novos registros em batch
-5. Geracao do snapshot `stock_history`
+Origem dos dados de vendas por PDV:
+- PRINTMYCASE GERAL: 873 registros de planilha (Out 2025) - fonte: spreadsheet
+- Boulevard Tatuape: 56 registros de planilha (Feb 2026) + 46 via API
+- Tiete Plaza: 57 via API
 
-## Contrato da API
+Problema raiz na `ingest-stock`: cada chamada de slot individual cria 1 upload separado, resultando em 99.141 uploads fantasma.
 
-**Endpoint:** `POST /ingest-stock`  
-**Auth:** `Authorization: Bearer <api_key>`
+---
 
-**Body (JSON):**
+## Plano de Execucao
 
-```json
-{
-  "device_id": "ABC123",
-  "records": [
-    {
-      "slot_number": "1",
-      "product_name": "APPLE iPhone 15",
-      "quantity": 5,
-      "is_active": true
-    },
-    {
-      "slot_number": "2",
-      "product_name": "SAMSUNG Galaxy S24",
-      "quantity": 3,
-      "is_active": true
-    }
-  ]
-}
-```
+### Parte 1 - Zerar todos os dados
 
-**Response (201):**
+Remover em ordem correta (dependencias de chave estrangeira):
 
-```json
-{
-  "success": true,
-  "pdv_id": "uuid",
-  "records_inserted": 10,
-  "records_deleted": 8
-}
-```
+1. Deletar `stock_history` (todos os snapshots)
+2. Deletar `stock_records` (todos os registros de estoque)
+3. Deletar `sales_records` (todos os registros de vendas)
+4. Deletar `upload_anomalies` (ja esta vazio, mas garantir)
+5. Deletar todos os `uploads` (as 99.143 entradas)
+
+Isso libera a plataforma para receber planilhas novas e limpas.
+
+### Parte 2 - Corrigir a Edge Function ingest-stock
+
+O problema esta no passo 6 da funcao atual: ela cria um `upload` para CADA slot individual enviado. Com 85 slots por PDV, isso gera 85 uploads por ciclo de sync.
+
+**Solucao: reutilizar ou consolidar o upload do dia**
+
+Logica nova:
+- Ao receber um slot, verificar se ja existe um upload de API para aquele PDV na data de hoje com `file_name` no padrao `api-stock-YYYY-MM-DD`
+- Se existir, reutilizar o `upload_id` e apenas incrementar `records_count`
+- Se nao existir, criar um novo
+
+Isso reduz de N uploads por dia para 1 upload por PDV por dia.
+
+### Parte 3 - Corrigir a logica do stock_history
+
+Atualmente, o history grava `total_quantity: quantity` (valor de um unico slot). O correto e somar todas as quantidades do brand naquele PDV naquele dia.
+
+**Logica nova para o history:**
+- Apos inserir o slot, fazer uma query `SUM(quantity)` e `COUNT(slots ativos)` para aquele brand+pdv no dia
+- Usar esse valor agregado no upsert do `stock_history`
+
+---
 
 ## Detalhes Tecnicos
 
-### 1. Criar `supabase/functions/ingest-stock/index.ts`
+### SQL de limpeza (executado via migracao)
 
-- Reutilizar helpers de sanitizacao do `ingest-revenue` (inline, pois edge functions nao compartilham codigo)
-- Fluxo:
-  1. Validar API key via hash lookup em `api_keys`
-  2. Validar `device_id` e resolver PDV
-  3. Validar array `records` (campos obrigatorios: `slot_number`, `product_name`, `quantity`)
-  4. Deletar todos `stock_records` do PDV (`WHERE pdv_id = ?`)
-  5. Inserir novos registros em chunks de 500
-  6. Gerar snapshot `stock_history` (upsert por `pdv_id + snapshot_date + brand`)
-  7. Atualizar `last_used_at` da API key
-
-### 2. Configurar `supabase/config.toml`
-
-```toml
-[functions.ingest-stock]
-verify_jwt = false
+```sql
+-- Ordem importa por causa das referencias
+DELETE FROM stock_history;
+DELETE FROM stock_records;
+DELETE FROM sales_records;
+DELETE FROM upload_anomalies;
+DELETE FROM uploads;
 ```
 
-JWT desabilitado pois a autenticacao e feita via API key (mesmo padrao do `ingest-revenue`).
+### Mudanca na Edge Function ingest-stock
 
-### 3. Seguranca
+```typescript
+// ANTES: cria 1 upload por slot
+const { data: upload } = await supabase
+  .from("uploads")
+  .insert({ file_name: `api-stock-${new Date().toISOString()}`, ... })
 
-- Usa `SUPABASE_SERVICE_ROLE_KEY` para operacoes de banco (bypass RLS), mesmo padrao do `ingest-revenue`
-- API key hashada com SHA-256 antes de lookup
-- Sanitizacao de todos os campos de entrada (previne injection)
-- Validacao de limites de tamanho dos campos
-- Limite maximo de registros por request (ex: 1000) para evitar abuse
+// DEPOIS: reutiliza ou cria 1 upload por PDV por dia
+const today = new Date().toISOString().split("T")[0];
+const dailyFileName = `api-stock-${today}`;
 
-### 4. Logica de Substituicao Atomica
+const { data: existingUpload } = await supabase
+  .from("uploads")
+  .select("id, records_count")
+  .eq("pdv_id", pdv.id)
+  .eq("file_name", dailyFileName)
+  .maybeSingle();
 
-A delecao + insercao acontece no mesmo request. Diferente do `process-spreadsheet` que deleta por `upload_id`, aqui deletamos por `machine_id` diretamente, ja que nao ha upload associado (source = "api").
-
-```text
-[Request] --> [Validate API Key] --> [Resolve PDV]
-    --> [DELETE stock_records WHERE machine_id = X AND slot_number = Y]
-    --> [INSERT new records]
-    --> [UPSERT stock_history]
-    --> [Response 201]
+let uploadId: string;
+if (existingUpload) {
+  // Incrementar contador
+  await supabase.from("uploads").update({
+    records_count: (existingUpload.records_count ?? 0) + 1
+  }).eq("id", existingUpload.id);
+  uploadId = existingUpload.id;
+} else {
+  // Criar novo upload do dia
+  const { data: newUpload } = await supabase.from("uploads").insert({
+    file_name: dailyFileName,
+    records_count: 1,
+    ...
+  }).select("id").single();
+  uploadId = newUpload.id;
+}
 ```
 
-### 5. Nenhuma mudanca no banco necessaria
+### Correcao do stock_history
 
-As tabelas `stock_records`, `stock_history`, e `api_keys` ja existem com as colunas necessarias. As RLS policies existentes permitem operacoes via service role key.
+```typescript
+// Somar total do brand apos inserir o slot
+const { data: brandTotals } = await supabase
+  .from("stock_records")
+  .select("quantity, is_active")
+  .eq("pdv_id", pdv.id)
+  .ilike("product_name", `${brand}%`); // ou filtrar pelo brand
+
+const totalQty = brandTotals.reduce((sum, r) => sum + r.quantity, 0);
+const activeSlots = brandTotals.filter(r => r.is_active).length;
+
+// Upsert com valores corretos
+```
+
+---
+
+## Arquivos que serao alterados
+
+- `supabase/functions/ingest-stock/index.ts` - correcao da logica de upload e history
+- Migracao SQL para zerar os dados
