@@ -1,61 +1,75 @@
 
-# Verificação de 100% da Plataforma — Impacto de Exclusão de PDVs
+# Proteção Reforçada Contra Exclusão Acidental de PDV
 
-## Situação Atual
+## Diagnóstico
 
-A correção anterior resolveu os fluxos de Settings > PDVs e Settings > Equipe. Porém, a varredura completa da plataforma revelou 3 pontos adicionais que precisam de atenção:
+O PDV "Tatuapé" foi excluído e, como as foreign keys têm `ON DELETE CASCADE`, todos os dados vinculados (vendas, estoque, uploads) foram permanentemente removidos junto. Não restou nenhum registro órfão — a cascata funcionou, mas o usuário não tinha proteção suficiente para evitar o clique acidental.
 
-## Pontos Identificados
+A feature de contagem de impacto foi implementada, mas o PDV foi apagado antes dela estar em vigor. Para que isso nunca mais ocorra, o plano é adicionar **múltiplas camadas de proteção** no fluxo de exclusão.
 
-### Ponto 1 — `Uploads.tsx`: `usePDVs()` sem `organizationId`
+## Camadas de Proteção Propostas
 
-```typescript
-// src/pages/Uploads.tsx, linha 64
-const { pdvs, isLoading: pdvsLoading } = usePDVs();
+### Camada 1 — Bloqueio com dados (já implementada, porém insuficiente)
+
+O diálogo atual mostra a contagem e desabilita o botão durante o carregamento. Mas o problema é que **quando há registros, ainda é possível confirmar com um único clique após ver o aviso**.
+
+### Camada 2 — Confirmação por digitação do nome (nova)
+
+Para PDVs com dados (salesCount > 0 OU stockCount > 0), exigir que o usuário **digite o nome exato do PDV** em um campo de texto para desbloquear o botão de exclusão. Isso é o mesmo padrão usado pelo GitHub, AWS e outros sistemas ao deletar recursos críticos.
+
+```
+[campo de texto]  Digite "Tietê Plaza Shopping" para confirmar
 ```
 
-Para super_admin, este hook sem filtro retorna PDVs de **todas as organizações**. O filtro de PDV na página de Uploads exibe essas opções misturadas, podendo mostrar PDVs de outras organizações.
+O botão "Excluir Permanentemente" só fica ativo quando o texto digitado corresponde exatamente ao nome do PDV.
 
-**Fix:** Passar `{ organizationId: profile?.organization_id ?? undefined }` — o mesmo padrão já aplicado em `PDVsSettings.tsx`.
+### Camada 3 — Proteção para PDV sem dados (melhoria visual)
 
-### Ponto 2 — `Settings.tsx`: bloco "PDVs Ativos" sem `organizationId`
+Para PDVs sem dados (zerados), manter o fluxo simples sem exigir digitação — apenas a confirmação do clique já é suficiente, pois não há risco de perda de dados.
 
-```typescript
-// src/pages/Settings.tsx, linha 36
-const { pdvs, isLoading: pdvsLoading } = usePDVs();
+## Fluxo Revisado
+
+```text
+Clique no ícone lixeira de um PDV
+        ↓
+Diálogo abre — hook busca contagem
+        ↓
+[Se PDV tem dados: salesCount > 0 OU stockCount > 0]
+  ┌─────────────────────────────────────────────────────┐
+  │ ⚠️  ATENÇÃO: Dados que serão excluídos               │
+  │  📊  709 registros de vendas                          │
+  │  📦  85  registros de estoque                         │
+  │                                                       │
+  │  Para confirmar, digite o nome do PDV:                │
+  │  ┌─────────────────────────────────────────────────┐ │
+  │  │ Tietê Plaza Shopping                            │ │
+  │  └─────────────────────────────────────────────────┘ │
+  └─────────────────────────────────────────────────────┘
+  Botão [Excluir Permanentemente] só ativa quando texto = nome
+        ↓
+[Se PDV não tem dados]
+  Diálogo simples sem campo de texto — botão sempre ativo
 ```
-
-A aba Organização exibe um bloco "PDVs Ativos" com até 5 PDVs. Para super_admin, pode mostrar PDVs de orgs diferentes misturadas.
-
-**Fix:** Passar `{ organizationId: profile?.organization_id ?? undefined }` no `usePDVs()` do `Settings.tsx`.
-
-### Ponto 3 — `default_pdv` em Preferências não é limpo após exclusão
-
-Quando um PDV é excluído, o campo `default_pdv` na tabela `preferences` do usuário permanece com o ID morto. O hook `useDefaultPdvPreference` já tem uma guarda que verifica se o PDV existe antes de aplicá-lo (`pdvExists`), então não há bug visual — mas o banco fica com um dado inválido.
-
-**Fix:** No `onSuccess` do `deletePDV` em `usePDVs.ts`, verificar se algum usuário tem esse PDV como padrão e limpar o campo. Isso pode ser feito via `queryClient` + chamada ao Supabase para `UPDATE preferences SET default_pdv = null WHERE default_pdv = deletedId`.
-
-Como alternativa mais simples e eficiente: adicionar um banco de dados trigger (migration SQL) que limpa `preferences.default_pdv` automaticamente quando um PDV é deletado — assim a limpeza acontece em cascata sem depender do frontend.
 
 ## Arquivos a Modificar
 
 | Arquivo | Mudança |
 |---|---|
-| `src/pages/Uploads.tsx` | Adicionar `{ organizationId: profile?.organization_id ?? undefined }` no `usePDVs()` e importar `useProfile` |
-| `src/pages/Settings.tsx` | Adicionar `{ organizationId: profile?.organization_id ?? undefined }` no `usePDVs()` |
-| `supabase/migrations/` | Trigger SQL: após DELETE em `pdvs`, limpar `preferences.default_pdv` onde `default_pdv = OLD.id` |
+| `src/components/settings/PDVsSettings.tsx` | Adicionar state `confirmationText`, campo `<Input>` condicional e lógica de comparação no botão de exclusão |
 
-## O que NÃO precisa de mudança
+Nenhuma mudança no banco de dados necessária — a proteção é inteiramente no frontend.
 
-- `src/pages/Index.tsx` — já usa `usePDVs({ organizationId: isSuperAdmin ? selectedOrgId : undefined })` corretamente
-- `src/hooks/useDashboard.ts` — já filtra por `organization_id` corretamente
-- `src/hooks/useSlotsData.ts` — usa RLS do banco, não lista PDVs
-- `src/hooks/useUserAllowedPDVs.ts` — correto
-- `src/components/settings/PDVsSettings.tsx` — já corrigido
+## Detalhes de Implementação
 
-## Resultado Esperado
+- Novo state local: `confirmationText: string` — reseta para `""` sempre que o diálogo fecha ou abre
+- O campo de input só aparece quando `(salesCount > 0 || stockCount > 0) && !isImpactLoading`
+- O botão "Excluir Permanentemente" fica `disabled` quando:
+  - `isImpactLoading` (ainda carregando os dados), OU
+  - `deletePDV.isPending` (exclusão em andamento), OU
+  - `salesCount > 0 || stockCount > 0` E `confirmationText !== deletingPdv?.name` (PDV tem dados e o texto não confere)
+- Placeholder do input: `'Digite "${deletingPdv?.name}" para confirmar'`
+- Label acima do input: texto explicativo claro
 
-Após os fixes:
-- A lista de PDVs em **qualquer tela** da plataforma mostrará apenas os PDVs da organização do usuário logado, sem misturar PDVs de outras organizações
-- Ao excluir um PDV, o campo `default_pdv` de todas as `preferences` que referenciam esse PDV será automaticamente limpo pelo trigger do banco
-- O comportamento é consistente para todos os roles (org_admin, super_admin, operator)
+## Sobre o Plano Anterior (constraint de machine_id)
+
+O plano de corrigir `UNIQUE (machine_id)` para `UNIQUE (machine_id, organization_id)` é **independente e continua válido** — ele resolve um problema diferente (multi-tenant) e deve ser aplicado separadamente. Este plano foca exclusivamente na proteção contra exclusão acidental.
