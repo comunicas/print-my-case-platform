@@ -70,8 +70,9 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
         toast.success("Código enviado!", {
           description: "Verifique seu SMS.",
         });
-      } catch (err: any) {
-        toast.error(err?.message || "Erro ao enviar código. Tente novamente.");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Erro ao enviar código. Tente novamente.";
+        toast.error(message);
       } finally {
         setIsSubmitting(false);
       }
@@ -92,7 +93,7 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
         }
 
         // OTP verified — save lead
-        const { error: leadError } = await supabase.from("catalog_leads" as any).insert({
+        const { error: leadError } = await supabase.from("catalog_leads").insert({
           organization_id: organizationId,
           pdv_id: pdvId,
           phone: rawDigits,

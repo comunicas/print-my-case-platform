@@ -21,7 +21,7 @@ const typeConfig: Record<
   product_request: {
     icon: ShoppingBag,
     className: "text-blue-500 bg-blue-500/10",
-    route: "/settings?tab=pedidos",
+    route: "/settings?tab=requests",
   },
   upload_processed: {
     icon: FileCheck,
@@ -36,7 +36,7 @@ const typeConfig: Record<
   team_member: {
     icon: UserPlus,
     className: "text-purple-500 bg-purple-500/10",
-    route: "/settings?tab=equipe",
+    route: "/settings?tab=team",
   },
 };
 
@@ -206,7 +206,7 @@ export function NotificationsPopover() {
                 variant="ghost"
                 size="sm"
                 className="w-full text-xs text-muted-foreground"
-                onClick={() => navigate("/settings?tab=notificacoes")}
+                onClick={() => navigate("/settings?tab=preferences")}
               >
                 Gerenciar preferências de notificação
               </Button>

@@ -119,7 +119,7 @@ export default function PublicStock() {
 
   const catalogCodeEnabled = organization.catalog_code_enabled && !!organization.catalog_code && !!organization.catalog_qrcode_url;
 
-  const hasActiveFilters = searchTerm || selectedBrand;
+  const hasActiveFilters = !!searchTerm || !!selectedBrand;
 
   const clearFilters = () => {
     setSearchTerm("");
