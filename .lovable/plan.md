@@ -1,260 +1,136 @@
 
-# Fase 7 — Auditoria 100% do Frontend: Limpeza de Legados, Bugs e Conflitos
+# Testes E2E — Fluxo de Notificações
 
-## Sumário Executivo
+## Análise do Componente
 
-Foram lidos e analisados **todos** os arquivos do frontend: 10 páginas, 35+ hooks, 80+ componentes, 6 contextos, 15+ arquivos lib. A seguir o inventário completo com severidade de cada achado.
+Ao ler o `NotificationsPopover.tsx`, identifiquei 3 estados possíveis do popover:
 
----
+1. **Sem notificações** — exibe "Nenhuma notificação" e **NÃO** renderiza o botão "Gerenciar preferências"
+2. **Com notificações** — exibe lista de itens clicáveis + botão "Gerenciar preferências"
+3. **Carregando** — exibe "Carregando..."
 
-## Bugs Críticos (Quebram funcionalidade real)
+Isso cria um desafio real: os testes não podem assumir que o usuário de teste tem notificações no banco. A estratégia é:
 
-### Bug 1 — Rota `tab=perfil` quebrada no AppHeader
+- **Testes condicionais com `skip` automático** quando não há notificações (mesmo padrão dos outros spec files com `if (count > 0)`)
+- **Teste de abertura do popover** — sempre executa, verifica que o popover abre e exibe um dos dois estados válidos
+- **Teste de navegação "Gerenciar preferências"** — executa somente se houver notificações
+- **Teste de navegação por notificação de produto** — executa somente se houver notificação do tipo `product_request`
+- **Teste de fallback de rota** — verifica diretamente a URL de destino `/settings?tab=requests` sem depender de notificações
 
-**Arquivo:** `src/components/layout/AppHeader.tsx`, linha 100
+## Seletores Identificados
 
-```tsx
-// ATUAL — aba "perfil" não existe no Settings.tsx
-navigate("/settings?tab=perfil")
+A partir do código do componente:
 
-// CORRETO — o tab real chama-se "profile"
-navigate("/settings?tab=profile")
-```
-
-**Impacto:** O menu "Meu Perfil" no dropdown do cabeçalho leva a `/settings?tab=perfil` que não corresponde a nenhuma aba definida no `Settings.tsx`. O `activeTab` cai para `"profile"` (fallback do `|| "profile"`), mas o comportamento é indeterminado e o usuário não vê o tab selecionado visualmente.
-
----
-
-### Bug 2 — Rota `tab=notificacoes` inexistente no NotificationsPopover
-
-**Arquivo:** `src/components/layout/NotificationsPopover.tsx`, linha 209
-
-```tsx
-// ATUAL — aba "notificacoes" não existe em Settings.tsx
-navigate("/settings?tab=notificacoes")
-
-// CORRETO — remover ou redirecionar para preferences onde ficam preferências
-navigate("/settings?tab=preferences")
-```
-
-**Impacto:** Botão "Gerenciar preferências de notificação" no popover navega para uma aba inexistente.
-
----
-
-### Bug 3 — Rota `tab=pedidos` e `tab=equipe` inconsistentes no NotificationsPopover
-
-**Arquivo:** `src/components/layout/NotificationsPopover.tsx`, linhas 24 e 39
-
-```tsx
-// ATUAL — nomes errados
-route: "/settings?tab=pedidos",  // linha 24
-route: "/settings?tab=equipe",   // linha 39
-
-// CORRETO — nomes reais definidos em Settings.tsx
-route: "/settings?tab=requests", // corresponde ao TabsTrigger value="requests"
-route: "/settings?tab=team",     // corresponde ao TabsTrigger value="team"
-```
-
-**Impacto:** Clicar em uma notificação de `product_request` ou `team_member` navega para abas que não existem.
-
----
-
-### Bug 4 — `catalog_leads as any` — cast de tipo desnecessário
-
-**Arquivo:** `src/components/public/ProductCodeModal.tsx`, linha 95
-
-```tsx
-// ATUAL — workaround desnecessário de tipo
-await supabase.from("catalog_leads" as any).insert({...});
-
-// CORRETO — a tabela está no schema gerado automaticamente
-await supabase.from("catalog_leads").insert({...});
-```
-
-**Impacto:** Suprime o type-checking do Supabase SDK para esta operação, tornando-a invisível para o TypeScript em caso de mudanças de schema.
-
----
-
-### Bug 5 — `err: any` sem tipagem em ProductCodeModal
-
-**Arquivo:** `src/components/public/ProductCodeModal.tsx`, linha 73
-
-```tsx
-// ATUAL
-} catch (err: any) {
-  toast.error(err?.message || "Erro ao enviar código. Tente novamente.");
-
-// CORRETO
-} catch (err) {
-  const message = err instanceof Error ? err.message : "Erro ao enviar código. Tente novamente.";
-  toast.error(message);
-```
-
----
-
-### Bug 6 — NotFound em inglês (inconsistência crítica de idioma)
-
-**Arquivo:** `src/pages/NotFound.tsx`
-
-A única página em inglês da aplicação toda. Texto "Page not found" e "Return to Home" em app 100% em português.
-
-```tsx
-// ATUAL
-<p className="mb-4 text-xl text-muted-foreground">Oops! Page not found</p>
-<a href="/" className="text-primary underline hover:text-primary/90">Return to Home</a>
-
-// CORRETO
-<p className="mb-4 text-xl text-muted-foreground">Ops! Página não encontrada</p>
-<a href="/" className="text-primary underline hover:text-primary/90">Voltar ao início</a>
-```
-
----
-
-## Código Morto / Legado
-
-### Legado 1 — Constante duplicada: `MAX_SLOT_CAPACITY` vs `MAX_CAPACITY`
-
-**Arquivos:** `src/lib/constants.ts` (linha 12) e `src/lib/stockTypes.ts` (linha 6)
-
-Ambos definem a mesma constante com valor `7`:
-
-```ts
-// constants.ts
-export const MAX_SLOT_CAPACITY = 7; // ← NUNCA IMPORTADA em nenhum arquivo
-
-// stockTypes.ts
-export const MAX_CAPACITY = 7; // ← USADA em stockUtils.ts, stockGridUtils.ts, ProductDetailModal.tsx
-```
-
-`MAX_SLOT_CAPACITY` em `constants.ts` é código morto — nunca foi importada em nenhum arquivo do projeto.
-
-**Ação:** Remover `MAX_SLOT_CAPACITY` de `constants.ts`.
-
----
-
-### Legado 2 — `PAGE_SIZE = 50` hardcoded dentro do hook vs `DEFAULT_PAGE_SIZE` em constants
-
-**Arquivo:** `src/hooks/useUploads.ts`, linha 53
-
-```ts
-// ATUAL — número mágico duplicado
-const PAGE_SIZE = 50;
-
-// CORRETO — usar a constante centralizada
-import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
-// ... usar DEFAULT_PAGE_SIZE no lugar de PAGE_SIZE
-```
-
-`DEFAULT_PAGE_SIZE = 50` já existe em `constants.ts` exatamente para isso.
-
----
-
-### Legado 3 — `exportToExcel` usa `Record<string, any>[]` desnecessariamente
-
-**Arquivo:** `src/lib/dashboardUtils.ts`, linha 471
-
-```ts
-// ATUAL — any desnecessário
-export function exportToExcel(data: Record<string, any>[], filename: string)
-
-// CORRETO
-export function exportToExcel(data: Record<string, unknown>[], filename: string)
-```
-
-Função apenas repassa dados para XLSX — nenhum campo precisa de `any`.
-
----
-
-### Legado 4 — `Record<string, any>` em SalesHeatmapChart e StockHistoryChart
-
-**Arquivos:**
-- `src/components/dashboard/SalesHeatmapChart.tsx`, linha 55-56
-- `src/components/dashboard/StockHistoryChart.tsx`, linha 44
-
-Ambos criam objetos `Record<string, any>` localmente para passar para `exportToExcel`. Com a correção do Legado 3, basta alterar para `Record<string, unknown>`.
-
----
-
-## Conflitos de Navegação / Inconsistências de Rota
-
-### Conflito 1 — Tabs do Settings com nomes inconsistentes entre arquivos
-
-Mapeamento completo do estado atual:
-
-| Tab real (Settings.tsx) | Rota errada usada |
+| Elemento | Seletor a usar |
 |---|---|
-| `profile` | `perfil` (AppHeader) |
-| `requests` | `pedidos` (NotificationsPopover) |
-| `team` | `equipe` (NotificationsPopover) |
-| `preferences` | `notificacoes` (NotificationsPopover — destino errado) |
+| Botão do sino (trigger) | `button:has(svg[data-lucide="bell"])` ou texto do aria + `[data-testid="notifications-trigger"]` (a adicionar) |
+| Header "Notificações" | `h4:has-text("Notificações")` |
+| Empty state | `text=Nenhuma notificação` |
+| Botão "Gerenciar preferências" | `text=Gerenciar preferências de notificação` |
+| Notificação de produto (ShoppingBag) | ícone + tipo no container |
+| Botão "Marcar todas como lidas" | `text=Marcar todas como lidas` |
 
-Todos os 4 casos corretos já identificados nos Bugs 1–3 acima.
+Para tornar os seletores mais robustos, vou adicionar `data-testid` a 3 elementos críticos no `NotificationsPopover.tsx`:
+- `data-testid="notifications-trigger"` no `PopoverTrigger`
+- `data-testid="notifications-popover-content"` no `PopoverContent`
+- `data-testid="notification-item"` em cada `NotificationItem`
+- `data-testid="manage-preferences-btn"` no botão "Gerenciar preferências"
 
----
+## Arquivos a Criar/Editar
 
-## Outros Achados de Qualidade (Baixo Risco)
+| Arquivo | Operação | Motivo |
+|---|---|---|
+| `e2e/notifications.spec.ts` | CRIAR | Arquivo principal com todos os testes |
+| `src/components/layout/NotificationsPopover.tsx` | EDITAR | Adicionar `data-testid` nos elementos testáveis |
 
-### Qualidade 1 — `hasActiveFilters` em `PublicStock.tsx` com tipo `string | null` em vez de `boolean`
+## Estrutura dos Testes (9 cenários)
 
-**Arquivo:** `src/pages/PublicStock.tsx`, linha 122
+### Suite principal: `Notifications Popover — Navigation Flow`
 
-```tsx
-// ATUAL — truthy/falsy implícito, mas não boolean explícito
-const hasActiveFilters = searchTerm || selectedBrand;
+**Cenário 1 — Abertura do Popover**
+- Navega para `/` (dashboard)
+- Aguarda carregamento
+- Clica no botão do sino (trigger)
+- Verifica que `h4` com texto "Notificações" está visível
+- Verifica que está em um dos estados válidos: empty state OU lista de notificações
 
-// CORRETO — boolean explícito
-const hasActiveFilters = !!searchTerm || !!selectedBrand;
+**Cenário 2 — Estado vazio exibe mensagem correta**
+- Abre o popover
+- Se empty state visível: confirma texto "Nenhuma notificação"
+- Confirma que botão "Gerenciar preferências" NÃO está visível (comportamento correto do componente)
+
+**Cenário 3 — Fecha o popover ao pressionar Escape**
+- Abre o popover
+- Pressiona `Escape`
+- Verifica que popover fechou
+
+**Cenário 4 — Botão "Gerenciar preferências" navega para `?tab=preferences`**
+- Abre o popover
+- `if` botão "Gerenciar preferências" visível: clica nele
+- Aguarda navegação
+- Verifica URL contém `/settings`
+- Verifica que a aba "Preferências" está visualmente ativa (via `TabsTrigger[data-state="active"]` com texto "Preferências") **OU** verifica `searchParams.tab=preferences` na URL
+- Este é o teste central do Bug 2 corrigido na Fase 7
+
+**Cenário 5 — Notificação de `product_request` navega para `?tab=requests`**
+- Abre o popover
+- Busca por notificação com ícone ShoppingBag (`[data-testid="notification-item"][data-type="product_request"]`)
+- Se encontrado: clica na notificação
+- Verifica URL contém `/settings?tab=requests` **OU** verifica aba "Pedidos" ativa
+- Este é o teste central do Bug 3 corrigido na Fase 7
+
+**Cenário 6 — Notificação de `upload_processed` navega para `/uploads/:id`**
+- Abre o popover
+- Busca por notificação do tipo `upload_processed`
+- Se encontrado com `metadata.upload_id`: verifica que navega para `/uploads/[uuid]`
+- Se sem upload_id: verifica que navega para `/uploads`
+
+**Cenário 7 — Notificação de `stock_alert` navega para `/estoque`**
+- Abre o popover, clica em stock_alert se disponível
+- Verifica navegação para `/estoque`
+
+**Cenário 8 — Notificação de `team_member` navega para `?tab=team`**
+- Abre o popover, clica em team_member se disponível
+- Verifica URL com `tab=team` e aba "Equipe" ativa
+
+**Cenário 9 — "Meu Perfil" no header navega para `?tab=profile`**
+- Clica no dropdown de avatar no header
+- Clica em "Meu Perfil"
+- Verifica URL com `tab=profile` e aba "Perfil" ativa visualmente
+- Este testa o Bug 1 corrigido na Fase 7
+
+## Estratégia de Resiliência
+
+Seguindo o padrão do projeto (`if (count > 0)`):
+- Testes que dependem de notificações existentes usam `const hasNotifications = await notificationItems.count() > 0`
+- Se não houver dados: o teste passa com skip implícito (sem `expect` executado), evitando falhas em CI com banco vazio
+- A verificação de navegação usa `page.waitForURL` com timeout de 5s para ser resiliente a latência
+
+## Verificação de Tab Ativa
+
+Para confirmar que a aba correta está selecionada após navegação (mais robusto que verificar apenas a URL):
+
+```typescript
+// Verifica aba ativa pelo atributo data-state do Radix UI Tabs
+await expect(
+  page.locator('[role="tab"][data-state="active"]')
+).toContainText("Preferências"); // ou "Pedidos", "Perfil", "Equipe"
 ```
 
----
+Isso garante que o routing funcionou E o componente React respondeu à mudança de URL, validando o fluxo completo de ponta a ponta.
 
-### Qualidade 2 — Animação CSS de badge não definida no Tailwind/CSS global
+## Atributos `data-testid` a Adicionar no Componente
 
-**Arquivo:** `src/components/ui/PDVFilter.tsx`, linhas 104-105
+```tsx
+// PopoverTrigger Button
+<Button data-testid="notifications-trigger" ...>
 
-As classes `animate-badge-fade-in` e `animate-badge-fade-out` são usadas mas **não estão definidas** em `src/index.css` nem em `tailwind.config.ts`. Isso significa que a animação de entrada/saída do badge "Auto" nunca funciona — o badge simplesmente aparece e desaparece sem transição.
+// PopoverContent
+<PopoverContent data-testid="notifications-popover-content" ...>
 
-**Ação:** Adicionar as keyframes e utilitários no `tailwind.config.ts` ou `index.css`.
+// Div do NotificationItem
+<div data-testid="notification-item" data-type={notification.type} data-id={notification.id} ...>
 
----
-
-## Resumo dos Arquivos a Modificar
-
-| Arquivo | Tipo de mudança | Severidade |
-|---|---|---|
-| `src/components/layout/AppHeader.tsx` | CORRIGIR `tab=perfil` → `tab=profile` | CRÍTICO |
-| `src/components/layout/NotificationsPopover.tsx` | CORRIGIR 3 rotas de tabs (`pedidos`, `equipe`, `notificacoes`) | CRÍTICO |
-| `src/components/public/ProductCodeModal.tsx` | CORRIGIR `as any` e `err: any` | MÉDIO |
-| `src/pages/NotFound.tsx` | CORRIGIR textos para português | MÉDIO |
-| `src/lib/constants.ts` | REMOVER `MAX_SLOT_CAPACITY` (código morto) | BAIXO |
-| `src/hooks/useUploads.ts` | SUBSTITUIR `PAGE_SIZE = 50` por `DEFAULT_PAGE_SIZE` | BAIXO |
-| `src/lib/dashboardUtils.ts` | CORRIGIR `Record<string, any>[]` → `Record<string, unknown>[]` | BAIXO |
-| `src/components/dashboard/SalesHeatmapChart.tsx` | CORRIGIR `Record<string, any>` → `Record<string, unknown>` | BAIXO |
-| `src/components/dashboard/StockHistoryChart.tsx` | CORRIGIR `Record<string, any>` → `Record<string, unknown>` | BAIXO |
-| `src/pages/PublicStock.tsx` | CORRIGIR `hasActiveFilters` para boolean explícito | BAIXO |
-| `tailwind.config.ts` ou `src/index.css` | ADICIONAR animações `badge-fade-in` / `badge-fade-out` | BAIXO |
-
-**Total: 11 arquivos com 12 correções distintas, nenhuma envolve migrações de banco ou Edge Functions.**
-
----
-
-## O que foi verificado e está CORRETO (sem alterações)
-
-- Todas as páginas principais (Dashboard, Stock, Marketing, Settings, Organizations, Auth, PublicStock, UploadDetails, Uploads) — sem bugs estruturais
-- `StockFiltersContext.tsx` — lógica correta, tipos corretos, clearFilters completo
-- `useProductStock` — filtros, agregação, sales index — sem problemas
-- `useNotifications` — polling, markAsRead, markAllAsRead, deleteNotification — corretos
-- `useSlotsData` — query, transforms, `placeholderData` — correto
-- `PDVFilter` — lógica de default, Auto badge, save/clear — correto (apenas animação CSS ausente)
-- `useDefaultPdvPreference` — auto-apply, initialized flag — correto
-- `AppLayout`, `AppSidebar`, `MobileSidebar` — navegação, collapsed, prefetch — corretos
-- `AppHeader` — theme toggle, signOut, avatar, role labels — correto (exceto rota `tab=perfil`)
-- `ProductModalContext` — lazy load, open/close — correto
-- `ProductDetailModal` — tabs, analytics, slots, skeleton — correto
-- Todos os `console.log` já removidos (busca retornou zero resultados)
-- `src/index.css` — design system completo, dark mode, sem conflitos
-- `src/lib/utils.ts` — `cn`, `formatCurrency`, `formatNumber`, `parseZodErrors`, `getInitials`, `pluralize` — sem duplicações
-- `src/lib/trendUtils.ts` — correto
-- `src/lib/stockTypes.ts`, `stockLabels.ts`, `stockViewModes.ts`, `stockGridUtils.ts` — corretos
-- `NotFound.tsx` — estrutura correta, só i18n errado
-- `ShortLinkRedirect.tsx` — correto
+// Botão "Gerenciar preferências"
+<Button data-testid="manage-preferences-btn" ...>
+```
