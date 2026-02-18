@@ -8,7 +8,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BrandLogo } from '@/components/ui/BrandLogo';
-import { MAX_CAPACITY } from '@/lib/stockGridUtils';
+import { MAX_CAPACITY } from '@/lib/stockTypes';
 import { cn } from '@/lib/utils';
 import { Package, MapPin, BarChart3, Clock, TrendingUp } from 'lucide-react';
 import { useMemo } from 'react';

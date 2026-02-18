@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { toast } from "sonner";
 import { UploadStatus, UploadType, uploadTypeLabels } from "@/lib/schemas/upload";
-import { usePagination, PaginationControls } from "@/hooks/usePaginatedQuery";
+import { usePagination } from "@/hooks/usePaginatedQuery";
 import { parseUploadError, parseDeleteError } from "@/lib/errors/uploadErrors";
 
 /** Interface para upload com dados de PDV e uploader (resultado de query com joins) */
@@ -40,59 +40,77 @@ interface UploadsQueryResult {
   totalCount: number;
 }
 
+/** Filtros aplicados server-side na query de uploads */
+export interface UploadsFilters {
+  pdvId?: string;
+  type?: UploadType | "all";
+  status?: UploadStatus | "all";
+  search?: string;
+}
+
 const PAGE_SIZE = 50;
 
-export function useUploads() {
+export function useUploads(filters: UploadsFilters = {}) {
   const { user } = useAuth();
   const { profile, isAdmin } = useProfile();
   const queryClient = useQueryClient();
   const pagination = usePagination(PAGE_SIZE);
 
+  const { pdvId, type, status, search } = filters;
+
   const uploadsQuery = useQuery({
-    queryKey: ["uploads", profile?.organization_id, pagination.page, pagination.pageSize],
+    queryKey: ["uploads", profile?.organization_id, pagination.page, pagination.pageSize, pdvId, type, status, search],
     queryFn: async (): Promise<UploadsQueryResult> => {
       const { from, to } = pagination.getRange();
 
-      // First, get total count for pagination
-      const { count, error: countError } = await supabase
+      // Contagem total com filtros server-side
+      let countQuery = supabase
         .from("uploads")
         .select("*", { count: "exact", head: true });
-
+      if (pdvId && pdvId !== "all") countQuery = countQuery.eq("pdv_id", pdvId);
+      if (type && type !== "all") countQuery = countQuery.eq("type", type);
+      if (status && status !== "all") countQuery = countQuery.eq("status", status);
+      const { count, error: countError } = await countQuery;
       if (countError) throw countError;
 
-      // Get paginated uploads with PDV data
-      const { data: uploadsData, error } = await supabase
+      // Query principal com filtros + paginação server-side
+      let dataQuery = supabase
         .from("uploads")
-        .select(`
-          *,
-          pdv:pdvs(name, machine_id)
-        `)
+        .select(`*, pdv:pdvs(name, machine_id)`)
         .order("uploaded_at", { ascending: false })
         .range(from, to);
+      if (pdvId && pdvId !== "all") dataQuery = dataQuery.eq("pdv_id", pdvId);
+      if (type && type !== "all") dataQuery = dataQuery.eq("type", type);
+      if (status && status !== "all") dataQuery = dataQuery.eq("status", status);
 
+      const { data: uploadsData, error } = await dataQuery;
       if (error) throw error;
 
-      // Get unique uploader IDs
+      // Busca perfis dos uploaders
       const uploaderIds = [...new Set(uploadsData.map((u) => u.uploaded_by))];
+      const profilesData = uploaderIds.length > 0
+        ? (await supabase.from("profiles").select("id, name").in("id", uploaderIds)).data
+        : [];
 
-      // Fetch profiles separately
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, name")
-        .in("id", uploaderIds);
+      const profilesMap = new Map((profilesData || []).map((p) => [p.id, p]));
 
-      const profilesMap = new Map(profiles?.map((p) => [p.id, p]) || []);
-
-      // Merge uploader data
-      const uploads = uploadsData.map((upload) => ({
+      let uploads = uploadsData.map((upload) => ({
         ...upload,
         uploader: profilesMap.get(upload.uploaded_by) || { name: "Usuário" },
       })) as UploadListItem[];
 
-      return {
-        uploads,
-        totalCount: count || 0,
-      };
+      // Filtro de busca client-side (cobre file_name, period e pdv.name — pdv.name não é coluna de uploads)
+      if (search?.trim()) {
+        const term = search.trim().toLowerCase();
+        uploads = uploads.filter(
+          (u) =>
+            u.pdv?.name?.toLowerCase().includes(term) ||
+            u.file_name?.toLowerCase().includes(term) ||
+            u.period?.toLowerCase().includes(term)
+        );
+      }
+
+      return { uploads, totalCount: count || 0 };
     },
     enabled: !!profile?.organization_id,
   });
@@ -227,11 +245,23 @@ export function useUploads() {
           .eq("upload_id", uploadId);
         if (salesDeleteError) throw salesDeleteError;
       } else {
+        // Deleta stock_records do upload
         const { error: stockDeleteError } = await supabase
           .from("stock_records")
           .delete()
           .eq("upload_id", uploadId);
         if (stockDeleteError) throw stockDeleteError;
+
+        // Corrigido: também limpa stock_history para evitar snapshots órfãos
+        // que corrompem os gráficos de histórico de estoque
+        const { error: historyDeleteError } = await supabase
+          .from("stock_history")
+          .delete()
+          .eq("upload_id", uploadId);
+        if (historyDeleteError) {
+          console.warn("Failed to delete stock_history entries:", historyDeleteError);
+          // Não falha a operação — stock_history é derivado e pode ser regenerado
+        }
       }
 
       // Delete file from storage if exists

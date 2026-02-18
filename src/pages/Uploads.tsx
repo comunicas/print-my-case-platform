@@ -60,7 +60,6 @@ import { DataPagination } from "@/components/ui/data-pagination";
 
 export default function Uploads() {
   const navigate = useNavigate();
-  const { uploads, isLoading, createUpload, deleteUpload, pagination, totalCount } = useUploads();
   const { pdvs, isLoading: pdvsLoading } = usePDVs();
   const { isAdmin } = useProfile();
 
@@ -77,19 +76,12 @@ export default function Uploads() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingUpload, setDeletingUpload] = useState<UploadListItem | null>(null);
 
-  const filteredUploads = uploads.filter((upload) => {
-    // Proteção contra dados incompletos
-    if (!upload.pdv?.name) return false;
-    
-    const matchesSearch =
-      upload.file_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      upload.pdv.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      upload.period?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesPdv = filterPdv === "all" || upload.pdv_id === filterPdv;
-    const matchesType = filterType === "all" || upload.type === filterType;
-    const matchesStatus = filterStatus === "all" || upload.status === filterStatus;
-
-    return matchesSearch && matchesPdv && matchesType && matchesStatus;
+  // Filtros server-side: evita inconsistência ao paginar com filtros ativos
+  const { uploads: filteredUploads, isLoading, createUpload, deleteUpload, pagination, totalCount } = useUploads({
+    pdvId: filterPdv,
+    type: filterType as UploadType | "all",
+    status: filterStatus as UploadStatus | "all",
+    search: searchQuery,
   });
 
   const handleUploadSubmit = (data: {

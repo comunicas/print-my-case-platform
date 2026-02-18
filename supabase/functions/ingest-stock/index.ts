@@ -247,25 +247,24 @@ Deno.serve(async (req) => {
     // 9. Atualizar stock_history com totais AGREGADOS do brand (não valor de um único slot)
     const brand = extractBrand(productName);
 
-    // Buscar todos os slots do brand neste PDV para calcular totais corretos
-    const { data: brandRecords, error: brandError } = await supabase
+    // Corrigido: busca TODOS os registros do PDV e filtra por marca em memória
+    // (antes: query ilike com string vazia para OUTROS retornava TODOS os produtos, gerando totais errados)
+    const { data: allPdvRecords, error: allRecordsError } = await supabase
       .from("stock_records")
-      .select("quantity, is_active")
-      .eq("pdv_id", pdv.id)
-      .ilike("product_name", `${brand === "OUTROS" ? "" : brand}%`);
+      .select("product_name, quantity, is_active")
+      .eq("pdv_id", pdv.id);
 
-    // Para OUTROS, filtrar manualmente os que não são de marcas conhecidas
-    const knownBrands = ["APPLE", "SAMSUNG", "MOTOROLA", "XIAOMI", "LG", "HUAWEI", "SONY", "NOKIA", "REALME", "POCO"];
-    const filteredRecords = brand === "OUTROS"
-      ? (brandRecords ?? []).filter(r => {
-          const upper = (r as any).product_name?.toUpperCase() ?? "";
-          return !knownBrands.some(b => upper.startsWith(b + " ") || upper.includes(" " + b + " ") || upper === b);
-        })
-      : (brandRecords ?? []);
+    // knownBrands não é mais necessária — o filtro de brand agora usa extractBrand() em memória
 
-    if (!brandError && filteredRecords.length > 0) {
-      const totalQty = filteredRecords.reduce((sum, r) => sum + (r.quantity ?? 0), 0);
-      const activeSlots = filteredRecords.filter(r => r.is_active).length;
+    // Filtra registros do brand atual em memória — evita query ilike incorreta para OUTROS
+    const brandRecords = (allPdvRecords ?? []).filter(r => {
+      const recordBrand = extractBrand((r as { product_name: string }).product_name ?? "");
+      return recordBrand === brand;
+    });
+
+    if (!allRecordsError && brandRecords.length > 0) {
+      const totalQty = brandRecords.reduce((sum, r) => sum + ((r as { quantity: number }).quantity ?? 0), 0);
+      const activeSlots = brandRecords.filter(r => (r as { is_active: boolean }).is_active).length;
 
       const { data: existingHistory } = await supabase
         .from("stock_history")

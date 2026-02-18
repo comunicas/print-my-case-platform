@@ -1,4 +1,4 @@
-import { X, ShoppingCart } from 'lucide-react';
+import { X, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -7,6 +7,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useStockFilters, SaleStatusFilter } from '@/contexts/StockFiltersContext';
 import { usePDVs } from '@/hooks/usePDVs';
 import { BrandLogo } from '@/components/ui/BrandLogo';
@@ -121,37 +127,52 @@ export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockF
       </Select>
 
       {/* Sale Status Filter */}
-      <Select value={saleStatusFilter} onValueChange={(v) => setSaleStatusFilter(v as SaleStatusFilter)}>
-        <SelectTrigger className="w-full sm:w-[160px]" data-testid="sale-status-filter">
-          <SelectValue placeholder="Status venda" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="completed">
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-500" />
-              Concluídas
-            </span>
-          </SelectItem>
-          <SelectItem value="cancelled">
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-destructive" />
-              Canceladas
-            </span>
-          </SelectItem>
-          <SelectItem value="refunded">
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-orange-500" />
-              Reembolsadas
-            </span>
-          </SelectItem>
-          <SelectItem value="all">
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-muted-foreground" />
-              Todas
-            </span>
-          </SelectItem>
-        </SelectContent>
-      </Select>
+      <div className="flex items-center gap-1">
+        <Select value={saleStatusFilter} onValueChange={(v) => setSaleStatusFilter(v as SaleStatusFilter)}>
+          <SelectTrigger className="w-full sm:w-[160px]" data-testid="sale-status-filter">
+            <SelectValue placeholder="Status venda" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="completed">
+              <span className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-green-500" />
+                Concluídas
+              </span>
+            </SelectItem>
+            <SelectItem value="cancelled">
+              <span className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-destructive" />
+                Canceladas
+              </span>
+            </SelectItem>
+            <SelectItem value="refunded">
+              <span className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-orange-500" />
+                Reembolsadas
+              </span>
+            </SelectItem>
+            <SelectItem value="all">
+              <span className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-muted-foreground" />
+                Todas
+              </span>
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="h-4 w-4 text-muted-foreground cursor-help flex-shrink-0" />
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs">
+              <p className="text-xs">
+                <strong>Padrão: Concluídas.</strong> Filtra quais vendas são usadas para calcular o índice de vendas de cada produto. 
+                Cancelamentos e reembolsos são excluídos do cálculo por padrão.
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
 
       {/* Clear Filters */}
       {hasActiveFilters && (

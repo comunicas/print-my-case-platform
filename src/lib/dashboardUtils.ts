@@ -2,6 +2,7 @@ import { format, getDay, getHours, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { extractBrandFromProductName } from "./productNormalization";
 import { getBrandChartColor } from "./brandAssets";
+import { getSalesIndex } from "./stockUtils";
 
 // Types
 export interface SaleRecord {
@@ -333,12 +334,7 @@ export function getLowStockItems(
     .sort((a, b) => a.quantity - b.quantity);
 }
 
-function getSalesIndex(count: number): 'high' | 'medium' | 'low' | 'none' {
-  if (count === 0) return 'none';
-  if (count >= 20) return 'high';
-  if (count >= 5) return 'medium';
-  return 'low';
-}
+// getSalesIndex removida: usa a versão canônica de stockUtils.ts (sem duplicação)
 
 // ===== KPI CALCULATION FUNCTIONS =====
 
