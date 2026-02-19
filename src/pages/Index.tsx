@@ -341,7 +341,7 @@ export default function Index() {
         )}
 
         {/* KPI Cards - 2 columns on mobile, 3 on sm, 6 on desktop */}
-        <div data-testid="kpi-grid" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-4">
+        <div data-testid="kpi-grid" className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2 md:gap-4">
           <KPICard
             testId="kpi-revenue"
             title="Receita"
