@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, subMonths, differenceInDays, getYear } from "date-fns";
+import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, subMonths, differenceInDays, getYear, getMonth, setMonth, setYear } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CalendarIcon, ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,13 @@ const PRESETS = [
   { label: "Mês passado", getDates: () => ({ from: startOfMonth(subMonths(today, 1)), to: endOfMonth(subMonths(today, 1)) }) },
 ];
 
+const MONTHS_PT = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+
+const YEARS = Array.from({ length: 8 }, (_, i) => 2020 + i);
+
 function parseDateInput(value: string): Date | null {
   const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (!match) return null;
@@ -63,15 +70,18 @@ export function DateRangeFilter({
 }: DateRangeFilterProps) {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [pendingFrom, setPendingFrom] = useState<Date | undefined>(undefined);
+  const [currentMonth, setCurrentMonth] = useState<Date>(dateRange.from ?? new Date());
   const [fromInput, setFromInput] = useState("");
   const [toInput, setToInput] = useState("");
 
   const currentYear = getYear(new Date());
   const daysDiff = differenceInDays(dateRange.to, dateRange.from) + 1;
 
+
   const handlePresetClick = (getDates: () => { from: Date; to: Date }) => {
     const dates = getDates();
     onDateRangeChange(dates);
+    setCurrentMonth(dates.from);
   };
 
   const handleViewAll = () => {
@@ -147,6 +157,7 @@ export function DateRangeFilter({
       setFromInput(formatDateInput(dateRange.from));
       setToInput(formatDateInput(dateRange.to));
       setPendingFrom(undefined);
+      setCurrentMonth(dateRange.from);
     } else {
       setPendingFrom(undefined);
       setFromInput("");
@@ -191,7 +202,7 @@ export function DateRangeFilter({
               <ChevronDown className="h-3 w-3" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0 max-h-[85vh] overflow-y-auto" align="start">
+          <PopoverContent className="w-auto p-0" align="start">
             {/* Manual date inputs */}
             <div className="flex items-center gap-2 p-3 border-b border-border">
               <div className="flex flex-col gap-1">
@@ -226,6 +237,29 @@ export function DateRangeFilter({
               </Button>
             </div>
 
+            {/* Month + Year navigation selects — always visible */}
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30">
+              <span className="text-xs text-muted-foreground shrink-0">Navegar:</span>
+              <select
+                value={getMonth(currentMonth)}
+                onChange={(e) => setCurrentMonth(setMonth(currentMonth, Number(e.target.value)))}
+                className="text-sm border border-border rounded px-2 py-1 bg-popover text-popover-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                {MONTHS_PT.map((m, i) => (
+                  <option key={i} value={i}>{m}</option>
+                ))}
+              </select>
+              <select
+                value={getYear(currentMonth)}
+                onChange={(e) => setCurrentMonth(setYear(currentMonth, Number(e.target.value)))}
+                className="text-sm border border-border rounded px-2 py-1 bg-popover text-popover-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                {YEARS.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+
             {/* Pending selection hint */}
             {pendingFrom && (
               <div className="px-3 py-1.5 text-xs text-muted-foreground bg-muted/50 border-b border-border">
@@ -237,6 +271,8 @@ export function DateRangeFilter({
               mode="range"
               selected={calendarSelected}
               onSelect={handleCalendarSelect}
+              month={currentMonth}
+              onMonthChange={setCurrentMonth}
               disabled={(date) => {
                 if (dataRange) {
                   return date < dataRange.min || date > dataRange.max;
@@ -244,9 +280,6 @@ export function DateRangeFilter({
                 return date > endOfDay(new Date());
               }}
               numberOfMonths={2}
-              captionLayout="dropdown-buttons"
-              fromYear={2020}
-              toYear={currentYear + 1}
               className="pointer-events-auto"
             />
           </PopoverContent>
