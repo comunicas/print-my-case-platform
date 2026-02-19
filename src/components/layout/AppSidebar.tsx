@@ -81,7 +81,7 @@ export function AppSidebar({
   const renderNavItem = (item: NavItem) => {
     const Icon = item.icon;
     const isActive = activeItem === item.href;
-    const handlePrefetch = prefetchMap[item.href as keyof typeof prefetchMap];
+    const handlePrefetch = (prefetchMap as Partial<Record<string, () => void>>)[item.href];
 
     const button = (
       <button
