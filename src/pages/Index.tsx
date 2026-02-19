@@ -171,13 +171,9 @@ export default function Index() {
     transactions: 0,
     avgTicket: 0,
     activePdvs: 0,
-    revenueChange: 0,
-    transactionsChange: 0,
-    refundsChange: 0,
     previousRefunds: 0,
     totalCancellations: 0,
     cancelledTransactions: 0,
-    cancellationsChange: 0,
     previousCancellationsTotal: 0,
     previousRevenue: 0,
     previousTransactions: 0,
@@ -344,8 +340,8 @@ export default function Index() {
           </Card>
         )}
 
-        {/* KPI Cards - 2 columns on mobile, 6 on desktop */}
-        <div data-testid="kpi-grid" className="grid grid-cols-2 lg:grid-cols-6 gap-2 md:gap-4">
+        {/* KPI Cards - 2 columns on mobile, 3 on sm, 6 on desktop */}
+        <div data-testid="kpi-grid" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-4">
           <KPICard
             testId="kpi-revenue"
             title="Receita"

@@ -79,15 +79,14 @@ export interface SalesAmountRecord {
 }
 
 export interface KPIData {
+  // Current period values
   totalRevenue: number;
   grossRevenue: number;
   totalRefunds: number;
   refundedTransactions: number;
   transactions: number;
   avgTicket: number;
-  revenueChange: number;
-  transactionsChange: number;
-  refundsChange: number;
+  // Previous period values (for trend calculation)
   previousRevenue: number;
   previousTransactions: number;
   previousAvgTicket: number;
@@ -351,14 +350,6 @@ export function calculateTotalRevenue(sales: SalesAmountRecord[]): number {
   );
 }
 
-/**
- * Calcula a variação percentual entre dois valores (uso interno)
- * API pública: use calculatePercentageChange de trendUtils.ts
- */
-function calculateRawPercentage(current: number, previous: number): number {
-  if (previous === 0) return 0;
-  return ((current - previous) / previous) * 100;
-}
 
 /**
  * Calcula todos os KPIs do dashboard a partir dos dados de vendas
@@ -393,15 +384,6 @@ export function calculateKPIs(
   const previousTransactions = previousSales.length;
   
   // Calcula reembolsos do período anterior
-  const previousRefunds = previousSales.reduce(
-    (sum, record) => sum + Number(record.refund_amount || 0),
-    0
-  );
-
-  const revenueChange = calculateRawPercentage(totalRevenue, previousRevenue);
-  const transactionsChange = calculateRawPercentage(transactions, previousTransactions);
-  const refundsChange = calculateRawPercentage(totalRefunds, previousRefunds);
-
   const previousAvgTicket = previousTransactions > 0
     ? previousRevenue / previousTransactions
     : 0;
@@ -413,9 +395,6 @@ export function calculateKPIs(
     refundedTransactions,
     transactions,
     avgTicket,
-    revenueChange,
-    transactionsChange,
-    refundsChange,
     previousRevenue,
     previousTransactions,
     previousAvgTicket,

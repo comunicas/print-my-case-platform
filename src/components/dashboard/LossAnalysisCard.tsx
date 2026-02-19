@@ -7,6 +7,7 @@ interface LossAnalysisCardProps {
   cancelledTransactions: number;
   totalRefunds: number;
   refundedTransactions: number;
+  animationDelay?: number;
 }
 
 export function LossAnalysisCard({
@@ -14,6 +15,7 @@ export function LossAnalysisCard({
   cancelledTransactions,
   totalRefunds,
   refundedTransactions,
+  animationDelay = 0,
 }: LossAnalysisCardProps) {
   const totalLosses = totalCancellations + totalRefunds;
   
@@ -28,7 +30,11 @@ export function LossAnalysisCard({
     : 0;
 
   return (
-    <Card data-testid="loss-analysis-card">
+    <Card
+      data-testid="loss-analysis-card"
+      className="animate-fade-in-up"
+      style={{ animationDelay: `${animationDelay}ms`, animationFillMode: "backwards" }}
+    >
       <CardHeader className="px-4 md:px-6 pt-4 md:pt-6 pb-3">
         <CardTitle className="flex items-center gap-2 text-base md:text-lg">
           <TrendingDown className="h-5 w-5 text-muted-foreground" />

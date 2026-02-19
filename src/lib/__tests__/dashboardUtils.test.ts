@@ -11,7 +11,6 @@ import {
   getQuickStats,
   getLowStockItems,
   getLossesByDay,
-  CancellationRecord,
   SaleRecord,
   HeatmapCell,
 } from '../dashboardUtils';
@@ -162,8 +161,8 @@ describe('calculateKPIs', () => {
       expect(kpis.totalRevenue).toBe(0);
       expect(kpis.transactions).toBe(0);
       expect(kpis.avgTicket).toBe(0);
-      expect(kpis.revenueChange).toBe(0);
-      expect(kpis.transactionsChange).toBe(0);
+      expect(kpis.previousRevenue).toBe(0);
+      expect(kpis.previousTransactions).toBe(0);
     });
 
     it('deve calcular KPIs com vendas atuais apenas', () => {
@@ -177,11 +176,11 @@ describe('calculateKPIs', () => {
       expect(kpis.totalRevenue).toBe(300);
       expect(kpis.transactions).toBe(2);
       expect(kpis.avgTicket).toBe(150);
-      expect(kpis.revenueChange).toBe(0);
-      expect(kpis.transactionsChange).toBe(0);
+      expect(kpis.previousRevenue).toBe(0);
+      expect(kpis.previousTransactions).toBe(0);
     });
 
-    it('deve calcular variações com ambos períodos', () => {
+    it('deve calcular valores anteriores com ambos períodos', () => {
       const currentSales: SalesAmountRecord[] = [
         { amount: 200 },
         { amount: 200 },
@@ -196,8 +195,8 @@ describe('calculateKPIs', () => {
       expect(kpis.totalRevenue).toBe(400);
       expect(kpis.transactions).toBe(2);
       expect(kpis.avgTicket).toBe(200);
-      expect(kpis.revenueChange).toBe(100);
-      expect(kpis.transactionsChange).toBe(0);
+      expect(kpis.previousRevenue).toBe(200);
+      expect(kpis.previousTransactions).toBe(2);
     });
   });
 
@@ -220,8 +219,8 @@ describe('calculateKPIs', () => {
     });
   });
 
-  describe('variações percentuais', () => {
-    it('deve calcular queda de receita', () => {
+  describe('valores do período anterior', () => {
+    it('deve calcular previousRevenue corretamente (queda de receita)', () => {
       const currentSales: SalesAmountRecord[] = [
         { amount: 100 },
       ];
@@ -231,10 +230,11 @@ describe('calculateKPIs', () => {
       
       const kpis = calculateKPIs(currentSales, previousSales);
       
-      expect(kpis.revenueChange).toBe(-50);
+      expect(kpis.previousRevenue).toBe(200);
+      expect(kpis.totalRevenue).toBe(100);
     });
 
-    it('deve calcular aumento de transações', () => {
+    it('deve calcular previousTransactions corretamente (aumento de transações)', () => {
       const currentSales: SalesAmountRecord[] = [
         { amount: 50 },
         { amount: 50 },
@@ -248,7 +248,8 @@ describe('calculateKPIs', () => {
       
       const kpis = calculateKPIs(currentSales, previousSales);
       
-      expect(kpis.transactionsChange).toBe(100);
+      expect(kpis.previousTransactions).toBe(2);
+      expect(kpis.transactions).toBe(4);
     });
   });
 
