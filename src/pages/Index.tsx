@@ -318,6 +318,10 @@ export default function Index() {
             dateRange={dateRange}
             onDateRangeChange={setDateRange}
             dataRange={dashboardDataRange}
+            onReset={() => {
+              localStorage.removeItem('dashboard-date-range');
+              setDateRange(getDateRangeFromPeriod(preferences?.default_period ?? "30days"));
+            }}
           />
           
           {/* Organization Filter - Super Admin only */}
