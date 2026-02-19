@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { usePreferences } from "./usePreferences";
 
 const STORAGE_KEY_COLLAPSED = "sidebar-collapsed";
-const STORAGE_KEY_STOCK = "sidebar-reports-expanded"; // Keep same key for backwards compatibility
+const STORAGE_KEY_STOCK = "sidebar-stock-expanded";
 const STORAGE_KEY_MARKETING = "sidebar-marketing-expanded";
 
 export function useSidebarPreferences() {
@@ -54,8 +54,8 @@ export function useSidebarPreferences() {
   const updateMarketingExpanded = useCallback((value: boolean) => {
     setMarketingExpanded(value);
     localStorage.setItem(STORAGE_KEY_MARKETING, String(value));
-    // Marketing expanded is only stored locally for now
-  }, []);
+    updatePreferences.mutate({ sidebar_reports_expanded: value });
+  }, [updatePreferences]);
 
   return {
     collapsed,
