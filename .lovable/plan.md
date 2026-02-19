@@ -1,74 +1,85 @@
 
-# Corrigir Grid da Visão Consolidada no Breakpoint Tablet
+# Causa da Discrepância: Receita Global vs. Receita do Dashboard
 
-## Problema Identificado
+## O Problema — Diagnóstico Técnico
 
-O grid atual `grid-cols-2 sm:grid-cols-3 md:grid-cols-5` ativa 5 colunas a partir de 768px (breakpoint `md` do Tailwind). Com a sidebar colapsada ocupando ~56px, o conteúdo disponível em 834px é ~762px — resultando em ~140px por card. Isso causa dois problemas visuais:
+A diferença entre "Receita Global" (R$ 58.269,02 / 818 transações) e "Receita" nos KPI Cards (R$ 39.285,39 / 547 transações) é causada por um **filtro de status ausente na query de globalMetrics**.
 
-- "338" e "Transações Global" colam visualmente em "R$ 23.556,30" (overflow/colapso)
-- O label "Ticket Médio Global" quebra em 2 linhas
+### Comparação direta das queries:
 
-O breakpoint `md` do app é na verdade o início do range "tablet" (768-1024px), onde a sidebar já está colapsada. O 5-colunas só comporta bem a partir de `lg` (≥1024px), alinhado com o `TABLET_BREAKPOINT = 1024` definido em `use-mobile.tsx`.
-
-## Estado Atual vs. Desejado
-
-```text
-ATUAL:
-grid-cols-2  sm:grid-cols-3  md:grid-cols-5
-  <640px       640-767px      768px+          ← 5 colunas muito cedo
-
-DESEJADO:
-grid-cols-2  sm:grid-cols-3  md:grid-cols-3  lg:grid-cols-5
-  <640px       640-767px      768-1023px      1024px+       ← alinhado com o layout do app
+**Query dos KPI Cards (filtrada corretamente):**
+```typescript
+// linha ~119-132 useDashboard.ts
+supabase
+  .from("sales_records")
+  .select("amount, refund_amount")
+  .gte("payment_date", startDate.toISOString())
+  .lte("payment_date", endDate.toISOString())
+  .in("status", ["Completed", "Pago", "Concluído"])  // ← filtra apenas pagamentos bem-sucedidos
 ```
 
-## Mudança
-
-### `src/pages/Index.tsx` — linha 252
-
-Uma única mudança de classe CSS no `div` do grid interno da Visão Consolidada:
-
-```tsx
-// Atual
-<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-
-// Corrigido
-<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+**Query dos globalMetrics (SEM filtro de status — linha 202):**
+```typescript
+supabase
+  .from("sales_records")
+  .select("amount, refund_amount")
+  .gte("payment_date", startDate.toISOString())
+  .lte("payment_date", endDate.toISOString())
+  // ← sem .in("status", [...]) → inclui Cancelled, Cancelado, pendentes, etc.
 ```
 
-Isso remove o `md:grid-cols-5` e substitui por `lg:grid-cols-5`, fazendo o salto para 5 colunas só acontecer em ≥1024px (onde há espaço suficiente mesmo com a sidebar expandida).
+### Por que os números divergem:
 
-## Layout Resultante por Breakpoint
-
-```text
-MOBILE (<640px) — 2 colunas, 3 linhas:
-[ Organizações      ] [ PDVs Total          ]
-[ Receita Global    ] [ Transações Global   ]
-[ Ticket Médio Global ]
-
-TABLET (640-1023px) — 3 colunas, 2 linhas:
-[ Organizações   ] [ PDVs Total      ] [ Receita Global    ]
-[ Transações Global ] [ Ticket Médio Global ]
-
-DESKTOP (≥1024px) — 5 colunas, 1 linha:
-[ Organizações ] [ PDVs Total ] [ Receita Global ] [ Transações Global ] [ Ticket Médio Global ]
+```
+globalMetrics inclui:
+  ✅ Completed / Pago / Concluído  → 547 transações  → R$ 39.285,39
+  ❌ Cancelled / Canceled           → 262 transações  → R$ 18.913,80  (cancelamentos pré-pagamento)
+  ❌ Outros status (pendentes, etc) → restante        → diferença residual
+  ─────────────────────────────────────────────────────
+  TOTAL globalMetrics               → 818 transações  → R$ 58.269,02
 ```
 
-Este layout é idêntico ao que o plano original pretendia — a linha `sm:grid-cols-3` já cobre 640-1023px adequadamente para os 5 cards.
+Isso explica exatamente os números na imagem: os **R$ 18.913,80 de Cancelamentos** visíveis na "Análise de Perdas" são incluídos indevidamente na "Receita Global".
 
-## Alinhamento com o Sistema de Breakpoints do App
+O Ticket Médio Global (R$ 71,23) também fica incorreto como consequência, pois divide R$ 58.269,02 por 818 em vez de R$ 39.285,39 por 547.
 
-O hook `use-mobile.tsx` define:
-- `mobile` = < 768px
-- `tablet` = 768–1023px  
-- `desktop` = ≥ 1024px
+## Correção
 
-O `lg` do Tailwind (≥1024px) mapeia exatamente para "desktop" — a sidebar fica expandida ou colapsada por escolha do usuário, mas há espaço suficiente para 5 colunas.
+### Arquivo: `src/hooks/useDashboard.ts` — linha 202
+
+Adicionar o mesmo `.in("status", ...)` da query principal:
+
+```typescript
+// ANTES (linha 202):
+supabase
+  .from("sales_records")
+  .select("amount, refund_amount")
+  .gte("payment_date", startDate.toISOString())
+  .lte("payment_date", endDate.toISOString()),
+
+// DEPOIS:
+supabase
+  .from("sales_records")
+  .select("amount, refund_amount")
+  .gte("payment_date", startDate.toISOString())
+  .lte("payment_date", endDate.toISOString())
+  .in("status", ["Completed", "Pago", "Concluído"]),
+```
+
+Esta é a **única mudança necessária** — uma linha adicionada — sem impacto em nenhum outro componente.
+
+## Resultado Esperado Após a Correção
+
+```
+Visão Consolidada (Receita Global):  R$ 39.285,39   ✅ igual ao KPI Card
+Visão Consolidada (Transações):      547             ✅ igual ao KPI Card
+Ticket Médio Global:                 R$ 71,82        ✅ igual ao Ticket Médio dos KPI Cards
+```
 
 ## Arquivo a Modificar
 
 | Arquivo | Linha | Mudança |
 |---|---|---|
-| `src/pages/Index.tsx` | 252 | `md:grid-cols-5` → `lg:grid-cols-5` (remover `md:`, adicionar `lg:`) |
+| `src/hooks/useDashboard.ts` | 202 | Adicionar `.in("status", ["Completed", "Pago", "Concluído"])` na query de globalSalesResult |
 
-Mudança cirúrgica de 1 linha, zero impacto em outros componentes, sem alteração de lógica.
+Mudança cirúrgica de 1 linha, sem novos imports, sem impacto em banco de dados ou outros componentes.
