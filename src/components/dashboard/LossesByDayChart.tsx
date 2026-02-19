@@ -50,6 +50,7 @@ export function LossesByDayChart({ data, animationDelay = 0 }: LossesByDayChartP
 
   return (
     <ChartCard
+      testId="losses-by-day-chart"
       title="Perdas por Dia"
       description="Cancelamentos e reembolsos ao longo do período"
       icon={TrendingDown}

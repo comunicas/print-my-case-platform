@@ -22,7 +22,8 @@ import {
 import { DASHBOARD_SALES_LIMIT } from "@/lib/constants";
 
 export interface DashboardData {
-    kpis: {
+  kpis: {
+    // Current period values
     totalRevenue: number;
     grossRevenue: number;
     totalRefunds: number;
@@ -30,19 +31,15 @@ export interface DashboardData {
     transactions: number;
     avgTicket: number;
     activePdvs: number;
-    revenueChange: number;
-    transactionsChange: number;
-    refundsChange: number;
-    previousRefunds: number;
     // Cancellations (pre-payment)
     totalCancellations: number;
     cancelledTransactions: number;
-    cancellationsChange: number;
     previousCancellationsTotal: number;
-    // Previous period raw values (used for stable trend calculation)
+    // Previous period values (for trend calculation via calculateTrend)
     previousRevenue: number;
     previousTransactions: number;
     previousAvgTicket: number;
+    previousRefunds: number;
   };
   hasData: boolean;
   globalMetrics?: {
@@ -244,9 +241,6 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
         (sum, record) => sum + Number(record.amount || 0), 0
       );
       
-      const cancellationsChange = previousCancellationsTotal > 0
-        ? ((totalCancellations - previousCancellationsTotal) / previousCancellationsTotal) * 100
-        : 0;
 
       const hasData = currentSales.length > 0;
 
@@ -286,7 +280,6 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
           activePdvs,
           totalCancellations,
           cancelledTransactions,
-          cancellationsChange,
           previousCancellationsTotal,
           previousRefunds,
         },

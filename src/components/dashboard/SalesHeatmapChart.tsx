@@ -7,9 +7,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn, pluralize } from "@/lib/utils";
+import { cn, pluralize, formatCurrency } from "@/lib/utils";
 import { HeatmapCell, TIME_RANGES, getHeatmapPeak, exportToExcel } from "@/lib/dashboardUtils";
-import { formatCurrency } from "@/lib/utils";
 import { ChartCard } from "./ChartCard";
 
 interface SalesHeatmapChartProps {
@@ -80,10 +79,10 @@ export function SalesHeatmapChart({ data, animationDelay = 0 }: SalesHeatmapChar
       animationDelay={animationDelay}
     >
       {data.length > 0 ? (
-        <div>
-          <div 
-            data-testid="heatmap-grid" 
-            className="w-full"
+        <div className="overflow-x-auto">
+          <div
+            data-testid="heatmap-grid"
+            className="w-full min-w-[340px]"
             role="grid"
             aria-label="Mapa de calor de vendas por dia e horário"
           >

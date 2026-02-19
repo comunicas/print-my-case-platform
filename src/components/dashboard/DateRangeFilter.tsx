@@ -22,15 +22,13 @@ interface DateRangeFilterProps {
   className?: string;
 }
 
-const today = new Date();
-
 const PRESETS = [
-  { label: "Hoje",        getDates: () => ({ from: startOfDay(today), to: endOfDay(today) }) },
-  { label: "7d",          getDates: () => ({ from: startOfDay(subDays(today, 6)), to: endOfDay(today) }) },
-  { label: "30d",         getDates: () => ({ from: startOfDay(subDays(today, 29)), to: endOfDay(today) }) },
-  { label: "90d",         getDates: () => ({ from: startOfDay(subDays(today, 89)), to: endOfDay(today) }) },
-  { label: "Este mês",    getDates: () => ({ from: startOfMonth(today), to: endOfDay(today) }) },
-  { label: "Mês passado", getDates: () => ({ from: startOfMonth(subMonths(today, 1)), to: endOfMonth(subMonths(today, 1)) }) },
+  { label: "Hoje",        getDates: () => { const t = new Date(); return { from: startOfDay(t), to: endOfDay(t) }; } },
+  { label: "7d",          getDates: () => { const t = new Date(); return { from: startOfDay(subDays(t, 6)), to: endOfDay(t) }; } },
+  { label: "30d",         getDates: () => { const t = new Date(); return { from: startOfDay(subDays(t, 29)), to: endOfDay(t) }; } },
+  { label: "90d",         getDates: () => { const t = new Date(); return { from: startOfDay(subDays(t, 89)), to: endOfDay(t) }; } },
+  { label: "Este mês",    getDates: () => { const t = new Date(); return { from: startOfMonth(t), to: endOfDay(t) }; } },
+  { label: "Mês passado", getDates: () => { const t = new Date(); return { from: startOfMonth(subMonths(t, 1)), to: endOfMonth(subMonths(t, 1)) }; } },
 ];
 
 const MONTHS_PT = [

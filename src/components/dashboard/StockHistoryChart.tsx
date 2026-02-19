@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { Download } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { History } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
 import { exportToExcel } from "@/lib/dashboardUtils";
 import { pluralize } from "@/lib/utils";
 import { getBrandChartColor } from "@/lib/brandAssets";
+import { ChartCard } from "./ChartCard";
 
 interface StockHistoryData {
   date: string;
@@ -29,15 +30,15 @@ const PERIOD_OPTIONS = [
 
 export function StockHistoryChart({ data, brands, animationDelay = 0 }: StockHistoryChartProps) {
   const [selectedPeriod, setSelectedPeriod] = useState(30);
-  
+
   // Filtra dados pelo período selecionado
   const filteredData = data.slice(-selectedPeriod);
-  
+
   const chartConfig = brands.reduce((acc, brand) => {
     acc[brand] = { label: brand, color: getBrandChartColor(brand) };
     return acc;
   }, {} as Record<string, { label: string; color: string }>);
-  
+
   const handleExport = () => {
     exportToExcel(
       filteredData.map(d => {
@@ -51,100 +52,98 @@ export function StockHistoryChart({ data, brands, animationDelay = 0 }: StockHis
     );
   };
 
+  const periodButtons = (
+    <Badge variant="outline" className="gap-1 p-0.5">
+      {PERIOD_OPTIONS.map((option) => (
+        <Button
+          key={option.days}
+          data-testid={`period-${option.label.toLowerCase()}`}
+          variant={selectedPeriod === option.days ? "default" : "ghost"}
+          size="sm"
+          onClick={() => setSelectedPeriod(option.days)}
+          className="h-6 px-2 text-xs"
+          aria-label={`Mostrar últimos ${option.days} dias`}
+          aria-pressed={selectedPeriod === option.days}
+        >
+          {option.label}
+        </Button>
+      ))}
+    </Badge>
+  );
+
   return (
-    <Card 
-      data-testid="stock-history-chart"
-      className="animate-fade-in-up"
-      style={{ animationDelay: `${animationDelay}ms`, animationFillMode: "backwards" }}
+    <ChartCard
+      testId="stock-history-chart"
+      title="Evolução do Estoque"
+      description="Histórico de estoque por marca no período"
+      icon={History}
+      iconColor="text-primary"
+      onExport={handleExport}
+      exportTestId="export-stock-history"
+      headerBadge={periodButtons}
+      animationDelay={animationDelay}
     >
-      <CardHeader className="flex flex-row items-center justify-between px-4 md:px-6 pt-4 md:pt-6 pb-3">
-        <CardTitle className="text-base md:text-lg">Evolução do Estoque</CardTitle>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
-            {PERIOD_OPTIONS.map((option) => (
-              <Button
-                key={option.days}
-                data-testid={`period-${option.label.toLowerCase()}`}
-                variant={selectedPeriod === option.days ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedPeriod(option.days)}
-                className="h-7 px-2 text-xs"
-                aria-label={`Mostrar últimos ${option.days} dias`}
-                aria-pressed={selectedPeriod === option.days}
-              >
-                {option.label}
-              </Button>
-            ))}
-          </div>
-          <Button data-testid="export-stock-history" variant="ghost" size="sm" onClick={handleExport} className="gap-1.5">
-            <Download className="h-4 w-4" />
-            <span className="hidden sm:inline">Exportar</span>
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
-        {filteredData.length > 0 ? (
-          <ChartContainer config={chartConfig} className="h-[220px] w-full">
-            <LineChart data={filteredData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis 
-                dataKey="dateDisplay" 
-                className="text-xs" 
-                tick={{ fill: "hsl(var(--muted-foreground))" }}
-                interval="preserveStartEnd"
-              />
-              <YAxis 
-                className="text-xs" 
-                tick={{ fill: "hsl(var(--muted-foreground))" }} 
-              />
-              <ChartTooltip 
-                content={
-                  <ChartTooltipContent 
-                    formatter={(value, name) => {
-                      return [
-                        <div key="tooltip" className="flex flex-col gap-0.5">
-                          <span className="font-medium">{name}</span>
-                          <span>{pluralize(Number(value), 'unidade', 'unidades')}</span>
-                        </div>,
-                        ""
-                      ];
-                    }}
-                    labelFormatter={(label) => (
-                      <span className="font-medium text-sm mb-1 block">{label}</span>
-                    )}
-                  />
-                }
-              />
-              {brands.map((brand) => (
-                <Line
-                  key={brand}
-                  type="monotone"
-                  dataKey={brand}
-                  stroke={getBrandChartColor(brand)}
-                  strokeWidth={2}
-                  dot={false}
-                  activeDot={{ r: 4 }}
+      {filteredData.length > 0 ? (
+        <ChartContainer config={chartConfig} className="h-[280px] w-full">
+          <LineChart data={filteredData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <XAxis
+              dataKey="dateDisplay"
+              className="text-xs"
+              tick={{ fill: "hsl(var(--muted-foreground))" }}
+              interval="preserveStartEnd"
+            />
+            <YAxis
+              className="text-xs"
+              tick={{ fill: "hsl(var(--muted-foreground))" }}
+            />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  formatter={(value, name) => {
+                    return [
+                      <div key="tooltip" className="flex flex-col gap-0.5">
+                        <span className="font-medium">{name}</span>
+                        <span>{pluralize(Number(value), 'unidade', 'unidades')}</span>
+                      </div>,
+                      ""
+                    ];
+                  }}
+                  labelFormatter={(label) => (
+                    <span className="font-medium text-sm mb-1 block">{label}</span>
+                  )}
                 />
-              ))}
-              <ChartLegend 
-                content={
-                  <ChartLegendContent 
-                    payload={brands.map(brand => ({
-                      value: brand,
-                      type: "line",
-                      color: getBrandChartColor(brand),
-                    }))}
-                  />
-                }
+              }
+            />
+            {brands.map((brand) => (
+              <Line
+                key={brand}
+                type="monotone"
+                dataKey={brand}
+                stroke={getBrandChartColor(brand)}
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 4 }}
               />
-            </LineChart>
-          </ChartContainer>
-        ) : (
-          <div data-testid="stock-history-empty" className="flex-1 min-h-[250px] flex items-center justify-center text-muted-foreground">
-            Nenhum dado de histórico disponível
-          </div>
-        )}
-      </CardContent>
-    </Card>
+            ))}
+            <ChartLegend
+              content={
+                <ChartLegendContent
+                  payload={brands.map(brand => ({
+                    value: brand,
+                    type: "line",
+                    color: getBrandChartColor(brand),
+                  }))}
+                />
+              }
+            />
+          </LineChart>
+        </ChartContainer>
+      ) : (
+        <div data-testid="stock-history-empty" className="flex-1 min-h-[250px] flex items-center justify-center text-muted-foreground">
+          Nenhum dado de histórico disponível
+        </div>
+      )}
+    </ChartCard>
   );
 }
