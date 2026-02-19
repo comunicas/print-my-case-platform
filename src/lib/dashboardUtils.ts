@@ -88,6 +88,8 @@ export interface KPIData {
   revenueChange: number;
   transactionsChange: number;
   refundsChange: number;
+  previousRevenue: number;
+  previousTransactions: number;
 }
 
 export interface LossesByDayData {
@@ -409,6 +411,8 @@ export function calculateKPIs(
     revenueChange,
     transactionsChange,
     refundsChange,
+    previousRevenue,
+    previousTransactions,
   };
 }
 
