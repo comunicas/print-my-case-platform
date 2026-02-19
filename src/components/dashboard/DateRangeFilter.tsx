@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, subMonths, differenceInDays, getYear, getMonth, setMonth, setYear } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, ChevronDown, X } from "lucide-react";
+import { CalendarIcon, ChevronDown, X, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ interface DateRangeFilterProps {
   dateRange: DateRange;
   onDateRangeChange: (range: DateRange) => void;
   dataRange?: { min: Date; max: Date };
+  onReset?: () => void;
   className?: string;
 }
 
@@ -64,6 +65,7 @@ export function DateRangeFilter({
   dateRange,
   onDateRangeChange,
   dataRange,
+  onReset,
   className,
 }: DateRangeFilterProps) {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -306,6 +308,18 @@ export function DateRangeFilter({
               Ver tudo
             </Button>
           </>
+        )}
+
+        {onReset && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+            onClick={onReset}
+            title="Restaurar período padrão"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+          </Button>
         )}
       </div>
     </div>
