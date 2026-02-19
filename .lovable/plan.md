@@ -1,85 +1,151 @@
 
-# Causa da Discrepância: Receita Global vs. Receita do Dashboard
+# Persistência do Filtro de Datas no Dashboard (localStorage)
 
-## O Problema — Diagnóstico Técnico
+## Diagnóstico do Estado Atual
 
-A diferença entre "Receita Global" (R$ 58.269,02 / 818 transações) e "Receita" nos KPI Cards (R$ 39.285,39 / 547 transações) é causada por um **filtro de status ausente na query de globalMetrics**.
+Em `src/pages/Index.tsx`:
 
-### Comparação direta das queries:
+- `dateRange` é inicializado com `getDateRangeFromPeriod("30days")` (linha 60) — sempre reseta ao navegar.
+- `prefsInitialized` guard (linha 82-94) **sobrescreve** o dateRange com `preferences.default_period` na primeira carga — esse é o conflito central a resolver.
+- Já existe um padrão idêntico de persistência em localStorage para `dashboard-consolidated-open` (linhas 65-73), que serve como referência direta.
+- **Não existe** nenhum hook dedicado para persistência de dateRange.
 
-**Query dos KPI Cards (filtrada corretamente):**
+## Estratégia de Persistência
+
+### Serialização no localStorage
+
+Datas não podem ser serializadas diretamente como `Date` objects em JSON. A estratégia usada será salvar as datas como **ISO strings** e restaurar parseando com `new Date()`:
+
+```json
+// Chave: 'dashboard-date-range'
+{
+  "from": "2026-01-20T03:00:00.000Z",
+  "to": "2026-02-19T02:59:59.999Z"
+}
+```
+
+### Ordem de Prioridade (da mais para menos prioritária)
+
+```text
+1. localStorage (última seleção do usuário na sessão/entre sessões)
+2. preferences.default_period  ← aplica SOMENTE se não há nada salvo
+3. fallback hardcoded "30days"  ← só se nenhum dos anteriores existir
+```
+
+Isso garante que a preferência do servidor (`default_period`) ainda é respeitada no **primeiro acesso** do usuário, mas visitas subsequentes restauram a seleção manual.
+
+### Validação do Valor Restaurado
+
+Antes de aplicar o valor do localStorage, validar:
+- Estrutura `{ from, to }` existe
+- Ambas as datas são válidas (`!isNaN(date.getTime())`)
+- Datas são razoáveis (não no futuro extremo, não antes de 2015)
+
+Se inválido → ignora e aplica `default_period` das preferências.
+
+## Mudanças Necessárias
+
+### Arquivo único: `src/pages/Index.tsx`
+
+**1. Inicialização do `useState` de `dateRange` (linha 60)**
+
+Ler o localStorage **na inicialização** do estado (dentro da função lazy do `useState`), para evitar flash do valor padrão:
+
 ```typescript
-// linha ~119-132 useDashboard.ts
-supabase
-  .from("sales_records")
-  .select("amount, refund_amount")
-  .gte("payment_date", startDate.toISOString())
-  .lte("payment_date", endDate.toISOString())
-  .in("status", ["Completed", "Pago", "Concluído"])  // ← filtra apenas pagamentos bem-sucedidos
-```
-
-**Query dos globalMetrics (SEM filtro de status — linha 202):**
-```typescript
-supabase
-  .from("sales_records")
-  .select("amount, refund_amount")
-  .gte("payment_date", startDate.toISOString())
-  .lte("payment_date", endDate.toISOString())
-  // ← sem .in("status", [...]) → inclui Cancelled, Cancelado, pendentes, etc.
-```
-
-### Por que os números divergem:
-
-```
-globalMetrics inclui:
-  ✅ Completed / Pago / Concluído  → 547 transações  → R$ 39.285,39
-  ❌ Cancelled / Canceled           → 262 transações  → R$ 18.913,80  (cancelamentos pré-pagamento)
-  ❌ Outros status (pendentes, etc) → restante        → diferença residual
-  ─────────────────────────────────────────────────────
-  TOTAL globalMetrics               → 818 transações  → R$ 58.269,02
-```
-
-Isso explica exatamente os números na imagem: os **R$ 18.913,80 de Cancelamentos** visíveis na "Análise de Perdas" são incluídos indevidamente na "Receita Global".
-
-O Ticket Médio Global (R$ 71,23) também fica incorreto como consequência, pois divide R$ 58.269,02 por 818 em vez de R$ 39.285,39 por 547.
-
-## Correção
-
-### Arquivo: `src/hooks/useDashboard.ts` — linha 202
-
-Adicionar o mesmo `.in("status", ...)` da query principal:
-
-```typescript
-// ANTES (linha 202):
-supabase
-  .from("sales_records")
-  .select("amount, refund_amount")
-  .gte("payment_date", startDate.toISOString())
-  .lte("payment_date", endDate.toISOString()),
+// ANTES (linha 60):
+const [dateRange, setDateRange] = useState<DateRange>(() => getDateRangeFromPeriod("30days"));
 
 // DEPOIS:
-supabase
-  .from("sales_records")
-  .select("amount, refund_amount")
-  .gte("payment_date", startDate.toISOString())
-  .lte("payment_date", endDate.toISOString())
-  .in("status", ["Completed", "Pago", "Concluído"]),
+const [dateRange, setDateRange] = useState<DateRange>(() => {
+  try {
+    const saved = localStorage.getItem('dashboard-date-range');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      const from = new Date(parsed.from);
+      const to = new Date(parsed.to);
+      if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
+        return { from, to };
+      }
+    }
+  } catch {}
+  return getDateRangeFromPeriod("30days");
+});
 ```
 
-Esta é a **única mudança necessária** — uma linha adicionada — sem impacto em nenhum outro componente.
+**2. Atualizar o guard de preferências (linhas 81-94)**
 
-## Resultado Esperado Após a Correção
+O bloco `prefsInitialized` atualmente **sempre** sobrescreve `dateRange` com `default_period`. Isso deve ser condicional — só aplica se **não havia nada salvo no localStorage**:
 
+```typescript
+// ANTES:
+useEffect(() => {
+  if (!prefsInitialized && preferences && !isLoadingPreferences && !pdvsLoading) {
+    setDateRange(getDateRangeFromPeriod(preferences.default_period));  // sempre sobrescreve
+    // ...
+    setPrefsInitialized(true);
+  }
+}, [...]);
+
+// DEPOIS:
+useEffect(() => {
+  if (!prefsInitialized && preferences && !isLoadingPreferences && !pdvsLoading) {
+    // Só aplica default_period se não há preferência salva no localStorage
+    const hasSavedRange = !!localStorage.getItem('dashboard-date-range');
+    if (!hasSavedRange) {
+      setDateRange(getDateRangeFromPeriod(preferences.default_period));
+    }
+    // resto do bloco (PDV) permanece igual
+    // ...
+    setPrefsInitialized(true);
+  }
+}, [...]);
 ```
-Visão Consolidada (Receita Global):  R$ 39.285,39   ✅ igual ao KPI Card
-Visão Consolidada (Transações):      547             ✅ igual ao KPI Card
-Ticket Médio Global:                 R$ 71,82        ✅ igual ao Ticket Médio dos KPI Cards
+
+**3. Salvar no localStorage quando `dateRange` muda**
+
+Adicionar `useEffect` análogo ao do `consolidatedOpen`:
+
+```typescript
+// Adicionar após o useEffect do consolidatedOpen (linha 73):
+useEffect(() => {
+  localStorage.setItem('dashboard-date-range', JSON.stringify({
+    from: dateRange.from.toISOString(),
+    to: dateRange.to.toISOString(),
+  }));
+}, [dateRange]);
 ```
 
-## Arquivo a Modificar
+## Comportamento Resultante
 
-| Arquivo | Linha | Mudança |
-|---|---|---|
-| `src/hooks/useDashboard.ts` | 202 | Adicionar `.in("status", ["Completed", "Pago", "Concluído"])` na query de globalSalesResult |
+```text
+PRIMEIRO ACESSO (sem localStorage):
+  → aplica preferences.default_period (ex: "7days")
+  → salva no localStorage
 
-Mudança cirúrgica de 1 linha, sem novos imports, sem impacto em banco de dados ou outros componentes.
+VISITAS SUBSEQUENTES:
+  → restaura do localStorage (ex: range customizado "01/01 - 15/02")
+  → ignora preferences.default_period
+
+PREFERÊNCIA ALTERADA EM SETTINGS:
+  → só terá efeito se o usuário limpar manualmente o localStorage
+    (comportamento esperado — a seleção manual tem prioridade)
+
+RANGE INVÁLIDO NO LOCALSTORAGE (dado corrompido):
+  → ignora silenciosamente, cai no fallback "30days"
+```
+
+## O Que NÃO Muda
+
+- `DateRangeFilter` — zero alterações no componente
+- `useDashboard`, `useDashboardDataRange` — sem toque
+- `usePreferences` — sem toque
+- Lógica de PDV — sem toque
+- Outros hooks e páginas — nenhum impacto
+
+## Arquivos a Modificar
+
+| Arquivo | Mudanças |
+|---|---|
+| `src/pages/Index.tsx` | (1) Lazy initializer do `useState<DateRange>` lê localStorage; (2) Guard de preferências condicionado à ausência de localStorage; (3) `useEffect` que salva dateRange no localStorage |
+
+Total: **3 alterações cirúrgicas em 1 arquivo**, sem novos arquivos, sem novos imports, sem migrações.
