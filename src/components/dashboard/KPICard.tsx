@@ -61,7 +61,7 @@ export function KPICard({
       <CardContent className="px-3 md:px-6 xl:px-3 pb-3 md:pb-6 xl:pb-3">
         <div data-testid="kpi-value" className="text-base md:text-xl xl:text-base font-bold text-foreground truncate">{value}</div>
         
-        <div className="flex items-center gap-1 md:gap-2 mt-0.5 md:mt-1 min-h-[18px]">
+        <div className="flex items-center gap-1 md:gap-2 mt-0.5 md:mt-1 min-h-[18px] overflow-hidden">
           {showTrend && (
             <TooltipProvider>
               <Tooltip>
@@ -90,7 +90,7 @@ export function KPICard({
           )}
           
           {subtitle && (
-            <span className="text-[10px] md:text-xs text-muted-foreground truncate">{subtitle}</span>
+            <span className="text-[10px] md:text-xs text-muted-foreground truncate min-w-0">{subtitle}</span>
           )}
         </div>
       </CardContent>
