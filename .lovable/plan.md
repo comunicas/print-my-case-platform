@@ -1,106 +1,130 @@
 
-# Eliminar Divisões Inversas: previousRevenue e previousTransactions
+# Adicionar Trend ao KPI de Ticket Médio
 
-## Problema
+## Estado Atual
 
-Em `src/pages/Index.tsx`, as trends de Receita e Transações ainda calculam o valor anterior via divisão inversa:
+O card "Ticket Médio" em `Index.tsx` (linha 355-360) é o único dos 5 KPIs de vendas **sem** o prop `trend`:
+
+```tsx
+<KPICard
+  testId="kpi-avg-ticket"
+  title="Ticket Médio"
+  value={formatCurrency(kpis.avgTicket)}
+  icon={TrendingUp}
+  // ← sem trend
+/>
+```
+
+Os outros 4 cards (Receita, Transações, Reembolsos, Cancelamentos) já usam `calculateTrend(currentValue, previousValue, ...)` com valores diretos do hook.
+
+## Causa
+
+`calculateKPIs` em `dashboardUtils.ts` calcula `avgTicket` para o período atual (linha 389), mas nunca calcula `previousAvgTicket`. Consequentemente, `KPIData`, `DashboardData.kpis` e `useDashboard` não expõem esse valor — e `Index.tsx` não tem como calcular o trend de forma segura.
+
+## Como `avgTicket` é calculado
 
 ```typescript
-// FRÁGIL — se revenueChange = -100, resulta em divisão por zero (NaN)
-const revenueTrend = calculateTrend(
-  kpis.totalRevenue,
-  kpis.totalRevenue / (1 + kpis.revenueChange / 100),  // ← instável
+// dashboardUtils.ts linha 389
+const avgTicket = transactions > 0 ? totalRevenue / transactions : 0;
+```
+
+O `previousAvgTicket` segue a mesma lógica, usando os valores já disponíveis `previousRevenue` e `previousTransactions`:
+
+```typescript
+const previousAvgTicket = previousTransactions > 0 
+  ? previousRevenue / previousTransactions 
+  : 0;
+```
+
+Não é necessária nenhuma query adicional ao banco — os dados já estão em memória.
+
+## Mudanças — 3 arquivos, cirúrgicas
+
+### 1. `src/lib/dashboardUtils.ts`
+
+**Na interface `KPIData`** (linha 93, após `previousTransactions`):
+```typescript
+previousAvgTicket: number;
+```
+
+**No `return` de `calculateKPIs`** (após linha 415, antes do fechamento):
+```typescript
+// Calcular previousAvgTicket antes do return
+const previousAvgTicket = previousTransactions > 0 
+  ? previousRevenue / previousTransactions 
+  : 0;
+
+return {
+  ...campos existentes...
+  previousRevenue,
+  previousTransactions,
+  previousAvgTicket, // NOVO
+};
+```
+
+### 2. `src/hooks/useDashboard.ts`
+
+**Na interface `DashboardData.kpis`** (após `previousTransactions: number`):
+```typescript
+previousAvgTicket: number;
+```
+
+O spread `...kpis` no `return` do `queryFn` já trará `previousAvgTicket` automaticamente — sem nenhuma outra mudança no hook.
+
+### 3. `src/pages/Index.tsx`
+
+**No fallback `kpis`** (após `previousTransactions: 0`):
+```typescript
+previousAvgTicket: 0,
+```
+
+**Adicionar o cálculo do trend** (após `cancellationsTrend`, linha ~218):
+```typescript
+const avgTicketTrend = calculateTrend(
+  kpis.avgTicket,
+  kpis.previousAvgTicket,
   dateRange.from,
   dateRange.to
 );
-
-const transactionsTrend = calculateTrend(
-  kpis.transactions,
-  kpis.transactions / (1 + kpis.transactionsChange / 100),  // ← instável
-  dateRange.from,
-  dateRange.to
-);
 ```
 
-## Causa Raiz
-
-`calculateKPIs` em `dashboardUtils.ts` já calcula `previousRevenue` e `previousTransactions` internamente (linhas 389-391), mas a interface `KPIData` não os expõe — então `useDashboard` não os passa, forçando `Index.tsx` a reconstruí-los via matemática inversa.
-
-## Solução
-
-Três mudanças mínimas e cirúrgicas:
-
-### 1. `src/lib/dashboardUtils.ts` — Adicionar ao `KPIData` e ao `return` de `calculateKPIs`
-
-Adicionar `previousRevenue` e `previousTransactions` à interface `KPIData` e incluí-los no objeto retornado por `calculateKPIs`.
-
-### 2. `src/hooks/useDashboard.ts` — Adicionar ao `DashboardData.kpis`
-
-Adicionar `previousRevenue: number` e `previousTransactions: number` à interface `DashboardData.kpis`. No `return` do `queryFn`, o spread `...kpis` já trará esses valores automaticamente após a mudança acima.
-
-### 3. `src/pages/Index.tsx` — Usar valores diretos do hook
-
-Substituir as duas divisões inversas pelos valores diretos:
-
-```typescript
-// ANTES (instável):
-const revenueTrend = calculateTrend(
-  kpis.totalRevenue,
-  kpis.totalRevenue / (1 + kpis.revenueChange / 100),
-  dateRange.from, dateRange.to
-);
-
-// DEPOIS (estável):
-const revenueTrend = calculateTrend(
-  kpis.totalRevenue,
-  kpis.previousRevenue,
-  dateRange.from, dateRange.to
-);
+**Passar o trend ao `KPICard` de Ticket Médio**:
+```tsx
+<KPICard
+  testId="kpi-avg-ticket"
+  title="Ticket Médio"
+  value={formatCurrency(kpis.avgTicket)}
+  icon={TrendingUp}
+  trend={avgTicketTrend}   // ← NOVO
+/>
 ```
 
-```typescript
-// ANTES (instável):
-const transactionsTrend = calculateTrend(
-  kpis.transactions,
-  kpis.transactions / (1 + kpis.transactionsChange / 100),
-  dateRange.from, dateRange.to
-);
-
-// DEPOIS (estável):
-const transactionsTrend = calculateTrend(
-  kpis.transactions,
-  kpis.previousTransactions,
-  dateRange.from, dateRange.to
-);
-```
-
-Também atualizar o fallback `kpis` (linha 166 de `Index.tsx`) para incluir os novos campos com valor `0`.
-
-## Fluxo de Dados após a Mudança
+## Fluxo de Dados
 
 ```text
-previousSalesQuery (já executada no useDashboard)
+previousSales (já buscado no useDashboard)
     ↓
 calculateKPIs(currentSales, previousSales)
-    ↓ retorna previousRevenue e previousTransactions (NOVO)
-useDashboard → kpis.previousRevenue, kpis.previousTransactions
+    ↓ previousRevenue e previousTransactions (já existem)
+    ↓ previousAvgTicket = previousRevenue / previousTransactions (NOVO)
+DashboardData.kpis.previousAvgTicket (NOVO)
     ↓
-Index.tsx → calculateTrend(currentValue, previousValue, ...)
+Index.tsx → calculateTrend(kpis.avgTicket, kpis.previousAvgTicket, ...)
     ↓
-KPICard → trend badge sem risco de NaN
+KPICard trend badge: ex. "+12,5%" ou "Sem dados anteriores"
 ```
-
-## Arquivos a Modificar
-
-| Arquivo | Linha(s) | Mudança |
-|---|---|---|
-| `src/lib/dashboardUtils.ts` | Interface `KPIData` (l.81-91) + `return` de `calculateKPIs` (l.402-413) | Adicionar `previousRevenue` e `previousTransactions` |
-| `src/hooks/useDashboard.ts` | Interface `DashboardData.kpis` (l.25-42) | Adicionar `previousRevenue: number` e `previousTransactions: number` |
-| `src/pages/Index.tsx` | Fallback kpis (l.166-182) + trends (l.188-200) | Usar valores diretos do hook |
 
 ## O que NÃO muda
 
-- Nenhuma query ao banco é adicionada — `previousSales` já é buscado
-- `revenueChange` e `transactionsChange` permanecem no objeto (podem ser úteis em outros contextos)
-- Comportamento visual dos KPI cards é idêntico — só a fonte dos dados muda
-- Todos os outros KPIs (Reembolsos, Cancelamentos) já estão corrigidos e não são tocados
+- Nenhuma query ao banco adicionada
+- Valor exibido no card ("Ticket Médio") idêntico
+- Comportamento dos outros 5 KPI cards não é tocado
+- `avgTicket` atual permanece inalterado
+
+## Arquivos a Modificar
+
+| Arquivo | Onde | Mudança |
+|---|---|---|
+| `src/lib/dashboardUtils.ts` | Interface `KPIData` + `return` de `calculateKPIs` | Adicionar `previousAvgTicket` |
+| `src/hooks/useDashboard.ts` | Interface `DashboardData.kpis` | Adicionar `previousAvgTicket: number` |
+| `src/pages/Index.tsx` | Fallback kpis + trend calculation + KPICard | Usar `previousAvgTicket` no trend |
