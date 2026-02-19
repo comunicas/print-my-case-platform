@@ -57,7 +57,20 @@ export default function Index() {
   const { preferences, isLoading: isLoadingPreferences } = usePreferences();
   const { organizations, isSuperAdmin, refetch: refetchOrgs, isFetching: isRefetchingOrgs } = useOrganizations();
   
-  const [dateRange, setDateRange] = useState<DateRange>(() => getDateRangeFromPeriod("30days"));
+  const [dateRange, setDateRange] = useState<DateRange>(() => {
+    try {
+      const saved = localStorage.getItem('dashboard-date-range');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const from = new Date(parsed.from);
+        const to = new Date(parsed.to);
+        if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
+          return { from, to };
+        }
+      }
+    } catch {}
+    return getDateRangeFromPeriod("30days");
+  });
   const [selectedPdvId, setSelectedPdvId] = useState<string>("all");
   const [pdvWasAutoApplied, setPdvWasAutoApplied] = useState(false);
   const [selectedOrgId, setSelectedOrgId] = useState<string>("all");
@@ -71,6 +84,14 @@ export default function Index() {
   useEffect(() => {
     localStorage.setItem('dashboard-consolidated-open', JSON.stringify(consolidatedOpen));
   }, [consolidatedOpen]);
+
+  // Persist date range to localStorage
+  useEffect(() => {
+    localStorage.setItem('dashboard-date-range', JSON.stringify({
+      from: dateRange.from.toISOString(),
+      to: dateRange.to.toISOString(),
+    }));
+  }, [dateRange]);
   
   // Fetch PDVs filtered by selected organization (for super admins)
   const { pdvs = [], isLoading: pdvsLoading } = usePDVs({ 
@@ -80,7 +101,11 @@ export default function Index() {
   // Initialize from preferences once they load
   useEffect(() => {
     if (!prefsInitialized && preferences && !isLoadingPreferences && !pdvsLoading) {
-      setDateRange(getDateRangeFromPeriod(preferences.default_period));
+      // Only apply default_period if user has no saved date range in localStorage
+      const hasSavedRange = !!localStorage.getItem('dashboard-date-range');
+      if (!hasSavedRange) {
+        setDateRange(getDateRangeFromPeriod(preferences.default_period));
+      }
       
       if (preferences.default_pdv) {
         const pdvExists = pdvs.some(p => p.id === preferences.default_pdv);
