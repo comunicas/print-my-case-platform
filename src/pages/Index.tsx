@@ -179,22 +179,24 @@ export default function Index() {
     cancelledTransactions: 0,
     cancellationsChange: 0,
     previousCancellationsTotal: 0,
+    previousRevenue: 0,
+    previousTransactions: 0,
   };
 
   const globalMetrics = data?.globalMetrics;
   const hasData = data?.hasData || false;
   
-  // Calculate trends
+  // Calculate trends — use direct previous values from hook (safe against NaN on ±100% change)
   const revenueTrend = calculateTrend(
     kpis.totalRevenue,
-    kpis.totalRevenue / (1 + kpis.revenueChange / 100),
+    kpis.previousRevenue,
     dateRange.from,
     dateRange.to
   );
   
   const transactionsTrend = calculateTrend(
     kpis.transactions,
-    kpis.transactions / (1 + kpis.transactionsChange / 100),
+    kpis.previousTransactions,
     dateRange.from,
     dateRange.to
   );

@@ -39,6 +39,9 @@ export interface DashboardData {
     cancelledTransactions: number;
     cancellationsChange: number;
     previousCancellationsTotal: number;
+    // Previous period raw values (used for stable trend calculation)
+    previousRevenue: number;
+    previousTransactions: number;
   };
   hasData: boolean;
   globalMetrics?: {
