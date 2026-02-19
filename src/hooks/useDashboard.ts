@@ -22,7 +22,7 @@ import {
 import { DASHBOARD_SALES_LIMIT } from "@/lib/constants";
 
 export interface DashboardData {
-  kpis: {
+    kpis: {
     totalRevenue: number;
     grossRevenue: number;
     totalRefunds: number;
@@ -33,10 +33,12 @@ export interface DashboardData {
     revenueChange: number;
     transactionsChange: number;
     refundsChange: number;
+    previousRefunds: number;
     // Cancellations (pre-payment)
     totalCancellations: number;
     cancelledTransactions: number;
     cancellationsChange: number;
+    previousCancellationsTotal: number;
   };
   hasData: boolean;
   globalMetrics?: {
@@ -269,6 +271,11 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
       }));
       const lossesByDay = getLossesByDay(salesRecordsForCharts, cancellationsForChart);
 
+      const previousRefunds = previousSales.reduce(
+        (sum, record) => sum + Number(record.refund_amount || 0),
+        0
+      );
+
       return {
         kpis: {
           ...kpis,
@@ -276,6 +283,8 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
           totalCancellations,
           cancelledTransactions,
           cancellationsChange,
+          previousCancellationsTotal,
+          previousRefunds,
         },
         hasData,
         globalMetrics,
