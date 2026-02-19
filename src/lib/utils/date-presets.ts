@@ -18,6 +18,11 @@ export function getDateRangeFromPeriod(period: string | null | undefined): DateR
       return { from: startOfDay(subDays(today, 6)), to: endOfDay(today) };
     case "thisMonth":
       return { from: startOfMonth(today), to: endOfDay(today) };
+    case "lastMonth":
+      return {
+        from: startOfMonth(subMonths(today, 1)),
+        to: endOfMonth(subMonths(today, 1)),
+      };
     case "30days":
     default:
       return { from: startOfDay(subDays(today, 29)), to: endOfDay(today) };
