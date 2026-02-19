@@ -1,65 +1,157 @@
 
-# Correção: Subtitle "126 desistências" Truncado no Card Cancelamentos
+# Ativar `dataRange` no DateRangeFilter com Intervalo Real de Dados
+
+## Objetivo
+
+Passar `dataRange={{ min, max }}` para o `DateRangeFilter` no dashboard, de forma que:
+- O indicador **"Dados: 15/01 - 19/02"** apareça mostrando o intervalo real de registros disponíveis
+- O botão **"Ver tudo"** mude o filtro para cobrir todo o histórico disponível
+- O calendário desabilite datas fora do intervalo de dados reais
 
 ## Diagnóstico
 
-No card **Cancelamentos** em 6 colunas (1280px+), a linha inferior tem dois elementos juntos:
-- Badge `+40.2%` (largura fixa ~52px)
-- Span `"126 desistências"` com `truncate` — trunca para `"126 desistên..."`
-
-O `flex gap-1` na linha inferior deixa pouco espaço para o subtitle quando há badge presente. O mesmo ocorre potencialmente no card **Estoque Crítico** com `"Slots com 0-1 unidades"` — que visualmente parece ok porque não tem badge junto.
-
-## Causa no Código
-
-`KPICard.tsx` linha 64-94 — a div de tendência/subtitle usa um único `flex` sem responsividade para o caso de badge + subtitle simultâneos:
+O `DateRangeFilter` tem toda a lógica já implementada (prop `dataRange`, `handleViewAll`, exibição condicional) — mas em `Index.tsx` o componente é chamado sem essa prop:
 
 ```tsx
-<div className="flex items-center gap-1 md:gap-2 mt-0.5 md:mt-1 min-h-[18px]">
-  {showTrend && <Badge>...</Badge>}
-  {subtitle && (
-    <span className="text-[10px] md:text-xs text-muted-foreground truncate">
-      {subtitle}
-    </span>
-  )}
-</div>
+// Index.tsx — atual (dataRange nunca passado)
+<DateRangeFilter
+  dateRange={dateRange}
+  onDateRangeChange={setDateRange}
+/>
 ```
 
-O span do subtitle tem `truncate` mas sem `min-w-0` — em flex containers isso pode fazer o elemento não encolher adequadamente.
+O que falta é a **fonte de dados**: uma query leve que busca `MIN(payment_date)` e `MAX(payment_date)` de `sales_records`, respeitando os mesmos filtros de organização e PDV que o dashboard.
 
 ## Solução
 
-Duas mudanças pequenas em `KPICard.tsx`:
+### 1. Novo hook: `src/hooks/useDashboardDataRange.ts`
 
-**1. Adicionar `min-w-0` no span do subtitle** para garantir que o flex item possa encolher e o `truncate` funcione com ellipsis limpo:
-```tsx
-<span className="text-[10px] md:text-xs text-muted-foreground truncate min-w-0">
+Hook leve e dedicado que faz **uma única query** na tabela `sales_records` para buscar os limites temporais dos dados. Recebe os mesmos parâmetros de filtro que `useDashboard`:
+
+```typescript
+interface UseDashboardDataRangeParams {
+  selectedOrganizationId?: string | "all";
+  selectedPdvId?: string | "all";
+}
+
+// Retorna:
+interface DashboardDataRange {
+  min: Date;   // payment_date mais antigo disponível
+  max: Date;   // payment_date mais recente disponível
+}
 ```
 
-**2. Adicionar `overflow-hidden` na div container** da linha de trend/subtitle para garantir que o conteúdo interno não vaze:
-```tsx
-<div className="flex items-center gap-1 md:gap-2 mt-0.5 md:mt-1 min-h-[18px] overflow-hidden">
+**Estratégia da query:**
+- `SELECT payment_date FROM sales_records ORDER BY payment_date ASC LIMIT 1` para `min`
+- `SELECT payment_date FROM sales_records ORDER BY payment_date DESC LIMIT 1` para `max`
+- Aplica o mesmo filtro de `pdv_id` que o dashboard: se PDV específico selecionado, filtra por ele; se não, filtra pelos PDVs da organização
+- `staleTime: 10min` (dados históricos mudam raramente)
+- `enabled` apenas quando `profile?.id` ou `isSuperAdmin` estiver disponível
+
+**Query exata (2 sub-queries paralelas):**
+
+```typescript
+const [minResult, maxResult] = await Promise.all([
+  query.order("payment_date", { ascending: true }).limit(1).single(),
+  query.order("payment_date", { ascending: false }).limit(1).single(),
+]);
 ```
 
-**3. Opção alternativa considerada — quebrar em duas linhas:**
-Separar badge e subtitle em linhas distintas com `flex-col` quando ambos existem. Porém isso aumenta a altura mínima do card em todos os breakpoints e muda o design estabelecido. A solução com `min-w-0 + overflow-hidden` é menos invasiva e resolve o truncamento correto.
+Retorna `undefined` se não houver dados.
 
-## Arquivo a Modificar
+### 2. Integração em `src/pages/Index.tsx`
 
-**`src/components/dashboard/KPICard.tsx`** — apenas 2 linhas alteradas:
+Adicionar o hook e passar o resultado ao `DateRangeFilter`:
 
-- Linha 64: adicionar `overflow-hidden` no container da row de trend/subtitle
-- Linha 93: adicionar `min-w-0` no span do subtitle
+```tsx
+// Import novo hook
+import { useDashboardDataRange } from "@/hooks/useDashboardDataRange";
 
-## O Que NÃO muda
+// Usar no componente (junto aos outros hooks)
+const { dataRange } = useDashboardDataRange({
+  selectedOrganizationId: selectedOrgId,
+  selectedPdvId: selectedPdvId,
+});
 
-- Grid breakpoints (`xl:grid-cols-6`) — já correto e aprovado
-- Tamanhos de fonte do KPICard — já corretos
-- Lógica de trends e dados — sem toque
-- Todos os outros cards sem subtitle (Receita, Transações, Ticket Médio, Reembolsos) — não afetados
+// Passar ao DateRangeFilter
+<DateRangeFilter
+  dateRange={dateRange}
+  onDateRangeChange={setDateRange}
+  dataRange={dataRange}    // ← nova prop
+/>
+```
 
-## Resultado Esperado
+O `dataRange` muda automaticamente quando o usuário troca de organização ou PDV, graças ao `queryKey` que inclui esses valores.
 
-| Card | Antes | Depois |
+## Comportamento Resultante
+
+| Situação | Exibição |
+|---|---|
+| Org com dados de Jan/2025 a Fev/2026 | "Dados: 01/01 - 19/02" + "Ver tudo" |
+| PDV específico com dados apenas em Dez/2025 | "Dados: 01/12 - 31/12" + "Ver tudo" |
+| Sem dados ainda | `dataRange = undefined` → sem indicador (comportamento atual) |
+| Clique em "Ver tudo" | `dateRange` atualiza para `{ from: min, to: max }` |
+| Calendário aberto | Datas antes de `min` e após `max` ficam desabilitadas |
+
+## Detalhes Técnicos
+
+### Lógica de filtro de PDV no novo hook
+
+O hook precisa replicar exatamente a mesma lógica de escopo de PDV que `useDashboard`:
+
+```
+1. Se selectedPdvId !== "all" → filtra por pdv_id = selectedPdvId
+2. Se userAllowedPdvIds !== null → filtra pelo conjunto permitido
+3. Se não isSuperAdmin ou org selecionada → busca pdvs da org e filtra
+4. Se isSuperAdmin sem org selecionada → sem filtro (todos os dados)
+```
+
+Para evitar duplicação, pode-se extrair essa lógica de resolução de `pdvIds` para uma função utilitária, ou simplesmente replicá-la no novo hook (mais simples para manter isolamento).
+
+### Cache e performance
+
+- `queryKey: ["dashboard-data-range", orgId, pdvId, isSuperAdmin, userAllowedPdvIds]`
+- `staleTime: 10 * 60 * 1000` — invalida com novos uploads via `queryClient.invalidateQueries({ queryKey: ["dashboard-data-range"] })` já feito no `useUploads` (que invalida `["dashboard"]` — podemos adicionar `["dashboard-data-range"]` ao mesmo hook)
+- A query é extremamente leve: apenas 2 linhas retornadas do banco
+
+### Invalidação ao fazer upload
+
+Em `useUploads.ts`, na `onSuccess` do `createUpload`, já é feita a invalidação:
+```typescript
+queryClient.invalidateQueries({ queryKey: ["uploads"] });
+queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+```
+
+Adicionar:
+```typescript
+queryClient.invalidateQueries({ queryKey: ["dashboard-data-range"] });
+```
+
+E também na callback do `process-spreadsheet` (já dentro do `.then()`):
+```typescript
+queryClient.invalidateQueries({ queryKey: ["dashboard-data-range"] });
+```
+
+## Arquivos a Modificar
+
+| Arquivo | Tipo | Mudança |
 |---|---|---|
-| Cancelamentos 6 col | `+40.2%` `126 desistên...` | `+40.2%` `126 desistências` (com ellipsis se ainda necessário, mas sem corte abrupto) |
-| Estoque Crítico | `Slots com 0-1 unidades` | Inalterado (já ok) |
+| `src/hooks/useDashboardDataRange.ts` | **NOVO** | Hook que busca min/max de payment_date |
+| `src/pages/Index.tsx` | Edição | Importar hook, passar `dataRange` ao DateRangeFilter |
+| `src/hooks/useUploads.ts` | Edição | Invalidar `dashboard-data-range` após upload processado |
+
+## O que NÃO muda
+
+- `DateRangeFilter.tsx` — já está completo e funcional
+- `useDashboard.ts` — sem alteração de lógica de queries
+- Lógica de trends, KPIs, charts — zero impacto
+- Testes existentes — nenhuma quebra de interface pública
+- RLS/banco — sem migrações, query usa a tabela existente `sales_records` com as mesmas políticas de acesso
+
+## Resultado Visual
+
+```text
+[Hoje] [7d] [30d] [90d] [Este mês] [Mês passado] [📅 ▾]
+01/01 - 19/02 (50 dias) • Dados: 15/11 - 19/02  [Ver tudo]
+                                  ↑ NOVO — aparece quando dataRange está disponível
+```
