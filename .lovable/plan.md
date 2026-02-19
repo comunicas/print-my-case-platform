@@ -1,127 +1,124 @@
 
-# Relatório de Testes do Filtro de Datas + Bug NaN%
+# Correção Definitiva: Dropdown de Mês/Ano no Calendário
 
-## Resultado dos Testes
+## Diagnóstico Confirmado por Teste
 
-### Filtros de Data — Tudo Funcionando
-| Funcionalidade | Resultado |
-|---|---|
-| Preset "Este mês" aparece | ✅ Aparece e filtra corretamente (`01/02 - 18/02`, 18 dias) |
-| Preset "Mês passado" aparece | ✅ Aparece e filtra corretamente (`01/01 - 31/01`, 31 dias) |
-| Calendário com dropdown de ano | ✅ Dropdown "Year: 2026" aparece em ambos os meses |
-| Input manual de datas | ✅ Digitei `01/02/2026` → `15/02/2026`, fechou e filtrou automaticamente |
-| Calendário com dropdown de mês | ⚠️ O calendário abre cortado pela borda inferior da tela — só o dropdown de ano aparece, o de mês fica escondido acima da área visível |
+Dois problemas distintos detectados no teste ao vivo:
 
-### Bug Detectado: "NaN%" no card de Reembolsos
+**Problema 1 — NaN% (RESOLVIDO):** O card Reembolsos agora exibe **-100%** corretamente ao selecionar "Mês passado". O bug foi eliminado.
 
-Ao selecionar "Mês passado", o card Reembolsos exibiu `NaN%` em vez de uma porcentagem ou "Sem dados anteriores".
+**Problema 2 — Dropdown de mês inacessível (AINDA PRESENTE):** O `captionLayout="dropdown-buttons"` insere os selects de Mês e Ano dentro do cabeçalho do calendário (topo do componente `DayPicker`). Quando o Radix Popover detecta que o calendário não cabe abaixo do trigger, ele o **flipa para cima** — e os controles do cabeçalho ficam fora da viewport superior. O `max-h-[85vh] overflow-y-auto` adicionado anteriormente não resolve porque o posicionamento do popover inteiro sai do topo da tela, não apenas o conteúdo interno.
 
-**Causa raiz identificada** (linha 201-203 de `src/pages/Index.tsx`):
+**Evidência visual:**
 
-```typescript
-// PROBLEMA: divisão por zero quando refundsChange = -100%
-const previousRefunds = kpis.refundsChange !== 0 
-  ? kpis.totalRefunds / (1 + kpis.refundsChange / 100)  // ← se refundsChange = -100, divide por 0
-  : 0;
+```text
+[topo da tela] ← cabeçalho com Month/Year dropdowns fica aqui (invisível)
+─────────────────────────────────────────────────
+  February     Year: [2026 ▼]   March     Year: [2026 ▼]
+  Su Mo Tu We Th Fr Sa          Su Mo Tu We ...
+   1  2  3  4  5  6  7 ...
 ```
 
-Quando `kpis.refundsChange = -100`, a expressão `1 + (-100/100) = 0`, causando divisão por zero. O mesmo bug existe na linha 212-214 para `previousCancellations`:
+Os dropdowns "Month:" ficam acima da área visível porque o `react-day-picker` os renderiza no topo de cada mês.
 
-```typescript
-const previousCancellations = kpis.cancellationsChange !== 0 
-  ? kpis.totalCancellations / (1 + kpis.cancellationsChange / 100) // ← mesmo problema
-  : 0;
+## Solução Definitiva
+
+**Remover o `captionLayout="dropdown-buttons"` do Calendar** e substituir por selects de mês e ano **dentro do painel de inputs** que já existe no topo do popover — que é sempre visível independente do flip do Radix.
+
+O calendário continuará usando navegação por setas (padrão), mas agora haverá dois selects de controle no painel superior do popover que atualizam o mês exibido via as props `month` e `onMonthChange` do `DayPicker`.
+
+## Arquitetura da Solução
+
+```text
+┌─────────────────────────────────────────────────────┐
+│ [De: DD/MM/AAAA] → [Até: DD/MM/AAAA]   [X]        │  ← painel de inputs (sempre visível)
+│ Mês: [Janeiro ▼] Ano: [2026 ▼]                     │  ← NOVO: selects de navegação aqui
+├─────────────────────────────────────────────────────┤
+│          ← February 2026 →    ← March 2026 →        │  ← calendário sem caption dropdown
+│  Su Mo Tu We Th Fr Sa         Su Mo Tu We Th Fr Sa  │
+│   1  2  3  4  5  6  7 ...                           │
+└─────────────────────────────────────────────────────┘
 ```
 
-**Por que acontece com "Mês passado":** Em janeiro os reembolsos eram R$ 0,00, e no período anterior (dezembro) também podem ser R$ 0,00, mas o cálculo reverso via `refundsChange` produz um denominador zero.
+## Mudanças Técnicas
 
-**Observação sobre o dropdown de mês:** O `captionLayout="dropdown-buttons"` do `react-day-picker` renderiza ambos dropdown de mês e ano, mas o popover abre para baixo, e os controles ficam no topo do calendário — que está sendo cortado pela borda da tela. Isso é um problema de posicionamento do `PopoverContent`.
+### `src/components/dashboard/DateRangeFilter.tsx`
 
----
-
-## Correções Necessárias
-
-### Correção 1 — Bug NaN% (divisão por zero)
-
-A lógica de reconstrução do `previousValue` via divisão inversa é frágil. A correção é guardar diretamente os `previous values` no hook `useDashboard` e passá-los para o KPI.
-
-**Abordagem A (simples):** Adicionar guard para denominador zero em `Index.tsx`:
+**Adicionar estado para o mês exibido:**
 ```typescript
-const denominator = 1 + kpis.refundsChange / 100;
-const previousRefunds = (kpis.refundsChange !== 0 && denominator !== 0)
-  ? kpis.totalRefunds / denominator
-  : 0;
+const [currentMonth, setCurrentMonth] = useState<Date>(dateRange.from || new Date());
 ```
 
-**Abordagem B (robusta):** Expor os `previousRefunds` e `previousCancellations` diretamente do `useDashboard` em vez de reconstruí-los via cálculo inverso em `Index.tsx`.
+**Adicionar selects de Mês e Ano no painel de inputs** (logo após os campos De/Até):
+```tsx
+{/* Navigation: Month + Year selects */}
+<div className="flex items-center gap-2 px-3 pb-2">
+  <select
+    value={getMonth(currentMonth)}
+    onChange={(e) => setCurrentMonth(setMonth(currentMonth, Number(e.target.value)))}
+    className="text-sm border rounded px-2 py-1 bg-popover"
+  >
+    {MONTHS_PT.map((m, i) => (
+      <option key={i} value={i}>{m}</option>
+    ))}
+  </select>
+  <select
+    value={getYear(currentMonth)}
+    onChange={(e) => setCurrentMonth(setYear(currentMonth, Number(e.target.value)))}
+    className="text-sm border rounded px-2 py-1 bg-popover"
+  >
+    {YEARS.map((y) => (
+      <option key={y} value={y}>{y}</option>
+    ))}
+  </select>
+</div>
+```
 
-A Abordagem B é a correta porque a reconstrução reversa é matematicamente instável e desnecessária — o `useDashboard` já tem `previousCancellationsTotal` calculado, só precisa ser retornado no objeto `kpis`.
+**Atualizar o `<Calendar>` para remover o `captionLayout` e usar `month`/`onMonthChange`:**
+```tsx
+<Calendar
+  mode="range"
+  selected={calendarSelected}
+  onSelect={handleCalendarSelect}
+  month={currentMonth}
+  onMonthChange={setCurrentMonth}
+  numberOfMonths={2}
+  // captionLayout="dropdown-buttons" ← REMOVIDO
+  // fromYear / toYear ← REMOVIDOS (não mais necessários sem captionLayout)
+  disabled={...}
+  className="pointer-events-auto"
+/>
+```
 
-### Correção 2 — Calendário Cortado (posicionamento do popover)
+**Adicionar a lista de meses e anos:**
+```typescript
+const MONTHS_PT = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+];
 
-O `PopoverContent` usa `align="start"` e abre para baixo. Quando o calendário de 2 meses ocupa muita altura, ele é cortado pela borda inferior da janela. A fix é adicionar `side="bottom"` com `sideOffset` e `avoidCollisions`, ou mudar para `align="end"` e adicionar lógica de flip automático. O Radix `PopoverContent` já tem `avoidCollisions={true}` por padrão, mas o problema pode ser que o calendário é muito alto e o Radix não consegue renderizar acima (sem espaço suficiente).
+const YEARS = Array.from({ length: 8 }, (_, i) => 2020 + i); // 2020–2027
+```
 
-Solução: Adicionar `className="max-h-[85vh] overflow-y-auto"` ao `PopoverContent`, garantindo que nunca ultrapasse a viewport.
+**Sincronizar `currentMonth` quando o `dateRange` mudar externamente** (ex: ao clicar em preset "Mês passado"):
+```typescript
+// No handlePresetClick, após onDateRangeChange:
+setCurrentMonth(dates.from);
 
----
+// No handleOpenChange (ao abrir):
+if (open) setCurrentMonth(dateRange.from);
+```
 
-## Arquivos a Modificar
+## Arquivo a Modificar
 
 | Arquivo | Mudança |
 |---|---|
-| `src/hooks/useDashboard.ts` | Adicionar `previousRefunds` e `previousCancellationsTotal` ao objeto retornado em `kpis` |
-| `src/pages/Index.tsx` | Usar os valores diretos do hook em vez da divisão inversa; remover risco de NaN |
-| `src/components/dashboard/DateRangeFilter.tsx` | Adicionar `className="max-h-[85vh] overflow-y-auto"` ao `PopoverContent` |
+| `src/components/dashboard/DateRangeFilter.tsx` | Remover `captionLayout`, adicionar estado `currentMonth`, adicionar selects de Mês/Ano no painel de inputs, sincronizar mês com presets e abertura do popover |
 
----
+## O que NÃO muda
 
-## Detalhe Técnico das Mudanças
-
-### `useDashboard.ts` — Expor previous values
-
-```typescript
-// Interface atualizada
-kpis: {
-  ...campos existentes...
-  previousRefunds: number;           // NOVO
-  previousCancellationsTotal: number; // NOVO
-}
-
-// No return do queryFn, adicionar ao objeto kpis:
-return {
-  kpis: {
-    ...kpis,
-    activePdvs,
-    totalCancellations,
-    cancelledTransactions,
-    cancellationsChange,
-    previousCancellationsTotal,  // ← já calculado, só expor
-    previousRefunds: previousSales.reduce(  // ← calcular e expor
-      (sum, r) => sum + Number(r.refund_amount || 0), 0
-    ),
-  },
-  ...
-};
-```
-
-### `Index.tsx` — Usar previous values diretos
-
-```typescript
-// ANTES (instável, pode dar NaN):
-const previousRefunds = kpis.refundsChange !== 0 
-  ? kpis.totalRefunds / (1 + kpis.refundsChange / 100) 
-  : 0;
-
-// DEPOIS (estável, usa valor direto do hook):
-const previousRefunds = kpis.previousRefunds ?? 0;
-const previousCancellations = kpis.previousCancellationsTotal ?? 0;
-```
-
-### `DateRangeFilter.tsx` — Scroll no popover
-
-```tsx
-<PopoverContent 
-  className="w-auto p-0 max-h-[85vh] overflow-y-auto" 
-  align="start"
->
-```
+- Lógica de seleção de datas
+- Inputs manuais DD/MM/AAAA
+- Presets (Hoje, 7d, 30d, 90d, Este mês, Mês passado)
+- Display do período selecionado
+- Correção do NaN% (já funcional)
