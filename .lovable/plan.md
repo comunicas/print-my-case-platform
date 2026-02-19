@@ -1,101 +1,65 @@
 
-# Correção: Valores Truncados nos KPI Cards em Desktop Médio
+# Correção: Subtitle "126 desistências" Truncado no Card Cancelamentos
 
-## Diagnóstico Confirmado pelos Prints
+## Diagnóstico
 
-### Print 1 (Desktop ~1280px com sidebar expandida)
-Os cards mostram `R$ 13.3...` e `R$ 6.86...` — valores truncados pelo `truncate` do elemento `kpi-value`. A causa é o breakpoint `lg:grid-cols-6` que ativa 6 colunas a partir de 1024px. Com sidebar de ~240px, o espaço por card é de apenas ~125px, insuficiente para `R$ 13.321,80` em `text-2xl` (24px bold).
+No card **Cancelamentos** em 6 colunas (1280px+), a linha inferior tem dois elementos juntos:
+- Badge `+40.2%` (largura fixa ~52px)
+- Span `"126 desistências"` com `truncate` — trunca para `"126 desistên..."`
 
-### Print 2 (Tablet ~820px com sidebar icônica)
-Layout em 3 colunas está correto e sem truncamento. Funciona bem.
+O `flex gap-1` na linha inferior deixa pouco espaço para o subtitle quando há badge presente. O mesmo ocorre potencialmente no card **Estoque Crítico** com `"Slots com 0-1 unidades"` — que visualmente parece ok porque não tem badge junto.
 
-### Print 4 (Mobile ~390px)
-Grid 2 colunas funcionando corretamente.
+## Causa no Código
 
-### ✅ Confirmados funcionando corretamente
-- **Ticket Médio com `+1.6%` badge**: Implementado e visível nos prints 1 e 2
-- **StockHistoryChart**: Já usa `ChartCard` com ícone `History` e botões de período (7d/15d/30d/90d)
-- **LossAnalysisCard**: Com `animate-fade-in-up` implementado
-- **`testId` em LossesByDayChart**: Adicionado
-
-## Problema Central: Overflow de Texto nos KPI Cards
-
-### Causa Raiz
-
-```
-Viewport 1280px
-- Sidebar: 240px
-- Padding layout: ~32px
-- Espaço disponível: ~1008px
-- 6 colunas + gaps (4px × 5): ~163px por card
-- Padding interno do card: 12px × 2 = 24px
-- Área de texto: ~139px
-- "R$ 13.321,80" em text-2xl bold: ~170px → TRUNCA
-```
-
-### Solução: Duas mudanças coordenadas
-
-**1. Mudar o breakpoint do grid de `lg` para `xl`:**
-```tsx
-// ANTES:
-"grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-4"
-
-// DEPOIS:
-"grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2 md:gap-4"
-```
-
-Com `xl` (1280px+): `(1280-240-32)/6 ≈ 168px` por card — suficiente.
-Em `lg` (1024-1279px): permanece em 3 colunas — ~330px por card, sem truncamento.
-
-**2. Ajustar o tamanho de fonte do valor em `KPICard` para escalar melhor:**
-
-O valor usa `text-base md:text-2xl`. Em `xl` com 6 colunas, `text-2xl` ainda pode truncar em valores mais longos. Adicionar um breakpoint intermediário `lg:text-xl xl:text-lg` para quando estiver em 6 colunas (a partir de `xl`) usar fonte menor:
+`KPICard.tsx` linha 64-94 — a div de tendência/subtitle usa um único `flex` sem responsividade para o caso de badge + subtitle simultâneos:
 
 ```tsx
-// ANTES:
-"text-base md:text-2xl font-bold text-foreground truncate"
-
-// DEPOIS:
-"text-base md:text-xl xl:text-base font-bold text-foreground truncate"
+<div className="flex items-center gap-1 md:gap-2 mt-0.5 md:mt-1 min-h-[18px]">
+  {showTrend && <Badge>...</Badge>}
+  {subtitle && (
+    <span className="text-[10px] md:text-xs text-muted-foreground truncate">
+      {subtitle}
+    </span>
+  )}
+</div>
 ```
 
-Isso garante que em 6 colunas (`xl`+) o valor usa `text-base` — legível e sem truncamento.
+O span do subtitle tem `truncate` mas sem `min-w-0` — em flex containers isso pode fazer o elemento não encolher adequadamente.
 
-**3. Ajustar padding do `KPICard` em `xl` para ser mais compacto:**
+## Solução
 
-O padding atual `px-3 md:px-6` em 6 colunas desperdiça espaço. Adicionar `xl:px-3` para reduzir:
+Duas mudanças pequenas em `KPICard.tsx`:
 
+**1. Adicionar `min-w-0` no span do subtitle** para garantir que o flex item possa encolher e o `truncate` funcione com ellipsis limpo:
 ```tsx
-// CardHeader:
-"flex flex-row items-center justify-between pb-1 md:pb-2 px-3 md:px-6 xl:px-3 pt-3 md:pt-6 xl:pt-3"
-
-// CardContent:
-"px-3 md:px-6 xl:px-3 pb-3 md:pb-6 xl:pb-3"
+<span className="text-[10px] md:text-xs text-muted-foreground truncate min-w-0">
 ```
 
-## Arquivos a Modificar
+**2. Adicionar `overflow-hidden` na div container** da linha de trend/subtitle para garantir que o conteúdo interno não vaze:
+```tsx
+<div className="flex items-center gap-1 md:gap-2 mt-0.5 md:mt-1 min-h-[18px] overflow-hidden">
+```
 
-### Arquivo 1: `src/pages/Index.tsx` — linha 344
-Mudar `lg:grid-cols-6` → `xl:grid-cols-6` no grid de KPIs.
+**3. Opção alternativa considerada — quebrar em duas linhas:**
+Separar badge e subtitle em linhas distintas com `flex-col` quando ambos existem. Porém isso aumenta a altura mínima do card em todos os breakpoints e muda o design estabelecido. A solução com `min-w-0 + overflow-hidden` é menos invasiva e resolve o truncamento correto.
 
-### Arquivo 2: `src/components/dashboard/KPICard.tsx` — linhas 55-62
-Ajustar tamanho de fonte e padding para o breakpoint `xl` (quando estiver em 6 colunas):
-- Valor: `text-base md:text-xl xl:text-base`
-- Padding header: `px-3 md:px-6 xl:px-3 pt-3 md:pt-6 xl:pt-3`
-- Padding content: `px-3 md:px-6 xl:px-3 pb-3 md:pb-6 xl:pb-3`
-- Título: `text-[10px] md:text-sm xl:text-[10px]`
+## Arquivo a Modificar
 
-## O que NÃO muda
-- Lógica de dados, trends e cálculos — sem toque
-- Comportamento mobile (2 colunas) — sem alteração
-- Comportamento tablet sm/md (3 colunas) — sem alteração
-- Componentes `StockHistoryChart`, `LossAnalysisCard`, `LossesByDayChart` — já corretos
-- Testes existentes — nenhuma interface pública alterada
+**`src/components/dashboard/KPICard.tsx`** — apenas 2 linhas alteradas:
+
+- Linha 64: adicionar `overflow-hidden` no container da row de trend/subtitle
+- Linha 93: adicionar `min-w-0` no span do subtitle
+
+## O Que NÃO muda
+
+- Grid breakpoints (`xl:grid-cols-6`) — já correto e aprovado
+- Tamanhos de fonte do KPICard — já corretos
+- Lógica de trends e dados — sem toque
+- Todos os outros cards sem subtitle (Receita, Transações, Ticket Médio, Reembolsos) — não afetados
 
 ## Resultado Esperado
 
-| Viewport | Grid | Valor KPI | Truncamento |
-|---|---|---|---|
-| < 640px (mobile) | 2 colunas | `text-base` | Nenhum |
-| 640-1279px (tablet/md) | 3 colunas | `text-xl` | Nenhum |
-| 1280px+ (desktop largo) | 6 colunas | `text-base` | Nenhum |
+| Card | Antes | Depois |
+|---|---|---|
+| Cancelamentos 6 col | `+40.2%` `126 desistên...` | `+40.2%` `126 desistências` (com ellipsis se ainda necessário, mas sem corte abrupto) |
+| Estoque Crítico | `Slots com 0-1 unidades` | Inalterado (já ok) |
