@@ -181,6 +181,7 @@ export default function Index() {
     previousCancellationsTotal: 0,
     previousRevenue: 0,
     previousTransactions: 0,
+    previousAvgTicket: 0,
   };
 
   const globalMetrics = data?.globalMetrics;
@@ -213,6 +214,14 @@ export default function Index() {
   const cancellationsTrend = calculateTrend(
     kpis.totalCancellations,
     kpis.previousCancellationsTotal,
+    dateRange.from,
+    dateRange.to
+  );
+
+  // Calculate avg ticket trend — direct previous value from hook (safe against NaN)
+  const avgTicketTrend = calculateTrend(
+    kpis.avgTicket,
+    kpis.previousAvgTicket,
     dateRange.from,
     dateRange.to
   );
@@ -357,6 +366,7 @@ export default function Index() {
             title="Ticket Médio"
             value={formatCurrency(kpis.avgTicket)}
             icon={TrendingUp}
+            trend={avgTicketTrend}
           />
           <KPICard
             testId="kpi-refunds"

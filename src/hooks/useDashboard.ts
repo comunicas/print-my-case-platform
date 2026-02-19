@@ -42,6 +42,7 @@ export interface DashboardData {
     // Previous period raw values (used for stable trend calculation)
     previousRevenue: number;
     previousTransactions: number;
+    previousAvgTicket: number;
   };
   hasData: boolean;
   globalMetrics?: {
