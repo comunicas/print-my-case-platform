@@ -199,7 +199,7 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
           const [orgsResult, globalPdvsResult, globalSalesResult] = await Promise.all([
             supabase.from("organizations").select("id", { count: "exact", head: true }),
             supabase.from("pdvs").select("id", { count: "exact", head: true }).eq("status", "active"),
-            supabase.from("sales_records").select("amount, refund_amount").gte("payment_date", startDate.toISOString()).lte("payment_date", endDate.toISOString()),
+            supabase.from("sales_records").select("amount, refund_amount").gte("payment_date", startDate.toISOString()).lte("payment_date", endDate.toISOString()).in("status", ["Completed", "Pago", "Concluído"]),
           ]);
           
           // Only set global metrics if all queries succeeded
