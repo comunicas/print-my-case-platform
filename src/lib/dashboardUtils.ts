@@ -90,6 +90,7 @@ export interface KPIData {
   refundsChange: number;
   previousRevenue: number;
   previousTransactions: number;
+  previousAvgTicket: number;
 }
 
 export interface LossesByDayData {
@@ -401,6 +402,10 @@ export function calculateKPIs(
   const transactionsChange = calculateRawPercentage(transactions, previousTransactions);
   const refundsChange = calculateRawPercentage(totalRefunds, previousRefunds);
 
+  const previousAvgTicket = previousTransactions > 0
+    ? previousRevenue / previousTransactions
+    : 0;
+
   return {
     totalRevenue,
     grossRevenue,
@@ -413,6 +418,7 @@ export function calculateKPIs(
     refundsChange,
     previousRevenue,
     previousTransactions,
+    previousAvgTicket,
   };
 }
 
