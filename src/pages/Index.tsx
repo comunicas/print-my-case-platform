@@ -249,7 +249,7 @@ export default function Index() {
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
                     <div className="text-center md:text-left">
                       <p className="text-xl md:text-2xl font-bold text-foreground">{globalMetrics.totalOrganizations}</p>
                       <p className="text-xs md:text-sm text-muted-foreground">Organizações</p>
@@ -265,6 +265,10 @@ export default function Index() {
                     <div className="text-center md:text-left">
                       <p className="text-xl md:text-2xl font-bold text-foreground">{globalMetrics.totalTransactionsGlobal.toLocaleString("pt-BR")}</p>
                       <p className="text-xs md:text-sm text-muted-foreground">Transações Global</p>
+                    </div>
+                    <div className="text-center md:text-left">
+                      <p className="text-xl md:text-2xl font-bold text-foreground">{formatCurrency(globalMetrics.avgTicketGlobal)}</p>
+                      <p className="text-xs md:text-sm text-muted-foreground">Ticket Médio Global</p>
                     </div>
                   </div>
                 </CardContent>

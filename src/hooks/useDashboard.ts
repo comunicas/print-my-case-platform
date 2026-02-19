@@ -48,6 +48,7 @@ export interface DashboardData {
     totalRevenueGlobal: number;
     totalTransactionsGlobal: number;
     totalRefundsGlobal: number;
+    avgTicketGlobal: number;
   };
   // Chart data
   salesByDay: SalesByDayData[];
@@ -209,12 +210,16 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
               (sum, record) => sum + Number(record.refund_amount || 0),
               0
             );
+            const avgTicketGlobal = globalSalesData.length > 0
+              ? totalRevenueGlobal / globalSalesData.length
+              : 0;
             globalMetrics = {
               totalOrganizations: orgsResult.count || 0,
               totalPdvsGlobal: globalPdvsResult.count || 0,
               totalRevenueGlobal,
               totalTransactionsGlobal: globalSalesData.length,
               totalRefundsGlobal,
+              avgTicketGlobal,
             };
           }
         } catch {
