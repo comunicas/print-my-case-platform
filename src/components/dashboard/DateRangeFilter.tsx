@@ -191,7 +191,7 @@ export function DateRangeFilter({
               <ChevronDown className="h-3 w-3" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
+          <PopoverContent className="w-auto p-0 max-h-[85vh] overflow-y-auto" align="start">
             {/* Manual date inputs */}
             <div className="flex items-center gap-2 p-3 border-b border-border">
               <div className="flex flex-col gap-1">

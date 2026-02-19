@@ -174,9 +174,11 @@ export default function Index() {
     revenueChange: 0,
     transactionsChange: 0,
     refundsChange: 0,
+    previousRefunds: 0,
     totalCancellations: 0,
     cancelledTransactions: 0,
     cancellationsChange: 0,
+    previousCancellationsTotal: 0,
   };
 
   const globalMetrics = data?.globalMetrics;
@@ -197,24 +199,18 @@ export default function Index() {
     dateRange.to
   );
   
-  // Calculate refunds trend
-  const previousRefunds = kpis.refundsChange !== 0 
-    ? kpis.totalRefunds / (1 + kpis.refundsChange / 100) 
-    : 0;
+  // Calculate refunds trend — use direct previous value from hook (avoids division-by-zero NaN)
   const refundsTrend = calculateTrend(
     kpis.totalRefunds,
-    previousRefunds,
+    kpis.previousRefunds,
     dateRange.from,
     dateRange.to
   );
 
-  // Calculate cancellations trend
-  const previousCancellations = kpis.cancellationsChange !== 0 
-    ? kpis.totalCancellations / (1 + kpis.cancellationsChange / 100) 
-    : 0;
+  // Calculate cancellations trend — use direct previous value from hook
   const cancellationsTrend = calculateTrend(
     kpis.totalCancellations,
-    previousCancellations,
+    kpis.previousCancellationsTotal,
     dateRange.from,
     dateRange.to
   );
