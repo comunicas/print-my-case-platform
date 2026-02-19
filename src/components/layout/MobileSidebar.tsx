@@ -2,7 +2,6 @@ import {
   LayoutDashboard,
   Upload,
   Package,
-  X,
   ChevronDown,
   Megaphone,
   Building2,
@@ -15,7 +14,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
@@ -36,7 +34,7 @@ const navItems: NavItem[] = [
 ];
 
 const bottomNavItems: NavItem[] = [
-  { icon: Building2, label: "Organizações", href: "/organizacoes", superAdminOnly: true },
+  { icon: Building2, label: "Organizações", href: "/organizations", superAdminOnly: true },
   { icon: Settings, label: "Configurações", href: "/settings" },
 ];
 
@@ -217,21 +215,13 @@ export function MobileSidebar({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="left" className="w-72 p-0 bg-sidebar border-sidebar-border">
-        <SheetHeader className="h-16 flex flex-row items-center justify-between border-b border-sidebar-border px-4">
+        <SheetHeader className="h-16 flex flex-row items-center border-b border-sidebar-border px-4">
           <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
           <img
             src="/logo-printmycase.png"
             alt="Print My Case"
             className="h-10 object-contain"
           />
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onOpenChange(false)}
-            className="text-sidebar-foreground hover:bg-sidebar-accent/50"
-          >
-            <X className="h-5 w-5" />
-          </Button>
         </SheetHeader>
 
         <div className="flex-1 flex flex-col">

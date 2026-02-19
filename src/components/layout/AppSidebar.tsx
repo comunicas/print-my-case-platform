@@ -6,6 +6,7 @@ import {
   ChevronDown,
   Building2,
   Megaphone,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -161,10 +162,7 @@ export function AppSidebar({
             )}
           >
             <Package className="h-5 w-5 flex-shrink-0" />
-            <span className={cn(
-              "flex-1 text-left transition-all duration-200",
-              collapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
-            )}>
+            <span className="flex-1 text-left">
               Estoque
             </span>
             <ChevronDown
@@ -249,10 +247,7 @@ export function AppSidebar({
             )}
           >
             <Megaphone className="h-5 w-5 flex-shrink-0" />
-            <span className={cn(
-              "flex-1 text-left transition-all duration-200",
-              collapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
-            )}>
+            <span className="flex-1 text-left">
               Marketing
             </span>
             <ChevronDown
@@ -333,8 +328,41 @@ export function AppSidebar({
           {visibleNavItems.slice(2).map(renderNavItem)}
         </nav>
 
-        {/* Collapse Toggle */}
-        <div className="p-2 border-t border-sidebar-border mt-auto flex-shrink-0">
+        {/* Footer: Settings + Collapse Toggle */}
+        <div className="p-2 border-t border-sidebar-border mt-auto flex-shrink-0 space-y-1">
+          {collapsed ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => onNavigate("/settings")}
+                  className={cn(
+                    "w-full flex items-center justify-center px-2 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                    activeItem === "/settings"
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                  )}
+                >
+                  <Settings className="h-5 w-5 flex-shrink-0" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="font-medium">
+                Configurações
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <button
+              onClick={() => onNavigate("/settings")}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                activeItem === "/settings"
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+              )}
+            >
+              <Settings className="h-5 w-5 flex-shrink-0" />
+              <span>Configurações</span>
+            </button>
+          )}
           <Button
             variant="ghost"
             size="sm"
