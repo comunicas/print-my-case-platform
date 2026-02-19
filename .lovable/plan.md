@@ -1,99 +1,74 @@
 
-# Adicionar Ticket Médio Global na Visão Consolidada do super_admin
+# Corrigir Grid da Visão Consolidada no Breakpoint Tablet
 
-## Diagnóstico
+## Problema Identificado
 
-A Visão Consolidada em `Index.tsx` (linhas 251-269) renderiza um `grid-cols-2 md:grid-cols-4` com 4 métricas fixas. O `globalMetrics` em `useDashboard.ts` tem `totalRevenueGlobal` e `totalTransactionsGlobal` mas **não calcula** `avgTicketGlobal`.
+O grid atual `grid-cols-2 sm:grid-cols-3 md:grid-cols-5` ativa 5 colunas a partir de 768px (breakpoint `md` do Tailwind). Com a sidebar colapsada ocupando ~56px, o conteúdo disponível em 834px é ~762px — resultando em ~140px por card. Isso causa dois problemas visuais:
 
-### Estado atual do grid:
-```
-[ Organizações ] [ PDVs Total ] [ Receita Global ] [ Transações Global ]
-      4 colunas — grid-cols-2 md:grid-cols-4
-```
+- "338" e "Transações Global" colam visualmente em "R$ 23.556,30" (overflow/colapso)
+- O label "Ticket Médio Global" quebra em 2 linhas
 
-### Estado desejado:
-```
-[ Organizações ] [ PDVs Total ] [ Receita Global ] [ Transações Global ] [ Ticket Médio Global ]
-      5 colunas — grid-cols-2 sm:grid-cols-3 md:grid-cols-5
-```
+O breakpoint `md` do app é na verdade o início do range "tablet" (768-1024px), onde a sidebar já está colapsada. O 5-colunas só comporta bem a partir de `lg` (≥1024px), alinhado com o `TABLET_BREAKPOINT = 1024` definido em `use-mobile.tsx`.
 
-## Mudanças Necessárias
+## Estado Atual vs. Desejado
 
-### 1. `src/hooks/useDashboard.ts` — Adicionar `avgTicketGlobal` ao `globalMetrics`
+```text
+ATUAL:
+grid-cols-2  sm:grid-cols-3  md:grid-cols-5
+  <640px       640-767px      768px+          ← 5 colunas muito cedo
 
-**Interface `DashboardData`** (linha 45-50): adicionar campo na definição de tipo:
-```typescript
-globalMetrics?: {
-  totalOrganizations: number;
-  totalPdvsGlobal: number;
-  totalRevenueGlobal: number;
-  totalTransactionsGlobal: number;
-  totalRefundsGlobal: number;
-  avgTicketGlobal: number;   // ← novo campo
-};
+DESEJADO:
+grid-cols-2  sm:grid-cols-3  md:grid-cols-3  lg:grid-cols-5
+  <640px       640-767px      768-1023px      1024px+       ← alinhado com o layout do app
 ```
 
-**Cálculo** (dentro do bloco `if (!orgsResult.error && ...)`, logo após o cálculo de `totalRefundsGlobal`):
-```typescript
-const avgTicketGlobal = globalSalesData.length > 0
-  ? totalRevenueGlobal / globalSalesData.length
-  : 0;
+## Mudança
 
-globalMetrics = {
-  totalOrganizations: orgsResult.count || 0,
-  totalPdvsGlobal: globalPdvsResult.count || 0,
-  totalRevenueGlobal,
-  totalTransactionsGlobal: globalSalesData.length,
-  totalRefundsGlobal,
-  avgTicketGlobal,   // ← novo campo
-};
-```
+### `src/pages/Index.tsx` — linha 252
 
-Nota: o cálculo usa `globalSalesData.length` (transações totais) como denominador, alinhado com como `avgTicket` é calculado nos KPIs normais via `calculateKPIs`.
+Uma única mudança de classe CSS no `div` do grid interno da Visão Consolidada:
 
-### 2. `src/pages/Index.tsx` — Adicionar 5º card e ajustar grid
-
-**Grid** (linha 252): de `grid-cols-2 md:grid-cols-4` para `grid-cols-2 sm:grid-cols-3 md:grid-cols-5` — compatível com mobile (2 colunas → 3 no tablet → 5 no desktop).
-
-**Novo card** adicionado após "Transações Global":
 ```tsx
-<div className="text-center md:text-left">
-  <p className="text-xl md:text-2xl font-bold text-foreground">
-    {formatCurrency(globalMetrics.avgTicketGlobal)}
-  </p>
-  <p className="text-xs md:text-sm text-muted-foreground">Ticket Médio Global</p>
-</div>
+// Atual
+<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+
+// Corrigido
+<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
 ```
 
-Já existe o import de `formatCurrency` em `Index.tsx` (linha 29), sem necessidade de novos imports.
+Isso remove o `md:grid-cols-5` e substitui por `lg:grid-cols-5`, fazendo o salto para 5 colunas só acontecer em ≥1024px (onde há espaço suficiente mesmo com a sidebar expandida).
 
-## Resultado Visual
+## Layout Resultante por Breakpoint
 
-```
-MOBILE (2 colunas):
-[ Organizações ] [ PDVs Total ]
-[ Receita Global ] [ Transações Global ]
+```text
+MOBILE (<640px) — 2 colunas, 3 linhas:
+[ Organizações      ] [ PDVs Total          ]
+[ Receita Global    ] [ Transações Global   ]
 [ Ticket Médio Global ]
 
-TABLET sm (3 colunas):
-[ Organizações ] [ PDVs Total ] [ Receita Global ]
+TABLET (640-1023px) — 3 colunas, 2 linhas:
+[ Organizações   ] [ PDVs Total      ] [ Receita Global    ]
 [ Transações Global ] [ Ticket Médio Global ]
 
-DESKTOP md+ (5 colunas):
+DESKTOP (≥1024px) — 5 colunas, 1 linha:
 [ Organizações ] [ PDVs Total ] [ Receita Global ] [ Transações Global ] [ Ticket Médio Global ]
 ```
 
-## O Que NÃO muda
+Este layout é idêntico ao que o plano original pretendia — a linha `sm:grid-cols-3` já cobre 640-1023px adequadamente para os 5 cards.
 
-- Lógica de queries do `useDashboard` — sem novas queries ao banco
-- KPI Cards do dashboard principal — zero impacto
-- RLS/banco — sem migrações, dado calculado client-side a partir de dados já buscados
-- Outros hooks (`useDashboardDataRange`, `useUploads`) — sem toque
-- Layout de usuários não super_admin — bloco condicional `isSuperAdmin && globalMetrics`
+## Alinhamento com o Sistema de Breakpoints do App
 
-## Arquivos a Modificar
+O hook `use-mobile.tsx` define:
+- `mobile` = < 768px
+- `tablet` = 768–1023px  
+- `desktop` = ≥ 1024px
 
-| Arquivo | Mudança |
-|---|---|
-| `src/hooks/useDashboard.ts` | Adicionar `avgTicketGlobal` na interface e no objeto de retorno |
-| `src/pages/Index.tsx` | Ajustar grid para 5 colunas + adicionar card "Ticket Médio Global" |
+O `lg` do Tailwind (≥1024px) mapeia exatamente para "desktop" — a sidebar fica expandida ou colapsada por escolha do usuário, mas há espaço suficiente para 5 colunas.
+
+## Arquivo a Modificar
+
+| Arquivo | Linha | Mudança |
+|---|---|---|
+| `src/pages/Index.tsx` | 252 | `md:grid-cols-5` → `lg:grid-cols-5` (remover `md:`, adicionar `lg:`) |
+
+Mudança cirúrgica de 1 linha, zero impacto em outros componentes, sem alteração de lógica.
