@@ -1,150 +1,127 @@
 
-# Diagnóstico de Dados Duplicados e Melhoria dos Filtros de Data
+# Relatório de Testes do Filtro de Datas + Bug NaN%
 
-## Parte 1 — Dados Duplicados: Diagnóstico Completo
+## Resultado dos Testes
 
-### O que foi encontrado
-
-**12 grupos de duplicatas** no banco, totalizando **12 registros extras** (cada grupo tem exatamente 2 ocorrências). Distribuição:
-
-| Característica | Detalhe |
+### Filtros de Data — Tudo Funcionando
+| Funcionalidade | Resultado |
 |---|---|
-| Origem | 100% dos duplicados têm `source = 'api'` e `upload_id = NULL` |
-| Causa raiz | A edge function `ingest-revenue` não verifica duplicatas antes de inserir |
-| Impacto financeiro | Registros duplicados inflam as métricas do dashboard |
-| Status dos duplicados | 8 são "Cancelado" (fora do cálculo de receita), 4 são "Concluído" (contam dobrado) |
+| Preset "Este mês" aparece | ✅ Aparece e filtra corretamente (`01/02 - 18/02`, 18 dias) |
+| Preset "Mês passado" aparece | ✅ Aparece e filtra corretamente (`01/01 - 31/01`, 31 dias) |
+| Calendário com dropdown de ano | ✅ Dropdown "Year: 2026" aparece em ambos os meses |
+| Input manual de datas | ✅ Digitei `01/02/2026` → `15/02/2026`, fechou e filtrou automaticamente |
+| Calendário com dropdown de mês | ⚠️ O calendário abre cortado pela borda inferior da tela — só o dropdown de ano aparece, o de mês fica escondido acima da área visível |
 
-### Causa Raiz: `ingest-revenue/index.ts`
+### Bug Detectado: "NaN%" no card de Reembolsos
 
-A edge function que recebe dados via API **não verifica se o par `order_number + pdv_id` já existe** antes de inserir. O código atual faz diretamente:
+Ao selecionar "Mês passado", o card Reembolsos exibiu `NaN%` em vez de uma porcentagem ou "Sem dados anteriores".
 
-```typescript
-// PROBLEMA: sem verificação de duplicata
-const { data: inserted, error: insertError } = await supabase
-  .from("sales_records")
-  .insert(record)
-  .select("id")
-  .single();
-```
-
-### Solução para os dados existentes
-
-Antes de implementar a correção na edge function, é necessário limpar os 12 registros duplicados existentes. A limpeza é feita mantendo apenas o registro mais antigo (menor `id`) de cada par duplicado.
-
-### Solução para novos dados (edge function)
-
-Adicionar a estratégia `upsert` com `onConflict: 'order_number,pdv_id'` — ou uma verificação prévia `SELECT` antes do `INSERT`. A abordagem mais segura é verificar e retornar o registro existente com status `200` em vez de inserir e retornar `201`.
-
-Para que o `upsert` funcione, é necessário também criar uma **constraint única no banco** em `sales_records(order_number, pdv_id)` para registros com `source = 'api'`.
-
----
-
-## Parte 2 — Melhoria dos Filtros de Data
-
-### Estado atual
-
-O `DateRangeFilter` em `src/components/dashboard/DateRangeFilter.tsx` tem apenas 4 presets limitados: `Hoje`, `7d`, `30d`, `90d`. Faltam presets importantes como:
-- **Este mês** (do dia 1 até hoje)
-- **Mês passado** (mês completo anterior)
-- **Período personalizado com anos** — atualmente o calendário não exibe o seletor de mês/ano, obrigando o usuário a navegar mês a mês clicando nas setas
-
-Além disso, o `DateRangeFilter` usado no dashboard **não passa o `dataRange`** (mínimo e máximo dos dados reais), então o botão "Ver tudo" nunca aparece.
-
-### Melhorias planejadas
-
-1. **Novos presets de período**: Adicionar `Este mês` e `Mês passado` ao lado dos presets existentes — alinhado com `datePresets` de `date-presets.ts` que já os define mas não os usa
-2. **Calendário com navegação por mês/ano**: Configurar o `Calendar` com a prop `captionLayout="dropdown-buttons"` para mostrar dropdowns de mês e ano
-3. **Exibição da data com ano quando necessário**: Quando o período selecionado inclui datas de anos diferentes do atual, mostrar o ano no display (ex: `22/01/2025 - 18/02/2026`)
-4. **Fechar calendário com um clique**: Atualmente o calendário só fecha quando ambas as datas estão selecionadas. Quando o usuário seleciona apenas a data inicial, o calendário deve continuar aberto aguardando a data final — mas deve existir um botão "Fechar" caso o usuário queira cancelar
-5. **Input manual de datas**: Adicionar campos de texto dentro do calendário para digitar as datas diretamente (`DD/MM/AAAA`)
-
----
-
-## Arquivos a criar/modificar
-
-| Arquivo | Ação | Descrição |
-|---|---|---|
-| `supabase/functions/ingest-revenue/index.ts` | EDITAR | Adicionar verificação de duplicata antes do insert: buscar por `order_number + pdv_id`, se existir retornar 200 com o registro existente em vez de inserir |
-| `src/components/dashboard/DateRangeFilter.tsx` | EDITAR | Adicionar presets "Este mês" e "Mês passado", melhorar calendário com `captionLayout="dropdown-buttons"`, melhorar display de data com ano quando necessário |
-| `src/lib/utils/date-presets.ts` | EDITAR | Adicionar `getDateRangeFromPeriod` para suporte a "lastMonth" que já existe em `datePresets` mas não em `getDateRangeFromPeriod` |
-| Migration SQL | CRIAR | Adicionar constraint única em `sales_records(order_number, pdv_id)` apenas para `source = 'api'` + deletar os 12 registros duplicados existentes |
-
----
-
-## Detalhe técnico: limpeza das duplicatas
-
-A query para remover os duplicados mantendo apenas o registro mais antigo de cada grupo é:
-
-```sql
--- Remove duplicatas mantendo o registro mais antigo (menor ctid)
-DELETE FROM sales_records
-WHERE id IN (
-  SELECT id FROM (
-    SELECT id,
-      ROW_NUMBER() OVER (
-        PARTITION BY order_number, pdv_id
-        ORDER BY id  -- mantém o mais antigo
-      ) as rn
-    FROM sales_records
-    WHERE source = 'api'
-  ) ranked
-  WHERE rn > 1
-);
-```
-
-## Detalhe técnico: constraint única para prevenção futura
-
-```sql
--- Unique constraint apenas para registros da API
-CREATE UNIQUE INDEX IF NOT EXISTS sales_records_api_order_pdv_unique
-ON sales_records (order_number, pdv_id)
-WHERE source = 'api';
-```
-
-## Detalhe técnico: verificação de duplicata na edge function
+**Causa raiz identificada** (linha 201-203 de `src/pages/Index.tsx`):
 
 ```typescript
-// Verificar se já existe antes de inserir
-const { data: existing } = await supabase
-  .from("sales_records")
-  .select("id")
-  .eq("order_number", record.order_number)
-  .eq("pdv_id", record.pdv_id)
-  .eq("source", "api")
-  .maybeSingle();
+// PROBLEMA: divisão por zero quando refundsChange = -100%
+const previousRefunds = kpis.refundsChange !== 0 
+  ? kpis.totalRefunds / (1 + kpis.refundsChange / 100)  // ← se refundsChange = -100, divide por 0
+  : 0;
+```
 
-if (existing) {
-  // Retorna 200 com o registro existente — idempotente
-  return new Response(
-    JSON.stringify({ success: true, record_id: existing.id, pdv_id: pdv.id, duplicate: true }),
-    { status: 200, ... }
-  );
+Quando `kpis.refundsChange = -100`, a expressão `1 + (-100/100) = 0`, causando divisão por zero. O mesmo bug existe na linha 212-214 para `previousCancellations`:
+
+```typescript
+const previousCancellations = kpis.cancellationsChange !== 0 
+  ? kpis.totalCancellations / (1 + kpis.cancellationsChange / 100) // ← mesmo problema
+  : 0;
+```
+
+**Por que acontece com "Mês passado":** Em janeiro os reembolsos eram R$ 0,00, e no período anterior (dezembro) também podem ser R$ 0,00, mas o cálculo reverso via `refundsChange` produz um denominador zero.
+
+**Observação sobre o dropdown de mês:** O `captionLayout="dropdown-buttons"` do `react-day-picker` renderiza ambos dropdown de mês e ano, mas o popover abre para baixo, e os controles ficam no topo do calendário — que está sendo cortado pela borda da tela. Isso é um problema de posicionamento do `PopoverContent`.
+
+---
+
+## Correções Necessárias
+
+### Correção 1 — Bug NaN% (divisão por zero)
+
+A lógica de reconstrução do `previousValue` via divisão inversa é frágil. A correção é guardar diretamente os `previous values` no hook `useDashboard` e passá-los para o KPI.
+
+**Abordagem A (simples):** Adicionar guard para denominador zero em `Index.tsx`:
+```typescript
+const denominator = 1 + kpis.refundsChange / 100;
+const previousRefunds = (kpis.refundsChange !== 0 && denominator !== 0)
+  ? kpis.totalRefunds / denominator
+  : 0;
+```
+
+**Abordagem B (robusta):** Expor os `previousRefunds` e `previousCancellations` diretamente do `useDashboard` em vez de reconstruí-los via cálculo inverso em `Index.tsx`.
+
+A Abordagem B é a correta porque a reconstrução reversa é matematicamente instável e desnecessária — o `useDashboard` já tem `previousCancellationsTotal` calculado, só precisa ser retornado no objeto `kpis`.
+
+### Correção 2 — Calendário Cortado (posicionamento do popover)
+
+O `PopoverContent` usa `align="start"` e abre para baixo. Quando o calendário de 2 meses ocupa muita altura, ele é cortado pela borda inferior da janela. A fix é adicionar `side="bottom"` com `sideOffset` e `avoidCollisions`, ou mudar para `align="end"` e adicionar lógica de flip automático. O Radix `PopoverContent` já tem `avoidCollisions={true}` por padrão, mas o problema pode ser que o calendário é muito alto e o Radix não consegue renderizar acima (sem espaço suficiente).
+
+Solução: Adicionar `className="max-h-[85vh] overflow-y-auto"` ao `PopoverContent`, garantindo que nunca ultrapasse a viewport.
+
+---
+
+## Arquivos a Modificar
+
+| Arquivo | Mudança |
+|---|---|
+| `src/hooks/useDashboard.ts` | Adicionar `previousRefunds` e `previousCancellationsTotal` ao objeto retornado em `kpis` |
+| `src/pages/Index.tsx` | Usar os valores diretos do hook em vez da divisão inversa; remover risco de NaN |
+| `src/components/dashboard/DateRangeFilter.tsx` | Adicionar `className="max-h-[85vh] overflow-y-auto"` ao `PopoverContent` |
+
+---
+
+## Detalhe Técnico das Mudanças
+
+### `useDashboard.ts` — Expor previous values
+
+```typescript
+// Interface atualizada
+kpis: {
+  ...campos existentes...
+  previousRefunds: number;           // NOVO
+  previousCancellationsTotal: number; // NOVO
 }
 
-// Só insere se não existir
-const { data: inserted, error: insertError } = await supabase
-  .from("sales_records")
-  .insert(record)
-  .select("id")
-  .single();
+// No return do queryFn, adicionar ao objeto kpis:
+return {
+  kpis: {
+    ...kpis,
+    activePdvs,
+    totalCancellations,
+    cancelledTransactions,
+    cancellationsChange,
+    previousCancellationsTotal,  // ← já calculado, só expor
+    previousRefunds: previousSales.reduce(  // ← calcular e expor
+      (sum, r) => sum + Number(r.refund_amount || 0), 0
+    ),
+  },
+  ...
+};
 ```
 
-## Detalhe técnico: novos presets no DateRangeFilter
+### `Index.tsx` — Usar previous values diretos
 
 ```typescript
-const PRESETS = [
-  { label: "Hoje",        getDates: () => ({ from: startOfDay(today), to: endOfDay(today) }) },
-  { label: "7d",          getDates: () => ({ from: startOfDay(subDays(today, 6)), to: endOfDay(today) }) },
-  { label: "30d",         getDates: () => ({ from: startOfDay(subDays(today, 29)), to: endOfDay(today) }) },
-  { label: "90d",         getDates: () => ({ from: startOfDay(subDays(today, 89)), to: endOfDay(today) }) },
-  { label: "Este mês",    getDates: () => ({ from: startOfMonth(today), to: endOfDay(today) }) },
-  { label: "Mês passado", getDates: () => ({ from: startOfMonth(subMonths(today, 1)), to: endOfMonth(subMonths(today, 1)) }) },
-];
+// ANTES (instável, pode dar NaN):
+const previousRefunds = kpis.refundsChange !== 0 
+  ? kpis.totalRefunds / (1 + kpis.refundsChange / 100) 
+  : 0;
+
+// DEPOIS (estável, usa valor direto do hook):
+const previousRefunds = kpis.previousRefunds ?? 0;
+const previousCancellations = kpis.previousCancellationsTotal ?? 0;
 ```
 
-## Ordem de execução
+### `DateRangeFilter.tsx` — Scroll no popover
 
-1. Executar migration SQL (limpar duplicatas + criar constraint)
-2. Atualizar `ingest-revenue` com verificação de duplicata
-3. Melhorar `DateRangeFilter` com novos presets e calendário com dropdown de mês/ano
-4. Atualizar `getDateRangeFromPeriod` em `date-presets.ts` para cobrir "lastMonth"
+```tsx
+<PopoverContent 
+  className="w-auto p-0 max-h-[85vh] overflow-y-auto" 
+  align="start"
+>
+```
