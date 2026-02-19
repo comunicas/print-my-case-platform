@@ -1,124 +1,106 @@
 
-# Correção Definitiva: Dropdown de Mês/Ano no Calendário
+# Eliminar Divisões Inversas: previousRevenue e previousTransactions
 
-## Diagnóstico Confirmado por Teste
+## Problema
 
-Dois problemas distintos detectados no teste ao vivo:
+Em `src/pages/Index.tsx`, as trends de Receita e Transações ainda calculam o valor anterior via divisão inversa:
 
-**Problema 1 — NaN% (RESOLVIDO):** O card Reembolsos agora exibe **-100%** corretamente ao selecionar "Mês passado". O bug foi eliminado.
+```typescript
+// FRÁGIL — se revenueChange = -100, resulta em divisão por zero (NaN)
+const revenueTrend = calculateTrend(
+  kpis.totalRevenue,
+  kpis.totalRevenue / (1 + kpis.revenueChange / 100),  // ← instável
+  dateRange.from,
+  dateRange.to
+);
 
-**Problema 2 — Dropdown de mês inacessível (AINDA PRESENTE):** O `captionLayout="dropdown-buttons"` insere os selects de Mês e Ano dentro do cabeçalho do calendário (topo do componente `DayPicker`). Quando o Radix Popover detecta que o calendário não cabe abaixo do trigger, ele o **flipa para cima** — e os controles do cabeçalho ficam fora da viewport superior. O `max-h-[85vh] overflow-y-auto` adicionado anteriormente não resolve porque o posicionamento do popover inteiro sai do topo da tela, não apenas o conteúdo interno.
+const transactionsTrend = calculateTrend(
+  kpis.transactions,
+  kpis.transactions / (1 + kpis.transactionsChange / 100),  // ← instável
+  dateRange.from,
+  dateRange.to
+);
+```
 
-**Evidência visual:**
+## Causa Raiz
+
+`calculateKPIs` em `dashboardUtils.ts` já calcula `previousRevenue` e `previousTransactions` internamente (linhas 389-391), mas a interface `KPIData` não os expõe — então `useDashboard` não os passa, forçando `Index.tsx` a reconstruí-los via matemática inversa.
+
+## Solução
+
+Três mudanças mínimas e cirúrgicas:
+
+### 1. `src/lib/dashboardUtils.ts` — Adicionar ao `KPIData` e ao `return` de `calculateKPIs`
+
+Adicionar `previousRevenue` e `previousTransactions` à interface `KPIData` e incluí-los no objeto retornado por `calculateKPIs`.
+
+### 2. `src/hooks/useDashboard.ts` — Adicionar ao `DashboardData.kpis`
+
+Adicionar `previousRevenue: number` e `previousTransactions: number` à interface `DashboardData.kpis`. No `return` do `queryFn`, o spread `...kpis` já trará esses valores automaticamente após a mudança acima.
+
+### 3. `src/pages/Index.tsx` — Usar valores diretos do hook
+
+Substituir as duas divisões inversas pelos valores diretos:
+
+```typescript
+// ANTES (instável):
+const revenueTrend = calculateTrend(
+  kpis.totalRevenue,
+  kpis.totalRevenue / (1 + kpis.revenueChange / 100),
+  dateRange.from, dateRange.to
+);
+
+// DEPOIS (estável):
+const revenueTrend = calculateTrend(
+  kpis.totalRevenue,
+  kpis.previousRevenue,
+  dateRange.from, dateRange.to
+);
+```
+
+```typescript
+// ANTES (instável):
+const transactionsTrend = calculateTrend(
+  kpis.transactions,
+  kpis.transactions / (1 + kpis.transactionsChange / 100),
+  dateRange.from, dateRange.to
+);
+
+// DEPOIS (estável):
+const transactionsTrend = calculateTrend(
+  kpis.transactions,
+  kpis.previousTransactions,
+  dateRange.from, dateRange.to
+);
+```
+
+Também atualizar o fallback `kpis` (linha 166 de `Index.tsx`) para incluir os novos campos com valor `0`.
+
+## Fluxo de Dados após a Mudança
 
 ```text
-[topo da tela] ← cabeçalho com Month/Year dropdowns fica aqui (invisível)
-─────────────────────────────────────────────────
-  February     Year: [2026 ▼]   March     Year: [2026 ▼]
-  Su Mo Tu We Th Fr Sa          Su Mo Tu We ...
-   1  2  3  4  5  6  7 ...
+previousSalesQuery (já executada no useDashboard)
+    ↓
+calculateKPIs(currentSales, previousSales)
+    ↓ retorna previousRevenue e previousTransactions (NOVO)
+useDashboard → kpis.previousRevenue, kpis.previousTransactions
+    ↓
+Index.tsx → calculateTrend(currentValue, previousValue, ...)
+    ↓
+KPICard → trend badge sem risco de NaN
 ```
 
-Os dropdowns "Month:" ficam acima da área visível porque o `react-day-picker` os renderiza no topo de cada mês.
+## Arquivos a Modificar
 
-## Solução Definitiva
-
-**Remover o `captionLayout="dropdown-buttons"` do Calendar** e substituir por selects de mês e ano **dentro do painel de inputs** que já existe no topo do popover — que é sempre visível independente do flip do Radix.
-
-O calendário continuará usando navegação por setas (padrão), mas agora haverá dois selects de controle no painel superior do popover que atualizam o mês exibido via as props `month` e `onMonthChange` do `DayPicker`.
-
-## Arquitetura da Solução
-
-```text
-┌─────────────────────────────────────────────────────┐
-│ [De: DD/MM/AAAA] → [Até: DD/MM/AAAA]   [X]        │  ← painel de inputs (sempre visível)
-│ Mês: [Janeiro ▼] Ano: [2026 ▼]                     │  ← NOVO: selects de navegação aqui
-├─────────────────────────────────────────────────────┤
-│          ← February 2026 →    ← March 2026 →        │  ← calendário sem caption dropdown
-│  Su Mo Tu We Th Fr Sa         Su Mo Tu We Th Fr Sa  │
-│   1  2  3  4  5  6  7 ...                           │
-└─────────────────────────────────────────────────────┘
-```
-
-## Mudanças Técnicas
-
-### `src/components/dashboard/DateRangeFilter.tsx`
-
-**Adicionar estado para o mês exibido:**
-```typescript
-const [currentMonth, setCurrentMonth] = useState<Date>(dateRange.from || new Date());
-```
-
-**Adicionar selects de Mês e Ano no painel de inputs** (logo após os campos De/Até):
-```tsx
-{/* Navigation: Month + Year selects */}
-<div className="flex items-center gap-2 px-3 pb-2">
-  <select
-    value={getMonth(currentMonth)}
-    onChange={(e) => setCurrentMonth(setMonth(currentMonth, Number(e.target.value)))}
-    className="text-sm border rounded px-2 py-1 bg-popover"
-  >
-    {MONTHS_PT.map((m, i) => (
-      <option key={i} value={i}>{m}</option>
-    ))}
-  </select>
-  <select
-    value={getYear(currentMonth)}
-    onChange={(e) => setCurrentMonth(setYear(currentMonth, Number(e.target.value)))}
-    className="text-sm border rounded px-2 py-1 bg-popover"
-  >
-    {YEARS.map((y) => (
-      <option key={y} value={y}>{y}</option>
-    ))}
-  </select>
-</div>
-```
-
-**Atualizar o `<Calendar>` para remover o `captionLayout` e usar `month`/`onMonthChange`:**
-```tsx
-<Calendar
-  mode="range"
-  selected={calendarSelected}
-  onSelect={handleCalendarSelect}
-  month={currentMonth}
-  onMonthChange={setCurrentMonth}
-  numberOfMonths={2}
-  // captionLayout="dropdown-buttons" ← REMOVIDO
-  // fromYear / toYear ← REMOVIDOS (não mais necessários sem captionLayout)
-  disabled={...}
-  className="pointer-events-auto"
-/>
-```
-
-**Adicionar a lista de meses e anos:**
-```typescript
-const MONTHS_PT = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-];
-
-const YEARS = Array.from({ length: 8 }, (_, i) => 2020 + i); // 2020–2027
-```
-
-**Sincronizar `currentMonth` quando o `dateRange` mudar externamente** (ex: ao clicar em preset "Mês passado"):
-```typescript
-// No handlePresetClick, após onDateRangeChange:
-setCurrentMonth(dates.from);
-
-// No handleOpenChange (ao abrir):
-if (open) setCurrentMonth(dateRange.from);
-```
-
-## Arquivo a Modificar
-
-| Arquivo | Mudança |
-|---|---|
-| `src/components/dashboard/DateRangeFilter.tsx` | Remover `captionLayout`, adicionar estado `currentMonth`, adicionar selects de Mês/Ano no painel de inputs, sincronizar mês com presets e abertura do popover |
+| Arquivo | Linha(s) | Mudança |
+|---|---|---|
+| `src/lib/dashboardUtils.ts` | Interface `KPIData` (l.81-91) + `return` de `calculateKPIs` (l.402-413) | Adicionar `previousRevenue` e `previousTransactions` |
+| `src/hooks/useDashboard.ts` | Interface `DashboardData.kpis` (l.25-42) | Adicionar `previousRevenue: number` e `previousTransactions: number` |
+| `src/pages/Index.tsx` | Fallback kpis (l.166-182) + trends (l.188-200) | Usar valores diretos do hook |
 
 ## O que NÃO muda
 
-- Lógica de seleção de datas
-- Inputs manuais DD/MM/AAAA
-- Presets (Hoje, 7d, 30d, 90d, Este mês, Mês passado)
-- Display do período selecionado
-- Correção do NaN% (já funcional)
+- Nenhuma query ao banco é adicionada — `previousSales` já é buscado
+- `revenueChange` e `transactionsChange` permanecem no objeto (podem ser úteis em outros contextos)
+- Comportamento visual dos KPI cards é idêntico — só a fonte dos dados muda
+- Todos os outros KPIs (Reembolsos, Cancelamentos) já estão corrigidos e não são tocados
