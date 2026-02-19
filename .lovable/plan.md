@@ -1,139 +1,150 @@
 
-# Code Review: Remoção de Legados, Código Morto e Inconsistências
+# Diagnóstico de Dados Duplicados e Melhoria dos Filtros de Data
 
-## Diagnóstico Executivo
+## Parte 1 — Dados Duplicados: Diagnóstico Completo
 
-Após leitura direta de 40+ arquivos, identifiquei **4 categorias de problemas reais** com evidências concretas de código e localização exata. O estado geral é saudável (314 testes passando, filtros server-side, RLS implementado), mas há acúmulo de código morto e constantes fantasma que aumentam a carga cognitiva e podem induzir erros futuros.
+### O que foi encontrado
+
+**12 grupos de duplicatas** no banco, totalizando **12 registros extras** (cada grupo tem exatamente 2 ocorrências). Distribuição:
+
+| Característica | Detalhe |
+|---|---|
+| Origem | 100% dos duplicados têm `source = 'api'` e `upload_id = NULL` |
+| Causa raiz | A edge function `ingest-revenue` não verifica duplicatas antes de inserir |
+| Impacto financeiro | Registros duplicados inflam as métricas do dashboard |
+| Status dos duplicados | 8 são "Cancelado" (fora do cálculo de receita), 4 são "Concluído" (contam dobrado) |
+
+### Causa Raiz: `ingest-revenue/index.ts`
+
+A edge function que recebe dados via API **não verifica se o par `order_number + pdv_id` já existe** antes de inserir. O código atual faz diretamente:
+
+```typescript
+// PROBLEMA: sem verificação de duplicata
+const { data: inserted, error: insertError } = await supabase
+  .from("sales_records")
+  .insert(record)
+  .select("id")
+  .single();
+```
+
+### Solução para os dados existentes
+
+Antes de implementar a correção na edge function, é necessário limpar os 12 registros duplicados existentes. A limpeza é feita mantendo apenas o registro mais antigo (menor `id`) de cada par duplicado.
+
+### Solução para novos dados (edge function)
+
+Adicionar a estratégia `upsert` com `onConflict: 'order_number,pdv_id'` — ou uma verificação prévia `SELECT` antes do `INSERT`. A abordagem mais segura é verificar e retornar o registro existente com status `200` em vez de inserir e retornar `201`.
+
+Para que o `upsert` funcione, é necessário também criar uma **constraint única no banco** em `sales_records(order_number, pdv_id)` para registros com `source = 'api'`.
 
 ---
 
-## Categoria 1 — Constantes Sem Consumidores Reais ("Fantasy Constants")
+## Parte 2 — Melhoria dos Filtros de Data
 
-Existem 5 constantes exportadas em `src/lib/constants.ts` que **só são referenciadas pelos próprios testes** (`constants.test.ts`). Nenhum arquivo funcional as importa.
+### Estado atual
 
-| Constante | Valor | Única referência fora do teste |
+O `DateRangeFilter` em `src/components/dashboard/DateRangeFilter.tsx` tem apenas 4 presets limitados: `Hoje`, `7d`, `30d`, `90d`. Faltam presets importantes como:
+- **Este mês** (do dia 1 até hoje)
+- **Mês passado** (mês completo anterior)
+- **Período personalizado com anos** — atualmente o calendário não exibe o seletor de mês/ano, obrigando o usuário a navegar mês a mês clicando nas setas
+
+Além disso, o `DateRangeFilter` usado no dashboard **não passa o `dataRange`** (mínimo e máximo dos dados reais), então o botão "Ver tudo" nunca aparece.
+
+### Melhorias planejadas
+
+1. **Novos presets de período**: Adicionar `Este mês` e `Mês passado` ao lado dos presets existentes — alinhado com `datePresets` de `date-presets.ts` que já os define mas não os usa
+2. **Calendário com navegação por mês/ano**: Configurar o `Calendar` com a prop `captionLayout="dropdown-buttons"` para mostrar dropdowns de mês e ano
+3. **Exibição da data com ano quando necessário**: Quando o período selecionado inclui datas de anos diferentes do atual, mostrar o ano no display (ex: `22/01/2025 - 18/02/2026`)
+4. **Fechar calendário com um clique**: Atualmente o calendário só fecha quando ambas as datas estão selecionadas. Quando o usuário seleciona apenas a data inicial, o calendário deve continuar aberto aguardando a data final — mas deve existir um botão "Fechar" caso o usuário queira cancelar
+5. **Input manual de datas**: Adicionar campos de texto dentro do calendário para digitar as datas diretamente (`DD/MM/AAAA`)
+
+---
+
+## Arquivos a criar/modificar
+
+| Arquivo | Ação | Descrição |
 |---|---|---|
-| `MAX_SLOT_CAPACITY` | 7 | Apenas `constants.test.ts` |
-| `LOW_STOCK_THRESHOLD` | 2 | Apenas `constants.test.ts` |
-| `REDISTRIBUTE_THRESHOLD` | 5 | Apenas `constants.test.ts` |
-| `STOCK_HISTORY_DAYS` | 90 | Apenas `constants.test.ts` |
-| `CHART_ANIMATION_DELAY_STEP` | 50 | Apenas `constants.test.ts` |
-
-O valor real `MAX_CAPACITY = 7` vive em `src/lib/stockTypes.ts` (canônico) e é importado por `stockUtils.ts`, `stockGridUtils.ts` e `ProductDetailModal.tsx`. A constante `MAX_SLOT_CAPACITY = 7` em `constants.ts` é um **duplicado morto** — mesmo valor, sem consumidores.
-
-O mesmo vale para `LOW_STOCK_THRESHOLD` e `REDISTRIBUTE_THRESHOLD`: os thresholds reais vivem hardcoded em `stockUtils.ts` linhas 12-14 (`if (quantity <= 2) return 'restock'; if (quantity <= 5) return 'redistribute'`) e em `STOCK_THRESHOLDS` em `stockTypes.ts`.
-
-`STOCK_HISTORY_DAYS = 90` nunca é importado — o valor está hardcoded em `Index.tsx` linha 114: `.days: 90`.
-
-`CHART_ANIMATION_DELAY_STEP = 50` nunca é usado em nenhum componente.
-
-**Ação:** Remover as 5 constantes de `constants.ts` e remover suas referências de `constants.test.ts`.
+| `supabase/functions/ingest-revenue/index.ts` | EDITAR | Adicionar verificação de duplicata antes do insert: buscar por `order_number + pdv_id`, se existir retornar 200 com o registro existente em vez de inserir |
+| `src/components/dashboard/DateRangeFilter.tsx` | EDITAR | Adicionar presets "Este mês" e "Mês passado", melhorar calendário com `captionLayout="dropdown-buttons"`, melhorar display de data com ano quando necessário |
+| `src/lib/utils/date-presets.ts` | EDITAR | Adicionar `getDateRangeFromPeriod` para suporte a "lastMonth" que já existe em `datePresets` mas não em `getDateRangeFromPeriod` |
+| Migration SQL | CRIAR | Adicionar constraint única em `sales_records(order_number, pdv_id)` apenas para `source = 'api'` + deletar os 12 registros duplicados existentes |
 
 ---
 
-## Categoria 2 — Interfaces Legadas Sem Consumidores ("Dead Types")
+## Detalhe técnico: limpeza das duplicatas
 
-Em `src/lib/schemas/upload.ts` existem duas interfaces que **nunca são importadas** por nenhum arquivo funcional:
+A query para remover os duplicados mantendo apenas o registro mais antigo de cada grupo é:
 
-```typescript
-// src/lib/schemas/upload.ts — linha 84
-export interface Upload { ... }  // Nunca importada
-
-// src/lib/schemas/upload.ts — linha 102
-export interface UploadWithRelations extends Upload { ... }  // Nunca importada
+```sql
+-- Remove duplicatas mantendo o registro mais antigo (menor ctid)
+DELETE FROM sales_records
+WHERE id IN (
+  SELECT id FROM (
+    SELECT id,
+      ROW_NUMBER() OVER (
+        PARTITION BY order_number, pdv_id
+        ORDER BY id  -- mantém o mais antigo
+      ) as rn
+    FROM sales_records
+    WHERE source = 'api'
+  ) ranked
+  WHERE rn > 1
+);
 ```
 
-Os hooks usam suas próprias interfaces locais (`UploadListItem` em `useUploads.ts`, `UploadDetails` em `useUploadDetails.ts`) que são as **fontes canônicas** para as queries com joins. A interface `Upload` foi provavelmente o design original antes da divisão em hooks especializados. O comentário de hierarquia no topo do arquivo já documenta isso, mas as interfaces permanecem como código morto.
+## Detalhe técnico: constraint única para prevenção futura
 
-**Ação:** Remover `Upload` e `UploadWithRelations` de `schemas/upload.ts`. Remover também o campo `pdv_name?` de `Upload` que é resíduo do design antigo.
+```sql
+-- Unique constraint apenas para registros da API
+CREATE UNIQUE INDEX IF NOT EXISTS sales_records_api_order_pdv_unique
+ON sales_records (order_number, pdv_id)
+WHERE source = 'api';
+```
 
----
+## Detalhe técnico: verificação de duplicata na edge function
 
-## Categoria 3 — Função Duplicada com Contrato Diferente (`calculatePercentageChange`)
-
-Existe uma função com o mesmo nome em dois arquivos com **comportamentos diferentes**:
-
-**`src/lib/dashboardUtils.ts` linha 354:**
 ```typescript
-export function calculatePercentageChange(current: number, previous: number): number {
-  if (previous === 0) return 0;  // retorna 0 quando anterior é zero
-  return ((current - previous) / previous) * 100;  // sem arredondamento
+// Verificar se já existe antes de inserir
+const { data: existing } = await supabase
+  .from("sales_records")
+  .select("id")
+  .eq("order_number", record.order_number)
+  .eq("pdv_id", record.pdv_id)
+  .eq("source", "api")
+  .maybeSingle();
+
+if (existing) {
+  // Retorna 200 com o registro existente — idempotente
+  return new Response(
+    JSON.stringify({ success: true, record_id: existing.id, pdv_id: pdv.id, duplicate: true }),
+    { status: 200, ... }
+  );
 }
+
+// Só insere se não existir
+const { data: inserted, error: insertError } = await supabase
+  .from("sales_records")
+  .insert(record)
+  .select("id")
+  .single();
 ```
 
-**`src/lib/trendUtils.ts` linha 17:**
+## Detalhe técnico: novos presets no DateRangeFilter
+
 ```typescript
-export function calculatePercentageChange(current: number, previous: number): number | null {
-  if (previous === 0) return null;  // retorna null quando anterior é zero
-  return Math.round(((current - previous) / previous) * 1000) / 10;  // 1 casa decimal
-}
+const PRESETS = [
+  { label: "Hoje",        getDates: () => ({ from: startOfDay(today), to: endOfDay(today) }) },
+  { label: "7d",          getDates: () => ({ from: startOfDay(subDays(today, 6)), to: endOfDay(today) }) },
+  { label: "30d",         getDates: () => ({ from: startOfDay(subDays(today, 29)), to: endOfDay(today) }) },
+  { label: "90d",         getDates: () => ({ from: startOfDay(subDays(today, 89)), to: endOfDay(today) }) },
+  { label: "Este mês",    getDates: () => ({ from: startOfMonth(today), to: endOfDay(today) }) },
+  { label: "Mês passado", getDates: () => ({ from: startOfMonth(subMonths(today, 1)), to: endOfMonth(subMonths(today, 1)) }) },
+];
 ```
 
-Diferenças concretas:
-- Tipo de retorno: `number` vs `number | null`
-- Comportamento com zero: retorna `0` vs retorna `null`
-- Precisão: sem arredondamento vs 1 casa decimal
+## Ordem de execução
 
-`dashboardUtils.ts` usa sua versão internamente em `calculateKPIs`. `trendUtils.ts` usa a sua versão em `calculateTrend` (usada por `Index.tsx` via `KPICard`). São dois sistemas paralelos com nomes idênticos.
-
-**Problema real:** `useDashboard.ts` calcula `cancellationsChange` diretamente (sem usar nenhuma das duas funções), e os testes de `dashboardUtils.test.ts` testam apenas a versão de `dashboardUtils`. A duplicação cria confusão sobre qual versão usar em novos contextos.
-
-**Ação:** Renomear a versão em `dashboardUtils.ts` para `calculateRawPercentage` (nome interno, não exportada, ou mantida interna sem exportação pública). A versão em `trendUtils.ts` permanece como a API pública. Alternativamente, unificar via parâmetro de opções.
-
----
-
-## Categoria 4 — `DEFAULT_PAGE_SIZE` Duplicada
-
-A constante `DEFAULT_PAGE_SIZE = 50` existe em dois lugares:
-
-- `src/lib/constants.ts` linha 7: exportada, usada apenas em `constants.test.ts`
-- `src/hooks/usePaginatedQuery.ts` linha 24: local, usada internamente pelo hook
-
-O hook não importa de `constants.ts` — define sua própria cópia. Se alguém mudar a constante em `constants.ts`, o hook não é afetado.
-
-**Ação:** Fazer `usePaginatedQuery.ts` importar `DEFAULT_PAGE_SIZE` de `constants.ts` em vez de redefinir localmente.
-
----
-
-## Resumo das Mudanças
-
-| # | Arquivo | Mudança | Impacto |
-|---|---|---|---|
-| 1 | `src/lib/constants.ts` | Remover 5 constantes fantasma | -5 exports mortos |
-| 2 | `src/lib/__tests__/constants.test.ts` | Remover testes das 5 constantes removidas | -~12 testes sem cobertura real |
-| 3 | `src/lib/schemas/upload.ts` | Remover `Upload` e `UploadWithRelations` | -2 interfaces mortas |
-| 4 | `src/lib/dashboardUtils.ts` | Tornar `calculatePercentageChange` interna (não exportada) | Elimina duplicação de API |
-| 5 | `src/hooks/usePaginatedQuery.ts` | Importar `DEFAULT_PAGE_SIZE` de `constants.ts` | Unifica fonte de verdade |
-| 6 | `src/pages/Index.tsx` linha 114 | Substituir `days: 90` por `STOCK_HISTORY_DAYS` da constante (após reativar) | Código autodocumentado |
-
-**Exceção para item 6:** Se a constante `STOCK_HISTORY_DAYS` for reativada (removida do plano 1) para uso real em `Index.tsx`, ela deixa de ser código morto. Neste caso: manter a constante e conectá-la ao único local que a usa. Esta é a abordagem preferida para `STOCK_HISTORY_DAYS` — em vez de remover, **conectar ao uso real**.
-
-## Arquivos a Alterar
-
-```text
-src/lib/constants.ts              → Remover: MAX_SLOT_CAPACITY, LOW_STOCK_THRESHOLD,
-                                    REDISTRIBUTE_THRESHOLD, CHART_ANIMATION_DELAY_STEP
-                                    Manter: STOCK_HISTORY_DAYS (será conectado ao uso real)
-
-src/lib/__tests__/constants.test.ts → Remover blocos de teste das 4 constantes removidas
-
-src/lib/schemas/upload.ts         → Remover interface Upload e UploadWithRelations
-
-src/lib/dashboardUtils.ts         → Remover export de calculatePercentageChange
-                                    (manter a função como interna/não exportada)
-
-src/hooks/usePaginatedQuery.ts    → Importar DEFAULT_PAGE_SIZE de '@/lib/constants'
-                                    em vez de redefinir localmente
-
-src/pages/Index.tsx               → Substituir hardcode days: 90 por STOCK_HISTORY_DAYS
-```
-
-## O que NÃO será alterado
-
-- Nenhuma lógica de negócio
-- Nenhum componente visual
-- Nenhuma edge function
-- Nenhuma tabela do banco
-- Nenhuma política RLS
-
-Todas as mudanças são puramente de organização de código — remover exports não consumidos, unificar fontes duplicadas, eliminar tipos fantasma.
+1. Executar migration SQL (limpar duplicatas + criar constraint)
+2. Atualizar `ingest-revenue` com verificação de duplicata
+3. Melhorar `DateRangeFilter` com novos presets e calendário com dropdown de mês/ano
+4. Atualizar `getDateRangeFromPeriod` em `date-presets.ts` para cobrir "lastMonth"
