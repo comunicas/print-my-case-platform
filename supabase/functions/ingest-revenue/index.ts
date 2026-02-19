@@ -228,7 +228,29 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 7. Insert into sales_records
+    // 7. Check for duplicate before inserting (idempotency)
+    const { data: existing } = await supabase
+      .from("sales_records")
+      .select("id")
+      .eq("order_number", record.order_number!)
+      .eq("pdv_id", record.pdv_id)
+      .eq("source", "api")
+      .maybeSingle();
+
+    if (existing) {
+      // Registro já existe — retorna 200 idempotente sem inserir novamente
+      await supabase
+        .from("api_keys")
+        .update({ last_used_at: new Date().toISOString() })
+        .eq("id", apiKeyRecord.id);
+
+      return new Response(
+        JSON.stringify({ success: true, record_id: existing.id, pdv_id: pdv.id, duplicate: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // 8. Insert into sales_records
     const { data: inserted, error: insertError } = await supabase
       .from("sales_records")
       .insert(record)
@@ -243,7 +265,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 8. Update last_used_at
+    // 9. Update last_used_at
     await supabase
       .from("api_keys")
       .update({ last_used_at: new Date().toISOString() })
