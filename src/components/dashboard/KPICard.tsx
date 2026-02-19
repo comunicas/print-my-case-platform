@@ -52,14 +52,14 @@ export function KPICard({
 
   return (
     <Card data-testid={testId} className="overflow-hidden">
-      <CardHeader className="flex flex-row items-center justify-between pb-1 md:pb-2 px-3 md:px-6 pt-3 md:pt-6">
-        <CardTitle className="text-[10px] md:text-sm font-medium text-muted-foreground truncate pr-2">
+      <CardHeader className="flex flex-row items-center justify-between pb-1 md:pb-2 px-3 md:px-6 xl:px-3 pt-3 md:pt-6 xl:pt-3">
+        <CardTitle className="text-[10px] md:text-sm xl:text-[10px] font-medium text-muted-foreground truncate pr-2">
           {title}
         </CardTitle>
-        <Icon className={cn("h-3.5 w-3.5 md:h-4 md:w-4 shrink-0", variantStyles[variant])} />
+        <Icon className={cn("h-3.5 w-3.5 md:h-4 md:w-4 xl:h-3.5 xl:w-3.5 shrink-0", variantStyles[variant])} />
       </CardHeader>
-      <CardContent className="px-3 md:px-6 pb-3 md:pb-6">
-        <div data-testid="kpi-value" className="text-base md:text-2xl font-bold text-foreground truncate">{value}</div>
+      <CardContent className="px-3 md:px-6 xl:px-3 pb-3 md:pb-6 xl:pb-3">
+        <div data-testid="kpi-value" className="text-base md:text-xl xl:text-base font-bold text-foreground truncate">{value}</div>
         
         <div className="flex items-center gap-1 md:gap-2 mt-0.5 md:mt-1 min-h-[18px]">
           {showTrend && (
