@@ -1,151 +1,132 @@
 
-# Persistência do Filtro de Datas no Dashboard (localStorage)
+# Verificação de Persistência + Botão de Reset do Filtro de Datas
 
-## Diagnóstico do Estado Atual
+## Verificação de Persistência — Resultado
 
-Em `src/pages/Index.tsx`:
+A persistência foi testada com sucesso:
 
-- `dateRange` é inicializado com `getDateRangeFromPeriod("30days")` (linha 60) — sempre reseta ao navegar.
-- `prefsInitialized` guard (linha 82-94) **sobrescreve** o dateRange com `preferences.default_period` na primeira carga — esse é o conflito central a resolver.
-- Já existe um padrão idêntico de persistência em localStorage para `dashboard-consolidated-open` (linhas 65-73), que serve como referência direta.
-- **Não existe** nenhum hook dedicado para persistência de dateRange.
+1. Selecionado o preset **7d** no dashboard → filtro exibiu "12/02 - 18/02 (7 dias)"
+2. Navegado para `/stock`
+3. Voltado para `/` (dashboard)
+4. Resultado: **7d mantido**, dados corretos restaurados sem flash
 
-## Estratégia de Persistência
+A implementação do `localStorage` está funcionando perfeitamente.
 
-### Serialização no localStorage
+---
 
-Datas não podem ser serializadas diretamente como `Date` objects em JSON. A estratégia usada será salvar as datas como **ISO strings** e restaurar parseando com `new Date()`:
+## Botão de Reset — Análise e Design
 
-```json
-// Chave: 'dashboard-date-range'
-{
-  "from": "2026-01-20T03:00:00.000Z",
-  "to": "2026-02-19T02:59:59.999Z"
-}
+### Comportamento Esperado
+
+O botão de reset deve:
+1. Remover a chave `dashboard-date-range` do `localStorage`
+2. Aplicar o `preferences.default_period` do servidor (ex: "30days")
+3. Ser discreto — não deve poluir visualmente a barra de filtros
+
+### Onde Colocar o Reset
+
+O botão de reset deve existir em **`Index.tsx`**, não no `DateRangeFilter`. O motivo: o `DateRangeFilter` é um componente genérico (reutilizado em outros contextos), e não tem acesso a `preferences` nem ao `localStorage`. O reset é uma responsabilidade da página que gerencia o estado.
+
+A `DateRangeFilter` recebe uma prop opcional `onReset` — quando fornecida, exibe um ícone de reset ao lado do período exibido.
+
+### Interface Visual
+
+```
+[ Hoje ] [ 7d ] [ 30d ] [ 90d ] [ Este mês ] [ Mês passado ] [ 📅 v ]    12/02 - 18/02 (7 dias)  •  Dados: 05/12 - 18/02  Ver tudo   ↺
+                                                                                                                                       ^
+                                                                                                                                  ícone RotateCcw
+                                                                                                                            "Restaurar período padrão"
 ```
 
-### Ordem de Prioridade (da mais para menos prioritária)
+O ícone `RotateCcw` aparece **apenas quando o filtro atual difere do período padrão das preferências** (`default_period`). Isso evita exibir um botão desnecessário quando o usuário já está no período padrão.
 
-```text
-1. localStorage (última seleção do usuário na sessão/entre sessões)
-2. preferences.default_period  ← aplica SOMENTE se não há nada salvo
-3. fallback hardcoded "30days"  ← só se nenhum dos anteriores existir
-```
-
-Isso garante que a preferência do servidor (`default_period`) ainda é respeitada no **primeiro acesso** do usuário, mas visitas subsequentes restauram a seleção manual.
-
-### Validação do Valor Restaurado
-
-Antes de aplicar o valor do localStorage, validar:
-- Estrutura `{ from, to }` existe
-- Ambas as datas são válidas (`!isNaN(date.getTime())`)
-- Datas são razoáveis (não no futuro extremo, não antes de 2015)
-
-Se inválido → ignora e aplica `default_period` das preferências.
+---
 
 ## Mudanças Necessárias
 
-### Arquivo único: `src/pages/Index.tsx`
+### 1. `src/components/dashboard/DateRangeFilter.tsx`
 
-**1. Inicialização do `useState` de `dateRange` (linha 60)**
+Adicionar prop `onReset?: () => void` à interface. Quando fornecida, renderizar um botão com ícone `RotateCcw` no bloco "Period Info":
 
-Ler o localStorage **na inicialização** do estado (dentro da função lazy do `useState`), para evitar flash do valor padrão:
+```tsx
+// Adicionar à interface DateRangeFilterProps:
+onReset?: () => void;
 
-```typescript
-// ANTES (linha 60):
-const [dateRange, setDateRange] = useState<DateRange>(() => getDateRangeFromPeriod("30days"));
-
-// DEPOIS:
-const [dateRange, setDateRange] = useState<DateRange>(() => {
-  try {
-    const saved = localStorage.getItem('dashboard-date-range');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      const from = new Date(parsed.from);
-      const to = new Date(parsed.to);
-      if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
-        return { from, to };
-      }
-    }
-  } catch {}
-  return getDateRangeFromPeriod("30days");
-});
+// Adicionar no JSX, ao final do bloco "Period Info" (após o "Ver tudo"):
+{onReset && (
+  <Button
+    variant="ghost"
+    size="sm"
+    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+    onClick={onReset}
+    title="Restaurar período padrão"
+  >
+    <RotateCcw className="h-3.5 w-3.5" />
+  </Button>
+)}
 ```
 
-**2. Atualizar o guard de preferências (linhas 81-94)**
+Adicionar `RotateCcw` ao import existente de `lucide-react`.
 
-O bloco `prefsInitialized` atualmente **sempre** sobrescreve `dateRange` com `default_period`. Isso deve ser condicional — só aplica se **não havia nada salvo no localStorage**:
+### 2. `src/pages/Index.tsx`
 
-```typescript
+Adicionar função `handleResetDateRange`:
+
+```tsx
+const handleResetDateRange = () => {
+  localStorage.removeItem('dashboard-date-range');
+  const defaultRange = getDateRangeFromPeriod(preferences?.default_period ?? "30days");
+  setDateRange(defaultRange);
+};
+```
+
+Passar a prop para o `DateRangeFilter`:
+
+```tsx
 // ANTES:
-useEffect(() => {
-  if (!prefsInitialized && preferences && !isLoadingPreferences && !pdvsLoading) {
-    setDateRange(getDateRangeFromPeriod(preferences.default_period));  // sempre sobrescreve
-    // ...
-    setPrefsInitialized(true);
-  }
-}, [...]);
+<DateRangeFilter
+  dateRange={dateRange}
+  onDateRangeChange={setDateRange}
+  dataRange={...}
+/>
 
 // DEPOIS:
-useEffect(() => {
-  if (!prefsInitialized && preferences && !isLoadingPreferences && !pdvsLoading) {
-    // Só aplica default_period se não há preferência salva no localStorage
-    const hasSavedRange = !!localStorage.getItem('dashboard-date-range');
-    if (!hasSavedRange) {
-      setDateRange(getDateRangeFromPeriod(preferences.default_period));
-    }
-    // resto do bloco (PDV) permanece igual
-    // ...
-    setPrefsInitialized(true);
-  }
-}, [...]);
+<DateRangeFilter
+  dateRange={dateRange}
+  onDateRangeChange={setDateRange}
+  dataRange={...}
+  onReset={handleResetDateRange}
+/>
 ```
 
-**3. Salvar no localStorage quando `dateRange` muda**
+O botão de reset **sempre aparece** quando `onReset` é passado, mantendo a implementação simples. O usuário pode clicar nele a qualquer momento para voltar ao período padrão das preferências.
 
-Adicionar `useEffect` análogo ao do `consolidatedOpen`:
-
-```typescript
-// Adicionar após o useEffect do consolidatedOpen (linha 73):
-useEffect(() => {
-  localStorage.setItem('dashboard-date-range', JSON.stringify({
-    from: dateRange.from.toISOString(),
-    to: dateRange.to.toISOString(),
-  }));
-}, [dateRange]);
-```
+---
 
 ## Comportamento Resultante
 
-```text
-PRIMEIRO ACESSO (sem localStorage):
-  → aplica preferences.default_period (ex: "7days")
-  → salva no localStorage
+```
+USUÁRIO SELECIONA "7d" MANUALMENTE:
+  → salvo no localStorage
+  → ícone ↺ visível ao lado do período
 
-VISITAS SUBSEQUENTES:
-  → restaura do localStorage (ex: range customizado "01/01 - 15/02")
-  → ignora preferences.default_period
+USUÁRIO CLICA ↺:
+  → localStorage.removeItem('dashboard-date-range')
+  → setDateRange(getDateRangeFromPeriod(preferences.default_period))
+  → dashboard atualiza imediatamente para o período padrão
+  → ao navegar e voltar, o padrão é reaplicado (sem localStorage)
 
-PREFERÊNCIA ALTERADA EM SETTINGS:
-  → só terá efeito se o usuário limpar manualmente o localStorage
-    (comportamento esperado — a seleção manual tem prioridade)
-
-RANGE INVÁLIDO NO LOCALSTORAGE (dado corrompido):
-  → ignora silenciosamente, cai no fallback "30days"
+PREFERÊNCIA PADRÃO = "30days" → CLICA ↺:
+  → mesmo comportamento: remove localStorage, aplica "30d"
 ```
 
-## O Que NÃO Muda
-
-- `DateRangeFilter` — zero alterações no componente
-- `useDashboard`, `useDashboardDataRange` — sem toque
-- `usePreferences` — sem toque
-- Lógica de PDV — sem toque
-- Outros hooks e páginas — nenhum impacto
+---
 
 ## Arquivos a Modificar
 
-| Arquivo | Mudanças |
+| Arquivo | Mudança |
 |---|---|
-| `src/pages/Index.tsx` | (1) Lazy initializer do `useState<DateRange>` lê localStorage; (2) Guard de preferências condicionado à ausência de localStorage; (3) `useEffect` que salva dateRange no localStorage |
+| `src/components/dashboard/DateRangeFilter.tsx` | (1) Import `RotateCcw`; (2) Prop `onReset?` na interface; (3) Botão reset no JSX |
+| `src/pages/Index.tsx` | (1) Função `handleResetDateRange`; (2) Prop `onReset` no `<DateRangeFilter>` |
 
-Total: **3 alterações cirúrgicas em 1 arquivo**, sem novos arquivos, sem novos imports, sem migrações.
+Total: **2 arquivos, 5 mudanças pequenas**, sem novos arquivos, sem novos imports de hooks, sem banco de dados.
