@@ -191,6 +191,7 @@ export function useUploads(filters: UploadsFilters = {}) {
         }).then((response) => {
           queryClient.invalidateQueries({ queryKey: ["uploads"] });
           queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+          queryClient.invalidateQueries({ queryKey: ["dashboard-data-range"] });
           
           // Check for anomalies in the response
           const data = response.data;
@@ -221,6 +222,7 @@ export function useUploads(filters: UploadsFilters = {}) {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["uploads"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-data-range"] });
       toast.success("Upload iniciado", {
         description: `Processando ${uploadTypeLabels[data.type].toLowerCase()} de ${data.pdv.name}`,
       });
@@ -300,6 +302,7 @@ export function useUploads(filters: UploadsFilters = {}) {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["uploads"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-data-range"] });
       toast.success("Upload excluído", {
         description: `${data.fileName} foi removido com sucesso.`,
       });

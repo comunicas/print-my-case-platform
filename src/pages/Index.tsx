@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useDashboard } from "@/hooks/useDashboard";
+import { useDashboardDataRange } from "@/hooks/useDashboardDataRange";
 import { useOrganizations } from "@/hooks/useOrganizations";
 import { usePDVs } from "@/hooks/usePDVs";
 import { useSlotsData } from "@/hooks/useSlotsData";
@@ -110,6 +111,10 @@ export default function Index() {
     selectedOrganizationId: selectedOrgId,
     selectedPdvId: selectedPdvId,
     dateRange: { from: dateRange.from, to: dateRange.to }
+  });
+  const { dataRange: dashboardDataRange } = useDashboardDataRange({
+    selectedOrganizationId: selectedOrgId,
+    selectedPdvId: selectedPdvId,
   });
   const { data: slotsData, refetch: refetchSlots } = useSlotsData({ pdvId: selectedPdvId !== 'all' ? selectedPdvId : undefined });
   const { data: stockHistory, refetch: refetchStockHistory } = useStockHistory({ days: STOCK_HISTORY_DAYS, organizationId: selectedOrgId, pdvId: selectedPdvId !== 'all' ? selectedPdvId : undefined });
@@ -283,6 +288,7 @@ export default function Index() {
           <DateRangeFilter
             dateRange={dateRange}
             onDateRangeChange={setDateRange}
+            dataRange={dashboardDataRange}
           />
           
           {/* Organization Filter - Super Admin only */}
