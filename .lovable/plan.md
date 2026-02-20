@@ -1,73 +1,34 @@
 
-# Fix: Tipagem correta do `prefetchMap` sem cast desnecessário
+# Correção: Vincular perfil do usuário à organização
 
-## Diagnóstico do Problema
+## Diagnóstico
 
-**Arquivo afetado:** `src/components/layout/AppSidebar.tsx`, linha 84
+O perfil do usuário `feahorita@gmail.com` tem dois problemas no banco de dados:
 
-```typescript
-// ATUAL — cast enganoso:
-const handlePrefetch = prefetchMap[item.href as keyof typeof prefetchMap];
-```
-
-**Por que é um problema:**
-
-O `prefetchMap` possui apenas 4 entradas: `"/"`, `"/organizations"`, `"/estoque"`, `"/marketing"`. Mas `navItems` inclui `"/uploads"`, que **não está** no mapa.
-
-O cast `as keyof typeof prefetchMap` instrui o TypeScript a tratar `item.href` (uma `string` arbitrária) como se fosse uma das 4 chaves válidas. O TypeScript então **não avisa** que `/uploads` nunca terá prefetch — o tipo inferido é `() => void` em vez de `(() => void) | undefined`, ocultando o comportamento real.
-
-Em runtime, `prefetchMap["/uploads"]` retorna `undefined`, que é passado como `onMouseEnter={undefined}` — inofensivo, mas o TypeScript não sabe disso. A solução é usar um acesso tipado que expressa honestamente que o resultado pode ser `undefined`.
-
----
-
-## Solução: Tipagem honesta com acesso via record tipado
-
-A correção usa um acesso tipado explícito que permite `undefined` sem precisar de cast:
-
-```typescript
-// DEPOIS — tipagem honesta:
-const prefetchHandlers: Partial<Record<string, () => void>> = prefetchMap;
-const handlePrefetch = prefetchHandlers[item.href];
-```
-
-**Alternativa mais compacta (mesma semântica):**
-
-```typescript
-const handlePrefetch = (prefetchMap as Partial<Record<string, () => void>>)[item.href];
-```
-
-Ambas fazem o mesmo: o tipo de `handlePrefetch` passa a ser `(() => void) | undefined`, que é o comportamento real. O JSX `onMouseEnter={handlePrefetch}` aceita `(() => void) | undefined` sem erro — nenhuma outra mudança é necessária.
-
----
-
-## Por que não adicionar `/uploads` ao `prefetchMap`?
-
-O plano original (item #7) descartou essa opção: uploads é uma listagem simples sem dados pesados para pré-carregar. Adicionar um `prefetchUploads` vazio só para "completar" o mapa adicionaria código sem valor. A solução correta é tornar o lookup honestamente opcional.
-
----
-
-## Mudanças Necessárias
-
-### `src/components/layout/AppSidebar.tsx` — 1 linha alterada
-
-**Linha 84:**
-
-```typescript
-// ANTES:
-const handlePrefetch = prefetchMap[item.href as keyof typeof prefetchMap];
-
-// DEPOIS:
-const handlePrefetch = (prefetchMap as Partial<Record<string, () => void>>)[item.href];
-```
-
-Nenhuma outra mudança. O `onMouseEnter={handlePrefetch}` já aceita `undefined` na prop do React — zero impacto em runtime, tipagem agora expressa a realidade.
-
----
-
-## Resumo
-
-| Arquivo | Linha | Mudança |
+| Campo | Valor Atual | Valor Correto |
 |---|---|---|
-| `src/components/layout/AppSidebar.tsx` | 84 | Substituir cast `as keyof typeof prefetchMap` por acesso via `Partial<Record<string, () => void>>` |
+| `organization_id` | `NULL` | `56bf08d1-6843-43ef-a880-776acafe8609` (HB Solucoes Digitais) |
+| `status` | `inactive` | `active` |
 
-**1 arquivo, 1 linha, zero risco de regressão.**
+A organização **"HB Soluções Digitais"** existe e tem `owner_id` apontando corretamente para este usuário. Porém, o perfil nunca foi vinculado de volta — provavelmente porque a conta foi criada fora do fluxo padrão da Edge Function `create-user`, que é responsável por definir o `organization_id` no perfil.
+
+Sem `organization_id`, todas as queries RLS retornam vazio (PDVs, vendas, estoque, notificações), e o hook `useOrganization` retorna `null`.
+
+## Correção
+
+Uma migration SQL para vincular o perfil a organização e ativar o status:
+
+```sql
+UPDATE profiles 
+SET organization_id = '56bf08d1-6843-43ef-a880-776acafe8609', 
+    status = 'active' 
+WHERE id = '0f365ed3-f8b7-4d85-bb3b-54ca74be6c32';
+```
+
+Nenhuma mudança de codigo e necessaria. Apos a execucao, o usuario pode recarregar a pagina e todos os dados da organizacao serao carregados normalmente.
+
+## Impacto
+
+- Zero mudancas em arquivos de codigo
+- 1 UPDATE no banco de dados
+- Restaura acesso completo do usuario aos dados da organizacao "HB Solucoes Digitais"
