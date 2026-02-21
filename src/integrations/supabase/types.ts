@@ -972,6 +972,38 @@ export type Database = {
           },
         ]
       }
+      user_org_access: {
+        Row: {
+          access_level: string
+          created_at: string
+          id: string
+          organization_id: string
+          user_id: string
+        }
+        Insert: {
+          access_level?: string
+          created_at?: string
+          id?: string
+          organization_id: string
+          user_id: string
+        }
+        Update: {
+          access_level?: string
+          created_at?: string
+          id?: string
+          organization_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_org_access_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_pdvs: {
         Row: {
           created_at: string | null
@@ -1088,6 +1120,10 @@ export type Database = {
       }
       user_can_access_pdv: {
         Args: { _pdv_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_has_org_access: {
+        Args: { _org_id: string; _user_id: string }
         Returns: boolean
       }
     }
