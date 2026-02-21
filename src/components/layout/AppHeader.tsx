@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
-import { useOrganizationName } from "@/hooks/useOrganizationName";
+import { useActiveOrg } from "@/contexts/ActiveOrgContext";
+import { OrgSwitcher } from "./OrgSwitcher";
 
 interface AppHeaderProps {
   isMobile?: boolean;
@@ -24,7 +25,7 @@ export function AppHeader({ isMobile, onMenuClick }: AppHeaderProps) {
   const { theme, setTheme } = useTheme();
   const { signOut } = useAuth();
   const { profile, role } = useProfile();
-  const { data: organizationName } = useOrganizationName();
+  const { activeOrgName, hasMultipleOrgs } = useActiveOrg();
   const navigate = useNavigate();
   
   const initials = profile?.name
@@ -55,14 +56,18 @@ export function AppHeader({ isMobile, onMenuClick }: AppHeaderProps) {
           </Button>
         )}
 
-        <div className="min-w-0">
-          <h2 className="font-semibold text-sm md:text-base truncate max-w-[150px] md:max-w-none text-foreground">
-            {organizationName || "Carregando..."}
-          </h2>
-          <p className="text-xs text-muted-foreground hidden md:block">
-            {role ? roleLabels[role] : "Carregando..."}
-          </p>
-        </div>
+        {hasMultipleOrgs ? (
+          <OrgSwitcher />
+        ) : (
+          <div className="min-w-0">
+            <h2 className="font-semibold text-sm md:text-base truncate max-w-[150px] md:max-w-none text-foreground">
+              {activeOrgName || "Carregando..."}
+            </h2>
+            <p className="text-xs text-muted-foreground hidden md:block">
+              {role ? roleLabels[role] : "Carregando..."}
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-1 md:gap-3">

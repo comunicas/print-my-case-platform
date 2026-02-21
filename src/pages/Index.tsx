@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, lazy, Suspense, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useActiveOrg } from "@/contexts/ActiveOrgContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,7 @@ export default function Index() {
   const navigate = useNavigate();
   const { preferences, isLoading: isLoadingPreferences } = usePreferences();
   const { organizations, isSuperAdmin, refetch: refetchOrgs, isFetching: isRefetchingOrgs } = useOrganizations();
+  const { activeOrgId } = useActiveOrg();
   
   const [dateRange, setDateRange] = useState<DateRange>(() => {
     try {
@@ -93,9 +95,11 @@ export default function Index() {
     }));
   }, [dateRange]);
   
-  // Fetch PDVs filtered by selected organization (for super admins)
+  // For super admins, use their local org selector; for multi-org users, use activeOrgId from context
+  const effectiveOrgId = isSuperAdmin ? selectedOrgId : (activeOrgId ?? undefined);
+  
   const { pdvs = [], isLoading: pdvsLoading } = usePDVs({ 
-    organizationId: isSuperAdmin ? selectedOrgId : undefined 
+    organizationId: effectiveOrgId
   });
   
   // Initialize from preferences once they load
@@ -123,26 +127,34 @@ export default function Index() {
     setPdvWasAutoApplied(false);
   };
   
-  // Reset PDV when organization changes
+  // Reset PDV when organization changes (super admin selector)
   const handleOrgChange = (value: string) => {
     setSelectedOrgId(value);
     setSelectedPdvId("all");
     setPdvWasAutoApplied(false);
   };
+
+  // Reset PDV when active org changes (multi-org switcher)
+  useEffect(() => {
+    if (!isSuperAdmin && activeOrgId) {
+      setSelectedPdvId("all");
+      setPdvWasAutoApplied(false);
+    }
+  }, [activeOrgId, isSuperAdmin]);
   
   const isMobile = useIsMobile();
   
   const { data, isLoading, isFetching, refetch } = useDashboard({ 
-    selectedOrganizationId: selectedOrgId,
+    selectedOrganizationId: effectiveOrgId,
     selectedPdvId: selectedPdvId,
     dateRange: { from: dateRange.from, to: dateRange.to }
   });
   const { dataRange: dashboardDataRange } = useDashboardDataRange({
-    selectedOrganizationId: selectedOrgId,
+    selectedOrganizationId: effectiveOrgId,
     selectedPdvId: selectedPdvId,
   });
   const { data: slotsData, refetch: refetchSlots } = useSlotsData({ pdvId: selectedPdvId !== 'all' ? selectedPdvId : undefined });
-  const { data: stockHistory, refetch: refetchStockHistory } = useStockHistory({ days: STOCK_HISTORY_DAYS, organizationId: selectedOrgId, pdvId: selectedPdvId !== 'all' ? selectedPdvId : undefined });
+  const { data: stockHistory, refetch: refetchStockHistory } = useStockHistory({ days: STOCK_HISTORY_DAYS, organizationId: effectiveOrgId, pdvId: selectedPdvId !== 'all' ? selectedPdvId : undefined });
 
   // Pull-to-refresh handler
   const handleRefresh = useCallback(async () => {

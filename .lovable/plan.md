@@ -1,34 +1,26 @@
 
-# Correção: Vincular perfil do usuário à organização
+# Acesso Multi-Org Granular - Implementado
 
-## Diagnóstico
+## O que foi feito
 
-O perfil do usuário `feahorita@gmail.com` tem dois problemas no banco de dados:
+### Backend (Migração SQL)
+1. Criada tabela `user_org_access` com campos `user_id`, `organization_id`, `access_level` (viewer/editor)
+2. Criada função `user_has_org_access()` (SECURITY DEFINER) para checar acesso cross-org
+3. Atualizada função `user_can_access_pdv()` para incluir acesso cross-org
+4. Atualizadas políticas RLS SELECT em: `pdvs`, `stock_history`, `organizations`, `notifications`, `products`
+5. Inserido acesso viewer para `feahorita@gmail.com` na organização **RB Digital Tech**
 
-| Campo | Valor Atual | Valor Correto |
-|---|---|---|
-| `organization_id` | `NULL` | `56bf08d1-6843-43ef-a880-776acafe8609` (HB Solucoes Digitais) |
-| `status` | `inactive` | `active` |
+### Frontend
+1. `src/hooks/useUserOrganizations.ts` - Hook que busca orgs acessíveis (própria + cross-org)
+2. `src/contexts/ActiveOrgContext.tsx` - Contexto global com org ativa selecionada
+3. `src/components/layout/OrgSwitcher.tsx` - Dropdown de seleção de empresa no header
+4. Atualizado `AppHeader.tsx` para mostrar OrgSwitcher quando há múltiplas orgs
+5. Atualizado `App.tsx` com ActiveOrgProvider
+6. Atualizado `Index.tsx` para usar activeOrgId nos filtros de dashboard
+7. Atualizado `usePDVs.ts` para aceitar orgId de qualquer organização acessível
 
-A organização **"HB Soluções Digitais"** existe e tem `owner_id` apontando corretamente para este usuário. Porém, o perfil nunca foi vinculado de volta — provavelmente porque a conta foi criada fora do fluxo padrão da Edge Function `create-user`, que é responsável por definir o `organization_id` no perfil.
-
-Sem `organization_id`, todas as queries RLS retornam vazio (PDVs, vendas, estoque, notificações), e o hook `useOrganization` retorna `null`.
-
-## Correção
-
-Uma migration SQL para vincular o perfil a organização e ativar o status:
-
-```sql
-UPDATE profiles 
-SET organization_id = '56bf08d1-6843-43ef-a880-776acafe8609', 
-    status = 'active' 
-WHERE id = '0f365ed3-f8b7-4d85-bb3b-54ca74be6c32';
-```
-
-Nenhuma mudança de codigo e necessaria. Apos a execucao, o usuario pode recarregar a pagina e todos os dados da organizacao serao carregados normalmente.
-
-## Impacto
-
-- Zero mudancas em arquivos de codigo
-- 1 UPDATE no banco de dados
-- Restaura acesso completo do usuario aos dados da organizacao "HB Solucoes Digitais"
+## Comportamento
+- Usuários com acesso a múltiplas orgs veem um dropdown no header
+- Ao trocar de org, dashboard e filtros de PDV são atualizados
+- Badge "Somente leitura" aparece para orgs com acesso viewer
+- Seleção persiste no localStorage

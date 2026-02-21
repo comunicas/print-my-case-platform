@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProductModalProvider } from "@/contexts/ProductModalContext";
+import { ActiveOrgProvider } from "@/contexts/ActiveOrgContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { lazy, Suspense } from "react";
 import { Loader2 } from "lucide-react";
@@ -56,6 +57,7 @@ const App = () => (
               {/* Auth and protected routes wrapped in AuthProvider */}
               <Route path="/*" element={
                 <AuthProvider>
+                  <ActiveOrgProvider>
                   <ProductModalProvider>
                     <Routes>
                       <Route path="/auth" element={<Auth />} />
@@ -73,6 +75,7 @@ const App = () => (
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </ProductModalProvider>
+                  </ActiveOrgProvider>
                 </AuthProvider>
               } />
             </Routes>
