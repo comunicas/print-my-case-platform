@@ -1,35 +1,69 @@
 
 
-# Criar Usuario Viewer de Teste
+# Revisao Critica do Plano de Isolamento Multi-Org
 
-## Objetivo
-Criar um usuario com role `viewer` vinculado a uma organizacao existente para testar as guardas de permissao implementadas (botao Upload oculto, API Keys ocultas, PDVs filtrados).
+## Veredicto: O plano esta 90% completo, mas tem 3 lacunas
 
-## Execucao
+O nucleo do plano (limpeza SQL + correcao da funcao + trigger + filtro no usePDVs) e correto e resolve a raiz do problema. Porem, encontrei pontos que precisam de ajuste:
 
-Invocar a edge function `create-user` ja existente com os seguintes dados:
+---
 
-| Campo | Valor |
-|-------|-------|
-| name | Viewer Teste |
-| email | viewer.teste@printmycase.com |
-| password | Viewer@Test2026! |
-| role | viewer |
-| createNewOrganization | false |
-| organizationId | 56bf08d1-6843-43ef-a880-776acafe8609 (HB Solucoes Digitais) |
+## Lacuna 1: `usePDVs` com `useActiveOrg` pode quebrar em contextos especificos
 
-A funcao `create-user` requer autenticacao de um super_admin. A chamada sera feita via `supabase.functions.invoke` usando a sessao autenticada atual no preview.
+O plano propoe adicionar `useActiveOrg()` dentro de `usePDVs`. Isso funciona para a maioria dos consumidores (todos estao dentro de `ActiveOrgProvider` no App.tsx). Porem:
 
-## Apos a criacao
+- `Settings.tsx` chama `usePDVs()` sem `organizationId` para popular o dropdown de PDV padrao nas preferencias. Com o filtro de `activeOrgId`, isso passa a funcionar corretamente (mostra apenas PDVs da org ativa).
+- `UserPDVsDialog` ja passa `organizationId` explicitamente, entao nao e afetado.
 
-Com as credenciais acima, voce podera:
-1. Fazer logout do usuario atual
-2. Fazer login como `viewer.teste@printmycase.com` / `Viewer@Test2026!`
-3. Verificar que:
-   - O botao "Novo Upload" NAO aparece em /uploads
-   - A secao de API Keys NAO aparece em /settings?tab=integrations
-   - Apenas PDVs atribuidos aparecem em /settings?tab=pdvs
+**Nenhum problema real aqui** - mas o plano deve garantir que quando `activeOrgId` for `null` (carregamento inicial), a query use `profile?.organization_id` como fallback, exatamente como proposto.
 
-## Nenhuma alteracao de codigo necessaria
-A criacao sera feita invocando a edge function existente — nao ha arquivos a modificar.
+## Lacuna 2: Flash do botao "Novo Upload" (bug identificado no teste anterior)
+
+O plano NAO inclui a correcao do flash do botao "Novo Upload" que foi detectado durante o teste com o viewer. A condicao `role !== 'viewer'` avalia como `true` quando `role` e `undefined` (durante carregamento do profile).
+
+**Correcao necessaria**:
+```typescript
+const canUpload = !!role && role !== "viewer";
+```
+
+## Lacuna 3: `useProductAnalytics` faz query de `sales_records` sem filtro de org
+
+O hook `useProductAnalytics` busca vendas com `.ilike('product_name', ...)` sem filtrar por organizacao. Depende APENAS do RLS via `user_can_access_pdv`. Embora a correcao da funcao SQL resolva o leak no banco, o hook tambem deveria filtrar por PDVs da org ativa para evitar trazer dados de orgs com `user_org_access` quando o contexto e da org propria.
+
+**Impacto**: Se um usuario tem acesso cross-org (via `user_org_access`), ao clicar em um produto no estoque, as analytics podem incluir vendas daquele produto em TODAS as orgs acessiveis, nao apenas na org ativa.
+
+---
+
+## Plano Revisado Completo
+
+### Fase 1: Migration SQL (sem alteracao ao plano original)
+
+1. Limpar `user_pdvs` cross-org (DELETE dos 2 registros corrompidos)
+2. Corrigir `user_can_access_pdv` adicionando `AND p.organization_id = get_user_org_id(_user_id)` na branch de `user_pdvs`
+3. Criar trigger `trg_validate_user_pdv` para prevenir futuras atribuicoes cross-org
+
+### Fase 2: Correcoes no frontend
+
+1. **`src/hooks/usePDVs.ts`**: Adicionar `useActiveOrg()` e usar `activeOrgId` como fallback para filtrar por organizacao
+2. **`src/pages/Uploads.tsx`**: Corrigir flash do botao — `const canUpload = !!role && role !== "viewer"`
+3. **`src/hooks/useProductAnalytics.ts`**: Filtrar vendas pelos PDVs da org ativa (usando `activeOrgId` para buscar PDV IDs e filtrar com `.in('pdv_id', pdvIds)`)
+
+### Fase 3: Validacao
+
+Testar como operator/viewer para confirmar:
+- Dropdown de PDVs mostra apenas PDVs da org ativa
+- Dashboard nao mostra dados de outras orgs
+- Analytics de produto nao vaza dados cross-org
+- Botao de upload nao faz flash durante carregamento
+
+---
+
+## Resumo de Arquivos Alterados
+
+| Arquivo | Alteracao |
+|---|---|
+| Migration SQL | Limpar dados + corrigir funcao + trigger |
+| `src/hooks/usePDVs.ts` | Filtrar por `activeOrgId` |
+| `src/pages/Uploads.tsx` | Fix flash: `!!role && role !== "viewer"` |
+| `src/hooks/useProductAnalytics.ts` | Filtrar por PDVs da org ativa |
 
