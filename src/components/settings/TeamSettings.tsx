@@ -23,6 +23,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, Users, Search, Pencil, Trash2, Mail, Loader2, Building2, MapPin } from "lucide-react";
 import { UserPDVsDialog } from "@/components/team/UserPDVsDialog";
 import { TeamMemberForm } from "@/components/team/TeamMemberForm";
@@ -48,6 +55,7 @@ import {
 import { useTeamMembers, TeamMember } from "@/hooks/useTeamMembers";
 import { useProfile } from "@/hooks/useProfile";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useOrganizations } from "@/hooks/useOrganizations";
 
 interface EditingMember {
   id: string;
@@ -102,7 +110,9 @@ export function TeamSettings() {
   const { members, isLoading, isAdmin, isSuperAdmin, updateMember, removeMember, deleteMember, createUser } = useTeamMembers();
   const { profile } = useProfile();
   const { organization } = useOrganization({ readOnly: true });
+  const { organizations } = useOrganizations();
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedOrgFilter, setSelectedOrgFilter] = useState<string>("all");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -131,13 +141,20 @@ export function TeamSettings() {
     setFormErrors((prev) => ({ ...prev, [field]: "" }));
   };
 
-  const filteredMembers = members.filter(
-    (member) =>
+  const filteredMembers = members.filter((member) => {
+    const matchesSearch =
       member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       member.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       roleLabels[member.role].toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (member.organization_name && member.organization_name.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+      (member.organization_name && member.organization_name.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    if (isSuperAdmin && selectedOrgFilter !== "all") {
+      const memberOrg = organizations.find(o => o.name === member.organization_name);
+      if (!memberOrg || memberOrg.id !== selectedOrgFilter) return false;
+    }
+
+    return matchesSearch;
+  });
 
   const handleCreateUser = async (data: CreateUserFormData) => {
     await createUser.mutateAsync(data);
@@ -261,15 +278,33 @@ export function TeamSettings() {
         ) : null}
       </div>
 
-      {/* Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por nome, email ou função..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
+      {/* Org Filter + Search Bar */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        {isSuperAdmin && organizations.length > 0 && (
+          <Select value={selectedOrgFilter} onValueChange={setSelectedOrgFilter}>
+            <SelectTrigger className="sm:w-[220px]">
+              <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
+              <SelectValue placeholder="Todas as organizações" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as organizações</SelectItem>
+              {organizations.map((org) => (
+                <SelectItem key={org.id} value={org.id}>
+                  {org.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome, email ou função..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
       </div>
 
       {/* Team Grid */}
@@ -507,6 +542,11 @@ export function TeamSettings() {
           onOpenChange={setIsPDVsDialogOpen}
           userId={selectedMemberForPDVs.id}
           userName={selectedMemberForPDVs.name}
+          organizationId={
+            isSuperAdmin
+              ? organizations.find(o => o.name === selectedMemberForPDVs.organization_name)?.id
+              : undefined
+          }
         />
       )}
     </div>

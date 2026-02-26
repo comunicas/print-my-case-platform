@@ -21,6 +21,7 @@ interface UserPDVsDialogProps {
   onOpenChange: (open: boolean) => void;
   userId: string;
   userName: string;
+  organizationId?: string;
 }
 
 export function UserPDVsDialog({
@@ -28,8 +29,9 @@ export function UserPDVsDialog({
   onOpenChange,
   userId,
   userName,
+  organizationId,
 }: UserPDVsDialogProps) {
-  const { pdvs, isLoading: isLoadingPDVs } = usePDVs();
+  const { pdvs, isLoading: isLoadingPDVs } = usePDVs({ organizationId });
   const { userPDVs, isLoading: isLoadingUserPDVs, bulkUpdatePDVs } = useUserPDVs(userId);
   const [selectedPDVs, setSelectedPDVs] = useState<string[]>([]);
 

@@ -22,12 +22,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, MapPin, Search, Pencil, Trash2, Loader2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, MapPin, Search, Pencil, Trash2, Loader2, Building2 } from "lucide-react";
 import { PDVForm } from "@/components/pdv/PDVForm";
 import { pdvFormSchema, PDVFormData } from "@/lib/schemas/pdv";
 import { parseZodErrors } from "@/lib/utils";
 import { usePDVs, PDV } from "@/hooks/usePDVs";
 import { useProfile } from "@/hooks/useProfile";
+import { useOrganizations } from "@/hooks/useOrganizations";
 
 interface EditingPDV {
   id: string;
@@ -38,8 +46,14 @@ interface EditingPDV {
 }
 
 export function PDVsSettings() {
-  const { pdvs, isLoading, createPDV, updatePDV, deletePDV } = usePDVs();
-  const { isAdmin } = useProfile();
+  const { isAdmin, role } = useProfile();
+  const isSuperAdmin = role === "super_admin";
+  const { organizations } = useOrganizations();
+  const [selectedOrgFilter, setSelectedOrgFilter] = useState<string>("all");
+  
+  const { pdvs, isLoading, createPDV, updatePDV, deletePDV } = usePDVs({
+    organizationId: isSuperAdmin ? (selectedOrgFilter !== "all" ? selectedOrgFilter : undefined) : undefined,
+  });
   
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -47,6 +61,7 @@ export function PDVsSettings() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editingPdv, setEditingPdv] = useState<EditingPDV | null>(null);
   const [deletingPdv, setDeletingPdv] = useState<PDV | null>(null);
+  const [createOrgId, setCreateOrgId] = useState<string>("");
   const [newPdv, setNewPdv] = useState<PDVFormData>({
     name: "",
     location: "",
@@ -95,16 +110,28 @@ export function PDVsSettings() {
   const handleCreatePdv = () => {
     if (!validateForm(newPdv)) return;
 
+    // Determine target org: use createOrgId if super_admin selected one, or selectedOrgFilter
+    const targetOrgId = isSuperAdmin
+      ? (createOrgId || (selectedOrgFilter !== "all" ? selectedOrgFilter : ""))
+      : "";
+
+    if (isSuperAdmin && !targetOrgId) {
+      setFormErrors({ ...formErrors, organization: "Selecione uma organização" });
+      return;
+    }
+
     createPDV.mutate(
       {
         name: newPdv.name.trim(),
         location: newPdv.location.trim(),
         machine_id: newPdv.machineId.trim(),
         status: newPdv.status,
+        ...(targetOrgId ? { organization_id: targetOrgId } : {}),
       },
       {
         onSuccess: () => {
           setNewPdv({ name: "", location: "", machineId: "", status: "active" });
+          setCreateOrgId("");
           clearFormErrors();
           setIsCreateDialogOpen(false);
         },
@@ -198,6 +225,29 @@ export function PDVsSettings() {
                   Adicione um novo PDV para sua organização.
                 </DialogDescription>
               </DialogHeader>
+              {isSuperAdmin && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Organização *</label>
+                  <Select
+                    value={createOrgId || (selectedOrgFilter !== "all" ? selectedOrgFilter : "")}
+                    onValueChange={setCreateOrgId}
+                  >
+                    <SelectTrigger className={formErrors.organization ? "border-destructive" : ""}>
+                      <SelectValue placeholder="Selecione a organização" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {organizations.map((org) => (
+                        <SelectItem key={org.id} value={org.id}>
+                          {org.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {formErrors.organization && (
+                    <p className="text-sm text-destructive">{formErrors.organization}</p>
+                  )}
+                </div>
+              )}
               <PDVForm
                 values={newPdv}
                 onChange={setNewPdv}
@@ -227,15 +277,33 @@ export function PDVsSettings() {
         )}
       </div>
 
-      {/* Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por nome, localização ou ID..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
+      {/* Org Filter + Search Bar */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        {isSuperAdmin && organizations.length > 0 && (
+          <Select value={selectedOrgFilter} onValueChange={setSelectedOrgFilter}>
+            <SelectTrigger className="sm:w-[220px]">
+              <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
+              <SelectValue placeholder="Todas as organizações" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as organizações</SelectItem>
+              {organizations.map((org) => (
+                <SelectItem key={org.id} value={org.id}>
+                  {org.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome, localização ou ID..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
       </div>
 
       {/* PDV Grid */}
