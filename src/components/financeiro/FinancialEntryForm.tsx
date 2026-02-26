@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { financialEntrySchema, type FinancialEntryFormData } from "@/lib/schemas/financial";
@@ -51,22 +52,35 @@ export function FinancialEntryForm({
 
   const form = useForm<FinancialEntryFormData>({
     resolver: zodResolver(financialEntrySchema),
-    defaultValues: editEntry
-       ? {
-          category: editEntry.category as "deducoes" | "implantacao" | "fixas",
-          description: editEntry.description,
-          amount: Number(editEntry.amount),
-          reference_month: new Date(editEntry.reference_month),
-          pdv_id: editEntry.pdv_id,
-        }
-      : {
-          category: "fixas",
-          description: "",
-          amount: 0,
-          reference_month: defaultMonth,
-          pdv_id: null,
-        },
+    defaultValues: {
+      category: "fixas",
+      description: "",
+      amount: 0,
+      reference_month: defaultMonth,
+      pdv_id: null,
+    },
   });
+
+  useEffect(() => {
+    if (!open) return;
+    if (editEntry) {
+      form.reset({
+        category: editEntry.category as "deducoes" | "implantacao" | "fixas",
+        description: editEntry.description,
+        amount: Number(editEntry.amount),
+        reference_month: new Date(editEntry.reference_month),
+        pdv_id: editEntry.pdv_id,
+      });
+    } else {
+      form.reset({
+        category: "fixas",
+        description: "",
+        amount: 0,
+        reference_month: defaultMonth,
+        pdv_id: null,
+      });
+    }
+  }, [open, editEntry, defaultMonth, form]);
 
   const handleSubmit = (data: FinancialEntryFormData) => {
     onSubmit(data);

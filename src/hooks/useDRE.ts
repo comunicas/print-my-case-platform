@@ -72,6 +72,7 @@ export function useDRE({ referenceMonth, pdvId }: UseDREOptions) {
   // Dados de despesas manuais
   const { totalDeducoes, totalImplantacao, totalFixas, entriesByCategory, isLoading: entriesLoading } = useFinancialEntries({
     referenceMonth,
+    pdvId,
   });
 
   const faturamento = salesQuery.data?.faturamento ?? 0;
@@ -79,6 +80,28 @@ export function useDRE({ referenceMonth, pdvId }: UseDREOptions) {
   const deducoesTotal = deducoesAuto + totalDeducoes;
   const receitaLiquida = faturamento - deducoesTotal;
   const resultadoOperacional = receitaLiquida - totalImplantacao - totalFixas;
+
+  // Criar entrada virtual para reembolsos automáticos
+  const enrichedEntriesByCategory = {
+    ...entriesByCategory,
+    deducoes: [
+      ...(deducoesAuto > 0
+        ? [{
+            id: "auto-refunds",
+            organization_id: orgId ?? "",
+            pdv_id: null,
+            category: "deducoes",
+            description: "Reembolsos / Cancelamentos",
+            amount: deducoesAuto,
+            reference_month: format(monthStart, "yyyy-MM-dd"),
+            created_by: "",
+            created_at: "",
+            updated_at: "",
+          }]
+        : []),
+      ...entriesByCategory.deducoes,
+    ],
+  };
 
   const dre: DREData = {
     faturamentoBruto: faturamento,
@@ -91,7 +114,7 @@ export function useDRE({ referenceMonth, pdvId }: UseDREOptions) {
 
   return {
     dre,
-    entriesByCategory,
+    entriesByCategory: enrichedEntriesByCategory,
     isLoading: salesQuery.isLoading || entriesLoading,
     error: salesQuery.error,
   };

@@ -31,7 +31,7 @@ export default function Financeiro() {
     createEntry,
     updateEntry,
     deleteEntry,
-  } = useFinancialEntries({ referenceMonth });
+  } = useFinancialEntries({ referenceMonth, pdvId });
 
   const handlePrevMonth = () => setReferenceMonth((m) => subMonths(m, 1));
   const handleNextMonth = () => setReferenceMonth((m) => addMonths(m, 1));
