@@ -1,0 +1,134 @@
+import { useState, useCallback } from "react";
+import { startOfMonth, subMonths, addMonths, format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { ChevronLeft, ChevronRight, Plus, Wallet } from "lucide-react";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { Button } from "@/components/ui/button";
+import { DRETable, FinancialEntryForm, FinancialEntriesList } from "@/components/financeiro";
+import { useFinancialEntries, type FinancialEntry } from "@/hooks/useFinancialEntries";
+import { useDRE } from "@/hooks/useDRE";
+import { useProfile } from "@/hooks/useProfile";
+import type { FinancialEntryFormData } from "@/lib/schemas/financial";
+
+export default function Financeiro() {
+  const { isAdmin } = useProfile();
+  const [referenceMonth, setReferenceMonth] = useState(() => startOfMonth(new Date()));
+  const [formOpen, setFormOpen] = useState(false);
+  const [editEntry, setEditEntry] = useState<FinancialEntry | null>(null);
+
+  const { dre, isLoading: dreLoading } = useDRE({ referenceMonth });
+  const {
+    entries,
+    isLoading: entriesLoading,
+    createEntry,
+    updateEntry,
+    deleteEntry,
+  } = useFinancialEntries({ referenceMonth });
+
+  const handlePrevMonth = () => setReferenceMonth((m) => subMonths(m, 1));
+  const handleNextMonth = () => setReferenceMonth((m) => addMonths(m, 1));
+
+  const handleSubmit = useCallback(
+    (data: FinancialEntryFormData) => {
+      if (editEntry) {
+        updateEntry.mutate(
+          {
+            id: editEntry.id,
+            category: data.category,
+            description: data.description,
+            amount: data.amount,
+            reference_month: format(startOfMonth(data.reference_month), "yyyy-MM-dd") as unknown as string,
+            pdv_id: data.pdv_id ?? null,
+          } as Parameters<typeof updateEntry.mutate>[0],
+          { onSuccess: () => { setFormOpen(false); setEditEntry(null); } }
+        );
+      } else {
+        createEntry.mutate(
+          {
+            category: data.category,
+            description: data.description,
+            amount: data.amount,
+            reference_month: data.reference_month,
+            pdv_id: data.pdv_id ?? null,
+          },
+          { onSuccess: () => setFormOpen(false) }
+        );
+      }
+    },
+    [editEntry, createEntry, updateEntry]
+  );
+
+  const handleEdit = (entry: FinancialEntry) => {
+    setEditEntry(entry);
+    setFormOpen(true);
+  };
+
+  const handleOpenNew = () => {
+    setEditEntry(null);
+    setFormOpen(true);
+  };
+
+  const monthLabel = format(referenceMonth, "MMMM 'de' yyyy", { locale: ptBR });
+
+  return (
+    <AppLayout>
+      <div className="p-4 md:p-6 space-y-6 max-w-3xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Wallet className="h-6 w-6 text-primary" />
+            <h1 className="text-xl font-bold">Financeiro</h1>
+          </div>
+          {isAdmin && (
+            <Button onClick={handleOpenNew} size="sm">
+              <Plus className="h-4 w-4 mr-1" />
+              Nova Despesa
+            </Button>
+          )}
+        </div>
+
+        {/* Month selector */}
+        <div className="flex items-center justify-center gap-3">
+          <Button variant="outline" size="icon" onClick={handlePrevMonth}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm font-medium capitalize min-w-[180px] text-center">
+            {monthLabel}
+          </span>
+          <Button variant="outline" size="icon" onClick={handleNextMonth}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* DRE */}
+        <DRETable dre={dre} isLoading={dreLoading} />
+
+        {/* Entries list */}
+        <div>
+          <h2 className="text-sm font-semibold mb-3 text-muted-foreground">
+            Despesas do mês
+          </h2>
+          <FinancialEntriesList
+            entries={entries}
+            isLoading={entriesLoading}
+            isAdmin={isAdmin}
+            onEdit={handleEdit}
+            onDelete={(id) => deleteEntry.mutate(id)}
+          />
+        </div>
+      </div>
+
+      <FinancialEntryForm
+        open={formOpen}
+        onOpenChange={(open) => {
+          setFormOpen(open);
+          if (!open) setEditEntry(null);
+        }}
+        onSubmit={handleSubmit}
+        isPending={createEntry.isPending || updateEntry.isPending}
+        editEntry={editEntry}
+        defaultMonth={referenceMonth}
+      />
+    </AppLayout>
+  );
+}
