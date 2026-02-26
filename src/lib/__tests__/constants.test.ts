@@ -52,12 +52,12 @@ describe('Constantes de Polling/Cache', () => {
 });
 
 describe('Query Limits', () => {
-  it('DASHBOARD_SALES_LIMIT deve ser 10000', () => {
-    expect(DASHBOARD_SALES_LIMIT).toBe(10000);
+  it('DASHBOARD_SALES_LIMIT deve ser 5000', () => {
+    expect(DASHBOARD_SALES_LIMIT).toBe(5000);
   });
 
-  it('PRODUCT_STOCK_SALES_LIMIT deve ser 5000', () => {
-    expect(PRODUCT_STOCK_SALES_LIMIT).toBe(5000);
+  it('PRODUCT_STOCK_SALES_LIMIT deve ser 3000', () => {
+    expect(PRODUCT_STOCK_SALES_LIMIT).toBe(3000);
   });
 
   it('DASHBOARD_SALES_LIMIT > PRODUCT_STOCK_SALES_LIMIT', () => {

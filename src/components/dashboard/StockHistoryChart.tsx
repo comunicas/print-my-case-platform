@@ -8,16 +8,12 @@ import { exportToExcel } from "@/lib/dashboardUtils";
 import { pluralize } from "@/lib/utils";
 import { getBrandChartColor } from "@/lib/brandAssets";
 import { ChartCard } from "./ChartCard";
-
-interface StockHistoryData {
-  date: string;
-  dateDisplay: string;
-  [brand: string]: string | number;
-}
+import { useStockHistory } from "@/hooks/useStockHistory";
+import { STOCK_HISTORY_DAYS } from "@/lib/constants";
 
 interface StockHistoryChartProps {
-  data: StockHistoryData[];
-  brands: string[];
+  organizationId?: string;
+  pdvId?: string;
   animationDelay?: number;
 }
 
@@ -28,8 +24,12 @@ const PERIOD_OPTIONS = [
   { label: "90d", days: 90 },
 ];
 
-export function StockHistoryChart({ data, brands, animationDelay = 0 }: StockHistoryChartProps) {
+export function StockHistoryChart({ organizationId, pdvId, animationDelay = 0 }: StockHistoryChartProps) {
   const [selectedPeriod, setSelectedPeriod] = useState(30);
+  const { data: stockHistory } = useStockHistory({ days: STOCK_HISTORY_DAYS, organizationId, pdvId });
+
+  const data = stockHistory?.chartData ?? [];
+  const brands = stockHistory?.brands ?? [];
 
   // Filtra dados pelo período selecionado
   const filteredData = data.slice(-selectedPeriod);
@@ -51,6 +51,8 @@ export function StockHistoryChart({ data, brands, animationDelay = 0 }: StockHis
       "historico-estoque"
     );
   };
+
+  if (data.length === 0) return null;
 
   const periodButtons = (
     <Badge variant="outline" className="gap-1 p-0.5">

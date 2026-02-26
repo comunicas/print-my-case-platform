@@ -36,6 +36,7 @@ export function useNotifications(limit = 20) {
     enabled: !!user?.id,
     staleTime: 30 * 1000, // 30 seconds
     refetchInterval: 60 * 1000, // Poll every minute
+    refetchIntervalInBackground: false, // Don't poll when tab is hidden
   });
 
   const unreadCount = notificationsQuery.data?.filter((n) => !n.is_read).length || 0;

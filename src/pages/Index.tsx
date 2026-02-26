@@ -25,14 +25,12 @@ import { useDashboardDataRange } from "@/hooks/useDashboardDataRange";
 import { useOrganizations } from "@/hooks/useOrganizations";
 import { usePDVs } from "@/hooks/usePDVs";
 import { useSlotsData } from "@/hooks/useSlotsData";
-import { useStockHistory } from "@/hooks/useStockHistory";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 import { formatCurrency } from "@/lib/utils";
 import { calculateTrend } from "@/lib/trendUtils";
-import { getStockByBrand, getLowStockItems } from "@/lib/dashboardUtils";
+import { getLowStockItems } from "@/lib/dashboardUtils";
 import { getDateRangeFromPeriod, type DateRange } from "@/lib/utils/date-presets";
-import { STOCK_HISTORY_DAYS } from "@/lib/constants";
 import { PDVFilter } from "@/components/ui/PDVFilter";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -168,22 +166,13 @@ export default function Index() {
     selectedPdvId: selectedPdvId,
   });
   const { data: slotsData, refetch: refetchSlots } = useSlotsData({ pdvId: effectivePdvId });
-  const { data: stockHistory, refetch: refetchStockHistory } = useStockHistory({ days: STOCK_HISTORY_DAYS, organizationId: effectiveOrgId, pdvId: effectivePdvId });
 
   // Pull-to-refresh handler
   const handleRefresh = useCallback(async () => {
-    await Promise.all([refetch(), refetchSlots(), refetchStockHistory()]);
+    await Promise.all([refetch(), refetchSlots()]);
     toast.success("Dashboard atualizado!");
-  }, [refetch, refetchSlots, refetchStockHistory]);
+  }, [refetch, refetchSlots]);
 
-  // Process stock data with memoization
-  const stockByBrand = useMemo(() => 
-    slotsData 
-      ? getStockByBrand(slotsData.filter(s => s.isActive).map(s => ({ brand: s.brand, quantity: s.quantity }))) 
-      : [],
-    [slotsData]
-  );
-  
   // Calculate sales by product for low stock items using topProductsChart
   const salesByProduct = useMemo(() => {
     const map = new Map<string, number>();
@@ -192,22 +181,20 @@ export default function Index() {
   }, [data?.topProductsChart]);
   
   // Get low stock items with memoization
-  const lowStockItems = useMemo(() => 
-    slotsData 
-      ? getLowStockItems(
-          slotsData.filter(s => s.isActive).map(s => ({
-            slotNumber: s.slot,
-            productName: s.productName,
-            brand: s.brand,
-            quantity: s.quantity,
-            pdvName: s.pdvName,
-          })),
-          salesByProduct,
-          1
-        ) 
-      : [],
-    [slotsData, salesByProduct]
-  );
+  const lowStockItems = useMemo(() => {
+    if (!slotsData) return [];
+    return getLowStockItems(
+      slotsData.filter(s => s.isActive).map(s => ({
+        slotNumber: s.slot,
+        productName: s.productName,
+        brand: s.brand,
+        quantity: s.quantity,
+        pdvName: s.pdvName,
+      })),
+      salesByProduct,
+      1
+    );
+  }, [slotsData, salesByProduct]);
 
   // ── Derived data (always computed, never after early return) ────────────────
 
@@ -462,17 +449,15 @@ export default function Index() {
             {/* Row 2: Stock by Brand + Stock History */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
               <Suspense fallback={<ChartSkeleton />}>
-                <StockByBrandChart data={stockByBrand} animationDelay={200} />
+                <StockByBrandChart pdvId={effectivePdvId} animationDelay={200} />
               </Suspense>
-              {stockHistory && stockHistory.chartData.length > 0 && (
-                <Suspense fallback={<ChartSkeleton />}>
-                  <StockHistoryChart 
-                    data={stockHistory.chartData} 
-                    brands={stockHistory.brands}
-                    animationDelay={250}
-                  />
-                </Suspense>
-              )}
+              <Suspense fallback={<ChartSkeleton />}>
+                <StockHistoryChart 
+                  organizationId={effectiveOrgId}
+                  pdvId={effectivePdvId}
+                  animationDelay={250}
+                />
+              </Suspense>
             </div>
 
             {/* Stock Alerts Table */}

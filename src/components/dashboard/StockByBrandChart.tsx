@@ -1,17 +1,29 @@
+import { useMemo } from "react";
 import { Package } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { PieChart, Pie, Cell } from "recharts";
 import { StockByBrandData, exportToExcel } from "@/lib/dashboardUtils";
+import { getStockByBrand } from "@/lib/dashboardUtils";
 import { pluralize } from "@/lib/utils";
 import { ChartCard } from "./ChartCard";
 import { ChartEmptyState } from "./ChartEmptyState";
+import { useSlotsData } from "@/hooks/useSlotsData";
 
 interface StockByBrandChartProps {
-  data: StockByBrandData[];
+  pdvId?: string;
   animationDelay?: number;
 }
 
-export function StockByBrandChart({ data, animationDelay = 0 }: StockByBrandChartProps) {
+export function StockByBrandChart({ pdvId, animationDelay = 0 }: StockByBrandChartProps) {
+  const { data: slotsData } = useSlotsData({ pdvId });
+
+  const data = useMemo(() =>
+    slotsData
+      ? getStockByBrand(slotsData.filter(s => s.isActive).map(s => ({ brand: s.brand, quantity: s.quantity })))
+      : [],
+    [slotsData]
+  );
+
   const total = data.reduce((acc, d) => acc + d.quantity, 0);
   
   const chartConfig = data.reduce((acc, item) => {

@@ -19,67 +19,6 @@ export function usePrefetchRoutes() {
     timeoutRefs.current[key] = setTimeout(fn, ms);
   }, []);
   
-  // Prefetch Dashboard data
-  const prefetchDashboard = useCallback(() => {
-    debounce('dashboard', () => {
-      if (!profile?.organization_id && !isSuperAdmin) return;
-      
-      // Verifica se já está em cache
-      const cacheKey = ["dashboard", profile?.organization_id, undefined, undefined, isSuperAdmin, undefined, undefined];
-      const existingData = queryClient.getQueryState(cacheKey);
-      if (existingData?.data && existingData.dataUpdatedAt > Date.now() - 2 * 60 * 1000) return;
-      
-      queryClient.prefetchQuery({
-        queryKey: cacheKey,
-        staleTime: 2 * 60 * 1000,
-        queryFn: async () => {
-          // Query simplificada - dados básicos para carregamento inicial rápido
-          const { data: salesData } = await supabase
-            .from("sales_records")
-            .select("id, amount, refund_amount, payment_date, product_name, pdv_id")
-            .order("payment_date", { ascending: false })
-            .limit(500);
-          
-          return { salesData };
-        },
-      });
-    });
-  }, [queryClient, profile, isSuperAdmin, debounce]);
-  
-  // Prefetch Stock data
-  const prefetchStock = useCallback(() => {
-    debounce('stock', () => {
-      const cacheKey = ["slots-data", undefined, profile?.id];
-      const existingData = queryClient.getQueryState(cacheKey);
-      if (existingData?.data && existingData.dataUpdatedAt > Date.now() - 5 * 60 * 1000) return;
-      
-      queryClient.prefetchQuery({
-        queryKey: cacheKey,
-        staleTime: 5 * 60 * 1000,
-        queryFn: async () => {
-          const { data } = await supabase
-            .from("stock_records")
-            .select("id, slot_number, product_name, quantity, pdv_id, is_active, upload_id")
-            .limit(500);
-          return data || [];
-        },
-      });
-      
-      // Também prefetch sales summary para o stock
-      queryClient.prefetchQuery({
-        queryKey: ['sales-summary', undefined],
-        staleTime: 5 * 60 * 1000,
-        queryFn: async () => {
-          const { data } = await supabase
-            .from("sales_records")
-            .select("product_name")
-            .limit(1000);
-          return data || [];
-        },
-      });
-    });
-  }, [queryClient, profile, debounce]);
-
   // Prefetch Organizations data (super admin only)
   const prefetchOrganizations = useCallback(() => {
     debounce('organizations', () => {
@@ -103,12 +42,11 @@ export function usePrefetchRoutes() {
     });
   }, [queryClient, isSuperAdmin, debounce]);
 
-  // Prefetch Marketing data
+  // Prefetch Marketing PDVs data
   const prefetchMarketing = useCallback(() => {
     debounce('marketing', () => {
       if (!profile?.organization_id) return;
       
-      // Prefetch PDVs for catalog settings (cupons)
       const pdvsCacheKey = ["pdvs", profile.organization_id];
       const existingPdvsData = queryClient.getQueryState(pdvsCacheKey);
       if (!existingPdvsData?.data || existingPdvsData.dataUpdatedAt < Date.now() - 5 * 60 * 1000) {
@@ -125,38 +63,19 @@ export function usePrefetchRoutes() {
           },
         });
       }
-      
-      // Prefetch vitrine media (mídias)
-      const mediaCacheKey = ["vitrine-media-prefetch", profile.organization_id];
-      const existingMediaData = queryClient.getQueryState(mediaCacheKey);
-      if (!existingMediaData?.data || existingMediaData.dataUpdatedAt < Date.now() - 5 * 60 * 1000) {
-        queryClient.prefetchQuery({
-          queryKey: mediaCacheKey,
-          staleTime: 5 * 60 * 1000,
-          queryFn: async () => {
-            const { data } = await supabase
-              .from("pdv_marketing_media")
-              .select("id, pdv_id, title, media_type, file_url")
-              .eq("is_active", true)
-              .limit(50);
-            return data || [];
-          },
-        });
-      }
     });
   }, [queryClient, profile, debounce]);
   
   // Mapeamento de rotas para funções de prefetch
+  // NOTE: Dashboard and Stock prefetches were removed because their query keys
+  // and data shapes didn't match the real hooks (useDashboard, useSlotsData),
+  // causing duplicate fetches instead of cache hits.
   const prefetchMap = useMemo(() => ({
-    "/": prefetchDashboard,
     "/organizations": prefetchOrganizations,
-    "/estoque": prefetchStock,
     "/marketing": prefetchMarketing,
-  }), [prefetchDashboard, prefetchOrganizations, prefetchStock, prefetchMarketing]);
+  }), [prefetchOrganizations, prefetchMarketing]);
   
   return {
-    prefetchDashboard,
-    prefetchStock,
     prefetchOrganizations,
     prefetchMarketing,
     prefetchMap,
