@@ -1,10 +1,19 @@
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { DREData } from "@/hooks/useDRE";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronRight } from "lucide-react";
+import type { FinancialEntry } from "@/hooks/useFinancialEntries";
 
 interface DRETableProps {
   dre: DREData;
   isLoading: boolean;
+  entriesByCategory?: {
+    deducoes: FinancialEntry[];
+    implantacao: FinancialEntry[];
+    fixas: FinancialEntry[];
+  };
 }
 
 function formatCurrency(value: number) {
@@ -50,7 +59,61 @@ function DRERow({ label, value, prefix = "", bold, highlight, isLoading }: DRERo
   );
 }
 
-export function DRETable({ dre, isLoading }: DRETableProps) {
+interface ExpandableRowProps {
+  label: string;
+  total: number;
+  prefix: string;
+  entries: FinancialEntry[];
+  isLoading?: boolean;
+}
+
+function ExpandableRow({ label, total, prefix, entries, isLoading }: ExpandableRowProps) {
+  const [open, setOpen] = useState(false);
+
+  if (entries.length === 0) {
+    return <DRERow prefix={prefix} label={label} value={total} isLoading={isLoading} />;
+  }
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger asChild>
+        <button className="flex items-center justify-between py-3 px-4 w-full text-left hover:bg-muted/30 transition-colors">
+          <span className="text-sm text-muted-foreground flex items-center gap-1">
+            <ChevronRight className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-90")} />
+            <span className="mr-1">{prefix}</span>
+            {label}
+          </span>
+          {isLoading ? (
+            <Skeleton className="h-5 w-24" />
+          ) : (
+            <span className="text-sm font-mono tabular-nums">
+              {formatCurrency(total)}
+            </span>
+          )}
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        {entries.map((entry) => (
+          <div
+            key={entry.id}
+            className="flex items-center justify-between py-2 px-4 pl-10"
+          >
+            <span className="text-xs text-muted-foreground">{entry.description}</span>
+            <span className="text-xs font-mono tabular-nums text-muted-foreground">
+              {formatCurrency(Number(entry.amount))}
+            </span>
+          </div>
+        ))}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+export function DRETable({ dre, isLoading, entriesByCategory }: DRETableProps) {
+  const deducoes = entriesByCategory?.deducoes ?? [];
+  const implantacao = entriesByCategory?.implantacao ?? [];
+  const fixas = entriesByCategory?.fixas ?? [];
+
   return (
     <div className="rounded-xl border bg-card">
       <div className="p-4 border-b">
@@ -63,10 +126,11 @@ export function DRETable({ dre, isLoading }: DRETableProps) {
           value={dre.faturamentoBruto}
           isLoading={isLoading}
         />
-        <DRERow
+        <ExpandableRow
           prefix="(−)"
           label="Deduções da Venda"
-          value={dre.deducoes}
+          total={dre.deducoes}
+          entries={deducoes}
           isLoading={isLoading}
         />
         <DRERow
@@ -77,16 +141,18 @@ export function DRETable({ dre, isLoading }: DRETableProps) {
           highlight
           isLoading={isLoading}
         />
-        <DRERow
+        <ExpandableRow
           prefix="(−)"
           label="Despesas de Implantação"
-          value={dre.despesasImplantacao}
+          total={dre.despesasImplantacao}
+          entries={implantacao}
           isLoading={isLoading}
         />
-        <DRERow
+        <ExpandableRow
           prefix="(−)"
           label="Despesas Fixas"
-          value={dre.despesasFixas}
+          total={dre.despesasFixas}
+          entries={fixas}
           isLoading={isLoading}
         />
         <DRERow

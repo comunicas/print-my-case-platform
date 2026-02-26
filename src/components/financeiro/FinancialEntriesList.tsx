@@ -16,6 +16,7 @@ import type { FinancialEntry } from "@/hooks/useFinancialEntries";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const CATEGORY_LABELS: Record<string, string> = {
+  deducoes: "Dedução",
   implantacao: "Implantação",
   fixas: "Fixa",
 };

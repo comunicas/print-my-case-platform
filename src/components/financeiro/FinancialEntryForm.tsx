@@ -52,8 +52,8 @@ export function FinancialEntryForm({
   const form = useForm<FinancialEntryFormData>({
     resolver: zodResolver(financialEntrySchema),
     defaultValues: editEntry
-      ? {
-          category: editEntry.category,
+       ? {
+          category: editEntry.category as "deducoes" | "implantacao" | "fixas",
           description: editEntry.description,
           amount: Number(editEntry.amount),
           reference_month: new Date(editEntry.reference_month),
@@ -96,6 +96,7 @@ export function FinancialEntryForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value="deducoes">Deduções da Venda</SelectItem>
                       <SelectItem value="implantacao">Implantação</SelectItem>
                       <SelectItem value="fixas">Despesas Fixas</SelectItem>
                     </SelectContent>

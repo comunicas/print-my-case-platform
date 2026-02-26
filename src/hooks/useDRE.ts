@@ -14,6 +14,8 @@ export interface DREData {
   resultadoOperacional: number;
 }
 
+export type { FinancialEntry } from "./useFinancialEntries";
+
 interface UseDREOptions {
   referenceMonth: Date;
   pdvId?: string | null;
@@ -68,18 +70,19 @@ export function useDRE({ referenceMonth, pdvId }: UseDREOptions) {
   });
 
   // Dados de despesas manuais
-  const { totalImplantacao, totalFixas, isLoading: entriesLoading } = useFinancialEntries({
+  const { totalDeducoes, totalImplantacao, totalFixas, entriesByCategory, isLoading: entriesLoading } = useFinancialEntries({
     referenceMonth,
   });
 
   const faturamento = salesQuery.data?.faturamento ?? 0;
-  const deducoes = salesQuery.data?.deducoes ?? 0;
-  const receitaLiquida = faturamento - deducoes;
+  const deducoesAuto = salesQuery.data?.deducoes ?? 0;
+  const deducoesTotal = deducoesAuto + totalDeducoes;
+  const receitaLiquida = faturamento - deducoesTotal;
   const resultadoOperacional = receitaLiquida - totalImplantacao - totalFixas;
 
   const dre: DREData = {
     faturamentoBruto: faturamento,
-    deducoes,
+    deducoes: deducoesTotal,
     receitaLiquida,
     despesasImplantacao: totalImplantacao,
     despesasFixas: totalFixas,
@@ -88,6 +91,7 @@ export function useDRE({ referenceMonth, pdvId }: UseDREOptions) {
 
   return {
     dre,
+    entriesByCategory,
     isLoading: salesQuery.isLoading || entriesLoading,
     error: salesQuery.error,
   };
