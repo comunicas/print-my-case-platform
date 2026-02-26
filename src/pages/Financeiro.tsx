@@ -4,19 +4,27 @@ import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Plus, Wallet } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
+import { PDVFilter } from "@/components/ui/PDVFilter";
 import { DRETable, FinancialEntryForm, FinancialEntriesList } from "@/components/financeiro";
 import { useFinancialEntries, type FinancialEntry } from "@/hooks/useFinancialEntries";
 import { useDRE } from "@/hooks/useDRE";
 import { useProfile } from "@/hooks/useProfile";
+import { usePDVs } from "@/hooks/usePDVs";
+import { useDefaultPdvPreference } from "@/hooks/useDefaultPdvPreference";
 import type { FinancialEntryFormData } from "@/lib/schemas/financial";
 
 export default function Financeiro() {
   const { isAdmin } = useProfile();
+  const { pdvs } = usePDVs();
+  const { selectedPdvId, setSelectedPdvId, wasAutoApplied } = useDefaultPdvPreference({ pdvs });
+
   const [referenceMonth, setReferenceMonth] = useState(() => startOfMonth(new Date()));
   const [formOpen, setFormOpen] = useState(false);
   const [editEntry, setEditEntry] = useState<FinancialEntry | null>(null);
 
-  const { dre, isLoading: dreLoading } = useDRE({ referenceMonth });
+  const pdvId = selectedPdvId === "all" ? undefined : selectedPdvId;
+
+  const { dre, entriesByCategory, isLoading: dreLoading } = useDRE({ referenceMonth, pdvId });
   const {
     entries,
     isLoading: entriesLoading,
@@ -79,12 +87,20 @@ export default function Financeiro() {
             <Wallet className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-bold">Financeiro</h1>
           </div>
-          {isAdmin && (
-            <Button onClick={handleOpenNew} size="sm">
-              <Plus className="h-4 w-4 mr-1" />
-              Nova Despesa
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            <PDVFilter
+              value={selectedPdvId}
+              onChange={setSelectedPdvId}
+              pdvs={pdvs}
+              showAutoAppliedBadge={wasAutoApplied}
+            />
+            {isAdmin && (
+              <Button onClick={handleOpenNew} size="sm">
+                <Plus className="h-4 w-4 mr-1" />
+                Nova Despesa
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Month selector */}
@@ -101,7 +117,7 @@ export default function Financeiro() {
         </div>
 
         {/* DRE */}
-        <DRETable dre={dre} isLoading={dreLoading} />
+        <DRETable dre={dre} isLoading={dreLoading} entriesByCategory={entriesByCategory} />
 
         {/* Entries list */}
         <div>

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const financialEntrySchema = z.object({
-  category: z.enum(["implantacao", "fixas"], {
+  category: z.enum(["deducoes", "implantacao", "fixas"], {
     required_error: "Selecione a categoria",
   }),
   description: z.string().min(1, "Descrição obrigatória").max(200, "Máximo 200 caracteres"),

@@ -9,7 +9,7 @@ export interface FinancialEntry {
   id: string;
   organization_id: string;
   pdv_id: string | null;
-  category: "implantacao" | "fixas";
+  category: string;
   description: string;
   amount: number;
   reference_month: string;
@@ -54,7 +54,7 @@ export function useFinancialEntries({ referenceMonth, category }: UseFinancialEn
 
   const createEntry = useMutation({
     mutationFn: async (entry: {
-      category: "implantacao" | "fixas";
+      category: "deducoes" | "implantacao" | "fixas";
       description: string;
       amount: number;
       reference_month: Date;
@@ -125,6 +125,9 @@ export function useFinancialEntries({ referenceMonth, category }: UseFinancialEn
 
   // Totais por categoria
   const entries = entriesQuery.data ?? [];
+  const totalDeducoes = entries
+    .filter((e) => e.category === "deducoes")
+    .reduce((sum, e) => sum + Number(e.amount), 0);
   const totalImplantacao = entries
     .filter((e) => e.category === "implantacao")
     .reduce((sum, e) => sum + Number(e.amount), 0);
@@ -132,10 +135,19 @@ export function useFinancialEntries({ referenceMonth, category }: UseFinancialEn
     .filter((e) => e.category === "fixas")
     .reduce((sum, e) => sum + Number(e.amount), 0);
 
+  // Entries agrupadas por categoria
+  const entriesByCategory = {
+    deducoes: entries.filter((e) => e.category === "deducoes"),
+    implantacao: entries.filter((e) => e.category === "implantacao"),
+    fixas: entries.filter((e) => e.category === "fixas"),
+  };
+
   return {
     entries,
+    entriesByCategory,
     isLoading: entriesQuery.isLoading,
     error: entriesQuery.error,
+    totalDeducoes,
     totalImplantacao,
     totalFixas,
     createEntry,
