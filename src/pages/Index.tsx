@@ -27,6 +27,7 @@ import { usePDVs } from "@/hooks/usePDVs";
 import { useSlotsData } from "@/hooks/useSlotsData";
 import { useStockHistory } from "@/hooks/useStockHistory";
 import { usePreferences } from "@/hooks/usePreferences";
+import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 import { formatCurrency } from "@/lib/utils";
 import { calculateTrend } from "@/lib/trendUtils";
 import { getStockByBrand, getLowStockItems } from "@/lib/dashboardUtils";
@@ -53,48 +54,58 @@ const StockByBrandChart = lazy(() => import("@/components/dashboard/StockByBrand
 const StockHistoryChart = lazy(() => import("@/components/dashboard/StockHistoryChart").then(m => ({ default: m.StockHistoryChart })));
 const LossesByDayChart = lazy(() => import("@/components/dashboard/LossesByDayChart").then(m => ({ default: m.LossesByDayChart })));
 
+// ── Constants ──────────────────────────────────────────────────────────────────
+
+const DEFAULT_KPIS = {
+  totalRevenue: 0,
+  grossRevenue: 0,
+  totalRefunds: 0,
+  refundedTransactions: 0,
+  transactions: 0,
+  avgTicket: 0,
+  activePdvs: 0,
+  previousRefunds: 0,
+  totalCancellations: 0,
+  cancelledTransactions: 0,
+  previousCancellationsTotal: 0,
+  previousRevenue: 0,
+  previousTransactions: 0,
+  previousAvgTicket: 0,
+};
+
+const dateRangeSerializers = {
+  serialize: (range: DateRange) =>
+    JSON.stringify({ from: range.from.toISOString(), to: range.to.toISOString() }),
+  deserialize: (raw: string): DateRange => {
+    const parsed = JSON.parse(raw);
+    const from = new Date(parsed.from);
+    const to = new Date(parsed.to);
+    if (isNaN(from.getTime()) || isNaN(to.getTime())) {
+      throw new Error("Invalid dates");
+    }
+    return { from, to };
+  },
+};
+
+// ── Component ──────────────────────────────────────────────────────────────────
+
 export default function Index() {
   const navigate = useNavigate();
   const { preferences, isLoading: isLoadingPreferences } = usePreferences();
   const { organizations, isSuperAdmin, refetch: refetchOrgs, isFetching: isRefetchingOrgs } = useOrganizations();
   const { activeOrgId } = useActiveOrg();
   
-  const [dateRange, setDateRange] = useState<DateRange>(() => {
-    try {
-      const saved = localStorage.getItem('dashboard-date-range');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const from = new Date(parsed.from);
-        const to = new Date(parsed.to);
-        if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
-          return { from, to };
-        }
-      }
-    } catch {}
-    return getDateRangeFromPeriod("30days");
-  });
+  const [dateRange, setDateRange, clearDateRange] = useLocalStorageState<DateRange>(
+    'dashboard-date-range',
+    () => getDateRangeFromPeriod("30days"),
+    dateRangeSerializers,
+  );
   const [selectedPdvId, setSelectedPdvId] = useState<string>("all");
   const [pdvWasAutoApplied, setPdvWasAutoApplied] = useState(false);
   const [selectedOrgId, setSelectedOrgId] = useState<string>("all");
   const [prefsInitialized, setPrefsInitialized] = useState(false);
-  const [consolidatedOpen, setConsolidatedOpen] = useState(() => {
-    const saved = localStorage.getItem('dashboard-consolidated-open');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
+  const [consolidatedOpen, setConsolidatedOpen] = useLocalStorageState('dashboard-consolidated-open', true);
 
-  // Persist consolidated card state to localStorage
-  useEffect(() => {
-    localStorage.setItem('dashboard-consolidated-open', JSON.stringify(consolidatedOpen));
-  }, [consolidatedOpen]);
-
-  // Persist date range to localStorage
-  useEffect(() => {
-    localStorage.setItem('dashboard-date-range', JSON.stringify({
-      from: dateRange.from.toISOString(),
-      to: dateRange.to.toISOString(),
-    }));
-  }, [dateRange]);
-  
   // For super admins, use their local org selector; for multi-org users, use activeOrgId from context
   const effectiveOrgId = isSuperAdmin ? selectedOrgId : (activeOrgId ?? undefined);
   
@@ -120,7 +131,7 @@ export default function Index() {
       }
       setPrefsInitialized(true);
     }
-  }, [preferences, prefsInitialized, isLoadingPreferences, pdvs, pdvsLoading]);
+  }, [preferences, prefsInitialized, isLoadingPreferences, pdvs, pdvsLoading, setDateRange]);
   
   const handlePdvChange = (value: string) => {
     setSelectedPdvId(value);
@@ -143,6 +154,9 @@ export default function Index() {
   }, [activeOrgId, isSuperAdmin]);
   
   const isMobile = useIsMobile();
+
+  // Derived: convert "all" to undefined for queries
+  const effectivePdvId = selectedPdvId !== 'all' ? selectedPdvId : undefined;
   
   const { data, isLoading, isFetching, refetch } = useDashboard({ 
     selectedOrganizationId: effectiveOrgId,
@@ -153,8 +167,8 @@ export default function Index() {
     selectedOrganizationId: effectiveOrgId,
     selectedPdvId: selectedPdvId,
   });
-  const { data: slotsData, refetch: refetchSlots } = useSlotsData({ pdvId: selectedPdvId !== 'all' ? selectedPdvId : undefined });
-  const { data: stockHistory, refetch: refetchStockHistory } = useStockHistory({ days: STOCK_HISTORY_DAYS, organizationId: effectiveOrgId, pdvId: selectedPdvId !== 'all' ? selectedPdvId : undefined });
+  const { data: slotsData, refetch: refetchSlots } = useSlotsData({ pdvId: effectivePdvId });
+  const { data: stockHistory, refetch: refetchStockHistory } = useStockHistory({ days: STOCK_HISTORY_DAYS, organizationId: effectiveOrgId, pdvId: effectivePdvId });
 
   // Pull-to-refresh handler
   const handleRefresh = useCallback(async () => {
@@ -195,6 +209,24 @@ export default function Index() {
     [slotsData, salesByProduct]
   );
 
+  // ── Derived data (always computed, never after early return) ────────────────
+
+  const kpis = data?.kpis || DEFAULT_KPIS;
+  const globalMetrics = data?.globalMetrics;
+  const hasData = data?.hasData || false;
+
+  const trends = useMemo(() => ({
+    revenue: calculateTrend(kpis.totalRevenue, kpis.previousRevenue, dateRange.from, dateRange.to),
+    transactions: calculateTrend(kpis.transactions, kpis.previousTransactions, dateRange.from, dateRange.to),
+    refunds: calculateTrend(kpis.totalRefunds, kpis.previousRefunds, dateRange.from, dateRange.to),
+    cancellations: calculateTrend(kpis.totalCancellations, kpis.previousCancellationsTotal, dateRange.from, dateRange.to),
+    avgTicket: calculateTrend(kpis.avgTicket, kpis.previousAvgTicket, dateRange.from, dateRange.to),
+  }), [kpis, dateRange.from, dateRange.to]);
+
+  const criticalStockCount = lowStockItems.length;
+
+  // ── Loading state (render-based, not early return — preserves hooks order) ──
+
   if (isLoading) {
     return (
       <AppLayout>
@@ -204,68 +236,6 @@ export default function Index() {
       </AppLayout>
     );
   }
-
-  const kpis = data?.kpis || {
-    totalRevenue: 0,
-    grossRevenue: 0,
-    totalRefunds: 0,
-    refundedTransactions: 0,
-    transactions: 0,
-    avgTicket: 0,
-    activePdvs: 0,
-    previousRefunds: 0,
-    totalCancellations: 0,
-    cancelledTransactions: 0,
-    previousCancellationsTotal: 0,
-    previousRevenue: 0,
-    previousTransactions: 0,
-    previousAvgTicket: 0,
-  };
-
-  const globalMetrics = data?.globalMetrics;
-  const hasData = data?.hasData || false;
-  
-  // Calculate trends — use direct previous values from hook (safe against NaN on ±100% change)
-  const revenueTrend = calculateTrend(
-    kpis.totalRevenue,
-    kpis.previousRevenue,
-    dateRange.from,
-    dateRange.to
-  );
-  
-  const transactionsTrend = calculateTrend(
-    kpis.transactions,
-    kpis.previousTransactions,
-    dateRange.from,
-    dateRange.to
-  );
-  
-  // Calculate refunds trend — use direct previous value from hook (avoids division-by-zero NaN)
-  const refundsTrend = calculateTrend(
-    kpis.totalRefunds,
-    kpis.previousRefunds,
-    dateRange.from,
-    dateRange.to
-  );
-
-  // Calculate cancellations trend — use direct previous value from hook
-  const cancellationsTrend = calculateTrend(
-    kpis.totalCancellations,
-    kpis.previousCancellationsTotal,
-    dateRange.from,
-    dateRange.to
-  );
-
-  // Calculate avg ticket trend — direct previous value from hook (safe against NaN)
-  const avgTicketTrend = calculateTrend(
-    kpis.avgTicket,
-    kpis.previousAvgTicket,
-    dateRange.from,
-    dateRange.to
-  );
-
-  // Count critical stock
-  const criticalStockCount = lowStockItems.length;
 
   const dashboardContent = (
     <div data-testid="dashboard-page" className="space-y-4 md:space-y-6">
@@ -331,8 +301,11 @@ export default function Index() {
             onDateRangeChange={setDateRange}
             dataRange={dashboardDataRange}
             onReset={() => {
-              localStorage.removeItem('dashboard-date-range');
-              setDateRange(getDateRangeFromPeriod(preferences?.default_period ?? "30days"));
+              clearDateRange();
+              // After clearing, apply preference default if available
+              if (preferences?.default_period) {
+                setDateRange(getDateRangeFromPeriod(preferences.default_period));
+              }
             }}
           />
           
@@ -398,7 +371,7 @@ export default function Index() {
             title="Receita"
             value={formatCurrency(kpis.totalRevenue)}
             icon={DollarSign}
-            trend={revenueTrend}
+            trend={trends.revenue}
             variant="success"
           />
           <KPICard
@@ -406,21 +379,21 @@ export default function Index() {
             title="Transações"
             value={kpis.transactions.toLocaleString("pt-BR")}
             icon={ShoppingCart}
-            trend={transactionsTrend}
+            trend={trends.transactions}
           />
           <KPICard
             testId="kpi-avg-ticket"
             title="Ticket Médio"
             value={formatCurrency(kpis.avgTicket)}
             icon={TrendingUp}
-            trend={avgTicketTrend}
+            trend={trends.avgTicket}
           />
           <KPICard
             testId="kpi-refunds"
             title="Reembolsos"
             value={formatCurrency(kpis.totalRefunds)}
             icon={RotateCcw}
-            trend={refundsTrend}
+            trend={trends.refunds}
             subtitle={kpis.refundedTransactions > 0 ? `${kpis.refundedTransactions} transações` : undefined}
             variant={kpis.totalRefunds > 0 ? "danger" : "default"}
           />
@@ -429,7 +402,7 @@ export default function Index() {
             title="Cancelamentos"
             value={formatCurrency(kpis.totalCancellations)}
             icon={Ban}
-            trend={cancellationsTrend}
+            trend={trends.cancellations}
             subtitle={kpis.cancelledTransactions > 0 ? `${kpis.cancelledTransactions} desistências` : undefined}
             variant={kpis.totalCancellations > 0 ? "warning" : "default"}
           />
@@ -482,7 +455,7 @@ export default function Index() {
                 <SalesHeatmapChart data={data?.salesByHourAndDay || []} animationDelay={100} />
               </Suspense>
               <Suspense fallback={<ChartSkeleton />}>
-                <TopProductsChart data={data?.topProductsChart || []} animationDelay={150} selectedPdvId={selectedPdvId !== 'all' ? selectedPdvId : undefined} />
+                <TopProductsChart data={data?.topProductsChart || []} animationDelay={150} selectedPdvId={effectivePdvId} />
               </Suspense>
             </div>
 
@@ -503,7 +476,7 @@ export default function Index() {
             </div>
 
             {/* Stock Alerts Table */}
-            <StockAlertsTable data={lowStockItems} animationDelay={300} selectedPdvId={selectedPdvId !== 'all' ? selectedPdvId : undefined} />
+            <StockAlertsTable data={lowStockItems} animationDelay={300} selectedPdvId={effectivePdvId} />
           </div>
         )}
     </div>
