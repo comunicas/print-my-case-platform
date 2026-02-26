@@ -30,15 +30,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
-import { Loader2, Users, Store, Mail, MapPin, Pencil, Trash2, Building2 } from "lucide-react";
+import { Loader2, Users, Store, Mail, MapPin, Pencil, Trash2, Building2, Plus } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getInitials } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOrganizations } from "@/hooks/useOrganizations";
+import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { toast } from "sonner";
 import { PDVForm } from "@/components/pdv/PDVForm";
 import { PDVFormData, pdvFormSchema } from "@/lib/schemas/pdv";
+import { CreateUserDialog } from "@/components/team/CreateUserDialog";
+import { CreateUserFormData } from "@/lib/schemas/user";
 
 interface OrgDetailDialogProps {
   open: boolean;
@@ -79,7 +82,21 @@ export function OrgDetailDialog({
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { organizations } = useOrganizations();
+  const { createUser } = useTeamMembers();
   const [activeTab, setActiveTab] = useState("users");
+
+  // Create user state
+  const [showCreateUser, setShowCreateUser] = useState(false);
+
+  // Create PDV state
+  const [showCreatePdv, setShowCreatePdv] = useState(false);
+  const [createPdvForm, setCreatePdvForm] = useState<PDVFormData>({
+    name: "",
+    location: "",
+    machineId: "",
+    status: "active",
+  });
+  const [createPdvErrors, setCreatePdvErrors] = useState<Record<string, string>>({});
 
   // Delete user state
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
@@ -251,6 +268,52 @@ export function OrgDetailDialog({
     }
   };
 
+  // Create PDV mutation
+  const createPdvMutation = useMutation({
+    mutationFn: async (data: PDVFormData) => {
+      const { error } = await supabase
+        .from("pdvs")
+        .insert({
+          name: data.name,
+          location: data.location,
+          machine_id: data.machineId,
+          status: data.status,
+          organization_id: organizationId,
+        });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("PDV criado com sucesso");
+      queryClient.invalidateQueries({ queryKey: ["org-detail-pdvs", organizationId] });
+      queryClient.invalidateQueries({ queryKey: ["pdvs"] });
+      setShowCreatePdv(false);
+      setCreatePdvForm({ name: "", location: "", machineId: "", status: "active" });
+      setCreatePdvErrors({});
+    },
+    onError: (error: Error) => {
+      toast.error("Erro ao criar PDV", { description: error.message });
+    },
+  });
+
+  const handleCreatePdvSave = () => {
+    const result = pdvFormSchema.safeParse(createPdvForm);
+    if (!result.success) {
+      const fieldErrors: Record<string, string> = {};
+      result.error.errors.forEach((e) => {
+        if (e.path[0]) fieldErrors[e.path[0] as string] = e.message;
+      });
+      setCreatePdvErrors(fieldErrors);
+      return;
+    }
+    createPdvMutation.mutate(createPdvForm);
+  };
+
+  const handleCreateUserSubmit = async (data: CreateUserFormData) => {
+    await createUser.mutateAsync(data);
+    queryClient.invalidateQueries({ queryKey: ["org-detail-members", organizationId] });
+    setShowCreateUser(false);
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -275,7 +338,16 @@ export function OrgDetailDialog({
             </TabsList>
 
             {/* Users Tab */}
-            <TabsContent value="users" className="mt-4">
+            <TabsContent value="users" className="mt-4 space-y-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => setShowCreateUser(true)}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Criar Usuário
+              </Button>
               {membersQuery.isLoading ? (
                 <div className="flex justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -327,7 +399,16 @@ export function OrgDetailDialog({
             </TabsContent>
 
             {/* PDVs Tab */}
-            <TabsContent value="pdvs" className="mt-4">
+            <TabsContent value="pdvs" className="mt-4 space-y-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => setShowCreatePdv(true)}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Criar PDV
+              </Button>
               {pdvsQuery.isLoading ? (
                 <div className="flex justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -517,6 +598,57 @@ export function OrgDetailDialog({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Create User Dialog */}
+      <CreateUserDialog
+        open={showCreateUser}
+        onOpenChange={setShowCreateUser}
+        onSubmit={handleCreateUserSubmit}
+        isLoading={createUser.isPending}
+        adminOrganizationId={organizationId}
+        adminOrganizationName={organizationName}
+        isSuperAdmin={true}
+      />
+
+      {/* Create PDV Dialog */}
+      <Dialog open={showCreatePdv} onOpenChange={(open) => {
+        setShowCreatePdv(open);
+        if (!open) {
+          setCreatePdvForm({ name: "", location: "", machineId: "", status: "active" });
+          setCreatePdvErrors({});
+        }
+      }}>
+        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Criar PDV</DialogTitle>
+            <DialogDescription>
+              Adicione um novo PDV à organização <strong>{organizationName}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <PDVForm
+            values={createPdvForm}
+            onChange={setCreatePdvForm}
+            errors={createPdvErrors}
+            onClearError={(field) =>
+              setCreatePdvErrors((prev) => {
+                const next = { ...prev };
+                delete next[field];
+                return next;
+              })
+            }
+            idPrefix="create-pdv-"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreatePdv(false)} disabled={createPdvMutation.isPending}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreatePdvSave} disabled={createPdvMutation.isPending}>
+              {createPdvMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              Criar PDV
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
