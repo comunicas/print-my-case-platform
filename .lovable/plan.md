@@ -1,74 +1,83 @@
 
 
-# Refinamento do Modulo Financeiro - Linhas Individuais na DRE
+# Inserção dos Dados Reais da Planilha no Financeiro
 
-## Problemas Identificados
+## Dados a Inserir
 
-1. **Filtro PDV nao aplicado nas despesas**: O `useDRE` chama `useFinancialEntries({ referenceMonth })` sem passar o `pdvId`, entao as despesas manuais nao sao filtradas por PDV quando o usuario seleciona um PDV especifico (ex: Tiete ou Boulevard Tatuape).
+Baseado nas planilhas enviadas, serão inseridas **34 entradas** no total:
 
-2. **Reembolsos automaticos nao aparecem como linha na DRE**: O valor de `refund_amount` dos `sales_records` e somado ao total de deducoes, mas nao aparece como uma linha expandivel na DRE. O usuario nao consegue ver de onde vem cada valor.
+### Tietê Plaza Shopping (PDV: `b2c3d4e5...`, Org: `a1b2c3d4...`)
 
-3. **Formulario nao reseta ao alternar entre editar/novo**: O `useForm` usa `defaultValues` que nao se atualizam quando `editEntry` muda (comportamento do react-hook-form). Precisa de `useEffect` com `reset()`.
+**DEZ/2024** (`reference_month: 2024-12-01`)
 
-4. **Lista de despesas nao filtra por PDV**: O `useFinancialEntries` na pagina `Financeiro.tsx` tambem nao recebe `pdvId`.
+| Categoria | Descrição | Valor |
+|-----------|-----------|-------|
+| deducoes | CMV | 2.500 |
+| deducoes | STONE | 447 |
+| implantacao | Rrt | 110 |
+| implantacao | Seguro | 1.200 |
+| implantacao | Logística | 600 |
+| implantacao | VM - Integrador | 1.800 |
+| implantacao | Syrlei | 3.000 |
+| implantacao | Técnico | 500 |
+| implantacao | Câmera | 280 |
+| implantacao | Roteador | 460 |
+| fixas | Aluguel | 3.000 |
+| fixas | Licenciamento | 550 |
+| fixas | Internet (11) 94724-5189 | 70 |
+| fixas | Limpeza | 80 |
+| fixas | Marketing | 300 |
 
-## Alteracoes Planejadas
+**JAN/2025** (`reference_month: 2025-01-01`)
 
-### 1. `useFinancialEntries.ts` - Aceitar filtro por PDV
+| Categoria | Descrição | Valor |
+|-----------|-----------|-------|
+| deducoes | CMV | 2.500 |
+| deducoes | STONE | 382 |
+| fixas | Aluguel | 3.000 |
+| fixas | Licenciamento | 550 |
+| fixas | Internet (11) 94724-5189 | 70 |
+| fixas | Limpeza | 80 |
+| fixas | Marketing | 300 |
 
-Adicionar parametro opcional `pdvId` ao hook. Quando informado, filtrar as entries por `pdv_id = pdvId` OU `pdv_id IS NULL` (despesas gerais se aplicam a todos os PDVs).
+**FEV/2025** (`reference_month: 2025-02-01`)
 
-### 2. `useDRE.ts` - Passar pdvId e expor reembolsos como linha
+| Categoria | Descrição | Valor |
+|-----------|-----------|-------|
+| deducoes | CMV | 2.500 |
+| deducoes | STONE | 279 |
+| fixas | Aluguel | 3.000 |
+| fixas | Licenciamento | 550 |
+| fixas | Internet (11) 94724-5189 | 70 |
+| fixas | Limpeza | 80 |
+| fixas | Marketing | 300 |
 
-- Passar `pdvId` para `useFinancialEntries`
-- Criar uma entrada virtual "Reembolsos / Cancelamentos" no array `entriesByCategory.deducoes` quando houver reembolsos automaticos, para que apareca como linha expandivel na DRE
+---
 
-### 3. `DRETable.tsx` - Refinar visual
+### Boulevard Tatuapé (PDV: `72811872...`, Org: `56bf08d1...`)
 
-- Adicionar margem de separacao visual entre secoes
-- Mostrar quantidade de itens no badge do trigger expandivel
-- Melhorar indentacao das linhas filhas
+**FEV/2025** (`reference_month: 2025-02-01`)
 
-### 4. `FinancialEntryForm.tsx` - Reset ao trocar modo
+| Categoria | Descrição | Valor |
+|-----------|-----------|-------|
+| deducoes | CMV | 1.500 |
+| deducoes | STONE | 216 |
+| implantacao | Diversos | 25 |
+| fixas | Aluguel | 4.000 |
+| fixas | Licenciamento | 550 |
+| fixas | Internet (11) 97837-4557 | 70 |
+| fixas | Limpeza | 100 |
+| fixas | Marketing | 400 |
 
-Adicionar `useEffect` que chama `form.reset(...)` quando `editEntry` ou `open` mudam, garantindo que o formulario sempre reflita o estado correto.
+---
 
-### 5. `Financeiro.tsx` - Passar pdvId para entries
+## Observações
 
-Passar o `pdvId` filtrado tanto para `useDRE` quanto para `useFinancialEntries`.
+- **JAN/2025 do Tatuapé** não será inserido pois o faturamento era zero e todas as despesas fixas eram zero (PDV ainda não operava)
+- Implantação JAN e FEV do Tietê = R$0, então nenhuma entrada de implantação nesses meses
+- O `created_by` de cada PDV usará o admin da respectiva organização
+- Os dados serão inseridos via ferramenta de insert do banco, sem necessidade de migration
 
-## Arquivos Alterados
+## Implementação
 
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/hooks/useFinancialEntries.ts` | Adicionar filtro por `pdvId` |
-| `src/hooks/useDRE.ts` | Passar `pdvId` para entries + criar linha virtual de reembolsos |
-| `src/components/financeiro/DRETable.tsx` | Refinar visual com contagem de itens e separacao |
-| `src/components/financeiro/FinancialEntryForm.tsx` | Adicionar `useEffect` com `form.reset()` |
-| `src/pages/Financeiro.tsx` | Passar `pdvId` para `useFinancialEntries` |
-
-## Detalhes Tecnicos
-
-**Linha virtual de reembolsos no `useDRE.ts`:**
-```typescript
-// Criar entrada virtual para reembolsos automaticos
-const reembolsoEntry = {
-  id: "auto-refunds",
-  description: "Reembolsos / Cancelamentos",
-  amount: deducoesAuto,
-  category: "deducoes",
-  // ... campos restantes com valores dummy
-};
-```
-
-Isso permite que o `ExpandableRow` da DRE mostre tanto os reembolsos automaticos (vindos de `sales_records`) quanto as deducoes manuais (CMV, STONE) como linhas individuais dentro da secao "Deducoes da Venda".
-
-**Filtro PDV no `useFinancialEntries`:**
-```typescript
-if (pdvId) {
-  query = query.or(`pdv_id.eq.${pdvId},pdv_id.is.null`);
-}
-```
-
-Despesas sem PDV (gerais) continuam aparecendo quando um PDV especifico e selecionado.
-
+Uma única operação de INSERT com todas as 34 linhas na tabela `financial_entries`.
