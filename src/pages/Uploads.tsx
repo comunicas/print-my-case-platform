@@ -430,7 +430,7 @@ export default function Uploads() {
             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja excluir o upload "{deletingUpload?.file_name}" de{" "}
-              {deletingUpload?.pdv.name}? Esta ação não pode ser desfeita.
+              {deletingUpload?.pdv?.name}? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
