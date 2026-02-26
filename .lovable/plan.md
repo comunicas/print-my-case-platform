@@ -1,50 +1,49 @@
 
+# Corrigir Acesso Multi-Org para Super Admins
 
-# Corrigir Datas dos Lancamentos Financeiros (+1 ano)
+## Problema
 
-## Problema Identificado
+O super_admin nao consegue ver os dados do Boulevard Tatuape no Financeiro porque o **OrgSwitcher nao aparece** no header. O hook `useUserOrganizations` busca apenas:
+1. A organizacao propria do usuario (via `profiles.organization_id`)
+2. Acessos explicitos na tabela `user_org_access`
 
-Os lancamentos foram inseridos com datas de DEZ/2024, JAN/2025 e FEV/2025, mas as vendas reais (sales_records) estao em DEZ/2025, JAN/2026 e FEV/2026. O Financeiro busca os lancamentos pelo mes corrente da tela, entao nao encontra nada.
+Como o super_admin nao tem registro em `user_org_access` para a org HB Solucoes Digitais, `hasMultipleOrgs` retorna `false` e o switcher fica oculto.
 
-**Evidencia**: A tela busca `reference_month=eq.2026-01-01` e recebe array vazio `[]`, enquanto os dados existem em `reference_month=2025-01-01`.
+## Solucao
 
-## Correcao
+Alterar o hook `useUserOrganizations` (`src/hooks/useUserOrganizations.ts`) para que super_admins vejam **todas as organizacoes** do sistema.
 
-Executar 3 UPDATEs para mover as datas +1 ano:
+### Alteracao no hook
 
-### Tiete Plaza Shopping (org: a1b2c3d4...)
-
-| De | Para |
-|----|------|
-| 2024-12-01 | 2025-12-01 |
-| 2025-01-01 | 2026-01-01 |
-| 2025-02-01 | 2026-02-01 |
-
-### Boulevard Tatuape (org: 56bf08d1...)
-
-| De | Para |
-|----|------|
-| 2025-01-01 | 2026-01-01 |
-| 2025-02-01 | 2026-02-01 |
-
-## Implementacao
-
-Dois comandos UPDATE na tabela `financial_entries`:
+Adicionar um passo intermediario entre buscar a org propria e buscar os grants:
 
 ```text
--- Tiete: mover +1 ano
-UPDATE financial_entries
-SET reference_month = reference_month + interval '1 year'
-WHERE organization_id = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
-  AND pdv_id = 'b2c3d4e5-f6a7-8901-bcde-f23456789012'
-  AND reference_month IN ('2024-12-01', '2025-01-01', '2025-02-01');
-
--- Tatuape: mover +1 ano
-UPDATE financial_entries
-SET reference_month = reference_month + interval '1 year'
-WHERE organization_id = '56bf08d1-6843-43ef-a880-776acafe8609'
-  AND pdv_id = '72811872-2b5d-4db6-afba-46a5e0d55d9a'
-  AND reference_month IN ('2025-01-01', '2025-02-01');
+// Se super_admin, buscar TODAS as organizacoes
+if (isSuperAdmin) {
+  const { data: allOrgs } = await supabase
+    .from("organizations")
+    .select("id, name")
+    .order("name");
+  
+  return (allOrgs ?? []).map(org => ({
+    id: org.id,
+    name: org.name,
+    accessLevel: org.id === profile.organization_id ? "owner" : "editor",
+  }));
+}
 ```
 
-Nenhuma alteracao de codigo necessaria. Apos o UPDATE, o Financeiro exibira as despesas corretamente ao navegar para DEZ/25, JAN/26 e FEV/26.
+### Dependencia
+
+O hook precisa saber se o usuario e super_admin. O `useProfile` ja expoe `isSuperAdmin`, entao basta importar e usar.
+
+### Arquivos a alterar
+
+1. **`src/hooks/useUserOrganizations.ts`** - Adicionar busca de todas as orgs quando `isSuperAdmin` for true. Usar `useProfile().isSuperAdmin` para a verificacao.
+
+### Impacto
+
+- O OrgSwitcher passara a aparecer no header para super_admins
+- Ao trocar para HB Solucoes Digitais, o Financeiro mostrara os dados do Boulevard Tatuape
+- Nenhuma alteracao de banco necessaria
+- Nenhum impacto em usuarios que nao sao super_admin
