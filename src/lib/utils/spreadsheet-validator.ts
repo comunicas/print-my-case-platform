@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import {
   SALES_REQUIRED_COLUMNS,
   STOCK_REQUIRED_COLUMNS,
@@ -13,11 +13,19 @@ export async function validateSpreadsheetColumns(
   type: UploadType
 ): Promise<ColumnValidationResult> {
   const data = await file.arrayBuffer();
-  const workbook = XLSX.read(data, { type: "array" });
-  const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-  const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as string[][];
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(data);
 
-  const headers = (jsonData[0] || []).map((h) => String(h || "").trim());
+  const firstSheet = workbook.worksheets[0];
+  const headerRow = firstSheet?.getRow(1);
+  const headers: string[] = [];
+
+  if (headerRow) {
+    headerRow.eachCell({ includeEmpty: false }, (cell) => {
+      headers.push(String(cell.value ?? "").trim());
+    });
+  }
+
   const requiredColumns =
     type === "sales" ? SALES_REQUIRED_COLUMNS : STOCK_REQUIRED_COLUMNS;
   const columnAliases =
@@ -25,7 +33,6 @@ export async function validateSpreadsheetColumns(
 
   const normalizeColumn = (col: string) => col.toLowerCase().trim();
 
-  // Verificar se cada coluna obrigatória tem pelo menos um alias presente
   const missingColumns = requiredColumns.filter((requiredCol) => {
     const aliases = columnAliases[requiredCol] || [requiredCol];
     return !aliases.some((alias) =>
@@ -33,10 +40,12 @@ export async function validateSpreadsheetColumns(
     );
   });
 
+  const totalRows = Math.max(0, (firstSheet?.rowCount ?? 1) - 1);
+
   return {
     isValid: missingColumns.length === 0,
     missingColumns: [...missingColumns],
     foundColumns: headers.filter((h) => h),
-    totalRows: Math.max(0, jsonData.length - 1),
+    totalRows,
   };
 }
