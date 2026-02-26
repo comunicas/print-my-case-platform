@@ -1,9 +1,10 @@
 import { useState, useCallback } from "react";
 import { startOfMonth, subMonths, addMonths, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Plus, Wallet } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Wallet, Copy } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { PDVFilter } from "@/components/ui/PDVFilter";
 import { DRETable, FinancialEntryForm, FinancialEntriesList } from "@/components/financeiro";
 import { useFinancialEntries, type FinancialEntry } from "@/hooks/useFinancialEntries";
@@ -31,6 +32,7 @@ export default function Financeiro() {
     createEntry,
     updateEntry,
     deleteEntry,
+    copyFromPreviousMonth,
   } = useFinancialEntries({ referenceMonth, pdvId });
 
   const handlePrevMonth = () => setReferenceMonth((m) => subMonths(m, 1));
@@ -118,6 +120,29 @@ export default function Financeiro() {
 
         {/* DRE */}
         <DRETable dre={dre} isLoading={dreLoading} entriesByCategory={entriesByCategory} />
+
+        {/* Copy from previous month banner */}
+        {isAdmin && !entriesLoading && entries.length === 0 && (
+          <Card className="border-dashed">
+            <CardContent className="flex items-center gap-4 py-4 px-5">
+              <Copy className="h-5 w-5 text-muted-foreground shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">Nenhuma despesa neste mês</p>
+                <p className="text-xs text-muted-foreground">
+                  Deseja copiar as despesas fixas e deduções do mês anterior?
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => copyFromPreviousMonth.mutate({ targetMonth: referenceMonth })}
+                disabled={copyFromPreviousMonth.isPending}
+              >
+                {copyFromPreviousMonth.isPending ? "Copiando…" : "Copiar despesas"}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Entries list */}
         <div>
