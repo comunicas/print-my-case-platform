@@ -1,71 +1,87 @@
 
-Objetivo: corrigir de forma definitiva o desalinhamento do menu lateral colapsado e limpar código legado que está mantendo comportamento inconsistente.
+# Analise Completa: Falhas no DELETE de Organizacoes, PDVs e Usuarios
 
-Diagnóstico (com base no código atual)
-1) O problema visual ainda existe no modo colapsado por um detalhe de layout:
-- Em `AppSidebar.tsx`, os itens de navegação “simples” (Dashboard, Uploads, Organizações) continuam renderizando um `<span>` de label mesmo quando colapsados (`opacity-0 w-0`), mantendo também `gap-3`.
-- Isso cria um deslocamento horizontal do ícone (ele não fica exatamente no centro), enquanto itens como Estoque/Marketing (quando colapsados) ficam centralizados corretamente.
-- Resultado: sensação de menu “torto/desalinhado”, principalmente quando se compara ícones entre si.
+## Problemas Encontrados
 
-2) Há legado real em preferências da sidebar:
-- `useSidebarPreferences.ts` usa `sidebar_reports_expanded` para o submenu de Estoque e também para Marketing.
-- Ou seja, Marketing está gravando no mesmo campo legado de “reports”, o que mistura estados e gera inconsistência.
-- Além disso, o estado de Marketing não é sincronizado corretamente do backend na inicialização (só do localStorage).
+### 1. Organizacoes: Foreign Keys bloqueiam exclusao
+A tabela `organizations` tem 3 foreign keys com `NO ACTION` (que bloqueia DELETE):
+- `profiles.organization_id` -- se houver usuarios na org, nao deleta
+- `pdvs.organization_id` -- se houver PDVs na org, nao deleta
+- `products.organization_id` -- se houver produtos, nao deleta
 
-3) Existe duplicação de estrutura entre `AppSidebar.tsx` e `MobileSidebar.tsx`, o que aumenta chance de drift visual/funcional.
+Mesmo com a RLS permitindo (`is_super_admin`), o banco rejeita a operacao por violacao de integridade referencial.
 
-Plano de implementação
-Fase 1 — Correção visual do menu colapsado (prioridade alta)
-- Ajustar `renderNavItem` em `AppSidebar.tsx` para ter renderização realmente “icon-only” quando `collapsed=true`:
-  - Não renderizar `<span>` no colapsado.
-  - Não usar `gap-*` no colapsado.
-  - Garantir classes de alinhamento consistentes (`justify-center`, largura/altura estáveis).
-- Ajustar também o botão “Recolher” no rodapé no colapsado (mesma lógica icon-only sem span oculto), para alinhar com os demais.
-- Manter tooltip e acessibilidade (`aria-label`) nos botões icon-only.
+**Solucao**: Alterar as 3 FKs para `ON DELETE CASCADE` (pdvs e products) e `ON DELETE SET NULL` (profiles, para nao perder o usuario auth). Adicionalmente, o `notifications.organization_id` precisa ser verificado tambem.
 
-Fase 2 — Limpeza de legado de preferências (prioridade alta)
-- Criar migração de banco para separar estados:
-  - `sidebar_stock_expanded` (boolean, default false)
-  - `sidebar_marketing_expanded` (boolean, default false)
-- Backfill seguro:
-  - Inicializar `sidebar_stock_expanded` com valor atual de `sidebar_reports_expanded`.
-  - Inicializar `sidebar_marketing_expanded` com `false` (ou valor atual de localStorage no cliente na primeira sincronização).
-- Atualizar `usePreferences.ts` e `useSidebarPreferences.ts` para ler/gravar os novos campos.
-- Manter fallback temporário do campo legado para compatibilidade de transição.
-- Parar de usar `sidebar_reports_expanded` para Marketing.
-- Não remover a coluna legada imediatamente (deprecar primeiro); remoção pode ser feita em uma migração posterior após validação em produção.
+### 2. PDVs: RLS bloqueia super_admin em outras organizacoes
+A policy de DELETE em `pdvs` exige:
+```
+organization_id = get_user_org_id(auth.uid()) AND is_admin(auth.uid())
+```
+Isso significa que o super_admin so consegue deletar PDVs da **propria** organizacao. Para PDVs de outras orgs, a policy falha silenciosamente (retorna 0 rows).
 
-Fase 3 — Redução de dívida técnica (prioridade média)
-- Extrair configuração de navegação (itens, labels, rotas, permissões) para estrutura compartilhada entre desktop e mobile.
-- Reduzir duplicação de lógica de submenu (Estoque/Marketing), mantendo paridade visual e funcional.
+**Solucao**: Adicionar `OR is_super_admin(auth.uid())` na policy de DELETE (e UPDATE) de PDVs, seguindo o mesmo padrao da policy de SELECT que ja tem esse bypass.
 
-Validação (aceite)
-1) Desktop colapsado:
-- Todos os ícones (Dashboard, Estoque, Uploads, Marketing, Organizações, Configurações, Recolher) na mesma linha central vertical.
-- Sem variação de “offset” entre ícones de seções diferentes.
-2) Dark mode:
-- Conferir que a correção anterior de bordas permaneceu intacta.
-3) Persistência:
-- Expandido/recolhido de Estoque e Marketing funcionando de forma independente após refresh.
-- Sem “efeito colateral” entre os dois menus.
-4) Responsividade:
-- Tablet (auto-collapse) sem desalinhamento.
-- Mobile drawer sem regressão funcional.
+### 3. Usuarios: Sem policy de DELETE e sem funcionalidade real de exclusao
+- A tabela `profiles` nao tem nenhuma policy de DELETE
+- O `removeMember` no hook apenas seta `organization_id = null` e `status = inactive`, mas nao remove o usuario de fato
+- Nao existe funcionalidade para deletar o usuario do auth (requer `service_role` via Edge Function)
 
-Arquivos impactados (planejados)
-- `src/components/layout/AppSidebar.tsx`
-- `src/hooks/useSidebarPreferences.ts`
-- `src/hooks/usePreferences.ts`
-- `src/components/layout/MobileSidebar.tsx` (refino/paridade)
-- `supabase/migrations/*` (nova migração para campos de preferência separados)
+**Solucao**: Criar uma Edge Function `delete-user` que use `auth.admin.deleteUser()` com `service_role`, e adicionar policy de DELETE na tabela profiles.
 
-Riscos e mitigação
-- Risco: transição de campo legado quebrar preferências existentes.
-  - Mitigação: migração com backfill + fallback temporário no frontend.
-- Risco: inconsistência de tipos gerados.
-  - Mitigação: não editar arquivos gerados manualmente; usar fluxo normal de atualização automática após migração.
+### 4. Notificacoes: FK para organizations tambem precisa de CASCADE
+A tabela `notifications.organization_id` referencia organizations e pode bloquear a exclusao.
 
-Resultado esperado
-- Menu colapsado visualmente alinhado de forma consistente.
-- Remoção prática do comportamento legado que mistura preferências de submenus.
-- Base mais limpa para evitar regressões futuras de navegação.
+## Plano de Implementacao
+
+### Fase 1: Migracao de banco (FKs e RLS)
+
+**Migracao SQL:**
+- Alterar FK de `profiles.organization_id` para `ON DELETE SET NULL`
+- Alterar FK de `pdvs.organization_id` para `ON DELETE CASCADE`
+- Alterar FK de `products.organization_id` para `ON DELETE CASCADE`
+- Alterar FK de `notifications.organization_id` para `ON DELETE CASCADE`
+- Atualizar policy de DELETE em `pdvs` para incluir bypass de super_admin
+- Atualizar policy de UPDATE em `pdvs` para incluir bypass de super_admin
+- Adicionar policy de DELETE em `profiles` para super_admin
+
+### Fase 2: Edge Function `delete-user`
+
+Criar `supabase/functions/delete-user/index.ts` que:
+1. Valida que o chamador e super_admin
+2. Recebe `userId` no body
+3. Remove o usuario do auth via `auth.admin.deleteUser(userId)`
+4. O CASCADE cuida de limpar profiles, user_roles, preferences, user_pdvs
+
+### Fase 3: Atualizar hooks e UI
+
+**`useTeamMembers.ts`:**
+- Substituir `removeMember` por `deleteMember` que chama a Edge Function `delete-user`
+- Manter opcao de "desativar" (soft remove) separada de "excluir" (hard delete)
+
+**`useOrganizationsCRUD.ts`:**
+- Adicionar tratamento de erro mais descritivo para falhas de FK
+- O DELETE ja vai funcionar apos a migracao de FKs
+
+**`usePDVs.ts`:**
+- O DELETE ja vai funcionar apos a correcao da RLS policy
+
+**UI (`TeamSettings.tsx`):**
+- Atualizar o dialog de confirmacao de exclusao para chamar a nova funcao de delete real
+
+### Fase 4: Logica de seguranca na exclusao de organizacao
+
+No `useOrganizationsCRUD.ts`, antes de deletar uma org:
+- Mostrar aviso sobre dados que serao perdidos (PDVs, uploads, vendas, estoque)
+- Impedir exclusao da propria organizacao do super_admin
+
+## Resumo das mudancas por arquivo
+
+| Arquivo | Mudanca |
+|---------|---------|
+| `supabase/migrations/...` | FKs CASCADE + RLS policies |
+| `supabase/functions/delete-user/index.ts` | Nova Edge Function |
+| `src/hooks/useTeamMembers.ts` | Adicionar `deleteMember` via Edge Function |
+| `src/hooks/usePDVs.ts` | Sem mudanca de codigo (correcao e no RLS) |
+| `src/hooks/useOrganizationsCRUD.ts` | Protecao contra auto-exclusao |
+| `src/components/settings/TeamSettings.tsx` | Atualizar UI de exclusao |
