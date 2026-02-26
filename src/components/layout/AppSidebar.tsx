@@ -64,7 +64,7 @@ export function AppSidebar({
   onMarketingExpandedChange,
 }: AppSidebarProps) {
   const { role } = useProfile();
-  const { prefetchMap, prefetchStock, prefetchMarketing } = usePrefetchRoutes();
+  const { prefetchMap, prefetchMarketing } = usePrefetchRoutes();
   const isSuperAdmin = role === "super_admin";
   const isStockActive = activeItem.startsWith("/estoque");
   const isMarketingActive = activeItem.startsWith("/marketing");
@@ -134,7 +134,7 @@ export function AppSidebar({
       expanded={stockExpanded}
       onExpandedChange={onStockExpandedChange}
       onNavigate={onNavigate}
-      onPrefetch={prefetchStock}
+      onPrefetch={undefined}
       activeItem={activeItem}
       defaultSubTab="tabela"
     />

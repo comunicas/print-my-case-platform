@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useCallback, ReactNode } from "react";
 import { useProfile } from "@/hooks/useProfile";
 import { useUserOrganizations, AccessibleOrganization } from "@/hooks/useUserOrganizations";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
@@ -44,26 +44,26 @@ export function ActiveOrgProvider({ children }: { children: ReactNode }) {
     }
   }, [activeOrgId, organizations, profile?.organization_id, setActiveOrgIdRaw]);
 
-  const setActiveOrgId = (orgId: string) => {
+  const setActiveOrgId = useCallback((orgId: string) => {
     setActiveOrgIdRaw(orgId);
-  };
+  }, [setActiveOrgIdRaw]);
 
-  const activeOrg = organizations.find(o => o.id === activeOrgId);
+  const activeOrg = useMemo(() => organizations.find(o => o.id === activeOrgId), [organizations, activeOrgId]);
   const isOwnOrg = activeOrgId === profile?.organization_id;
   const isReadOnly = activeOrg?.accessLevel === "viewer";
 
+  const value = useMemo(() => ({
+    activeOrgId,
+    setActiveOrgId,
+    isOwnOrg,
+    isReadOnly,
+    organizations,
+    hasMultipleOrgs,
+    activeOrgName: activeOrg?.name ?? null,
+  }), [activeOrgId, setActiveOrgId, isOwnOrg, isReadOnly, organizations, hasMultipleOrgs, activeOrg?.name]);
+
   return (
-    <ActiveOrgContext.Provider
-      value={{
-        activeOrgId,
-        setActiveOrgId,
-        isOwnOrg,
-        isReadOnly,
-        organizations,
-        hasMultipleOrgs,
-        activeOrgName: activeOrg?.name ?? null,
-      }}
-    >
+    <ActiveOrgContext.Provider value={value}>
       {children}
     </ActiveOrgContext.Provider>
   );
