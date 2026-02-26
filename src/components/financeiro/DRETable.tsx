@@ -78,10 +78,13 @@ function ExpandableRow({ label, total, prefix, entries, isLoading }: ExpandableR
     <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger asChild>
         <button className="flex items-center justify-between py-3 px-4 w-full text-left hover:bg-muted/30 transition-colors">
-          <span className="text-sm text-muted-foreground flex items-center gap-1">
-            <ChevronRight className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-90")} />
+          <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+            <ChevronRight className={cn("h-3.5 w-3.5 transition-transform shrink-0", open && "rotate-90")} />
             <span className="mr-1">{prefix}</span>
             {label}
+            <span className="text-[10px] bg-muted text-muted-foreground rounded-full px-1.5 py-0.5 leading-none">
+              {entries.length}
+            </span>
           </span>
           {isLoading ? (
             <Skeleton className="h-5 w-24" />
@@ -93,17 +96,19 @@ function ExpandableRow({ label, total, prefix, entries, isLoading }: ExpandableR
         </button>
       </CollapsibleTrigger>
       <CollapsibleContent>
-        {entries.map((entry) => (
-          <div
-            key={entry.id}
-            className="flex items-center justify-between py-2 px-4 pl-10"
-          >
-            <span className="text-xs text-muted-foreground">{entry.description}</span>
-            <span className="text-xs font-mono tabular-nums text-muted-foreground">
-              {formatCurrency(Number(entry.amount))}
-            </span>
-          </div>
-        ))}
+        <div className="border-l-2 border-muted ml-6 mb-1">
+          {entries.map((entry) => (
+            <div
+              key={entry.id}
+              className="flex items-center justify-between py-1.5 px-4 pl-4"
+            >
+              <span className="text-xs text-muted-foreground">{entry.description}</span>
+              <span className="text-xs font-mono tabular-nums text-muted-foreground">
+                {formatCurrency(Number(entry.amount))}
+              </span>
+            </div>
+          ))}
+        </div>
       </CollapsibleContent>
     </Collapsible>
   );
@@ -141,6 +146,8 @@ export function DRETable({ dre, isLoading, entriesByCategory }: DRETableProps) {
           highlight
           isLoading={isLoading}
         />
+
+        <div className="pt-1" />
         <ExpandableRow
           prefix="(−)"
           label="Despesas de Implantação"
@@ -155,6 +162,7 @@ export function DRETable({ dre, isLoading, entriesByCategory }: DRETableProps) {
           entries={fixas}
           isLoading={isLoading}
         />
+        <div className="pt-1" />
         <DRERow
           prefix="(=)"
           label="Resultado Operacional"

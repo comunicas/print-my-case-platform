@@ -21,9 +21,10 @@ export interface FinancialEntry {
 interface UseFinancialEntriesOptions {
   referenceMonth: Date;
   category?: "implantacao" | "fixas" | null;
+  pdvId?: string | null;
 }
 
-export function useFinancialEntries({ referenceMonth, category }: UseFinancialEntriesOptions) {
+export function useFinancialEntries({ referenceMonth, category, pdvId }: UseFinancialEntriesOptions) {
   const { profile } = useProfile();
   const { activeOrgId } = useActiveOrg();
   const queryClient = useQueryClient();
@@ -32,7 +33,7 @@ export function useFinancialEntries({ referenceMonth, category }: UseFinancialEn
   const monthStr = format(startOfMonth(referenceMonth), "yyyy-MM-dd");
 
   const entriesQuery = useQuery({
-    queryKey: ["financial-entries", orgId, monthStr, category],
+    queryKey: ["financial-entries", orgId, monthStr, category, pdvId],
     queryFn: async () => {
       let query = supabase
         .from("financial_entries")
@@ -43,6 +44,10 @@ export function useFinancialEntries({ referenceMonth, category }: UseFinancialEn
 
       if (category) {
         query = query.eq("category", category);
+      }
+
+      if (pdvId) {
+        query = query.or(`pdv_id.eq.${pdvId},pdv_id.is.null`);
       }
 
       const { data, error } = await query;
