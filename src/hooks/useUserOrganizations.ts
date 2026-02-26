@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "./useProfile";
+import { useRole } from "@/contexts/ProfileContext";
 
 export interface AccessibleOrganization {
   id: string;
@@ -10,16 +11,32 @@ export interface AccessibleOrganization {
 
 /**
  * Retorna todas as organizações que o usuário pode acessar:
+ * - Super admins: todas as organizações do sistema
  * - Sua própria organização (owner)
  * - Organizações com acesso via user_org_access (viewer/editor)
  */
 export function useUserOrganizations() {
   const { profile } = useProfile();
+  const { isSuperAdmin } = useRole();
 
   const query = useQuery({
-    queryKey: ["user-organizations", profile?.id, profile?.organization_id],
+    queryKey: ["user-organizations", profile?.id, profile?.organization_id, isSuperAdmin],
     queryFn: async (): Promise<AccessibleOrganization[]> => {
       if (!profile?.id) return [];
+
+      // Super admins see ALL organizations
+      if (isSuperAdmin) {
+        const { data: allOrgs } = await supabase
+          .from("organizations")
+          .select("id, name")
+          .order("name");
+
+        return (allOrgs ?? []).map(org => ({
+          id: org.id,
+          name: org.name,
+          accessLevel: org.id === profile.organization_id ? "owner" : "editor",
+        }));
+      }
 
       const orgs: AccessibleOrganization[] = [];
 
