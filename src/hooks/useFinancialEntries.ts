@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "./useProfile";
 import { useActiveOrg } from "@/contexts/ActiveOrgContext";
 import { toast } from "sonner";
-import { startOfMonth, format } from "date-fns";
+import { startOfMonth, subMonths, format } from "date-fns";
 
 export interface FinancialEntry {
   id: string;
@@ -128,6 +128,54 @@ export function useFinancialEntries({ referenceMonth, category, pdvId }: UseFina
     },
   });
 
+  const copyFromPreviousMonth = useMutation({
+    mutationFn: async ({ targetMonth }: { targetMonth: Date }) => {
+      if (!orgId || !profile?.id) throw new Error("Sem organização");
+      const prevMonthStr = format(subMonths(startOfMonth(targetMonth), 1), "yyyy-MM-dd");
+      const targetMonthStr = format(startOfMonth(targetMonth), "yyyy-MM-dd");
+
+      let query = supabase
+        .from("financial_entries")
+        .select("*")
+        .eq("organization_id", orgId)
+        .eq("reference_month", prevMonthStr)
+        .in("category", ["fixas", "deducoes"]);
+
+      if (pdvId) {
+        query = query.or(`pdv_id.eq.${pdvId},pdv_id.is.null`);
+      }
+
+      const { data: prevEntries, error: fetchError } = await query;
+      if (fetchError) throw fetchError;
+      if (!prevEntries?.length) throw new Error("Nenhuma despesa encontrada no mês anterior");
+
+      const copies = prevEntries.map((e) => ({
+        organization_id: e.organization_id,
+        pdv_id: e.pdv_id,
+        category: e.category,
+        description: e.description,
+        amount: e.amount,
+        reference_month: targetMonthStr,
+        created_by: profile.id,
+      }));
+
+      const { error: insertError } = await supabase
+        .from("financial_entries")
+        .insert(copies);
+      if (insertError) throw insertError;
+
+      return copies.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ["financial-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["dre"] });
+      toast.success(`${count} despesa(s) copiada(s) do mês anterior`);
+    },
+    onError: (error) => {
+      toast.error("Erro ao copiar despesas", { description: error.message });
+    },
+  });
+
   // Totais por categoria
   const entries = entriesQuery.data ?? [];
   const totalDeducoes = entries
@@ -158,5 +206,6 @@ export function useFinancialEntries({ referenceMonth, category, pdvId }: UseFina
     createEntry,
     updateEntry,
     deleteEntry,
+    copyFromPreviousMonth,
   };
 }
