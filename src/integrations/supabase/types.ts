@@ -511,7 +511,9 @@ export type Database = {
           id: string
           language: string | null
           sidebar_collapsed: boolean | null
+          sidebar_marketing_expanded: boolean | null
           sidebar_reports_expanded: boolean | null
+          sidebar_stock_expanded: boolean | null
           stock_alerts: boolean | null
           theme: string | null
           updated_at: string | null
@@ -527,7 +529,9 @@ export type Database = {
           id?: string
           language?: string | null
           sidebar_collapsed?: boolean | null
+          sidebar_marketing_expanded?: boolean | null
           sidebar_reports_expanded?: boolean | null
+          sidebar_stock_expanded?: boolean | null
           stock_alerts?: boolean | null
           theme?: string | null
           updated_at?: string | null
@@ -543,7 +547,9 @@ export type Database = {
           id?: string
           language?: string | null
           sidebar_collapsed?: boolean | null
+          sidebar_marketing_expanded?: boolean | null
           sidebar_reports_expanded?: boolean | null
+          sidebar_stock_expanded?: boolean | null
           stock_alerts?: boolean | null
           theme?: string | null
           updated_at?: string | null

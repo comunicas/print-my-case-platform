@@ -83,32 +83,24 @@ export function AppSidebar({
     const isActive = activeItem === item.href;
     const handlePrefetch = (prefetchMap as Partial<Record<string, () => void>>)[item.href];
 
-    const button = (
-      <button
-        onClick={() => onNavigate(item.href)}
-        onMouseEnter={handlePrefetch}
-        className={cn(
-          "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-          collapsed && "justify-center px-2",
-          isActive
-            ? "bg-sidebar-accent text-sidebar-accent-foreground"
-            : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-        )}
-      >
-        <Icon className="h-5 w-5 flex-shrink-0" />
-        <span className={cn(
-          "transition-all duration-200",
-          collapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100 w-auto"
-        )}>
-          {item.label}
-        </span>
-      </button>
-    );
-
     if (collapsed) {
       return (
         <Tooltip key={item.href}>
-          <TooltipTrigger asChild>{button}</TooltipTrigger>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => onNavigate(item.href)}
+              onMouseEnter={handlePrefetch}
+              aria-label={item.label}
+              className={cn(
+                "w-full flex items-center justify-center px-2 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+              )}
+            >
+              <Icon className="h-5 w-5 flex-shrink-0" />
+            </button>
+          </TooltipTrigger>
           <TooltipContent side="right" className="font-medium">
             {item.label}
           </TooltipContent>
@@ -116,7 +108,23 @@ export function AppSidebar({
       );
     }
 
-    return <div key={item.href}>{button}</div>;
+    return (
+      <div key={item.href}>
+        <button
+          onClick={() => onNavigate(item.href)}
+          onMouseEnter={handlePrefetch}
+          className={cn(
+            "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+            isActive
+              ? "bg-sidebar-accent text-sidebar-accent-foreground"
+              : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+          )}
+        >
+          <Icon className="h-5 w-5 flex-shrink-0" />
+          <span>{item.label}</span>
+        </button>
+      </div>
+    );
   };
 
   const renderStockMenu = () => {
@@ -352,23 +360,34 @@ export function AppSidebar({
               <span>Configurações</span>
             </button>
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onToggle}
-            className="w-full flex items-center justify-center gap-2 text-sidebar-foreground hover:bg-sidebar-accent/50"
-          >
-            <ChevronLeft className={cn(
-              "h-4 w-4 transition-transform duration-300",
-              collapsed && "rotate-180"
-            )} />
-            <span className={cn(
-              "transition-all duration-200",
-              collapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100 w-auto"
-            )}>
-              Recolher
-            </span>
-          </Button>
+          {collapsed ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onToggle}
+                  aria-label="Expandir menu"
+                  className="w-full flex items-center justify-center text-sidebar-foreground hover:bg-sidebar-accent/50"
+                >
+                  <ChevronLeft className="h-4 w-4 rotate-180" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="font-medium">
+                Expandir
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onToggle}
+              className="w-full flex items-center justify-center gap-2 text-sidebar-foreground hover:bg-sidebar-accent/50"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span>Recolher</span>
+            </Button>
+          )}
         </div>
       </aside>
     </TooltipProvider>
