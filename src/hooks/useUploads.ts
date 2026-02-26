@@ -125,9 +125,11 @@ export function useUploads(filters: UploadsFilters = {}) {
   });
 
   // Update pagination total count when data changes
-  if (uploadsQuery.data && uploadsQuery.data.totalCount !== pagination.totalCount) {
-    pagination.setTotalCount(uploadsQuery.data.totalCount);
-  }
+  useEffect(() => {
+    if (uploadsQuery.data && uploadsQuery.data.totalCount !== pagination.totalCount) {
+      pagination.setTotalCount(uploadsQuery.data.totalCount);
+    }
+  }, [uploadsQuery.data?.totalCount]);
 
   const createUpload = useMutation({
     mutationFn: async (data: CreateUploadData) => {
