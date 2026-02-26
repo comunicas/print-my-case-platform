@@ -3,7 +3,6 @@ import {
   Upload,
   Package,
   ChevronLeft,
-  ChevronDown,
   Building2,
   Megaphone,
   Settings,
@@ -16,11 +15,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { CollapsibleNavMenu } from "./CollapsibleNavMenu";
 import { useProfile } from "@/hooks/useProfile";
 import { usePrefetchRoutes } from "@/hooks/usePrefetchRoutes";
 
@@ -127,176 +122,40 @@ export function AppSidebar({
     );
   };
 
-  const renderStockMenu = () => {
-    if (collapsed) {
-      const button = (
-        <button
-          onClick={() => onNavigate("/estoque")}
-          onMouseEnter={prefetchStock}
-          className={cn(
-            "w-full flex items-center justify-center px-2 py-2.5 rounded-lg text-sm font-medium transition-colors",
-            isStockActive
-              ? "bg-sidebar-accent text-sidebar-accent-foreground"
-              : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-          )}
-        >
-          <Package className="h-5 w-5 flex-shrink-0" />
-        </button>
-      );
+  // Navigation render
+  const stockMenu = (
+    <CollapsibleNavMenu
+      icon={Package}
+      label="Estoque"
+      href="/estoque"
+      subItems={stockSubItems}
+      collapsed={collapsed}
+      isActive={isStockActive}
+      expanded={stockExpanded}
+      onExpandedChange={onStockExpandedChange}
+      onNavigate={onNavigate}
+      onPrefetch={prefetchStock}
+      activeItem={activeItem}
+      defaultSubTab="tabela"
+    />
+  );
 
-      return (
-        <Tooltip>
-          <TooltipTrigger asChild>{button}</TooltipTrigger>
-          <TooltipContent side="right" className="font-medium">
-            Estoque
-          </TooltipContent>
-        </Tooltip>
-      );
-    }
-
-    // Auto-expand when navigating to stock
-    const effectiveStockExpanded = isStockActive || stockExpanded;
-
-    return (
-      <Collapsible open={effectiveStockExpanded} onOpenChange={onStockExpandedChange}>
-        <CollapsibleTrigger asChild>
-          <button
-            onMouseEnter={prefetchStock}
-            className={cn(
-              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-              isStockActive
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-            )}
-          >
-            <Package className="h-5 w-5 flex-shrink-0" />
-            <span className="flex-1 text-left">
-              Estoque
-            </span>
-            <ChevronDown
-              className={cn(
-                "h-4 w-4 transition-transform duration-200",
-                effectiveStockExpanded && "rotate-180"
-              )}
-            />
-          </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="ml-4 mt-1 space-y-1">
-            {stockSubItems.map((subItem) => {
-              const activeTab = activeItem.startsWith("/estoque")
-                ? new URLSearchParams(activeItem.split("?")[1]).get("tab") || "tabela"
-                : null;
-              const subItemTab = subItem.href.split("=")[1];
-              const isSubActive = activeTab === subItemTab;
-              
-              return (
-                <button
-                  key={subItem.href}
-                  onClick={() => onNavigate(subItem.href)}
-                  onMouseEnter={prefetchStock}
-                  className={cn(
-                    "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
-                    isSubActive
-                      ? "bg-sidebar-accent/70 text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/30 hover:text-sidebar-accent-foreground"
-                  )}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60" />
-                  <span>{subItem.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-    );
-  };
-
-  const renderMarketingMenu = () => {
-    if (collapsed) {
-      const button = (
-        <button
-          onClick={() => onNavigate("/marketing")}
-          onMouseEnter={prefetchMarketing}
-          className={cn(
-            "w-full flex items-center justify-center px-2 py-2.5 rounded-lg text-sm font-medium transition-colors",
-            isMarketingActive
-              ? "bg-sidebar-accent text-sidebar-accent-foreground"
-              : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-          )}
-        >
-          <Megaphone className="h-5 w-5 flex-shrink-0" />
-        </button>
-      );
-
-      return (
-        <Tooltip>
-          <TooltipTrigger asChild>{button}</TooltipTrigger>
-          <TooltipContent side="right" className="font-medium">
-            Marketing
-          </TooltipContent>
-        </Tooltip>
-      );
-    }
-
-    const effectiveMarketingExpanded = isMarketingActive || marketingExpanded;
-
-    return (
-      <Collapsible open={effectiveMarketingExpanded} onOpenChange={onMarketingExpandedChange}>
-        <CollapsibleTrigger asChild>
-          <button
-            onMouseEnter={prefetchMarketing}
-            className={cn(
-              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-              isMarketingActive
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-            )}
-          >
-            <Megaphone className="h-5 w-5 flex-shrink-0" />
-            <span className="flex-1 text-left">
-              Marketing
-            </span>
-            <ChevronDown
-              className={cn(
-                "h-4 w-4 transition-transform duration-200",
-                effectiveMarketingExpanded && "rotate-180"
-              )}
-            />
-          </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="ml-4 mt-1 space-y-1">
-            {marketingSubItems.map((subItem) => {
-              const activeTab = activeItem.startsWith("/marketing")
-                ? new URLSearchParams(activeItem.split("?")[1]).get("tab") || "cupons"
-                : null;
-              const subItemTab = subItem.href.split("=")[1];
-              const isSubActive = activeTab === subItemTab;
-              
-              return (
-                <button
-                  key={subItem.href}
-                  onClick={() => onNavigate(subItem.href)}
-                  onMouseEnter={prefetchMarketing}
-                  className={cn(
-                    "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
-                    isSubActive
-                      ? "bg-sidebar-accent/70 text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/30 hover:text-sidebar-accent-foreground"
-                  )}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60" />
-                  <span>{subItem.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-    );
-  };
+  const marketingMenu = (
+    <CollapsibleNavMenu
+      icon={Megaphone}
+      label="Marketing"
+      href="/marketing"
+      subItems={marketingSubItems}
+      collapsed={collapsed}
+      isActive={isMarketingActive}
+      expanded={marketingExpanded}
+      onExpandedChange={onMarketingExpandedChange}
+      onNavigate={onNavigate}
+      onPrefetch={prefetchMarketing}
+      activeItem={activeItem}
+      defaultSubTab="cupons"
+    />
+  );
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -318,9 +177,9 @@ export function AppSidebar({
         {/* Navigation */}
         <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
           {renderNavItem(visibleNavItems[0])} {/* Dashboard */}
-          {renderStockMenu()}
+          {stockMenu}
           {renderNavItem(visibleNavItems[1])} {/* Uploads */}
-          {renderMarketingMenu()}
+          {marketingMenu}
           {/* Super Admin items */}
           {visibleNavItems.slice(2).map(renderNavItem)}
         </nav>
