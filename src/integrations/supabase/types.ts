@@ -1103,6 +1103,13 @@ export type Database = {
           status: string
         }[]
       }
+      get_sales_date_range: {
+        Args: { p_pdv_ids?: string[] }
+        Returns: {
+          max_date: string
+          min_date: string
+        }[]
+      }
       get_user_org_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {

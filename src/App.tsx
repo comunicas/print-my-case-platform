@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ProfileProvider } from "@/contexts/ProfileContext";
 import { ProductModalProvider } from "@/contexts/ProductModalContext";
 import { ActiveOrgProvider } from "@/contexts/ActiveOrgContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -57,6 +58,7 @@ const App = () => (
               {/* Auth and protected routes wrapped in AuthProvider */}
               <Route path="/*" element={
                 <AuthProvider>
+                  <ProfileProvider>
                   <ActiveOrgProvider>
                   <ProductModalProvider>
                     <Routes>
@@ -76,6 +78,7 @@ const App = () => (
                     </Routes>
                   </ProductModalProvider>
                   </ActiveOrgProvider>
+                  </ProfileProvider>
                 </AuthProvider>
               } />
             </Routes>
