@@ -1,106 +1,74 @@
 
 
-# Evolucao do Modulo Financeiro - Baseado nos Dados Reais do Tiete
+# Refinamento do Modulo Financeiro - Linhas Individuais na DRE
 
-## Analise da Planilha Real
+## Problemas Identificados
 
-A planilha mostra uma estrutura mais rica do que a implementacao atual:
+1. **Filtro PDV nao aplicado nas despesas**: O `useDRE` chama `useFinancialEntries({ referenceMonth })` sem passar o `pdvId`, entao as despesas manuais nao sao filtradas por PDV quando o usuario seleciona um PDV especifico (ex: Tiete ou Boulevard Tatuape).
 
-### Diferencas identificadas
+2. **Reembolsos automaticos nao aparecem como linha na DRE**: O valor de `refund_amount` dos `sales_records` e somado ao total de deducoes, mas nao aparece como uma linha expandivel na DRE. O usuario nao consegue ver de onde vem cada valor.
 
-| Aspecto | Implementacao Atual | Planilha Real |
-|---------|-------------------|---------------|
-| Deducoes da Venda | Apenas automatico (refund_amount) | Tambem manual: CMV (R$2.500), STONE (R$447) |
-| Linhas individuais | Ocultas - so mostra totais | Cada despesa aparece indentada abaixo do total da categoria |
-| Comparacao mensal | Um mes por vez | 3 meses lado a lado (DEZ, JAN, FEV) |
-| Filtro PDV | Nao implementado na pagina | Dropdown "Tiete" no topo |
-| Categorias | 2 (implantacao, fixas) | 3 (deducoes, implantacao, fixas) |
+3. **Formulario nao reseta ao alternar entre editar/novo**: O `useForm` usa `defaultValues` que nao se atualizam quando `editEntry` muda (comportamento do react-hook-form). Precisa de `useEffect` com `reset()`.
 
-### Dados reais do Tiete (referencia)
+4. **Lista de despesas nao filtra por PDV**: O `useFinancialEntries` na pagina `Financeiro.tsx` tambem nao recebe `pdvId`.
 
-**Deducoes da Venda:**
-- CMV: R$2.500/mes (constante)
-- STONE (taxa maquininha): variavel
+## Alteracoes Planejadas
 
-**Despesas Implantacao (DEZ apenas):**
-- Rrt: R$110
-- Seguro: R$1.200
-- Logistica: R$600
-- VM Integrador: R$1.800
-- Syrlei: R$3.000
-- Tecnico: R$500
-- Camera: R$280
-- Roteador: R$460
+### 1. `useFinancialEntries.ts` - Aceitar filtro por PDV
 
-**Despesas Fixas (recorrentes):**
-- Aluguel: R$3.000
-- Licenciamento: R$550
-- Internet: R$70
-- Limpeza: R$80
-- Marketing: R$300
+Adicionar parametro opcional `pdvId` ao hook. Quando informado, filtrar as entries por `pdv_id = pdvId` OU `pdv_id IS NULL` (despesas gerais se aplicam a todos os PDVs).
 
----
+### 2. `useDRE.ts` - Passar pdvId e expor reembolsos como linha
 
-## Plano de Alteracoes
+- Passar `pdvId` para `useFinancialEntries`
+- Criar uma entrada virtual "Reembolsos / Cancelamentos" no array `entriesByCategory.deducoes` quando houver reembolsos automaticos, para que apareca como linha expandivel na DRE
 
-### 1. Banco de Dados - Nova categoria "deducoes"
+### 3. `DRETable.tsx` - Refinar visual
 
-Atualizar o CHECK constraint da coluna `category` em `financial_entries` para aceitar 3 valores:
+- Adicionar margem de separacao visual entre secoes
+- Mostrar quantidade de itens no badge do trigger expandivel
+- Melhorar indentacao das linhas filhas
 
-```sql
-ALTER TABLE financial_entries DROP CONSTRAINT financial_entries_category_check;
-ALTER TABLE financial_entries ADD CONSTRAINT financial_entries_category_check 
-  CHECK (category IN ('deducoes', 'implantacao', 'fixas'));
-```
+### 4. `FinancialEntryForm.tsx` - Reset ao trocar modo
 
-### 2. Schema Zod - Adicionar categoria "deducoes"
+Adicionar `useEffect` que chama `form.reset(...)` quando `editEntry` ou `open` mudam, garantindo que o formulario sempre reflita o estado correto.
 
-Atualizar `src/lib/schemas/financial.ts` para incluir `"deducoes"` no enum.
+### 5. `Financeiro.tsx` - Passar pdvId para entries
 
-### 3. DRETable - Mostrar linhas individuais expandiveis
+Passar o `pdvId` filtrado tanto para `useDRE` quanto para `useFinancialEntries`.
 
-Redesenhar `DRETable.tsx` para:
-- Cada secao (Deducoes, Implantacao, Fixas) mostra o total em negrito
-- Abaixo do total, listar cada entrada individual indentada (como na planilha)
-- Usar `Collapsible` para expandir/recolher as linhas de cada secao
-- Deducoes = entradas manuais da categoria "deducoes" (CMV, STONE, etc.)
-- Faturamento Bruto continua automatico (sales_records)
-
-### 4. useDRE - Incluir deducoes manuais
-
-Atualizar `useDRE.ts`:
-- Remover calculo automatico de deducoes via `refund_amount` (ou somar ambos)
-- Adicionar `totalDeducoes` vindo das entries com category="deducoes"
-- Expor as entries agrupadas por categoria para o DRETable renderizar as linhas
-
-### 5. useFinancialEntries - Calcular total de deducoes
-
-Adicionar `totalDeducoes` ao hook, somando entries com `category === "deducoes"`.
-
-### 6. FinancialEntryForm - Opcao "Deducoes da Venda"
-
-Adicionar `SelectItem value="deducoes"` no formulario com label "Deducoes da Venda".
-
-### 7. Filtro por PDV na pagina
-
-Adicionar o componente `PDVFilter` no topo da pagina `/financeiro` e passar o `pdvId` selecionado para `useDRE` e `useFinancialEntries`.
-
-### 8. Comparacao multi-mes (fase futura)
-
-Nao sera implementado agora para manter o escopo controlado. Pode ser adicionado depois como uma tabela com 3 colunas de meses.
-
----
-
-## Arquivos alterados
+## Arquivos Alterados
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| Migration SQL | Atualizar CHECK constraint para incluir "deducoes" |
-| `src/lib/schemas/financial.ts` | Adicionar "deducoes" ao enum |
-| `src/hooks/useFinancialEntries.ts` | Adicionar `totalDeducoes` |
-| `src/hooks/useDRE.ts` | Usar deducoes manuais + expor entries agrupadas |
-| `src/components/financeiro/DRETable.tsx` | Linhas individuais expandiveis por categoria |
-| `src/components/financeiro/FinancialEntryForm.tsx` | Adicionar opcao "Deducoes da Venda" |
-| `src/components/financeiro/FinancialEntriesList.tsx` | Adicionar label "Deducoes" |
-| `src/pages/Financeiro.tsx` | Adicionar filtro PDV |
+| `src/hooks/useFinancialEntries.ts` | Adicionar filtro por `pdvId` |
+| `src/hooks/useDRE.ts` | Passar `pdvId` para entries + criar linha virtual de reembolsos |
+| `src/components/financeiro/DRETable.tsx` | Refinar visual com contagem de itens e separacao |
+| `src/components/financeiro/FinancialEntryForm.tsx` | Adicionar `useEffect` com `form.reset()` |
+| `src/pages/Financeiro.tsx` | Passar `pdvId` para `useFinancialEntries` |
+
+## Detalhes Tecnicos
+
+**Linha virtual de reembolsos no `useDRE.ts`:**
+```typescript
+// Criar entrada virtual para reembolsos automaticos
+const reembolsoEntry = {
+  id: "auto-refunds",
+  description: "Reembolsos / Cancelamentos",
+  amount: deducoesAuto,
+  category: "deducoes",
+  // ... campos restantes com valores dummy
+};
+```
+
+Isso permite que o `ExpandableRow` da DRE mostre tanto os reembolsos automaticos (vindos de `sales_records`) quanto as deducoes manuais (CMV, STONE) como linhas individuais dentro da secao "Deducoes da Venda".
+
+**Filtro PDV no `useFinancialEntries`:**
+```typescript
+if (pdvId) {
+  query = query.or(`pdv_id.eq.${pdvId},pdv_id.is.null`);
+}
+```
+
+Despesas sem PDV (gerais) continuam aparecendo quando um PDV especifico e selecionado.
 
