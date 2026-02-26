@@ -1,89 +1,59 @@
 
 
-# Corrigir ID da Maquina (fixo na edicao) e Adicionar Transferencia de PDV
+# Criar Usuario e PDV Diretamente no Dialog de Detalhes da Organizacao
 
-## Problemas Identificados
+## Objetivo
+Adicionar botoes "Criar Usuario" e "Criar PDV" dentro do `OrgDetailDialog`, permitindo que o super_admin crie recursos diretamente na organizacao selecionada sem precisar navegar para outras telas.
 
-### 1. ID da Maquina editavel
-O campo "ID da Maquina" (`machine_id`) pode ser alterado ao editar um PDV. Como esse ID identifica a maquina fisica e e referenciado em uploads, sales_records e stock_records (via `device_id`), ele deve ser **fixo apos a criacao** para nao quebrar vinculos de dados.
+## Mudancas
 
-### 2. Transferencia de PDV entre organizacoes
-Nao existe opcao para mover um PDV de uma organizacao para outra. Como super_admin, seria util poder transferir um PDV (ex: maquina mudou de dono/franqueado).
+### Arquivo: `src/components/settings/OrgDetailDialog.tsx`
 
-### 3. Modificacoes anteriores
-As modificacoes do plano anterior **ja estao implementadas**:
-- Filtro por organizacao em TeamSettings e PDVsSettings (funcionando)
-- Drill-down ao clicar em org na pagina Organizations (OrgDetailDialog com editar/excluir)
-- UserPDVsDialog corrigido para usar `organizationId` do usuario-alvo
-- RLS de INSERT para super_admin em pdvs (migrado)
+**1. Botao "Criar Usuario" na aba Usuarios:**
+- Adicionar botao `+ Criar Usuario` abaixo da lista de usuarios
+- Ao clicar, abrir o `CreateUserDialog` ja existente
+- Pre-configurar o dialog com `createNewOrganization: false` e `organizationId` da org atual
+- Usar `useTeamMembers().createUser` para a mutation
+- Ao criar com sucesso, invalidar `org-detail-members` e `team-members`
 
-## Plano de Implementacao
+**2. Botao "Criar PDV" na aba PDVs:**
+- Adicionar botao `+ Criar PDV` abaixo da lista de PDVs
+- Ao clicar, abrir um Dialog com `PDVForm` (reutilizando o componente existente)
+- Sem seletor de organizacao (a org ja esta definida pelo contexto do dialog)
+- Ao criar, inserir diretamente na tabela `pdvs` com `organization_id` da org atual
+- Invalidar `org-detail-pdvs` e `pdvs` ao criar com sucesso
 
-### 1. Tornar `machine_id` somente leitura na edicao
+### Detalhes tecnicos
 
-**Arquivo: `src/components/pdv/PDVForm.tsx`**
-- Adicionar prop `isEditing?: boolean`
-- Quando `isEditing=true`, renderizar o campo `machineId` como `disabled` (read-only com visual de campo bloqueado)
-- Adicionar texto auxiliar "O ID da maquina nao pode ser alterado apos a criacao"
+**Criar Usuario:**
+- Reutilizar `CreateUserDialog` component passando:
+  - `isSuperAdmin={true}`
+  - `adminOrganizationId={organizationId}` (da org do dialog)
+  - `adminOrganizationName={organizationName}`
+- Importar `useTeamMembers` para acessar `createUser` mutation
+- O `CreateUserDialog` ja suporta pre-selecionar organizacao via `adminOrganizationId`
+- O `onSubmit` chamara `createUser.mutateAsync(data)` e tambem invalidara `org-detail-members`
 
-**Arquivo: `src/components/settings/PDVsSettings.tsx`**
-- Passar `isEditing={true}` ao `PDVForm` no dialog de edicao
+**Criar PDV:**
+- Adicionar estado `showCreatePdv` para controlar o dialog
+- Reutilizar `PDVForm` + `pdvFormSchema` para validacao
+- Mutation inline para inserir na tabela `pdvs` com `organization_id` fixo
+- Validar duplicidade de `machine_id` entre os PDVs carregados
 
-**Arquivo: `src/components/settings/OrgDetailDialog.tsx`**
-- Passar `isEditing={true}` ao `PDVForm` no dialog de edicao do drill-down
+**UI dos botoes:**
+- Botoes posicionados entre o `TabsList` e o conteudo da tab, ou no inicio da lista
+- Estilo: `Button variant="outline" size="sm"` com icone `Plus`
 
-### 2. Adicionar opcao de transferir PDV para outra organizacao
+### Imports adicionais
+- `Plus` do lucide-react
+- `CreateUserDialog` de `@/components/team/CreateUserDialog`
+- `useTeamMembers` de `@/hooks/useTeamMembers`
 
-**Arquivo: `src/components/settings/PDVsSettings.tsx`** (dialog de edicao)
-- Para super_admin: adicionar um Select de "Organizacao" no formulario de edicao
-- Mostrar a organizacao atual do PDV
-- Permitir trocar para outra organizacao
-- Ao salvar, se a org mudou, atualizar o `organization_id` do PDV
-
-**Arquivo: `src/hooks/usePDVs.ts`**
-- O `updatePDV` ja aceita qualquer campo parcial, mas o tipo `PDVUpdate` exclui `organization_id`
-- Atualizar `PDVUpdate` para incluir `organization_id` como campo opcional
-- Isso permite que super_admin transfira o PDV
-
-**Arquivo: `src/components/settings/OrgDetailDialog.tsx`**
-- No dialog de edicao de PDV dentro do drill-down, tambem adicionar o seletor de organizacao para super_admin
-
-### 3. Confirmacao de transferencia
-
-Ao trocar a organizacao de um PDV, mostrar um alerta informando que:
-- Uploads, vendas e estoque associados ao PDV permanecem vinculados
-- O PDV deixara de aparecer na organizacao anterior
-- Essa acao pode afetar relatorios da org de origem
-
-## Detalhes Tecnicos
-
-### Tipo PDVUpdate atualizado
-```typescript
-export type PDVUpdate = Partial<Omit<PDV, "id" | "created_at" | "updated_at">>;
-// Agora inclui organization_id como campo opcional
-```
-
-### PDVForm com prop isEditing
-```typescript
-interface PDVFormProps {
-  values: PDVFormData;
-  onChange: (values: PDVFormData) => void;
-  errors: Record<string, string>;
-  onClearError: (field: string) => void;
-  idPrefix?: string;
-  isEditing?: boolean; // novo
-}
-```
-
-### RLS
-A policy de UPDATE em `pdvs` ja permite super_admin (`OR is_super_admin(auth.uid())`), entao a atualizacao de `organization_id` ja e permitida sem nova migracao.
-
-## Arquivos Impactados
+## Arquivos impactados
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `src/components/pdv/PDVForm.tsx` | Prop `isEditing` para bloquear machineId |
-| `src/hooks/usePDVs.ts` | Incluir `organization_id` em PDVUpdate |
-| `src/components/settings/PDVsSettings.tsx` | `isEditing` no form + seletor de org na edicao |
-| `src/components/settings/OrgDetailDialog.tsx` | `isEditing` no form + seletor de org na edicao |
+| `src/components/settings/OrgDetailDialog.tsx` | Adicionar botoes e dialogs de criacao de usuario e PDV |
+
+Nenhuma mudanca de banco necessaria - as RLS policies ja permitem super_admin criar usuarios (via Edge Function) e PDVs em qualquer organizacao.
 
