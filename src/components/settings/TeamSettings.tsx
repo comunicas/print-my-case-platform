@@ -99,7 +99,7 @@ const formatDate = (dateStr: string): string => {
 };
 
 export function TeamSettings() {
-  const { members, isLoading, isAdmin, isSuperAdmin, updateMember, removeMember, createUser } = useTeamMembers();
+  const { members, isLoading, isAdmin, isSuperAdmin, updateMember, removeMember, deleteMember, createUser } = useTeamMembers();
   const { profile } = useProfile();
   const { organization } = useOrganization({ readOnly: true });
   const [searchQuery, setSearchQuery] = useState("");
@@ -200,12 +200,23 @@ export function TeamSettings() {
       return;
     }
 
-    removeMember.mutate(deletingMember.id, {
-      onSuccess: () => {
-        setIsDeleteDialogOpen(false);
-        setDeletingMember(null);
-      }
-    });
+    // Super admin: hard delete via edge function
+    if (isSuperAdmin) {
+      deleteMember.mutate(deletingMember.id, {
+        onSuccess: () => {
+          setIsDeleteDialogOpen(false);
+          setDeletingMember(null);
+        }
+      });
+    } else {
+      // org_admin: soft remove (desvincula da org)
+      removeMember.mutate(deletingMember.id, {
+        onSuccess: () => {
+          setIsDeleteDialogOpen(false);
+          setDeletingMember(null);
+        }
+      });
+    }
   };
 
   if (isLoading) {
@@ -456,21 +467,24 @@ export function TeamSettings() {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar remoção</AlertDialogTitle>
+            <AlertDialogTitle>
+              {isSuperAdmin ? "Excluir usuário permanentemente" : "Confirmar remoção"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja remover "{deletingMember?.name}" da organização? 
-              O usuário perderá acesso ao sistema.
+              {isSuperAdmin
+                ? `Tem certeza que deseja excluir "${deletingMember?.name}" permanentemente? Esta ação não pode ser desfeita. Todos os dados do usuário serão removidos.`
+                : `Tem certeza que deseja remover "${deletingMember?.name}" da organização? O usuário perderá acesso ao sistema.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteMember}
-              disabled={removeMember.isPending}
+              disabled={deleteMember.isPending || removeMember.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {removeMember.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Remover
+              {(deleteMember.isPending || removeMember.isPending) && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {isSuperAdmin ? "Excluir Permanentemente" : "Remover"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

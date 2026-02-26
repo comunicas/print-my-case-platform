@@ -216,7 +216,7 @@ export function useTeamMembers() {
     mutationFn: async (userId: string) => {
       if (!isAdmin) throw new Error("Permissão negada");
       
-      // Remove from organization (don't delete the user)
+      // Soft remove: desvincula da organização
       const { data: updatedProfile, error } = await supabase
         .from("profiles")
         .update({ 
@@ -245,6 +245,45 @@ export function useTeamMembers() {
     },
   });
 
+  const deleteMember = useMutation({
+    mutationFn: async (userId: string) => {
+      if (!isSuperAdmin) throw new Error("Apenas super_admin pode excluir usuários");
+
+      const { data, error } = await supabase.functions.invoke("delete-user", {
+        body: { userId },
+      });
+
+      if (error) {
+        // Try to extract error message from response body
+        if (error.context && typeof error.context.json === 'function') {
+          try {
+            const errorBody = await error.context.json();
+            if (errorBody?.error) throw new Error(errorBody.error);
+          } catch (parseError) {
+            if (parseError instanceof Error && parseError.message !== error.message) {
+              throw parseError;
+            }
+          }
+        }
+        throw error;
+      }
+
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["team-members"] });
+      toast.success("Usuário excluído", {
+        description: data?.message || "O usuário foi excluído permanentemente.",
+      });
+    },
+    onError: (error) => {
+      toast.error("Erro ao excluir usuário", {
+        description: error.message,
+      });
+    },
+  });
+
   return {
     members: teamQuery.data ?? [],
     isLoading: teamQuery.isLoading,
@@ -254,6 +293,7 @@ export function useTeamMembers() {
     canAssignRole,
     updateMember,
     removeMember,
+    deleteMember,
     createUser,
   };
 }
