@@ -1,108 +1,104 @@
 
+# Inserir Dados Financeiros Reais - Tiete + Tatuape
 
-# Copiar Despesas Fixas do Mes Anterior
+## Estado Atual no Banco
 
-## Contexto
+- **Tiete Plaza Shopping**: 0 entradas (nenhum dado persistiu)
+- **Boulevard Tatuape FEV/25**: 8 entradas (corretas)
+- **Boulevard Tatuape JAN/25**: 0 entradas (falta CMV R$ 3.600)
 
-Quando o usuario navega para um mes que ainda nao tem despesas cadastradas, ele precisa recriar manualmente todas as despesas fixas (Aluguel, Licenciamento, Internet, etc.). Essa funcionalidade permite copiar automaticamente as despesas fixas e deducoes recorrentes do mes anterior com um clique.
+## Dados a Inserir
 
-## Comportamento
+### Tiete Plaza Shopping
 
-1. Quando o mes atual **nao tem nenhuma despesa** cadastrada, exibir um banner/card com a opcao "Copiar despesas do mes anterior"
-2. Ao clicar, buscar todas as entries do mes anterior (categorias `fixas` e `deducoes`) e inserir copias com o `reference_month` do mes atual
-3. Despesas de `implantacao` **nao sao copiadas** (sao pontuais)
-4. Apos copiar, invalidar queries e mostrar toast de sucesso
-5. O banner so aparece para admins e quando o mes atual esta vazio
+**PDV**: `b2c3d4e5-f6a7-8901-bcde-f23456789012`
+**Org**: `a1b2c3d4-e5f6-7890-abcd-ef1234567890`
+**Created by**: `0a3d0762-7635-4732-a9ca-0c3fb31381dc`
 
-## Alteracoes
+**DEZ/2024** (reference_month: 2024-12-01) - 15 entradas
 
-### 1. `useFinancialEntries.ts` - Nova mutation `copyFromPreviousMonth`
+| Categoria | Descricao | Valor |
+|-----------|-----------|-------|
+| deducoes | CMV | 2.500 |
+| deducoes | STONE | 447 |
+| implantacao | Rrt | 110 |
+| implantacao | Seguro | 1.200 |
+| implantacao | Logistica | 600 |
+| implantacao | VM - Integrador | 1.800 |
+| implantacao | Syrlei | 3.000 |
+| implantacao | Tecnico | 500 |
+| implantacao | Camera | 280 |
+| implantacao | Roteador | 460 |
+| fixas | Aluguel | 3.000 |
+| fixas | Licenciamento | 550 |
+| fixas | Internet (11) 94724-5189 | 70 |
+| fixas | Limpeza | 80 |
+| fixas | Marketing | 300 |
 
-Adicionar uma mutation que:
-- Busca entries do mes anterior com `category IN ('fixas', 'deducoes')` para a mesma org (e mesmo PDV se filtrado)
-- Insere copias com o `reference_month` do mes atual
-- Retorna a quantidade de entries copiadas
+**JAN/2025** (reference_month: 2025-01-01) - 7 entradas
 
-```typescript
-const copyFromPreviousMonth = useMutation({
-  mutationFn: async ({ targetMonth }: { targetMonth: Date }) => {
-    const prevMonthStr = format(subMonths(startOfMonth(targetMonth), 1), "yyyy-MM-dd");
-    const targetMonthStr = format(startOfMonth(targetMonth), "yyyy-MM-dd");
-    
-    // Buscar entries do mes anterior (fixas + deducoes)
-    let query = supabase
-      .from("financial_entries")
-      .select("*")
-      .eq("organization_id", orgId!)
-      .eq("reference_month", prevMonthStr)
-      .in("category", ["fixas", "deducoes"]);
-    
-    if (pdvId) {
-      query = query.or(`pdv_id.eq.${pdvId},pdv_id.is.null`);
-    }
-    
-    const { data: prevEntries, error: fetchError } = await query;
-    if (fetchError) throw fetchError;
-    if (!prevEntries?.length) throw new Error("Nenhuma despesa encontrada no mes anterior");
-    
-    // Inserir copias no mes atual
-    const copies = prevEntries.map(e => ({
-      organization_id: e.organization_id,
-      pdv_id: e.pdv_id,
-      category: e.category,
-      description: e.description,
-      amount: e.amount,
-      reference_month: targetMonthStr,
-      created_by: profile!.id,
-    }));
-    
-    const { error: insertError } = await supabase
-      .from("financial_entries")
-      .insert(copies);
-    if (insertError) throw insertError;
-    
-    return copies.length;
-  },
-  onSuccess: (count) => {
-    queryClient.invalidateQueries({ queryKey: ["financial-entries"] });
-    toast.success(`${count} despesa(s) copiada(s) do mes anterior`);
-  },
-  onError: (error) => {
-    toast.error("Erro ao copiar despesas", { description: error.message });
-  },
-});
-```
+| Categoria | Descricao | Valor |
+|-----------|-----------|-------|
+| deducoes | CMV | 2.500 |
+| deducoes | STONE | 382 |
+| fixas | Aluguel | 3.000 |
+| fixas | Licenciamento | 550 |
+| fixas | Internet (11) 94724-5189 | 70 |
+| fixas | Limpeza | 80 |
+| fixas | Marketing | 300 |
 
-### 2. `Financeiro.tsx` - Banner "Copiar do mes anterior"
+**FEV/2025** (reference_month: 2025-02-01) - 7 entradas
 
-Adicionar um card entre a DRE e a lista de despesas que aparece apenas quando:
-- `isAdmin === true`
-- `entries.length === 0`
-- `!entriesLoading`
+| Categoria | Descricao | Valor |
+|-----------|-----------|-------|
+| deducoes | CMV | 2.500 |
+| deducoes | STONE | 279 |
+| fixas | Aluguel | 3.000 |
+| fixas | Licenciamento | 550 |
+| fixas | Internet (11) 94724-5189 | 70 |
+| fixas | Limpeza | 80 |
+| fixas | Marketing | 300 |
 
-O card tera um icone `Copy`, texto explicativo e botao de acao.
+---
 
-```text
-+------------------------------------------------------+
-| [Copy icon]  Nenhuma despesa neste mes                |
-|  Deseja copiar as despesas fixas do mes anterior?     |
-|                                     [Copiar despesas] |
-+------------------------------------------------------+
-```
+### Boulevard Tatuape (somente JAN/25 faltante)
 
-### 3. Hook retorno
+**PDV**: `72811872-2b5d-4db6-afba-46a5e0d55d9a`
+**Org**: `56bf08d1-6843-43ef-a880-776acafe8609`
+**Created by**: `0f365ed3-f8b7-4d85-bb3b-54ca74be6c32`
 
-O `useFinancialEntries` passara a retornar `copyFromPreviousMonth` junto com as outras mutations.
+**JAN/2025** (reference_month: 2025-01-01) - 1 entrada
 
-## Arquivos alterados
+| Categoria | Descricao | Valor |
+|-----------|-----------|-------|
+| deducoes | CMV | 3.600 |
 
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/hooks/useFinancialEntries.ts` | Adicionar mutation `copyFromPreviousMonth` |
-| `src/pages/Financeiro.tsx` | Adicionar banner condicional + chamar `copyFromPreviousMonth` |
+---
 
-## Observacoes
+## Resumo
 
-- A copia usa `subMonths` para calcular o mes anterior, ja importado no projeto
-- Nao precisa de migration SQL - usa apenas INSERT nas mesmas tabelas existentes
-- As RLS policies ja cobrem o INSERT (admin + mesma org + created_by = auth.uid)
+| PDV | Mes | Entradas |
+|-----|-----|----------|
+| Tiete | DEZ/24 | 15 |
+| Tiete | JAN/25 | 7 |
+| Tiete | FEV/25 | 7 |
+| Tatuape | JAN/25 | 1 |
+| **Total** | | **30** |
+
+## Implementacao
+
+Uma unica operacao de INSERT com 30 linhas na tabela `financial_entries`. Nenhuma alteracao de codigo necessaria.
+
+## Validacao Esperada (DRE)
+
+Apos a insercao, a DRE do Tiete deve exibir:
+
+| | DEZ/24 | JAN/25 | FEV/25 |
+|--|--------|--------|--------|
+| Faturamento Bruto | 14.889 | 12.722 | 9.297 |
+| Deducoes (auto + manual) | 2.947 | 2.882 | 2.779 |
+| Receita Liquida | ~7.942 | ~5.840 | ~2.518 |
+| Implantacao | 7.950 | 0 | 0 |
+| Fixas | 4.000 | 4.000 | 4.000 |
+
+Nota: O faturamento bruto e as deducoes automaticas (reembolsos) vem da tabela `sales_records`. Os valores de CMV e STONE sao entradas manuais que se somam aos reembolsos automaticos na linha de deducoes.
