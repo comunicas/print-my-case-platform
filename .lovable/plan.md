@@ -1,104 +1,50 @@
 
-# Inserir Dados Financeiros Reais - Tiete + Tatuape
 
-## Estado Atual no Banco
+# Corrigir Datas dos Lancamentos Financeiros (+1 ano)
 
-- **Tiete Plaza Shopping**: 0 entradas (nenhum dado persistiu)
-- **Boulevard Tatuape FEV/25**: 8 entradas (corretas)
-- **Boulevard Tatuape JAN/25**: 0 entradas (falta CMV R$ 3.600)
+## Problema Identificado
 
-## Dados a Inserir
+Os lancamentos foram inseridos com datas de DEZ/2024, JAN/2025 e FEV/2025, mas as vendas reais (sales_records) estao em DEZ/2025, JAN/2026 e FEV/2026. O Financeiro busca os lancamentos pelo mes corrente da tela, entao nao encontra nada.
 
-### Tiete Plaza Shopping
+**Evidencia**: A tela busca `reference_month=eq.2026-01-01` e recebe array vazio `[]`, enquanto os dados existem em `reference_month=2025-01-01`.
 
-**PDV**: `b2c3d4e5-f6a7-8901-bcde-f23456789012`
-**Org**: `a1b2c3d4-e5f6-7890-abcd-ef1234567890`
-**Created by**: `0a3d0762-7635-4732-a9ca-0c3fb31381dc`
+## Correcao
 
-**DEZ/2024** (reference_month: 2024-12-01) - 15 entradas
+Executar 3 UPDATEs para mover as datas +1 ano:
 
-| Categoria | Descricao | Valor |
-|-----------|-----------|-------|
-| deducoes | CMV | 2.500 |
-| deducoes | STONE | 447 |
-| implantacao | Rrt | 110 |
-| implantacao | Seguro | 1.200 |
-| implantacao | Logistica | 600 |
-| implantacao | VM - Integrador | 1.800 |
-| implantacao | Syrlei | 3.000 |
-| implantacao | Tecnico | 500 |
-| implantacao | Camera | 280 |
-| implantacao | Roteador | 460 |
-| fixas | Aluguel | 3.000 |
-| fixas | Licenciamento | 550 |
-| fixas | Internet (11) 94724-5189 | 70 |
-| fixas | Limpeza | 80 |
-| fixas | Marketing | 300 |
+### Tiete Plaza Shopping (org: a1b2c3d4...)
 
-**JAN/2025** (reference_month: 2025-01-01) - 7 entradas
+| De | Para |
+|----|------|
+| 2024-12-01 | 2025-12-01 |
+| 2025-01-01 | 2026-01-01 |
+| 2025-02-01 | 2026-02-01 |
 
-| Categoria | Descricao | Valor |
-|-----------|-----------|-------|
-| deducoes | CMV | 2.500 |
-| deducoes | STONE | 382 |
-| fixas | Aluguel | 3.000 |
-| fixas | Licenciamento | 550 |
-| fixas | Internet (11) 94724-5189 | 70 |
-| fixas | Limpeza | 80 |
-| fixas | Marketing | 300 |
+### Boulevard Tatuape (org: 56bf08d1...)
 
-**FEV/2025** (reference_month: 2025-02-01) - 7 entradas
-
-| Categoria | Descricao | Valor |
-|-----------|-----------|-------|
-| deducoes | CMV | 2.500 |
-| deducoes | STONE | 279 |
-| fixas | Aluguel | 3.000 |
-| fixas | Licenciamento | 550 |
-| fixas | Internet (11) 94724-5189 | 70 |
-| fixas | Limpeza | 80 |
-| fixas | Marketing | 300 |
-
----
-
-### Boulevard Tatuape (somente JAN/25 faltante)
-
-**PDV**: `72811872-2b5d-4db6-afba-46a5e0d55d9a`
-**Org**: `56bf08d1-6843-43ef-a880-776acafe8609`
-**Created by**: `0f365ed3-f8b7-4d85-bb3b-54ca74be6c32`
-
-**JAN/2025** (reference_month: 2025-01-01) - 1 entrada
-
-| Categoria | Descricao | Valor |
-|-----------|-----------|-------|
-| deducoes | CMV | 3.600 |
-
----
-
-## Resumo
-
-| PDV | Mes | Entradas |
-|-----|-----|----------|
-| Tiete | DEZ/24 | 15 |
-| Tiete | JAN/25 | 7 |
-| Tiete | FEV/25 | 7 |
-| Tatuape | JAN/25 | 1 |
-| **Total** | | **30** |
+| De | Para |
+|----|------|
+| 2025-01-01 | 2026-01-01 |
+| 2025-02-01 | 2026-02-01 |
 
 ## Implementacao
 
-Uma unica operacao de INSERT com 30 linhas na tabela `financial_entries`. Nenhuma alteracao de codigo necessaria.
+Dois comandos UPDATE na tabela `financial_entries`:
 
-## Validacao Esperada (DRE)
+```text
+-- Tiete: mover +1 ano
+UPDATE financial_entries
+SET reference_month = reference_month + interval '1 year'
+WHERE organization_id = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+  AND pdv_id = 'b2c3d4e5-f6a7-8901-bcde-f23456789012'
+  AND reference_month IN ('2024-12-01', '2025-01-01', '2025-02-01');
 
-Apos a insercao, a DRE do Tiete deve exibir:
+-- Tatuape: mover +1 ano
+UPDATE financial_entries
+SET reference_month = reference_month + interval '1 year'
+WHERE organization_id = '56bf08d1-6843-43ef-a880-776acafe8609'
+  AND pdv_id = '72811872-2b5d-4db6-afba-46a5e0d55d9a'
+  AND reference_month IN ('2025-01-01', '2025-02-01');
+```
 
-| | DEZ/24 | JAN/25 | FEV/25 |
-|--|--------|--------|--------|
-| Faturamento Bruto | 14.889 | 12.722 | 9.297 |
-| Deducoes (auto + manual) | 2.947 | 2.882 | 2.779 |
-| Receita Liquida | ~7.942 | ~5.840 | ~2.518 |
-| Implantacao | 7.950 | 0 | 0 |
-| Fixas | 4.000 | 4.000 | 4.000 |
-
-Nota: O faturamento bruto e as deducoes automaticas (reembolsos) vem da tabela `sales_records`. Os valores de CMV e STONE sao entradas manuais que se somam aos reembolsos automaticos na linha de deducoes.
+Nenhuma alteracao de codigo necessaria. Apos o UPDATE, o Financeiro exibira as despesas corretamente ao navegar para DEZ/25, JAN/26 e FEV/26.
