@@ -9,6 +9,7 @@ import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
 import { SlotData } from '@/lib/stockUtils';
 import { GRID_LAYOUT, COLUMN_HEADERS } from '@/lib/stockGridUtils';
 import { SLOT_DIMENSIONS, StockViewMode } from '@/lib/stockViewModes';
+import { useLocalStorageState } from '@/hooks/useLocalStorageState';
 import { KNOWN_BRANDS } from '@/lib/brandAssets';
 import { useStockFilters } from '@/contexts/StockFiltersContext';
 import { useGridKeyboardNavigation, findNextSlot, getFirstSlot } from '@/hooks/useGridKeyboardNavigation';
@@ -26,16 +27,20 @@ interface StockGridViewProps {
 
 const STORAGE_KEY = 'stock-view-mode';
 
+const isValidViewMode = (v: unknown): v is StockViewMode => v === 'compact' || v === 'expanded';
+
 export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isLoading }: StockGridViewProps) {
   const { searchTerm, brandFilter, statusFilter, salesIndexFilter, selectedPdv } = useStockFilters();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<SlotData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
-  // View mode com persistência em localStorage
-  const [viewMode, setViewMode] = useState<StockViewMode>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return (saved === 'compact' || saved === 'expanded') ? saved : 'expanded';
+  // View mode with useLocalStorageState
+  const [viewMode, setViewMode] = useLocalStorageState<StockViewMode>(STORAGE_KEY, 'expanded', {
+    deserialize: (raw) => {
+      const parsed = JSON.parse(raw);
+      return isValidViewMode(parsed) ? parsed : 'expanded';
+    },
   });
   
   // Transition states for animations
@@ -45,8 +50,6 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
   const prevPdvRef = useRef(selectedPdv);
   
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, viewMode);
-    
     // Animate view mode change
     if (prevViewModeRef.current !== viewMode) {
       setIsViewModeTransitioning(true);

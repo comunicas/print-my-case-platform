@@ -1,6 +1,7 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useEffect, ReactNode } from "react";
 import { useProfile } from "@/hooks/useProfile";
 import { useUserOrganizations, AccessibleOrganization } from "@/hooks/useUserOrganizations";
+import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 
 interface ActiveOrgContextType {
   /** ID da organização atualmente selecionada */
@@ -24,28 +25,28 @@ const ActiveOrgContext = createContext<ActiveOrgContextType | undefined>(undefin
 export function ActiveOrgProvider({ children }: { children: ReactNode }) {
   const { profile } = useProfile();
   const { organizations, hasMultipleOrgs } = useUserOrganizations();
-  const [activeOrgId, setActiveOrgIdState] = useState<string | null>(null);
+  const [activeOrgId, setActiveOrgIdRaw] = useLocalStorageState<string | null>("active-org-id", null);
 
   // Initialize with user's own org
   useEffect(() => {
     if (!activeOrgId && profile?.organization_id) {
-      setActiveOrgIdState(profile.organization_id);
+      setActiveOrgIdRaw(profile.organization_id);
     }
-  }, [profile?.organization_id, activeOrgId]);
+  }, [profile?.organization_id, activeOrgId, setActiveOrgIdRaw]);
+
+  // Validate saved org is still accessible
+  useEffect(() => {
+    if (activeOrgId && organizations.length > 0 && !organizations.some(o => o.id === activeOrgId)) {
+      // Saved org no longer accessible, reset to own org
+      if (profile?.organization_id) {
+        setActiveOrgIdRaw(profile.organization_id);
+      }
+    }
+  }, [activeOrgId, organizations, profile?.organization_id, setActiveOrgIdRaw]);
 
   const setActiveOrgId = (orgId: string) => {
-    setActiveOrgIdState(orgId);
-    // Persist selection
-    localStorage.setItem("active-org-id", orgId);
+    setActiveOrgIdRaw(orgId);
   };
-
-  // Restore from localStorage on mount
-  useEffect(() => {
-    const saved = localStorage.getItem("active-org-id");
-    if (saved && organizations.some(o => o.id === saved)) {
-      setActiveOrgIdState(saved);
-    }
-  }, [organizations]);
 
   const activeOrg = organizations.find(o => o.id === activeOrgId);
   const isOwnOrg = activeOrgId === profile?.organization_id;
