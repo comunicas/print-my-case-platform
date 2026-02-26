@@ -64,8 +64,7 @@ export function useUploads(filters: UploadsFilters = {}) {
   // Evita resultado vazio quando a página atual excede as páginas disponíveis do novo filtro
   useEffect(() => {
     pagination.setPage(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pdvId, type, status, search]);
+  }, [pdvId, type, status, search, pagination.setPage]);
 
   const uploadsQuery = useQuery({
     queryKey: ["uploads", profile?.organization_id, pagination.page, pagination.pageSize, pdvId, type, status, search],
@@ -116,6 +115,7 @@ export function useUploads(filters: UploadsFilters = {}) {
 
       let uploads = uploadsData.map((upload) => ({
         ...upload,
+        pdv: upload.pdv || { name: "PDV removido", machine_id: "-" },
         uploader: profilesMap.get(upload.uploaded_by) || { name: "Usuário" },
       })) as UploadListItem[];
 
@@ -129,7 +129,7 @@ export function useUploads(filters: UploadsFilters = {}) {
     if (uploadsQuery.data && uploadsQuery.data.totalCount !== pagination.totalCount) {
       pagination.setTotalCount(uploadsQuery.data.totalCount);
     }
-  }, [uploadsQuery.data?.totalCount]);
+  }, [uploadsQuery.data?.totalCount, pagination.totalCount, pagination.setTotalCount]);
 
   const createUpload = useMutation({
     mutationFn: async (data: CreateUploadData) => {
@@ -190,7 +190,21 @@ export function useUploads(filters: UploadsFilters = {}) {
       if (file_url) {
         supabase.functions.invoke("process-spreadsheet", {
           body: { uploadId: insertedUpload.id },
-        }).then((response) => {
+        }).then(async (response) => {
+          // Verificar erro da edge function (status 4xx/5xx retorna em response.error, não lança exceção)
+          if (response.error) {
+            console.error("Spreadsheet processing error:", response.error);
+            await supabase
+              .from("uploads")
+              .update({ 
+                status: "error", 
+                error_message: response.error.message || "Erro ao processar planilha" 
+              })
+              .eq("id", insertedUpload.id);
+            queryClient.invalidateQueries({ queryKey: ["uploads"] });
+            return;
+          }
+
           queryClient.invalidateQueries({ queryKey: ["uploads"] });
           queryClient.invalidateQueries({ queryKey: ["dashboard"] });
           queryClient.invalidateQueries({ queryKey: ["dashboard-data-range"] });
