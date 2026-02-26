@@ -2,7 +2,6 @@ import {
   LayoutDashboard,
   Upload,
   Package,
-  ChevronDown,
   Megaphone,
   Building2,
   Settings,
@@ -14,11 +13,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { CollapsibleNavMenu } from "./CollapsibleNavMenu";
 import { useProfile } from "@/hooks/useProfile";
 
 interface NavItem {
@@ -89,7 +84,7 @@ export function MobileSidebar({
         key={item.href}
         onClick={() => handleNavClick(item.href)}
         className={cn(
-          "w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors",
+          "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
           isActive
             ? "bg-sidebar-accent text-sidebar-accent-foreground"
             : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
@@ -98,117 +93,6 @@ export function MobileSidebar({
         <Icon className="h-5 w-5 flex-shrink-0" />
         <span>{item.label}</span>
       </button>
-    );
-  };
-
-  const renderStockMenu = () => {
-    // Auto-expand when navigating to stock
-    const effectiveStockExpanded = isStockActive || stockExpanded;
-
-    return (
-      <Collapsible open={effectiveStockExpanded} onOpenChange={onStockExpandedChange}>
-        <CollapsibleTrigger asChild>
-          <button
-            className={cn(
-              "w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors",
-              isStockActive
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-            )}
-          >
-            <Package className="h-5 w-5 flex-shrink-0" />
-            <span className="flex-1 text-left">Estoque</span>
-            <ChevronDown
-              className={cn(
-                "h-4 w-4 transition-transform duration-200",
-                effectiveStockExpanded && "rotate-180"
-              )}
-            />
-          </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="ml-4 mt-1 space-y-1">
-            {stockSubItems.map((subItem) => {
-              const activeTab = activeItem.startsWith("/estoque")
-                ? new URLSearchParams(activeItem.split("?")[1]).get("tab") || "tabela"
-                : null;
-              const subItemTab = subItem.href.split("=")[1];
-              const isSubActive = activeTab === subItemTab;
-              
-              return (
-                <button
-                  key={subItem.href}
-                  onClick={() => handleNavClick(subItem.href)}
-                  className={cn(
-                    "w-full flex items-center gap-2 px-3 py-2.5 rounded-md text-sm transition-colors",
-                    isSubActive
-                      ? "bg-sidebar-accent/70 text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/30 hover:text-sidebar-accent-foreground"
-                  )}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60" />
-                  <span>{subItem.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-    );
-  };
-
-  const renderMarketingMenu = () => {
-    const effectiveMarketingExpanded = isMarketingActive || marketingExpanded;
-
-    return (
-      <Collapsible open={effectiveMarketingExpanded} onOpenChange={onMarketingExpandedChange}>
-        <CollapsibleTrigger asChild>
-          <button
-            className={cn(
-              "w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors",
-              isMarketingActive
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-            )}
-          >
-            <Megaphone className="h-5 w-5 flex-shrink-0" />
-            <span className="flex-1 text-left">Marketing</span>
-            <ChevronDown
-              className={cn(
-                "h-4 w-4 transition-transform duration-200",
-                effectiveMarketingExpanded && "rotate-180"
-              )}
-            />
-          </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="ml-4 mt-1 space-y-1">
-            {marketingSubItems.map((subItem) => {
-              const activeTab = activeItem.startsWith("/marketing")
-                ? new URLSearchParams(activeItem.split("?")[1]).get("tab") || "cupons"
-                : null;
-              const subItemTab = subItem.href.split("=")[1];
-              const isSubActive = activeTab === subItemTab;
-              
-              return (
-                <button
-                  key={subItem.href}
-                  onClick={() => handleNavClick(subItem.href)}
-                  className={cn(
-                    "w-full flex items-center gap-2 px-3 py-2.5 rounded-md text-sm transition-colors",
-                    isSubActive
-                      ? "bg-sidebar-accent/70 text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/30 hover:text-sidebar-accent-foreground"
-                  )}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60" />
-                  <span>{subItem.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
     );
   };
 
@@ -227,9 +111,33 @@ export function MobileSidebar({
         <div className="flex-1 flex flex-col">
           <nav className="flex-1 py-4 px-2 space-y-1">
             {renderNavItem(navItems[0])}
-            {renderStockMenu()}
+            <CollapsibleNavMenu
+              icon={Package}
+              label="Estoque"
+              href="/estoque"
+              subItems={stockSubItems}
+              collapsed={false}
+              isActive={isStockActive}
+              expanded={stockExpanded}
+              onExpandedChange={onStockExpandedChange}
+              onNavigate={handleNavClick}
+              activeItem={activeItem}
+              defaultSubTab="tabela"
+            />
             {renderNavItem(navItems[1])}
-            {renderMarketingMenu()}
+            <CollapsibleNavMenu
+              icon={Megaphone}
+              label="Marketing"
+              href="/marketing"
+              subItems={marketingSubItems}
+              collapsed={false}
+              isActive={isMarketingActive}
+              expanded={marketingExpanded}
+              onExpandedChange={onMarketingExpandedChange}
+              onNavigate={handleNavClick}
+              activeItem={activeItem}
+              defaultSubTab="cupons"
+            />
           </nav>
           
           <nav className="py-4 px-2 space-y-1 border-t border-sidebar-border">
