@@ -299,23 +299,12 @@ export function AppSidebar({
         )}
       >
         {/* Logo Section */}
-        <div className="h-16 flex items-center justify-center border-b border-sidebar-border px-4 relative">
-          <img
-            src="/icon-printmycase.png"
-            alt="Print My Case"
-            className={cn(
-              "h-8 w-8 object-contain transition-all duration-300 absolute",
-              collapsed ? "opacity-100 scale-100" : "opacity-0 scale-75"
-            )}
-          />
-          <img
-            src="/logo-printmycase.png"
-            alt="Print My Case"
-            className={cn(
-              "h-10 object-contain transition-all duration-300",
-              collapsed ? "opacity-0 scale-75" : "opacity-100 scale-100"
-            )}
-          />
+        <div className="h-16 flex items-center justify-center border-b border-sidebar-border px-2">
+          {collapsed ? (
+            <img src="/icon-printmycase.png" alt="Print My Case" className="h-8 w-8 object-contain" />
+          ) : (
+            <img src="/logo-printmycase.png" alt="Print My Case" className="h-10 object-contain" />
+          )}
         </div>
 
         {/* Navigation */}

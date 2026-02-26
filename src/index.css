@@ -89,8 +89,8 @@ All colors MUST be HSL.
     --destructive: 0 62% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 270 15% 20%;
-    --input: 270 15% 20%;
+    --border: 270 15% 14%;
+    --input: 270 15% 14%;
     --ring: 271 81% 60%;
 
     --sidebar-background: 270 20% 10%;
@@ -99,7 +99,7 @@ All colors MUST be HSL.
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 271 40% 20%;
     --sidebar-accent-foreground: 271 60% 85%;
-    --sidebar-border: 270 15% 18%;
+    --sidebar-border: 270 15% 13%;
     --sidebar-ring: 271 81% 60%;
 
     --success: 142 70% 45%;
