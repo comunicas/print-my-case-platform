@@ -1,100 +1,114 @@
 
+# Plano: Finalizar Otimizacoes + Corrigir Permissoes de Operador/Visualizador
 
-# ProfileContext Dedicado + RPC para Data Range
+## Estagio Atual das Otimizacoes (Checklist)
 
-## Parte 1: ProfileContext
+| # | Item | Status |
+|---|------|--------|
+| 2.2 | useMemo no AuthContext | Feito |
+| 2.3 | useMemo no ActiveOrgContext | Feito |
+| 4.1 | refetchIntervalInBackground: false (notifications) | Feito |
+| 4.2 | Remover prefetch com query keys divergentes | Feito |
+| 4.3 | Remover prefetch do dashboard divergente | Feito |
+| 1.1 | Lazy-load dados de estoque no dashboard | Feito |
+| 1.2 | Server-side filtering no ProductAnalytics | Feito |
+| 1.3 | Reduzir DASHBOARD_SALES_LIMIT para 5k | Feito |
+| 1.4 | Reduzir PRODUCT_STOCK_SALES_LIMIT para 3k | Feito |
+| 2.1 | ProfileContext dedicado com 2 contextos | Feito |
+| 1.5 | RPC get_sales_date_range | Feito |
+| 3.2 | Lazy import do xlsx | Feito (ja usa import() dinamico) |
+| 2.4 | React.memo nos SlotStack | Pendente (baixa prioridade) |
 
-### Problema
-O hook `useProfile()` e chamado em 24 arquivos. Cada chamada cria subscricoes React Query independentes. Quando o profile ou role muda, todos os 24 consumidores re-renderizam -- mesmo os que so precisam do `role` (que quase nunca muda).
-
-### Solucao
-Criar um `ProfileProvider` que centraliza as queries de profile e role em um unico ponto da arvore React, expondo os dados via contexto. Componentes que so precisam de `role` usarao `useRole()`, que retorna valores primitivos (string) e nao causa re-render quando o profile muda.
-
-### Arquitetura
-
-```text
-AuthProvider
-  └── ProfileProvider  (NOVO - faz as 2 queries aqui)
-        └── ActiveOrgProvider (ja consome useProfile, agora via contexto)
-              └── ProductModalProvider
-                    └── Routes
-```
-
-### Novo arquivo: `src/contexts/ProfileContext.tsx`
-
-- Cria um contexto com `profile`, `role`, `isAdmin`, `isLoading`, `error`, `updateProfile`
-- Internamente faz as 2 queries (profile + user_roles) usando React Query
-- Expoe `useMemo` no value para estabilizar
-- Exporta 3 hooks:
-  - `useProfileContext()` — retorna tudo (substitui `useProfile()`)
-  - `useRole()` — retorna apenas `{ role, isAdmin, isSuperAdmin }` via contexto separado para minimizar re-renders
-  - Para manter compatibilidade, o `useProfile()` existente sera reescrito para ser um wrapper fino sobre `useProfileContext()`
-
-### Migracao dos 24 consumidores
-
-Nenhum arquivo consumidor precisa mudar de imediato. O `useProfile()` continuara funcionando exatamente como antes, mas internamente lera do contexto em vez de criar queries proprias. Isso elimina 23 subscricoes duplicadas de uma vez.
-
-### Separacao role vs profile
-
-Para evitar re-renders em componentes que so usam `role` (sidebars, guards, etc.), o ProfileProvider tera 2 contextos internos:
-- `ProfileDataContext` — contem `profile`, `updateProfile`, `isLoading`, `error`
-- `ProfileRoleContext` — contem `role`, `isAdmin`, `isSuperAdmin` (valores primitivos, mudam rarissimamente)
-
-Componentes como `AppSidebar`, `MobileSidebar`, `NotificationsPopover` que so usam `role` nao re-renderizam quando o profile (nome, avatar, etc.) muda.
+**Resultado: 12/13 itens concluidos (92%). Resta apenas o item 2.4 (baixa prioridade).**
 
 ---
 
-## Parte 2: RPC para Data Range
+## Bugs de Permissao Identificados
 
-### Problema
-O `useDashboardDataRange` faz 2 queries separadas (ORDER BY ASC LIMIT 1 + ORDER BY DESC LIMIT 1) para obter min/max de `payment_date`. Isso poderia ser 1 unica query.
+Analisando a hierarquia de papeis (`super_admin > org_admin > operator > viewer`), os seguintes problemas foram encontrados:
 
-### Solucao
-Criar uma database function (RPC) `get_sales_date_range` que retorna `min_date` e `max_date` em uma unica chamada, filtrando por PDV IDs.
+### Bug 1: Viewer pode criar uploads (ALTO)
+O botao "Novo Upload" na pagina de Uploads e visivel para TODOS os usuarios, incluindo `viewer`. Segundo a definicao de permissoes em `team.ts`, viewers tem "Apenas leitura" e nao deveriam poder fazer uploads.
 
-### SQL da RPC
+**Localizacao**: `src/pages/Uploads.tsx` linha 190 — botao nao tem guarda de permissao.
 
-```sql
-CREATE OR REPLACE FUNCTION public.get_sales_date_range(p_pdv_ids uuid[] DEFAULT NULL)
-RETURNS TABLE(min_date timestamptz, max_date timestamptz)
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $$
-  SELECT 
-    MIN(payment_date) as min_date,
-    MAX(payment_date) as max_date
-  FROM sales_records
-  WHERE payment_date IS NOT NULL
-    AND (p_pdv_ids IS NULL OR pdv_id = ANY(p_pdv_ids))
-$$;
-```
+**Correcao**: Exibir o botao apenas para `operator` e acima (admins + operators).
 
-### Atualizacao do hook `useDashboardDataRange.ts`
+### Bug 2: IntegrationsSettings visivel para todos (MEDIO)
+A aba "Integracoes" em Configuracoes mostra o painel de API Keys para operators e viewers. O botao "Nova Key" esta visivel, e embora a RLS bloqueie a criacao (apenas admins), a interface exibe os endpoints de API e o formulario de criacao sem necessidade.
 
-Substituir as 2 queries por uma unica chamada RPC:
+**Localizacao**: `src/components/settings/IntegrationsSettings.tsx` — nao verifica role do usuario.
+
+**Correcao**: 
+- Mostrar API Keys (criar/revogar/excluir) apenas para admins
+- Operators e viewers veem apenas informacoes de integracao (Google Drive, Webhooks — ambos "Em breve")
+
+### Bug 3: PDVsSettings mostra todos os PDVs da org para operators/viewers (BAIXO)
+Operadores com atribuicoes especificas de PDV (via `user_pdvs`) veem TODOS os PDVs da organizacao na aba PDVs de Configuracoes, em vez de apenas os PDVs atribuidos a eles.
+
+**Localizacao**: `src/components/settings/PDVsSettings.tsx` — `usePDVs()` nao filtra por `useUserAllowedPDVs`.
+
+**Correcao**: Para operators/viewers com restricoes, filtrar a lista de PDVs exibidos usando `useUserAllowedPDVs`.
+
+### Bug 4: Viewer pode ver botao de upload em UploadDetails (BAIXO)
+Verificar se a pagina de detalhes do upload tambem expoe acoes indevidas para viewers.
+
+---
+
+## Plano de Implementacao
+
+### Fase 1: Correcoes de permissao
+
+**Arquivo: `src/pages/Uploads.tsx`**
+- Adicionar `role` ao destructuring de `useProfile()`
+- Condicionar o botao "Novo Upload" a `role !== 'viewer'` (operators PODEM fazer upload, viewers NAO)
+
+**Arquivo: `src/components/settings/IntegrationsSettings.tsx`**
+- Importar `useProfile` e verificar `isAdmin`
+- Envolver a secao de API Keys (botao Nova Key, lista de keys) com `{isAdmin && ...}`
+- Manter as cards de Google Drive e Webhooks visiveis para todos (sao informativas)
+
+**Arquivo: `src/components/settings/PDVsSettings.tsx`**
+- Importar `useUserAllowedPDVs`
+- Filtrar `filteredPdvs` para mostrar apenas PDVs permitidos quando `hasRestrictions === true`
+
+### Fase 2: Item 2.4 pendente (opcional)
+
+**Arquivo: `src/components/stock/SlotStack.tsx`**
+- Envolver o componente com `React.memo` para evitar re-renders quando `focusedSlot` muda no grid
+
+---
+
+## Detalhes Tecnicos
+
+### Uploads.tsx — guarda de permissao
 ```typescript
-const { data, error } = await supabase.rpc("get_sales_date_range", {
-  p_pdv_ids: pdvIds,
-});
+const { isAdmin, role } = useProfile();
+const canUpload = role !== 'viewer';
+
+// No JSX:
+{canUpload && (
+  <Button onClick={() => setIsUploadDialogOpen(true)} ...>
+    Novo Upload
+  </Button>
+)}
 ```
 
----
+### IntegrationsSettings.tsx — secao admin-only
+```typescript
+const { isAdmin } = useProfile();
 
-## Arquivos impactados
+// Envolver a secao de API Keys:
+{isAdmin && (
+  <Card> {/* API Keys card inteira */} </Card>
+)}
+```
 
-| Arquivo | Acao |
-|---------|------|
-| `src/contexts/ProfileContext.tsx` | **NOVO** — ProfileProvider com 2 contextos internos |
-| `src/hooks/useProfile.ts` | Reescrever como wrapper do ProfileContext |
-| `src/App.tsx` | Adicionar `<ProfileProvider>` entre AuthProvider e ActiveOrgProvider |
-| `src/hooks/useDashboardDataRange.ts` | Usar RPC em vez de 2 queries |
-| Migration SQL | Criar funcao `get_sales_date_range` |
+### PDVsSettings.tsx — filtro por PDVs permitidos
+```typescript
+const { allowedPdvIds, hasRestrictions } = useUserAllowedPDVs();
 
-## Beneficios
-- Elimina 23 subscricoes React Query duplicadas (profile + role)
-- Componentes que so usam `role` nao re-renderizam quando profile muda
-- Dashboard data range reduz de 2 queries para 1
-- Zero mudanca na API publica — `useProfile()` continua funcionando igual
-
+const filteredPdvs = pdvs
+  .filter(pdv => !hasRestrictions || allowedPdvIds?.includes(pdv.id))
+  .filter(pdv => /* busca existente */);
+```
