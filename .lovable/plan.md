@@ -1,57 +1,124 @@
 
 
-# Fase 11: Limpeza de Type Safety — remover `as any`, `catch (err: any)` e `Record<string, any>`
+# Analise de Performance: Queries, Re-renders e Bundle Size
 
-## Problema
+## 1. Queries Lentas e Ineficientes
 
-Existem usos desnecessarios de `any` na codebase que enfraquecem a seguranca de tipos do TypeScript:
+### 1.1 Dashboard: 9 queries paralelas em cascata (ALTO IMPACTO)
+O `useDashboard` dispara 6 queries em `Promise.all`, mas antes disso faz uma sub-query de PDVs (linhas 102-107). Para super admins, ha mais 3 queries globais (linhas 199-203). Alem disso, `Index.tsx` tambem chama `useSlotsData` e `useStockHistory` -- dados de **estoque** que nao pertencem ao dashboard.
 
-1. **`ProductCodeModal.tsx` linha 95**: `supabase.from("catalog_leads" as any)` — o cast `as any` e desnecessario porque `catalog_leads` ja existe nos tipos gerados do banco. Provavelmente foi adicionado quando a tabela ainda nao existia nos types.
+**Problema**: O dashboard carrega dados de estoque (slots + historico) que poderiam ser lazy-loaded ou removidos se o usuario nao scrollar ate essa secao.
 
-2. **`ProductCodeModal.tsx` linha 73**: `catch (err: any)` — usa `any` no catch quando o padrao seguro da codebase e `catch (error: unknown)` com `instanceof Error` (ex: `ProfileSettings.tsx` linha 101).
+**Solucao**: Mover `useSlotsData` e `useStockHistory` para dentro dos componentes `StockByBrandChart` e `StockHistoryChart` (que ja sao lazy-loaded). Assim os dados so sao buscados quando o chart renderiza.
 
-3. **`exportToExcel` em `dashboardUtils.ts` linha 461**: Aceita `Record<string, any>[]` — pode ser tipado como `Record<string, string | number>[]` que reflete o uso real (colunas de texto e numeros para Excel).
+### 1.2 ProductAnalytics: busca 10.000 registros para filtrar client-side (ALTO IMPACTO)
+O `useProductAnalytics` (linha 51) busca ate 10.000 vendas com `select('*, order_time')` e depois filtra no JS com `filterSalesByProduct`. Isso transfere megabytes de dados para computar metricas de um unico produto.
 
-4. **`SalesHeatmapChart.tsx` linhas 54-55 e `StockHistoryChart.tsx` linha 45**: Declaram `Record<string, any>` para os dados de export — serao corrigidos automaticamente ao tipar `exportToExcel`.
+**Solucao**: Usar `ilike` no banco para pre-filtrar por produto e depois refinar client-side. Ou criar uma RPC (database function) que compute as metricas diretamente no banco.
 
-5. **`useUploads.test.ts` linha 33**: `eslint-disable` no teste que replica o padrao do hook — deve ser atualizado para incluir `pagination.setPage` nas deps (consistente com a correcao feita na Fase 5 no hook real).
+### 1.3 Dashboard Sales: DASHBOARD_SALES_LIMIT = 10.000 (MEDIO IMPACTO)
+A constante `DASHBOARD_SALES_LIMIT` em 10.000 e excessiva para gerar graficos. Os graficos de "vendas por dia" e "top produtos" nao precisam de 10.000 registros raw -- poderiam ser pre-agregados no banco.
 
-## Mudancas
+**Solucao**: Reduzir o limite para 5.000 ou implementar agregacao server-side via database function.
 
-### Arquivo: `src/components/public/ProductCodeModal.tsx`
+### 1.4 PRODUCT_STOCK_SALES_LIMIT = 5.000 para indice de vendas (MEDIO)
+O `useProductStock` busca 5.000 vendas so para contar quantas vezes cada produto foi vendido. Isso poderia ser um `GROUP BY product_name` no banco.
 
-1. Remover `as any` da linha 95: `supabase.from("catalog_leads")` (sem cast)
-2. Trocar `catch (err: any)` por `catch (err: unknown)` e usar `err instanceof Error ? err.message : "Erro ao enviar codigo..."` no toast
+**Solucao**: Criar query com `select('product_name')` + agrupar no banco, ou usar uma RPC que retorne contagens ja agregadas.
 
-### Arquivo: `src/lib/dashboardUtils.ts`
+### 1.5 useDashboardDataRange: 2 queries para min/max (BAIXO)
+Dispara 2 queries separadas (min e max) quando poderia usar uma unica query com `SELECT MIN(payment_date), MAX(payment_date)` via RPC.
 
-3. Tipar `exportToExcel` como `Record<string, string | number>[]` em vez de `Record<string, any>[]`
+---
 
-### Arquivo: `src/components/dashboard/SalesHeatmapChart.tsx`
+## 2. Re-renders Desnecessarios
 
-4. Atualizar a tipagem local de `exportData` e `row` para `Record<string, string | number>`
+### 2.1 useProfile chamado 24+ vezes (ALTO IMPACTO)
+O `useProfile()` e chamado em 24 arquivos diferentes. Cada chamada cria subscricoes independentes no React Query. Embora o cache seja compartilhado, cada componente re-renderiza quando o profile muda -- causando cascata de re-renders em toda a arvore.
 
-### Arquivo: `src/components/dashboard/StockHistoryChart.tsx`
+**Solucao**: O AuthContext ja tem o `user`. Considerar mover `profile` e `role` para um contexto dedicado (ProfileContext) que evite re-renders em componentes que so precisam do `role`.
 
-5. Atualizar a tipagem local de `row` para `Record<string, string | number>`
+### 2.2 AuthContext: value object recriado a cada render (MEDIO)
+O `AuthProvider` (linhas 93-95) cria um novo objeto `value` a cada render, forcando re-render de todos os consumidores.
 
-### Arquivo: `src/hooks/__tests__/useUploads.test.ts`
+**Solucao**: Usar `useMemo` no value do Provider:
+```typescript
+const value = useMemo(() => ({
+  user, session, loading, signIn, signUp, signOut, resetPassword, updatePassword
+}), [user, session, loading]);
+```
 
-6. Remover o `eslint-disable` e adicionar `pagination.setPage` nas dependencias do `useEffect` (alinhando com a correcao da Fase 5)
+### 2.3 ActiveOrgContext: mesma questao do value object (MEDIO)
+O `ActiveOrgProvider` (linhas 56-67) recria o value a cada render. Alem disso, `organizations.find()` e `activeOrgId === profile?.organization_id` sao computados sem memo.
 
-## Arquivos impactados
+**Solucao**: `useMemo` no value.
 
-| Arquivo | Acao |
-|---------|------|
-| `src/components/public/ProductCodeModal.tsx` | Remover `as any` e `catch (err: any)` |
-| `src/lib/dashboardUtils.ts` | Tipar `exportToExcel` sem `any` |
-| `src/components/dashboard/SalesHeatmapChart.tsx` | Atualizar tipo do export data |
-| `src/components/dashboard/StockHistoryChart.tsx` | Atualizar tipo do export data |
-| `src/hooks/__tests__/useUploads.test.ts` | Remover eslint-disable |
+### 2.4 StockGridView: re-renders em todo o grid quando um slot muda (BAIXO)
+O `StockGridView` renderiza todos os slots inline. Quando `focusedSlot` muda, todo o grid re-renderiza. Os `SlotStack` individuais deveriam ser memoizados com `React.memo`.
 
-## Beneficios
-- Elimina todos os usos de `any` no codigo de producao (exceto o `Record<string, any>` no chart.tsx que faz parte do shadcn/ui)
-- Erros de tipo serao capturados em compilacao em vez de runtime
-- Consistencia com o padrao `catch (error: unknown)` ja usado em outros arquivos
-- Nenhuma mudanca funcional ou visual
+---
+
+## 3. Bundle Size
+
+### 3.1 Lucide icons: importacoes individuais estao corretas
+As importacoes de lucide usam tree-shaking (`import { X } from 'lucide-react'`), entao nao ha problema.
+
+### 3.2 xlsx importado estaticamente (MEDIO)
+O pacote `xlsx` (~200KB gzipped) e usado apenas para export de dados. Se importado estaticamente, adiciona peso ao bundle principal.
+
+**Solucao**: Verificar se ja e lazy-loaded. Se nao, usar `import('xlsx')` dinamico apenas quando o usuario clica "Exportar".
+
+### 3.3 date-fns ja tem chunk separado (OK)
+O `vite.config.ts` ja separa `date-fns` e `recharts` em chunks manuais.
+
+### 3.4 Recharts charts: lazy load correto (OK)
+O `Index.tsx` ja usa `lazy()` para todos os charts pesados.
+
+---
+
+## 4. Oportunidades Adicionais
+
+### 4.1 Notifications polling sem visibilidade (BAIXO)
+O `useNotifications` faz polling a cada 60s mesmo com a aba em background (`refetchInterval: 60 * 1000`). Deveria usar `refetchIntervalInBackground: false` para economizar requests.
+
+### 4.2 usePrefetchRoutes: prefetch com query keys divergentes (BUG)
+O `prefetchStock` usa `queryKey: ["slots-data", undefined, profile?.id]` mas o `useSlotsData` real usa `queryKey: ['slots-data', pdvId, allowedPdvIds]`. As keys **nao batem**, entao o prefetch nunca acerta o cache e os dados sao buscados duas vezes.
+
+**Solucao**: Alinhar as query keys do prefetch com as do hook real.
+
+### 4.3 usePrefetchRoutes: prefetch do dashboard tambem diverge (BUG)
+O `prefetchDashboard` usa uma queryFn simplificada que retorna `{ salesData }`, mas o `useDashboard` espera o tipo `DashboardData` completo. O prefetch popula o cache com dados incompativeis, que serao descartados quando o hook real executa.
+
+---
+
+## Resumo por Prioridade
+
+| Prioridade | Item | Impacto Estimado |
+|------------|------|-----------------|
+| ALTA | 2.2 + 2.3: useMemo nos context values | Elimina cascata de re-renders |
+| ALTA | 4.2 + 4.3: Corrigir query keys do prefetch | Elimina fetches duplicados |
+| ALTA | 1.1: Lazy-load dados de estoque no dashboard | Reduz 2 queries na carga inicial |
+| ALTA | 1.2: ProductAnalytics server-side filtering | Reduz transferencia de dados ~90% |
+| MEDIA | 1.4: GROUP BY para sales summary | Reduz transferencia de dados ~80% |
+| MEDIA | 3.2: Lazy import do xlsx | Reduz bundle principal ~200KB |
+| MEDIA | 2.1: ProfileContext dedicado | Reduz re-renders em 20+ componentes |
+| BAIXA | 4.1: refetchIntervalInBackground: false | Economiza requests em background |
+| BAIXA | 1.5: RPC para data range | Reduz 2 queries para 1 |
+| BAIXA | 2.4: React.memo nos SlotStack | Reduz re-renders no grid |
+
+## Plano de Implementacao
+
+**Fase 1 (Quick wins, sem risco):**
+- useMemo nos context values (AuthContext, ActiveOrgContext)
+- refetchIntervalInBackground: false nas notifications
+- Lazy import do xlsx
+
+**Fase 2 (Correcao de bugs de cache):**
+- Alinhar query keys do usePrefetchRoutes com os hooks reais
+- Ou remover o prefetch se as keys sao dificeis de manter sincronizadas
+
+**Fase 3 (Otimizacao de queries):**
+- Mover useSlotsData/useStockHistory para dentro dos chart components lazy
+- Implementar GROUP BY no sales summary do useProductStock
+- Implementar pre-filtragem server-side no useProductAnalytics
 
