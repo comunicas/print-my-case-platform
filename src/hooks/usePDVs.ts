@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "./useProfile";
+import { useActiveOrg } from "@/contexts/ActiveOrgContext";
 import { toast } from "sonner";
 
 export interface PDV {
@@ -23,12 +24,14 @@ interface UsePDVsOptions {
 
 export function usePDVs(options?: UsePDVsOptions) {
   const { profile, isAdmin } = useProfile();
+  const { activeOrgId } = useActiveOrg();
   const queryClient = useQueryClient();
   
-  const filterOrgId = options?.organizationId;
+  // Priority: explicit organizationId > activeOrgId > profile org
+  const filterOrgId = options?.organizationId ?? activeOrgId ?? profile?.organization_id;
 
   const pdvsQuery = useQuery({
-    queryKey: ["pdvs", profile?.organization_id, filterOrgId],
+    queryKey: ["pdvs", filterOrgId],
     queryFn: async () => {
       let query = supabase
         .from("pdvs")

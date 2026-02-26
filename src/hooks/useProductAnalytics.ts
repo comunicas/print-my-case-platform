@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { usePDVs } from './usePDVs';
+import { useActiveOrg } from '@/contexts/ActiveOrgContext';
 import { filterSalesByProduct } from '@/lib/productNormalization';
 
 export interface ProductAnalytics {
@@ -29,9 +30,13 @@ const DAY_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 export function useProductAnalytics(productName: string | null, pdvId?: string) {
   const { pdvs } = usePDVs();
+  const { activeOrgId } = useActiveOrg();
+
+  // Get PDV IDs for the active org to scope the query
+  const activeOrgPdvIds = pdvs.map(p => p.id);
 
   return useQuery({
-    queryKey: ['product-analytics', productName, pdvId],
+    queryKey: ['product-analytics', productName, pdvId, activeOrgId],
     queryFn: async (): Promise<ProductAnalytics> => {
       if (!productName) {
         throw new Error('Product name is required');
@@ -51,6 +56,9 @@ export function useProductAnalytics(productName: string | null, pdvId?: string) 
 
       if (pdvId) {
         query = query.eq('pdv_id', pdvId);
+      } else if (activeOrgPdvIds.length > 0) {
+        // Filter by active org PDVs to prevent cross-org data leakage
+        query = query.in('pdv_id', activeOrgPdvIds);
       }
 
       const { data: sales, error } = await query;

@@ -62,7 +62,7 @@ export default function Uploads() {
   const navigate = useNavigate();
   const { pdvs, isLoading: pdvsLoading } = usePDVs();
   const { isAdmin, role } = useProfile();
-  const canUpload = role !== "viewer";
+  const canUpload = !!role && role !== "viewer";
 
   const [searchQuery, setSearchQuery] = useState("");
   const { 
