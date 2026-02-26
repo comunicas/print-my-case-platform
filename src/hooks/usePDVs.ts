@@ -15,7 +15,7 @@ export interface PDV {
 }
 
 export type PDVInsert = Omit<PDV, "id" | "created_at" | "updated_at">;
-export type PDVUpdate = Partial<Omit<PDV, "id" | "organization_id" | "created_at" | "updated_at">>;
+export type PDVUpdate = Partial<Omit<PDV, "id" | "created_at" | "updated_at">>;
 
 interface UsePDVsOptions {
   organizationId?: string;

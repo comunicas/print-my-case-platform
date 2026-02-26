@@ -15,6 +15,7 @@ interface PDVFormProps {
   errors: Record<string, string>;
   onClearError: (field: string) => void;
   idPrefix?: string;
+  isEditing?: boolean;
 }
 
 export function PDVForm({
@@ -23,6 +24,7 @@ export function PDVForm({
   errors,
   onClearError,
   idPrefix = "",
+  isEditing = false,
 }: PDVFormProps) {
   const handleChange = (field: keyof PDVFormData, value: string) => {
     onChange({ ...values, [field]: value });
@@ -67,7 +69,13 @@ export function PDVForm({
           value={values.machineId}
           onChange={(e) => handleChange("machineId", e.target.value)}
           className={errors.machineId ? "border-destructive" : ""}
+          disabled={isEditing}
         />
+        {isEditing && (
+          <p className="text-xs text-muted-foreground">
+            O ID da máquina não pode ser alterado após a criação
+          </p>
+        )}
         {errors.machineId && (
           <p className="text-sm text-destructive">{errors.machineId}</p>
         )}

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -60,6 +61,9 @@ export function PDVsSettings() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editingPdv, setEditingPdv] = useState<EditingPDV | null>(null);
+  const [editingPdvOrigOrgId, setEditingPdvOrigOrgId] = useState<string>("");
+  const [editingPdvOrgId, setEditingPdvOrgId] = useState<string>("");
+  const [showTransferConfirm, setShowTransferConfirm] = useState(false);
   const [deletingPdv, setDeletingPdv] = useState<PDV | null>(null);
   const [createOrgId, setCreateOrgId] = useState<string>("");
   const [newPdv, setNewPdv] = useState<PDVFormData>({
@@ -147,6 +151,8 @@ export function PDVsSettings() {
       machineId: pdv.machine_id,
       status: pdv.status,
     });
+    setEditingPdvOrigOrgId(pdv.organization_id);
+    setEditingPdvOrgId(pdv.organization_id);
     clearFormErrors();
     setIsEditDialogOpen(true);
   };
@@ -155,6 +161,18 @@ export function PDVsSettings() {
     if (!editingPdv) return;
     if (!validateForm(editingPdv, editingPdv.id)) return;
 
+    // If transferring, show confirmation first
+    if (isSuperAdmin && editingPdvOrgId && editingPdvOrgId !== editingPdvOrigOrgId) {
+      setShowTransferConfirm(true);
+      return;
+    }
+
+    submitEditPdv();
+  };
+
+  const submitEditPdv = () => {
+    if (!editingPdv) return;
+
     updatePDV.mutate(
       {
         id: editingPdv.id,
@@ -162,12 +180,16 @@ export function PDVsSettings() {
         location: editingPdv.location.trim(),
         machine_id: editingPdv.machineId.trim(),
         status: editingPdv.status,
+        ...(isSuperAdmin && editingPdvOrgId && editingPdvOrgId !== editingPdvOrigOrgId
+          ? { organization_id: editingPdvOrgId }
+          : {}),
       },
       {
         onSuccess: () => {
           clearFormErrors();
           setIsEditDialogOpen(false);
           setEditingPdv(null);
+          setShowTransferConfirm(false);
         },
       }
     );
@@ -386,6 +408,27 @@ export function PDVsSettings() {
               Atualize as informações do PDV.
             </DialogDescription>
           </DialogHeader>
+          {isSuperAdmin && organizations.length > 1 && (
+            <div className="grid gap-2">
+              <Label>Organização</Label>
+              <Select
+                value={editingPdvOrgId}
+                onValueChange={setEditingPdvOrgId}
+              >
+                <SelectTrigger>
+                  <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {organizations.map((org) => (
+                    <SelectItem key={org.id} value={org.id}>
+                      {org.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           {editingPdv && (
             <PDVForm
               values={editingPdv}
@@ -393,6 +436,7 @@ export function PDVsSettings() {
               errors={formErrors}
               onClearError={handleClearError}
               idPrefix="edit-"
+              isEditing
             />
           )}
           <DialogFooter>
@@ -414,6 +458,33 @@ export function PDVsSettings() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Transfer Confirmation */}
+      <AlertDialog open={showTransferConfirm} onOpenChange={setShowTransferConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar transferência</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <span>Tem certeza que deseja transferir este PDV para outra organização?</span>
+              <ul className="list-disc pl-5 mt-2 text-sm space-y-1">
+                <li>Uploads, vendas e estoque associados permanecem vinculados ao PDV</li>
+                <li>O PDV deixará de aparecer na organização atual</li>
+                <li>Relatórios da organização de origem podem ser afetados</li>
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={updatePDV.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={updatePDV.isPending}
+              onClick={submitEditPdv}
+            >
+              {updatePDV.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Confirmar Transferência
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

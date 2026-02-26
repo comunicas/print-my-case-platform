@@ -17,16 +17,25 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Loader2, Users, Store, Mail, MapPin, Pencil, Trash2 } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Loader2, Users, Store, Mail, MapPin, Pencil, Trash2, Building2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getInitials } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useOrganizations } from "@/hooks/useOrganizations";
 import { toast } from "sonner";
 import { PDVForm } from "@/components/pdv/PDVForm";
 import { PDVFormData, pdvFormSchema } from "@/lib/schemas/pdv";
@@ -69,6 +78,7 @@ export function OrgDetailDialog({
 }: OrgDetailDialogProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { organizations } = useOrganizations();
   const [activeTab, setActiveTab] = useState("users");
 
   // Delete user state
@@ -88,6 +98,8 @@ export function OrgDetailDialog({
     status: "active",
   });
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+  const [transferOrgId, setTransferOrgId] = useState<string>("");
+  const [showTransferConfirm, setShowTransferConfirm] = useState(false);
 
   const membersQuery = useQuery({
     queryKey: ["org-detail-members", organizationId],
@@ -173,15 +185,18 @@ export function OrgDetailDialog({
 
   // Edit PDV mutation
   const editPdvMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: PDVFormData }) => {
+    mutationFn: async ({ id, data, newOrgId }: { id: string; data: PDVFormData; newOrgId?: string }) => {
+      const updatePayload: Record<string, unknown> = {
+        name: data.name,
+        location: data.location,
+        status: data.status,
+      };
+      if (newOrgId && newOrgId !== organizationId) {
+        updatePayload.organization_id = newOrgId;
+      }
       const { error } = await supabase
         .from("pdvs")
-        .update({
-          name: data.name,
-          location: data.location,
-          machine_id: data.machineId,
-          status: data.status,
-        })
+        .update(updatePayload)
         .eq("id", id);
       if (error) throw error;
     },
@@ -190,6 +205,8 @@ export function OrgDetailDialog({
       queryClient.invalidateQueries({ queryKey: ["org-detail-pdvs", organizationId] });
       queryClient.invalidateQueries({ queryKey: ["pdvs"] });
       setEditPdv(null);
+      setTransferOrgId("");
+      setShowTransferConfirm(false);
     },
     onError: (error: Error) => {
       toast.error("Erro ao atualizar PDV", { description: error.message });
@@ -205,6 +222,7 @@ export function OrgDetailDialog({
       status: (pdv.status as "active" | "inactive") || "active",
     });
     setEditErrors({});
+    setTransferOrgId("");
   };
 
   const handleEditPdvSave = () => {
@@ -217,8 +235,19 @@ export function OrgDetailDialog({
       setEditErrors(fieldErrors);
       return;
     }
+    // If transferring to another org, show confirmation first
+    if (transferOrgId && transferOrgId !== organizationId) {
+      setShowTransferConfirm(true);
+      return;
+    }
     if (editPdv) {
       editPdvMutation.mutate({ id: editPdv.id, data: editForm });
+    }
+  };
+
+  const handleConfirmTransfer = () => {
+    if (editPdv) {
+      editPdvMutation.mutate({ id: editPdv.id, data: editForm, newOrgId: transferOrgId });
     }
   };
 
@@ -409,12 +438,33 @@ export function OrgDetailDialog({
       </AlertDialog>
 
       {/* Edit PDV Dialog */}
-      <Dialog open={!!editPdv} onOpenChange={() => setEditPdv(null)}>
-        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[425px]">
+      <Dialog open={!!editPdv} onOpenChange={() => { setEditPdv(null); setTransferOrgId(""); }}>
+        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar PDV</DialogTitle>
             <DialogDescription>Atualize as informações do PDV.</DialogDescription>
           </DialogHeader>
+          {organizations.length > 1 && (
+            <div className="grid gap-2">
+              <Label htmlFor="transfer-org">Transferir para organização</Label>
+              <Select
+                value={transferOrgId || organizationId}
+                onValueChange={setTransferOrgId}
+              >
+                <SelectTrigger id="transfer-org">
+                  <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {organizations.map((org) => (
+                    <SelectItem key={org.id} value={org.id}>
+                      {org.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <PDVForm
             values={editForm}
             onChange={setEditForm}
@@ -427,9 +477,10 @@ export function OrgDetailDialog({
               })
             }
             idPrefix="edit-pdv-"
+            isEditing
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditPdv(null)} disabled={editPdvMutation.isPending}>
+            <Button variant="outline" onClick={() => { setEditPdv(null); setTransferOrgId(""); }} disabled={editPdvMutation.isPending}>
               Cancelar
             </Button>
             <Button onClick={handleEditPdvSave} disabled={editPdvMutation.isPending}>
@@ -439,6 +490,33 @@ export function OrgDetailDialog({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Transfer Confirmation */}
+      <AlertDialog open={showTransferConfirm} onOpenChange={setShowTransferConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar transferência</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <span>Tem certeza que deseja transferir este PDV para outra organização?</span>
+              <ul className="list-disc pl-5 mt-2 text-sm space-y-1">
+                <li>Uploads, vendas e estoque associados permanecem vinculados ao PDV</li>
+                <li>O PDV deixará de aparecer na organização atual</li>
+                <li>Relatórios da organização de origem podem ser afetados</li>
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={editPdvMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={editPdvMutation.isPending}
+              onClick={handleConfirmTransfer}
+            >
+              {editPdvMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Confirmar Transferência
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
