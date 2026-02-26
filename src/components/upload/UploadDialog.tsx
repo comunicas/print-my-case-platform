@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -62,8 +62,6 @@ function generatePeriods(): string[] {
   return periods;
 }
 
-const periods = generatePeriods();
-
 export function UploadDialog({
   open,
   onOpenChange,
@@ -82,13 +80,15 @@ export function UploadDialog({
   const [isValidating, setIsValidating] = useState(false);
   const [validationResult, setValidationResult] = useState<ColumnValidationResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const periods = useMemo(() => generatePeriods(), []);
 
   // Re-validate when type changes and file exists
   useEffect(() => {
     if (file) {
       validateFile(file);
     }
-  }, [type]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- validateFile is stable, we only want to re-validate when type changes
+  }, [type, file]);
 
   const resetForm = () => {
     setPdvId("");
