@@ -1,140 +1,106 @@
 
 
-# Modulo Financeiro - DRE Simplificado
+# Evolucao do Modulo Financeiro - Baseado nos Dados Reais do Tiete
 
-## Revisao das Implementacoes Recentes
+## Analise da Planilha Real
 
-As ultimas implementacoes de isolamento multi-org estao corretas e completas:
-- **`usePDVs.ts`**: Filtro por `activeOrgId` funcionando com fallback para `profile.organization_id`
-- **`useProductAnalytics.ts`**: Filtro por PDVs da org ativa implementado
-- **`Uploads.tsx`**: Flash do botao corrigido com `!!role && role !== "viewer"`
-- **RLS**: Policy de INSERT em `uploads` bloqueando viewers, DELETE ja restrito a admins
-- **Trigger `validate_user_pdv_same_org`**: Previne atribuicoes cross-org futuras
-- **`user_can_access_pdv`**: Validacao de org adicionada na branch de `user_pdvs`
+A planilha mostra uma estrutura mais rica do que a implementacao atual:
 
-Nenhuma correcao pendente.
+### Diferencas identificadas
+
+| Aspecto | Implementacao Atual | Planilha Real |
+|---------|-------------------|---------------|
+| Deducoes da Venda | Apenas automatico (refund_amount) | Tambem manual: CMV (R$2.500), STONE (R$447) |
+| Linhas individuais | Ocultas - so mostra totais | Cada despesa aparece indentada abaixo do total da categoria |
+| Comparacao mensal | Um mes por vez | 3 meses lado a lado (DEZ, JAN, FEV) |
+| Filtro PDV | Nao implementado na pagina | Dropdown "Tiete" no topo |
+| Categorias | 2 (implantacao, fixas) | 3 (deducoes, implantacao, fixas) |
+
+### Dados reais do Tiete (referencia)
+
+**Deducoes da Venda:**
+- CMV: R$2.500/mes (constante)
+- STONE (taxa maquininha): variavel
+
+**Despesas Implantacao (DEZ apenas):**
+- Rrt: R$110
+- Seguro: R$1.200
+- Logistica: R$600
+- VM Integrador: R$1.800
+- Syrlei: R$3.000
+- Tecnico: R$500
+- Camera: R$280
+- Roteador: R$460
+
+**Despesas Fixas (recorrentes):**
+- Aluguel: R$3.000
+- Licenciamento: R$550
+- Internet: R$70
+- Limpeza: R$80
+- Marketing: R$300
 
 ---
 
-## Plano: Modulo Financeiro (DRE Simplificado)
+## Plano de Alteracoes
 
-### Conceito
+### 1. Banco de Dados - Nova categoria "deducoes"
 
-Criar um modulo onde o usuario insere manualmente suas despesas mensais e o sistema calcula automaticamente a DRE a partir dos dados de vendas ja existentes na plataforma.
-
-Estrutura da DRE:
-```text
-(+) Faturamento Bruto ........... automatico (sum sales_records.amount)
-(-) Deducoes da Venda ........... automatico (reembolsos + cancelamentos)
-(=) Receita Liquida ............. calculado
-(-) Despesas de Implantacao ..... input manual do usuario
-(-) Despesas Fixas .............. input manual do usuario
-(=) Resultado Operacional ...... calculado
-```
-
-### Fase 1: Tabela no banco de dados
-
-Criar tabela `financial_entries` para armazenar as despesas inseridas manualmente:
+Atualizar o CHECK constraint da coluna `category` em `financial_entries` para aceitar 3 valores:
 
 ```sql
-CREATE TABLE public.financial_entries (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  pdv_id UUID REFERENCES pdvs(id) ON DELETE SET NULL,
-  category TEXT NOT NULL CHECK (category IN ('implantacao', 'fixas')),
-  description TEXT NOT NULL,
-  amount NUMERIC NOT NULL CHECK (amount >= 0),
-  reference_month DATE NOT NULL, -- primeiro dia do mes de referencia
-  created_by UUID NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-
-ALTER TABLE public.financial_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE financial_entries DROP CONSTRAINT financial_entries_category_check;
+ALTER TABLE financial_entries ADD CONSTRAINT financial_entries_category_check 
+  CHECK (category IN ('deducoes', 'implantacao', 'fixas'));
 ```
 
-**RLS Policies** (RESTRICTIVE, seguindo padrao do projeto):
-- SELECT: admins da org + super_admin
-- INSERT: admins da org (viewers e operators bloqueados)
-- UPDATE: admins da org
-- DELETE: admins da org
+### 2. Schema Zod - Adicionar categoria "deducoes"
 
-**Trigger**: `update_updated_at_column` (ja existe no projeto)
+Atualizar `src/lib/schemas/financial.ts` para incluir `"deducoes"` no enum.
 
-### Fase 2: Frontend - Pagina e Navegacao
+### 3. DRETable - Mostrar linhas individuais expandiveis
 
-**Nova rota**: `/financeiro`
-**Novo arquivo**: `src/pages/Financeiro.tsx`
+Redesenhar `DRETable.tsx` para:
+- Cada secao (Deducoes, Implantacao, Fixas) mostra o total em negrito
+- Abaixo do total, listar cada entrada individual indentada (como na planilha)
+- Usar `Collapsible` para expandir/recolher as linhas de cada secao
+- Deducoes = entradas manuais da categoria "deducoes" (CMV, STONE, etc.)
+- Faturamento Bruto continua automatico (sales_records)
 
-**Sidebar**: Adicionar item "Financeiro" com icone `Wallet` entre "Uploads" e "Marketing" em `AppSidebar.tsx` e `MobileSidebar.tsx`. Sem sub-menus inicialmente.
+### 4. useDRE - Incluir deducoes manuais
 
-### Fase 3: Componentes
+Atualizar `useDRE.ts`:
+- Remover calculo automatico de deducoes via `refund_amount` (ou somar ambos)
+- Adicionar `totalDeducoes` vindo das entries com category="deducoes"
+- Expor as entries agrupadas por categoria para o DRETable renderizar as linhas
 
-Criar em `src/components/financeiro/`:
+### 5. useFinancialEntries - Calcular total de deducoes
 
-1. **`DRETable.tsx`** - Tabela principal da DRE com:
-   - Faturamento Bruto (automatico, vindo do `useDashboard` ou query dedicada)
-   - Deducoes (reembolsos + cancelamentos, automaticos)
-   - Receita Liquida (calculada)
-   - Despesas de Implantacao (somatorio das entries do mes)
-   - Despesas Fixas (somatorio das entries do mes)
-   - Resultado Operacional (calculado)
-   - Indicador visual: verde se positivo, vermelho se negativo
+Adicionar `totalDeducoes` ao hook, somando entries com `category === "deducoes"`.
 
-2. **`FinancialEntryForm.tsx`** - Dialog/formulario para inserir despesas:
-   - Categoria (Implantacao ou Fixas) via Select
-   - Descricao (texto livre, max 200 chars)
-   - Valor (input numerico com mascara R$)
-   - Mes de referencia (month picker)
-   - PDV opcional (select)
+### 6. FinancialEntryForm - Opcao "Deducoes da Venda"
 
-3. **`FinancialEntriesList.tsx`** - Lista de despesas inseridas com:
-   - Filtro por mes e categoria
-   - Edicao inline ou via dialog
-   - Exclusao com confirmacao
+Adicionar `SelectItem value="deducoes"` no formulario com label "Deducoes da Venda".
 
-### Fase 4: Hook de dados
+### 7. Filtro por PDV na pagina
 
-**`src/hooks/useFinancialEntries.ts`**:
-- CRUD de `financial_entries` com react-query
-- Filtro por mes de referencia e org ativa
-- Calculo dos totais por categoria
+Adicionar o componente `PDVFilter` no topo da pagina `/financeiro` e passar o `pdvId` selecionado para `useDRE` e `useFinancialEntries`.
 
-**`src/hooks/useDRE.ts`**:
-- Combina dados de vendas (query em `sales_records`) + despesas (`financial_entries`)
-- Retorna estrutura DRE completa para o mes selecionado
-- Filtro por PDV opcional
+### 8. Comparacao multi-mes (fase futura)
 
-### Fase 5: Permissoes
-
-- **org_admin / super_admin**: acesso total (CRUD de despesas + visualizacao DRE)
-- **operator**: somente visualizacao da DRE (sem inserir/editar despesas)
-- **viewer**: somente visualizacao da DRE
+Nao sera implementado agora para manter o escopo controlado. Pode ser adicionado depois como uma tabela com 3 colunas de meses.
 
 ---
 
-## Arquivos a criar/alterar
+## Arquivos alterados
 
-| Arquivo | Acao |
-|---------|------|
-| Migration SQL | Criar tabela `financial_entries` + RLS |
-| `src/pages/Financeiro.tsx` | Nova pagina |
-| `src/App.tsx` | Adicionar rota `/financeiro` |
-| `src/components/layout/AppSidebar.tsx` | Adicionar item Financeiro |
-| `src/components/layout/MobileSidebar.tsx` | Adicionar item Financeiro |
-| `src/components/financeiro/DRETable.tsx` | Tabela DRE |
-| `src/components/financeiro/FinancialEntryForm.tsx` | Formulario de despesas |
-| `src/components/financeiro/FinancialEntriesList.tsx` | Lista de despesas |
-| `src/components/financeiro/index.ts` | Barrel exports |
-| `src/hooks/useFinancialEntries.ts` | CRUD hook |
-| `src/hooks/useDRE.ts` | Hook de calculo DRE |
-
----
-
-## Observacoes tecnicas
-
-- O Faturamento Bruto e as Deducoes sao calculados automaticamente a partir da `sales_records`, sem duplicacao de dados
-- O mes de referencia usa o primeiro dia do mes (`2026-02-01`) para facilitar queries com `=` em vez de ranges
-- A tabela suporta PDV opcional para analise granular (DRE por PDV ou consolidado)
-- O formulario usa zod para validacao client-side, seguindo o padrao do projeto (`src/lib/schemas/`)
+| Arquivo | Alteracao |
+|---------|-----------|
+| Migration SQL | Atualizar CHECK constraint para incluir "deducoes" |
+| `src/lib/schemas/financial.ts` | Adicionar "deducoes" ao enum |
+| `src/hooks/useFinancialEntries.ts` | Adicionar `totalDeducoes` |
+| `src/hooks/useDRE.ts` | Usar deducoes manuais + expor entries agrupadas |
+| `src/components/financeiro/DRETable.tsx` | Linhas individuais expandiveis por categoria |
+| `src/components/financeiro/FinancialEntryForm.tsx` | Adicionar opcao "Deducoes da Venda" |
+| `src/components/financeiro/FinancialEntriesList.tsx` | Adicionar label "Deducoes" |
+| `src/pages/Financeiro.tsx` | Adicionar filtro PDV |
 
