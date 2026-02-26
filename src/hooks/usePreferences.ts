@@ -16,6 +16,8 @@ export interface Preferences {
   default_pdv: string | null;
   sidebar_collapsed: boolean;
   sidebar_reports_expanded: boolean;
+  sidebar_stock_expanded: boolean;
+  sidebar_marketing_expanded: boolean;
   created_at: string;
   updated_at: string;
 }
