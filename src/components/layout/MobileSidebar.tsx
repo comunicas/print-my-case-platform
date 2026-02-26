@@ -3,6 +3,7 @@ import {
   Upload,
   Package,
   Megaphone,
+  Wallet,
   Building2,
   Settings,
 } from "lucide-react";
@@ -126,6 +127,7 @@ export function MobileSidebar({
             />
             {renderNavItem(navItems[1])}
             <CollapsibleNavMenu
+
               icon={Megaphone}
               label="Marketing"
               href="/marketing"
@@ -138,6 +140,7 @@ export function MobileSidebar({
               activeItem={activeItem}
               defaultSubTab="cupons"
             />
+            {renderNavItem({ icon: Wallet, label: "Financeiro", href: "/financeiro" })}
           </nav>
           
           <nav className="py-4 px-2 space-y-1 border-t border-sidebar-border">

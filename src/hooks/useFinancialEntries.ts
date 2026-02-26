@@ -1,0 +1,145 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useProfile } from "./useProfile";
+import { useActiveOrg } from "@/contexts/ActiveOrgContext";
+import { toast } from "sonner";
+import { startOfMonth, format } from "date-fns";
+
+export interface FinancialEntry {
+  id: string;
+  organization_id: string;
+  pdv_id: string | null;
+  category: "implantacao" | "fixas";
+  description: string;
+  amount: number;
+  reference_month: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface UseFinancialEntriesOptions {
+  referenceMonth: Date;
+  category?: "implantacao" | "fixas" | null;
+}
+
+export function useFinancialEntries({ referenceMonth, category }: UseFinancialEntriesOptions) {
+  const { profile } = useProfile();
+  const { activeOrgId } = useActiveOrg();
+  const queryClient = useQueryClient();
+
+  const orgId = activeOrgId ?? profile?.organization_id;
+  const monthStr = format(startOfMonth(referenceMonth), "yyyy-MM-dd");
+
+  const entriesQuery = useQuery({
+    queryKey: ["financial-entries", orgId, monthStr, category],
+    queryFn: async () => {
+      let query = supabase
+        .from("financial_entries")
+        .select("*")
+        .eq("organization_id", orgId!)
+        .eq("reference_month", monthStr)
+        .order("created_at", { ascending: false });
+
+      if (category) {
+        query = query.eq("category", category);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data as FinancialEntry[];
+    },
+    enabled: !!orgId,
+  });
+
+  const createEntry = useMutation({
+    mutationFn: async (entry: {
+      category: "implantacao" | "fixas";
+      description: string;
+      amount: number;
+      reference_month: Date;
+      pdv_id?: string | null;
+    }) => {
+      if (!orgId || !profile?.id) throw new Error("Sem organização");
+      const { data, error } = await supabase
+        .from("financial_entries")
+        .insert({
+          organization_id: orgId,
+          pdv_id: entry.pdv_id || null,
+          category: entry.category,
+          description: entry.description,
+          amount: entry.amount,
+          reference_month: format(startOfMonth(entry.reference_month), "yyyy-MM-dd"),
+          created_by: profile.id,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["financial-entries"] });
+      toast.success("Despesa adicionada");
+    },
+    onError: (error) => {
+      toast.error("Erro ao adicionar despesa", { description: error.message });
+    },
+  });
+
+  const updateEntry = useMutation({
+    mutationFn: async ({ id, ...updates }: { id: string; [key: string]: unknown }) => {
+      const { data, error } = await supabase
+        .from("financial_entries")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["financial-entries"] });
+      toast.success("Despesa atualizada");
+    },
+    onError: (error) => {
+      toast.error("Erro ao atualizar despesa", { description: error.message });
+    },
+  });
+
+  const deleteEntry = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("financial_entries")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["financial-entries"] });
+      toast.success("Despesa excluída");
+    },
+    onError: (error) => {
+      toast.error("Erro ao excluir despesa", { description: error.message });
+    },
+  });
+
+  // Totais por categoria
+  const entries = entriesQuery.data ?? [];
+  const totalImplantacao = entries
+    .filter((e) => e.category === "implantacao")
+    .reduce((sum, e) => sum + Number(e.amount), 0);
+  const totalFixas = entries
+    .filter((e) => e.category === "fixas")
+    .reduce((sum, e) => sum + Number(e.amount), 0);
+
+  return {
+    entries,
+    isLoading: entriesQuery.isLoading,
+    error: entriesQuery.error,
+    totalImplantacao,
+    totalFixas,
+    createEntry,
+    updateEntry,
+    deleteEntry,
+  };
+}

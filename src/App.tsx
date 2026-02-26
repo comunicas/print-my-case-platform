@@ -22,6 +22,7 @@ const Auth = lazy(() => import("./pages/Auth"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const PublicStock = lazy(() => import("./pages/PublicStock"));
 const Marketing = lazy(() => import("./pages/Marketing"));
+const Financeiro = lazy(() => import("./pages/Financeiro"));
 const ShortLinkRedirect = lazy(() => import("./pages/ShortLinkRedirect"));
 
 const queryClient = new QueryClient({
@@ -69,6 +70,7 @@ const App = () => (
                       <Route path="/estoque" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
                       <Route path="/reports" element={<Navigate to="/estoque" replace />} />
                       <Route path="/marketing" element={<ProtectedRoute><Marketing /></ProtectedRoute>} />
+                      <Route path="/financeiro" element={<ProtectedRoute><Financeiro /></ProtectedRoute>} />
                       <Route path="/vitrine" element={<Navigate to="/marketing?tab=midias" replace />} />
                       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                       <Route path="/organizations" element={<ProtectedRoute><Organizations /></ProtectedRoute>} />

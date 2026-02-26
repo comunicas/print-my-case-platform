@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   Building2,
   Megaphone,
+  Wallet,
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -180,6 +181,7 @@ export function AppSidebar({
           {stockMenu}
           {renderNavItem(visibleNavItems[1])} {/* Uploads */}
           {marketingMenu}
+          {renderNavItem({ icon: Wallet, label: "Financeiro", href: "/financeiro" })}
           {/* Super Admin items */}
           {visibleNavItems.slice(2).map(renderNavItem)}
         </nav>
