@@ -1,62 +1,50 @@
 
 
-# Fase 9: Deduplicacao do AppSidebar e adocao do useLocalStorageState
+# Fase 10: Deduplicacao do MobileSidebar usando CollapsibleNavMenu
 
 ## Problema
 
-1. **AppSidebar.tsx (395 linhas)**: `renderStockMenu` e `renderMarketingMenu` sao funcoes quase identicas (~85 linhas cada) que diferem apenas em: icone, label, subitens, estado de expansao e prefetch handler. Isso viola DRY e dificulta manutencao.
+O `MobileSidebar.tsx` ainda contem as funcoes duplicadas `renderStockMenu` e `renderMarketingMenu` (~110 linhas combinadas, linhas 104-213). Esse e exatamente o mesmo problema que foi resolvido no `AppSidebar` na Fase 9 com o componente `CollapsibleNavMenu`.
 
-2. **Uso inconsistente de localStorage**: O hook `useLocalStorageState` foi criado na Fase 2 mas existem 3 arquivos que ainda usam `localStorage` diretamente com o mesmo padrao boilerplate:
-   - `StockGridView.tsx` - viewMode (compact/expanded)
-   - `ActiveOrgContext.tsx` - active-org-id
-   - `useSidebarPreferences.ts` - 3 valores (collapsed, stockExpanded, marketingExpanded) — porem esse hook sincroniza com DB via `updatePreferences`, entao nao e candidato direto
+O componente `CollapsibleNavMenu` ja suporta o caso nao-colapsado (que e o unico caso do mobile), entao a reutilizacao e direta.
 
 ## Mudancas
 
-### 1. Extrair componente `CollapsibleNavMenu` do AppSidebar
+### Arquivo: `src/components/layout/MobileSidebar.tsx`
 
-Criar um componente reutilizavel que recebe:
+1. Importar `CollapsibleNavMenu` de `./CollapsibleNavMenu`
+2. Remover as funcoes `renderStockMenu` e `renderMarketingMenu` (linhas 104-213, ~110 linhas)
+3. Substituir por chamadas declarativas ao componente:
 
 ```text
-interface CollapsibleNavMenuProps {
-  icon: React.ElementType;
-  label: string;
-  href: string;
-  subItems: { label: string; href: string }[];
-  collapsed: boolean;
-  isActive: boolean;
-  expanded: boolean;
-  onExpandedChange: (expanded: boolean) => void;
-  onNavigate: (href: string) => void;
-  onPrefetch?: () => void;
-  activeItem: string;
-  defaultSubTab?: string;
-}
+<CollapsibleNavMenu
+  icon={Package}
+  label="Estoque"
+  href="/estoque"
+  subItems={stockSubItems}
+  collapsed={false}           // mobile nunca colapsa
+  isActive={isStockActive}
+  expanded={stockExpanded}
+  onExpandedChange={onStockExpandedChange}
+  onNavigate={handleNavClick}  // usa handleNavClick que fecha o sheet
+  activeItem={activeItem}
+  defaultSubTab="tabela"
+/>
 ```
 
-Isso substitui `renderStockMenu` e `renderMarketingMenu` por duas chamadas ao mesmo componente, eliminando ~70 linhas duplicadas.
+4. Ajuste menor: o `handleNavClick` do mobile chama `onOpenChange(false)` apos navegar (fecha o sheet). O `CollapsibleNavMenu` recebe `onNavigate`, entao basta passar `handleNavClick` em vez de `onNavigate` direto.
 
-### 2. Migrar StockGridView para useLocalStorageState
-
-Substituir o padrao manual de `useState` + `localStorage.getItem/setItem` + `useEffect` por `useLocalStorageState('stock-view-mode', 'expanded')`. Remove ~8 linhas de boilerplate.
-
-### 3. Migrar ActiveOrgContext para useLocalStorageState
-
-Substituir `localStorage.getItem/setItem('active-org-id')` por `useLocalStorageState('active-org-id', '')`. Remove ~5 linhas de boilerplate.
-
-**Nota**: `useSidebarPreferences.ts` NAO sera migrado porque ele sincroniza localStorage com o banco de dados via `updatePreferences.mutate()`. A logica bidirecional (DB -> localStorage e localStorage -> DB) nao se encaixa no padrao simples do `useLocalStorageState`.
+5. Diferenca de estilo: o mobile usa `py-3` nos botoes vs `py-2.5` no desktop. Essa diferenca e minima e sera padronizada para `py-2.5` (consistencia visual). Se preferir manter, pode-se adicionar uma prop `size` ao `CollapsibleNavMenu`, mas nao vale a complexidade extra.
 
 ## Arquivos impactados
 
 | Arquivo | Acao |
 |---------|------|
-| `src/components/layout/AppSidebar.tsx` | Refatorar - extrair CollapsibleNavMenu, reduzir ~70 linhas |
-| `src/components/stock/StockGridView.tsx` | Refatorar - usar useLocalStorageState para viewMode |
-| `src/contexts/ActiveOrgContext.tsx` | Refatorar - usar useLocalStorageState para active-org-id |
+| `src/components/layout/MobileSidebar.tsx` | Refatorar - substituir 2 funcoes duplicadas por CollapsibleNavMenu, reduzir ~80 linhas |
 
 ## Beneficios
-- Elimina duplicacao significativa no sidebar
-- Padroniza acesso ao localStorage em toda a codebase
-- Facilita adicao de novos menus collapsiveis (basta adicionar mais uma chamada ao componente)
-- Nenhuma mudanca visual ou funcional
+- Elimina a ultima duplicacao de menus collapsiveis na codebase
+- Garante consistencia visual e funcional entre desktop e mobile
+- Qualquer mudanca futura no comportamento dos menus aplica-se automaticamente aos dois contextos
+- Nenhuma mudanca funcional
 
