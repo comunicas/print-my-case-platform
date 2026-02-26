@@ -3,6 +3,7 @@ import { Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useOrganizationsCRUD, OrganizationWithStats, OrganizationInsert } from "@/hooks/useOrganizationsCRUD";
 import { organizationSchema, OrganizationFormData } from "@/lib/schemas/organization";
+import { OrgDetailDialog } from "@/components/settings/OrgDetailDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,6 +53,8 @@ export default function Organizations() {
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [detailOrg, setDetailOrg] = useState<OrganizationWithStats | null>(null);
   const [selectedOrg, setSelectedOrg] = useState<OrganizationWithStats | null>(null);
   const [formData, setFormData] = useState<OrganizationFormData>({
     name: "",
@@ -213,7 +216,14 @@ export default function Organizations() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filteredOrganizations.map((org) => (
-              <Card key={org.id} className="group relative">
+              <Card
+                key={org.id}
+                className="group relative cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => {
+                  setDetailOrg(org);
+                  setDetailDialogOpen(true);
+                }}
+              >
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="space-y-1 flex-1 min-w-0">
@@ -224,7 +234,7 @@ export default function Organizations() {
                         </CardDescription>
                       )}
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -427,6 +437,16 @@ export default function Organizations() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Org Detail Dialog */}
+      {detailOrg && (
+        <OrgDetailDialog
+          open={detailDialogOpen}
+          onOpenChange={setDetailDialogOpen}
+          organizationId={detailOrg.id}
+          organizationName={detailOrg.name}
+        />
+      )}
     </AppLayout>
   );
 }

@@ -51,15 +51,17 @@ export function usePDVs(options?: UsePDVsOptions) {
   });
 
   const createPDV = useMutation({
-    mutationFn: async (pdv: Omit<PDVInsert, "organization_id">) => {
-      if (!profile?.organization_id) throw new Error("Organização não encontrada");
+    mutationFn: async (pdv: Omit<PDVInsert, "organization_id"> & { organization_id?: string }) => {
+      const targetOrgId = pdv.organization_id || profile?.organization_id;
+      if (!targetOrgId) throw new Error("Organização não encontrada");
       if (!isAdmin) throw new Error("Permissão negada");
       
+      const { organization_id: _, ...pdvData } = pdv;
       const { data, error } = await supabase
         .from("pdvs")
         .insert({
-          ...pdv,
-          organization_id: profile.organization_id,
+          ...pdvData,
+          organization_id: targetOrgId,
         })
         .select()
         .single();
