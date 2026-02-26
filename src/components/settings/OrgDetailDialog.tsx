@@ -85,6 +85,30 @@ export function OrgDetailDialog({
   const { createUser } = useTeamMembers();
   const [activeTab, setActiveTab] = useState("users");
 
+  // Update role mutation
+  const updateRoleMutation = useMutation({
+    mutationFn: async ({ userId, newRole }: { userId: string; newRole: string }) => {
+      const { error: deleteError } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", userId);
+      if (deleteError) throw deleteError;
+
+      const { error: insertError } = await supabase
+        .from("user_roles")
+        .insert({ user_id: userId, role: newRole as "super_admin" | "org_admin" | "operator" | "viewer" });
+      if (insertError) throw insertError;
+    },
+    onSuccess: () => {
+      toast.success("Função atualizada com sucesso");
+      queryClient.invalidateQueries({ queryKey: ["org-detail-members", organizationId] });
+      queryClient.invalidateQueries({ queryKey: ["team-members"] });
+    },
+    onError: (error: Error) => {
+      toast.error("Erro ao atualizar função", { description: error.message });
+    },
+  });
+
   // Create user state
   const [showCreateUser, setShowCreateUser] = useState(false);
 
@@ -369,9 +393,28 @@ export function OrgDetailDialog({
                             <span className="truncate">{member.email}</span>
                           </div>
                         </div>
-                        <Badge variant="secondary" className="text-xs flex-shrink-0">
-                          {roleLabels[member.role] || member.role}
-                        </Badge>
+                        {member.id === user?.id ? (
+                          <Badge variant="secondary" className="text-xs flex-shrink-0">
+                            {roleLabels[member.role] || member.role}
+                          </Badge>
+                        ) : (
+                          <Select
+                            value={member.role}
+                            onValueChange={(newRole) =>
+                              updateRoleMutation.mutate({ userId: member.id, newRole })
+                            }
+                            disabled={updateRoleMutation.isPending}
+                          >
+                            <SelectTrigger className="h-7 w-[130px] text-xs flex-shrink-0">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="org_admin">Admin</SelectItem>
+                              <SelectItem value="operator">Operador</SelectItem>
+                              <SelectItem value="viewer">Visualizador</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
                         {member.id !== user?.id && (
                           <Button
                             variant="ghost"
