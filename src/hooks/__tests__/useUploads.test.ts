@@ -30,8 +30,7 @@ function useUploadsPageReset(filters: {
 
   useEffect(() => {
     pagination.setPage(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pdvId, type, status, search]);
+  }, [pdvId, type, status, search, pagination.setPage]);
 
   return pagination;
 }
