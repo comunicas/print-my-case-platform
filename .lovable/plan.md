@@ -1,50 +1,57 @@
 
 
-# Fase 10: Deduplicacao do MobileSidebar usando CollapsibleNavMenu
+# Fase 11: Limpeza de Type Safety — remover `as any`, `catch (err: any)` e `Record<string, any>`
 
 ## Problema
 
-O `MobileSidebar.tsx` ainda contem as funcoes duplicadas `renderStockMenu` e `renderMarketingMenu` (~110 linhas combinadas, linhas 104-213). Esse e exatamente o mesmo problema que foi resolvido no `AppSidebar` na Fase 9 com o componente `CollapsibleNavMenu`.
+Existem usos desnecessarios de `any` na codebase que enfraquecem a seguranca de tipos do TypeScript:
 
-O componente `CollapsibleNavMenu` ja suporta o caso nao-colapsado (que e o unico caso do mobile), entao a reutilizacao e direta.
+1. **`ProductCodeModal.tsx` linha 95**: `supabase.from("catalog_leads" as any)` — o cast `as any` e desnecessario porque `catalog_leads` ja existe nos tipos gerados do banco. Provavelmente foi adicionado quando a tabela ainda nao existia nos types.
+
+2. **`ProductCodeModal.tsx` linha 73**: `catch (err: any)` — usa `any` no catch quando o padrao seguro da codebase e `catch (error: unknown)` com `instanceof Error` (ex: `ProfileSettings.tsx` linha 101).
+
+3. **`exportToExcel` em `dashboardUtils.ts` linha 461**: Aceita `Record<string, any>[]` — pode ser tipado como `Record<string, string | number>[]` que reflete o uso real (colunas de texto e numeros para Excel).
+
+4. **`SalesHeatmapChart.tsx` linhas 54-55 e `StockHistoryChart.tsx` linha 45**: Declaram `Record<string, any>` para os dados de export — serao corrigidos automaticamente ao tipar `exportToExcel`.
+
+5. **`useUploads.test.ts` linha 33**: `eslint-disable` no teste que replica o padrao do hook — deve ser atualizado para incluir `pagination.setPage` nas deps (consistente com a correcao feita na Fase 5 no hook real).
 
 ## Mudancas
 
-### Arquivo: `src/components/layout/MobileSidebar.tsx`
+### Arquivo: `src/components/public/ProductCodeModal.tsx`
 
-1. Importar `CollapsibleNavMenu` de `./CollapsibleNavMenu`
-2. Remover as funcoes `renderStockMenu` e `renderMarketingMenu` (linhas 104-213, ~110 linhas)
-3. Substituir por chamadas declarativas ao componente:
+1. Remover `as any` da linha 95: `supabase.from("catalog_leads")` (sem cast)
+2. Trocar `catch (err: any)` por `catch (err: unknown)` e usar `err instanceof Error ? err.message : "Erro ao enviar codigo..."` no toast
 
-```text
-<CollapsibleNavMenu
-  icon={Package}
-  label="Estoque"
-  href="/estoque"
-  subItems={stockSubItems}
-  collapsed={false}           // mobile nunca colapsa
-  isActive={isStockActive}
-  expanded={stockExpanded}
-  onExpandedChange={onStockExpandedChange}
-  onNavigate={handleNavClick}  // usa handleNavClick que fecha o sheet
-  activeItem={activeItem}
-  defaultSubTab="tabela"
-/>
-```
+### Arquivo: `src/lib/dashboardUtils.ts`
 
-4. Ajuste menor: o `handleNavClick` do mobile chama `onOpenChange(false)` apos navegar (fecha o sheet). O `CollapsibleNavMenu` recebe `onNavigate`, entao basta passar `handleNavClick` em vez de `onNavigate` direto.
+3. Tipar `exportToExcel` como `Record<string, string | number>[]` em vez de `Record<string, any>[]`
 
-5. Diferenca de estilo: o mobile usa `py-3` nos botoes vs `py-2.5` no desktop. Essa diferenca e minima e sera padronizada para `py-2.5` (consistencia visual). Se preferir manter, pode-se adicionar uma prop `size` ao `CollapsibleNavMenu`, mas nao vale a complexidade extra.
+### Arquivo: `src/components/dashboard/SalesHeatmapChart.tsx`
+
+4. Atualizar a tipagem local de `exportData` e `row` para `Record<string, string | number>`
+
+### Arquivo: `src/components/dashboard/StockHistoryChart.tsx`
+
+5. Atualizar a tipagem local de `row` para `Record<string, string | number>`
+
+### Arquivo: `src/hooks/__tests__/useUploads.test.ts`
+
+6. Remover o `eslint-disable` e adicionar `pagination.setPage` nas dependencias do `useEffect` (alinhando com a correcao da Fase 5)
 
 ## Arquivos impactados
 
 | Arquivo | Acao |
 |---------|------|
-| `src/components/layout/MobileSidebar.tsx` | Refatorar - substituir 2 funcoes duplicadas por CollapsibleNavMenu, reduzir ~80 linhas |
+| `src/components/public/ProductCodeModal.tsx` | Remover `as any` e `catch (err: any)` |
+| `src/lib/dashboardUtils.ts` | Tipar `exportToExcel` sem `any` |
+| `src/components/dashboard/SalesHeatmapChart.tsx` | Atualizar tipo do export data |
+| `src/components/dashboard/StockHistoryChart.tsx` | Atualizar tipo do export data |
+| `src/hooks/__tests__/useUploads.test.ts` | Remover eslint-disable |
 
 ## Beneficios
-- Elimina a ultima duplicacao de menus collapsiveis na codebase
-- Garante consistencia visual e funcional entre desktop e mobile
-- Qualquer mudanca futura no comportamento dos menus aplica-se automaticamente aos dois contextos
-- Nenhuma mudanca funcional
+- Elimina todos os usos de `any` no codigo de producao (exceto o `Record<string, any>` no chart.tsx que faz parte do shadcn/ui)
+- Erros de tipo serao capturados em compilacao em vez de runtime
+- Consistencia com o padrao `catch (error: unknown)` ja usado em outros arquivos
+- Nenhuma mudanca funcional ou visual
 
