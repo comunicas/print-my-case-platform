@@ -31,17 +31,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
 import { Loader2, Users, Store, Mail, MapPin, Pencil, Trash2, Building2, Plus } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { getInitials } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { useOrganizations } from "@/hooks/useOrganizations";
-import { useTeamMembers } from "@/hooks/useTeamMembers";
-import { toast } from "sonner";
 import { PDVForm } from "@/components/pdv/PDVForm";
-import { PDVFormData, pdvFormSchema } from "@/lib/schemas/pdv";
 import { CreateUserDialog } from "@/components/team/CreateUserDialog";
-import { CreateUserFormData } from "@/lib/schemas/user";
+import { useOrgDetailActions } from "@/hooks/useOrgDetailActions";
+import { roleLabels } from "@/lib/schemas/team";
 
 interface OrgDetailDialogProps {
   open: boolean;
@@ -50,29 +45,6 @@ interface OrgDetailDialogProps {
   organizationName: string;
 }
 
-interface OrgMember {
-  id: string;
-  name: string;
-  email: string;
-  status: string | null;
-  role: string;
-}
-
-interface OrgPDV {
-  id: string;
-  name: string;
-  location: string;
-  machine_id: string;
-  status: string | null;
-}
-
-const roleLabels: Record<string, string> = {
-  super_admin: "Super Admin",
-  org_admin: "Admin",
-  operator: "Operador",
-  viewer: "Visualizador",
-};
-
 export function OrgDetailDialog({
   open,
   onOpenChange,
@@ -80,263 +52,9 @@ export function OrgDetailDialog({
   organizationName,
 }: OrgDetailDialogProps) {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const { organizations } = useOrganizations();
-  const { createUser } = useTeamMembers();
   const [activeTab, setActiveTab] = useState("users");
 
-  // Update role mutation
-  const updateRoleMutation = useMutation({
-    mutationFn: async ({ userId, newRole }: { userId: string; newRole: string }) => {
-      const { error: deleteError } = await supabase
-        .from("user_roles")
-        .delete()
-        .eq("user_id", userId);
-      if (deleteError) throw deleteError;
-
-      const { error: insertError } = await supabase
-        .from("user_roles")
-        .insert({ user_id: userId, role: newRole as "super_admin" | "org_admin" | "operator" | "viewer" });
-      if (insertError) throw insertError;
-    },
-    onSuccess: () => {
-      toast.success("Função atualizada com sucesso");
-      queryClient.invalidateQueries({ queryKey: ["org-detail-members", organizationId] });
-      queryClient.invalidateQueries({ queryKey: ["team-members"] });
-    },
-    onError: (error: Error) => {
-      toast.error("Erro ao atualizar função", { description: error.message });
-    },
-  });
-
-  // Create user state
-  const [showCreateUser, setShowCreateUser] = useState(false);
-
-  // Create PDV state
-  const [showCreatePdv, setShowCreatePdv] = useState(false);
-  const [createPdvForm, setCreatePdvForm] = useState<PDVFormData>({
-    name: "",
-    location: "",
-    machineId: "",
-    status: "active",
-  });
-  const [createPdvErrors, setCreatePdvErrors] = useState<Record<string, string>>({});
-
-  // Delete user state
-  const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
-  const [deleteUserName, setDeleteUserName] = useState("");
-
-  // Delete PDV state
-  const [deletePdvId, setDeletePdvId] = useState<string | null>(null);
-  const [deletePdvName, setDeletePdvName] = useState("");
-
-  // Edit PDV state
-  const [editPdv, setEditPdv] = useState<OrgPDV | null>(null);
-  const [editForm, setEditForm] = useState<PDVFormData>({
-    name: "",
-    location: "",
-    machineId: "",
-    status: "active",
-  });
-  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
-  const [transferOrgId, setTransferOrgId] = useState<string>("");
-  const [showTransferConfirm, setShowTransferConfirm] = useState(false);
-
-  const membersQuery = useQuery({
-    queryKey: ["org-detail-members", organizationId],
-    queryFn: async () => {
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, name, email, status")
-        .eq("organization_id", organizationId)
-        .order("name");
-
-      if (profilesError) throw profilesError;
-
-      const profileIds = profiles.map((p) => p.id);
-      const { data: roles, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("user_id, role")
-        .in("user_id", profileIds);
-
-      if (rolesError) throw rolesError;
-
-      const roleMap = new Map(roles.map((r) => [r.user_id, r.role]));
-
-      return profiles.map((p) => ({
-        ...p,
-        role: roleMap.get(p.id) || "viewer",
-      })) as OrgMember[];
-    },
-    enabled: open && !!organizationId,
-  });
-
-  const pdvsQuery = useQuery({
-    queryKey: ["org-detail-pdvs", organizationId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("pdvs")
-        .select("id, name, location, machine_id, status")
-        .eq("organization_id", organizationId)
-        .order("name");
-
-      if (error) throw error;
-      return data as OrgPDV[];
-    },
-    enabled: open && !!organizationId,
-  });
-
-  // Delete user mutation
-  const deleteUserMutation = useMutation({
-    mutationFn: async (userId: string) => {
-      const { data, error } = await supabase.functions.invoke("delete-user", {
-        body: { userId },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      return data;
-    },
-    onSuccess: (data) => {
-      toast.success(data?.message || "Usuário excluído com sucesso");
-      queryClient.invalidateQueries({ queryKey: ["org-detail-members", organizationId] });
-      queryClient.invalidateQueries({ queryKey: ["team-members"] });
-      setDeleteUserId(null);
-    },
-    onError: (error: Error) => {
-      toast.error("Erro ao excluir usuário", { description: error.message });
-    },
-  });
-
-  // Delete PDV mutation
-  const deletePdvMutation = useMutation({
-    mutationFn: async (pdvId: string) => {
-      const { error } = await supabase.from("pdvs").delete().eq("id", pdvId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("PDV excluído com sucesso");
-      queryClient.invalidateQueries({ queryKey: ["org-detail-pdvs", organizationId] });
-      queryClient.invalidateQueries({ queryKey: ["pdvs"] });
-      setDeletePdvId(null);
-    },
-    onError: (error: Error) => {
-      toast.error("Erro ao excluir PDV", { description: error.message });
-    },
-  });
-
-  // Edit PDV mutation
-  const editPdvMutation = useMutation({
-    mutationFn: async ({ id, data, newOrgId }: { id: string; data: PDVFormData; newOrgId?: string }) => {
-      const updatePayload: Record<string, unknown> = {
-        name: data.name,
-        location: data.location,
-        status: data.status,
-      };
-      if (newOrgId && newOrgId !== organizationId) {
-        updatePayload.organization_id = newOrgId;
-      }
-      const { error } = await supabase
-        .from("pdvs")
-        .update(updatePayload)
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("PDV atualizado com sucesso");
-      queryClient.invalidateQueries({ queryKey: ["org-detail-pdvs", organizationId] });
-      queryClient.invalidateQueries({ queryKey: ["pdvs"] });
-      setEditPdv(null);
-      setTransferOrgId("");
-      setShowTransferConfirm(false);
-    },
-    onError: (error: Error) => {
-      toast.error("Erro ao atualizar PDV", { description: error.message });
-    },
-  });
-
-  const handleEditPdvOpen = (pdv: OrgPDV) => {
-    setEditPdv(pdv);
-    setEditForm({
-      name: pdv.name,
-      location: pdv.location,
-      machineId: pdv.machine_id,
-      status: (pdv.status as "active" | "inactive") || "active",
-    });
-    setEditErrors({});
-    setTransferOrgId("");
-  };
-
-  const handleEditPdvSave = () => {
-    const result = pdvFormSchema.safeParse(editForm);
-    if (!result.success) {
-      const fieldErrors: Record<string, string> = {};
-      result.error.errors.forEach((e) => {
-        if (e.path[0]) fieldErrors[e.path[0] as string] = e.message;
-      });
-      setEditErrors(fieldErrors);
-      return;
-    }
-    // If transferring to another org, show confirmation first
-    if (transferOrgId && transferOrgId !== organizationId) {
-      setShowTransferConfirm(true);
-      return;
-    }
-    if (editPdv) {
-      editPdvMutation.mutate({ id: editPdv.id, data: editForm });
-    }
-  };
-
-  const handleConfirmTransfer = () => {
-    if (editPdv) {
-      editPdvMutation.mutate({ id: editPdv.id, data: editForm, newOrgId: transferOrgId });
-    }
-  };
-
-  // Create PDV mutation
-  const createPdvMutation = useMutation({
-    mutationFn: async (data: PDVFormData) => {
-      const { error } = await supabase
-        .from("pdvs")
-        .insert({
-          name: data.name,
-          location: data.location,
-          machine_id: data.machineId,
-          status: data.status,
-          organization_id: organizationId,
-        });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("PDV criado com sucesso");
-      queryClient.invalidateQueries({ queryKey: ["org-detail-pdvs", organizationId] });
-      queryClient.invalidateQueries({ queryKey: ["pdvs"] });
-      setShowCreatePdv(false);
-      setCreatePdvForm({ name: "", location: "", machineId: "", status: "active" });
-      setCreatePdvErrors({});
-    },
-    onError: (error: Error) => {
-      toast.error("Erro ao criar PDV", { description: error.message });
-    },
-  });
-
-  const handleCreatePdvSave = () => {
-    const result = pdvFormSchema.safeParse(createPdvForm);
-    if (!result.success) {
-      const fieldErrors: Record<string, string> = {};
-      result.error.errors.forEach((e) => {
-        if (e.path[0]) fieldErrors[e.path[0] as string] = e.message;
-      });
-      setCreatePdvErrors(fieldErrors);
-      return;
-    }
-    createPdvMutation.mutate(createPdvForm);
-  };
-
-  const handleCreateUserSubmit = async (data: CreateUserFormData) => {
-    await createUser.mutateAsync(data);
-    queryClient.invalidateQueries({ queryKey: ["org-detail-members", organizationId] });
-    setShowCreateUser(false);
-  };
+  const actions = useOrgDetailActions(organizationId, organizationName, open);
 
   return (
     <>
@@ -353,11 +71,11 @@ export function OrgDetailDialog({
             <TabsList className="w-full">
               <TabsTrigger value="users" className="flex-1 gap-1.5">
                 <Users className="h-4 w-4" />
-                Usuários ({membersQuery.data?.length ?? 0})
+                Usuários ({actions.members?.length ?? 0})
               </TabsTrigger>
               <TabsTrigger value="pdvs" className="flex-1 gap-1.5">
                 <Store className="h-4 w-4" />
-                PDVs ({pdvsQuery.data?.length ?? 0})
+                PDVs ({actions.pdvs?.length ?? 0})
               </TabsTrigger>
             </TabsList>
 
@@ -367,18 +85,18 @@ export function OrgDetailDialog({
                 variant="outline"
                 size="sm"
                 className="w-full"
-                onClick={() => setShowCreateUser(true)}
+                onClick={actions.createUser.open}
               >
                 <Plus className="h-4 w-4 mr-1" />
                 Criar Usuário
               </Button>
-              {membersQuery.isLoading ? (
+              {actions.membersLoading ? (
                 <div className="flex justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
-              ) : membersQuery.data && membersQuery.data.length > 0 ? (
+              ) : actions.members && actions.members.length > 0 ? (
                 <div className="space-y-2">
-                  {membersQuery.data.map((member) => (
+                  {actions.members.map((member) => (
                     <Card key={member.id}>
                       <CardContent className="flex items-center gap-3 p-3">
                         <Avatar className="h-9 w-9">
@@ -395,15 +113,15 @@ export function OrgDetailDialog({
                         </div>
                         {member.id === user?.id ? (
                           <Badge variant="secondary" className="text-xs flex-shrink-0">
-                            {roleLabels[member.role] || member.role}
+                            {roleLabels[member.role as keyof typeof roleLabels] || member.role}
                           </Badge>
                         ) : (
                           <Select
                             value={member.role}
                             onValueChange={(newRole) =>
-                              updateRoleMutation.mutate({ userId: member.id, newRole })
+                              actions.updateRole({ userId: member.id, newRole })
                             }
-                            disabled={updateRoleMutation.isPending}
+                            disabled={actions.isUpdatingRole}
                           >
                             <SelectTrigger className="h-7 w-[130px] text-xs flex-shrink-0">
                               <SelectValue />
@@ -422,8 +140,7 @@ export function OrgDetailDialog({
                             className="h-8 w-8 text-destructive hover:text-destructive flex-shrink-0"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setDeleteUserId(member.id);
-                              setDeleteUserName(member.name);
+                              actions.deleteUser.open(member.id, member.name);
                             }}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -447,18 +164,18 @@ export function OrgDetailDialog({
                 variant="outline"
                 size="sm"
                 className="w-full"
-                onClick={() => setShowCreatePdv(true)}
+                onClick={actions.createPdv.open}
               >
                 <Plus className="h-4 w-4 mr-1" />
                 Criar PDV
               </Button>
-              {pdvsQuery.isLoading ? (
+              {actions.pdvsLoading ? (
                 <div className="flex justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
-              ) : pdvsQuery.data && pdvsQuery.data.length > 0 ? (
+              ) : actions.pdvs && actions.pdvs.length > 0 ? (
                 <div className="space-y-2">
-                  {pdvsQuery.data.map((pdv) => (
+                  {actions.pdvs.map((pdv) => (
                     <Card key={pdv.id}>
                       <CardContent className="flex items-center gap-3 p-3">
                         <div className="flex-1 min-w-0">
@@ -483,7 +200,7 @@ export function OrgDetailDialog({
                           className="h-8 w-8 flex-shrink-0"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleEditPdvOpen(pdv);
+                            actions.editPdv.open(pdv);
                           }}
                         >
                           <Pencil className="h-4 w-4" />
@@ -494,8 +211,7 @@ export function OrgDetailDialog({
                           className="h-8 w-8 text-destructive hover:text-destructive flex-shrink-0"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setDeletePdvId(pdv.id);
-                            setDeletePdvName(pdv.name);
+                            actions.deletePdv.open(pdv.id, pdv.name);
                           }}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -516,22 +232,22 @@ export function OrgDetailDialog({
       </Dialog>
 
       {/* Delete User Confirmation */}
-      <AlertDialog open={!!deleteUserId} onOpenChange={() => setDeleteUserId(null)}>
+      <AlertDialog open={!!actions.deleteUser.targetId} onOpenChange={actions.deleteUser.close}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir usuário</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir <strong>{deleteUserName}</strong>? Esta ação é permanente e não pode ser desfeita.
+              Tem certeza que deseja excluir <strong>{actions.deleteUser.targetName}</strong>? Esta ação é permanente e não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteUserMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={actions.deleteUser.isPending}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={deleteUserMutation.isPending}
-              onClick={() => deleteUserId && deleteUserMutation.mutate(deleteUserId)}
+              disabled={actions.deleteUser.isPending}
+              onClick={actions.deleteUser.confirm}
             >
-              {deleteUserMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {actions.deleteUser.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -539,22 +255,22 @@ export function OrgDetailDialog({
       </AlertDialog>
 
       {/* Delete PDV Confirmation */}
-      <AlertDialog open={!!deletePdvId} onOpenChange={() => setDeletePdvId(null)}>
+      <AlertDialog open={!!actions.deletePdv.targetId} onOpenChange={actions.deletePdv.close}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir PDV</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir <strong>{deletePdvName}</strong>? Todos os dados associados (estoque, vendas, uploads) poderão ser afetados.
+              Tem certeza que deseja excluir <strong>{actions.deletePdv.targetName}</strong>? Todos os dados associados (estoque, vendas, uploads) poderão ser afetados.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletePdvMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={actions.deletePdv.isPending}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={deletePdvMutation.isPending}
-              onClick={() => deletePdvId && deletePdvMutation.mutate(deletePdvId)}
+              disabled={actions.deletePdv.isPending}
+              onClick={actions.deletePdv.confirm}
             >
-              {deletePdvMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {actions.deletePdv.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -562,25 +278,25 @@ export function OrgDetailDialog({
       </AlertDialog>
 
       {/* Edit PDV Dialog */}
-      <Dialog open={!!editPdv} onOpenChange={() => { setEditPdv(null); setTransferOrgId(""); }}>
+      <Dialog open={actions.editPdv.isOpen} onOpenChange={() => actions.editPdv.close()}>
         <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar PDV</DialogTitle>
             <DialogDescription>Atualize as informações do PDV.</DialogDescription>
           </DialogHeader>
-          {organizations.length > 1 && (
+          {actions.organizations.length > 1 && (
             <div className="grid gap-2">
               <Label htmlFor="transfer-org">Transferir para organização</Label>
               <Select
-                value={transferOrgId || organizationId}
-                onValueChange={setTransferOrgId}
+                value={actions.editPdv.transferOrgId || organizationId}
+                onValueChange={actions.editPdv.setTransferOrgId}
               >
                 <SelectTrigger id="transfer-org">
                   <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {organizations.map((org) => (
+                  {actions.organizations.map((org) => (
                     <SelectItem key={org.id} value={org.id}>
                       {org.name}
                     </SelectItem>
@@ -590,25 +306,19 @@ export function OrgDetailDialog({
             </div>
           )}
           <PDVForm
-            values={editForm}
-            onChange={setEditForm}
-            errors={editErrors}
-            onClearError={(field) =>
-              setEditErrors((prev) => {
-                const next = { ...prev };
-                delete next[field];
-                return next;
-              })
-            }
+            values={actions.editPdv.form}
+            onChange={actions.editPdv.setForm}
+            errors={actions.editPdv.errors}
+            onClearError={actions.editPdv.clearError}
             idPrefix="edit-pdv-"
             isEditing
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setEditPdv(null); setTransferOrgId(""); }} disabled={editPdvMutation.isPending}>
+            <Button variant="outline" onClick={actions.editPdv.close} disabled={actions.editPdv.isPending}>
               Cancelar
             </Button>
-            <Button onClick={handleEditPdvSave} disabled={editPdvMutation.isPending}>
-              {editPdvMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            <Button onClick={actions.editPdv.save} disabled={actions.editPdv.isPending}>
+              {actions.editPdv.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
               Salvar
             </Button>
           </DialogFooter>
@@ -616,7 +326,7 @@ export function OrgDetailDialog({
       </Dialog>
 
       {/* Transfer Confirmation */}
-      <AlertDialog open={showTransferConfirm} onOpenChange={setShowTransferConfirm}>
+      <AlertDialog open={actions.editPdv.showTransferConfirm} onOpenChange={actions.editPdv.setShowTransferConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar transferência</AlertDialogTitle>
@@ -630,12 +340,12 @@ export function OrgDetailDialog({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={editPdvMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={actions.editPdv.isPending}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              disabled={editPdvMutation.isPending}
-              onClick={handleConfirmTransfer}
+              disabled={actions.editPdv.isPending}
+              onClick={actions.editPdv.confirmTransfer}
             >
-              {editPdvMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {actions.editPdv.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Confirmar Transferência
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -644,23 +354,17 @@ export function OrgDetailDialog({
 
       {/* Create User Dialog */}
       <CreateUserDialog
-        open={showCreateUser}
-        onOpenChange={setShowCreateUser}
-        onSubmit={handleCreateUserSubmit}
-        isLoading={createUser.isPending}
+        open={actions.createUser.isOpen}
+        onOpenChange={(open) => !open && actions.createUser.close()}
+        onSubmit={actions.createUser.submit}
+        isLoading={actions.createUser.isPending}
         adminOrganizationId={organizationId}
         adminOrganizationName={organizationName}
         isSuperAdmin={true}
       />
 
       {/* Create PDV Dialog */}
-      <Dialog open={showCreatePdv} onOpenChange={(open) => {
-        setShowCreatePdv(open);
-        if (!open) {
-          setCreatePdvForm({ name: "", location: "", machineId: "", status: "active" });
-          setCreatePdvErrors({});
-        }
-      }}>
+      <Dialog open={actions.createPdv.isOpen} onOpenChange={actions.createPdv.close}>
         <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Criar PDV</DialogTitle>
@@ -669,24 +373,18 @@ export function OrgDetailDialog({
             </DialogDescription>
           </DialogHeader>
           <PDVForm
-            values={createPdvForm}
-            onChange={setCreatePdvForm}
-            errors={createPdvErrors}
-            onClearError={(field) =>
-              setCreatePdvErrors((prev) => {
-                const next = { ...prev };
-                delete next[field];
-                return next;
-              })
-            }
+            values={actions.createPdv.form}
+            onChange={actions.createPdv.setForm}
+            errors={actions.createPdv.errors}
+            onClearError={actions.createPdv.clearError}
             idPrefix="create-pdv-"
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreatePdv(false)} disabled={createPdvMutation.isPending}>
+            <Button variant="outline" onClick={() => actions.createPdv.close(false)} disabled={actions.createPdv.isPending}>
               Cancelar
             </Button>
-            <Button onClick={handleCreatePdvSave} disabled={createPdvMutation.isPending}>
-              {createPdvMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+            <Button onClick={actions.createPdv.save} disabled={actions.createPdv.isPending}>
+              {actions.createPdv.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
               Criar PDV
             </Button>
           </DialogFooter>
