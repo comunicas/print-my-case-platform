@@ -1,3 +1,4 @@
+import React from 'react';
 import { cn } from '@/lib/utils';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -17,7 +18,7 @@ interface SlotStackProps {
   onClick?: () => void;
 }
 
-export function SlotStack({
+export const SlotStack = React.memo(function SlotStack({
   slot,
   brand,
   model,
@@ -100,7 +101,7 @@ export function SlotStack({
       </TooltipContent>
     </Tooltip>
   );
-}
+});
 
 // Componente para slot vazio (sem produto)
 export function EmptySlot({ viewMode = 'expanded' }: { viewMode?: StockViewMode }) {

@@ -26,11 +26,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ExternalLink, Key, Cloud, FileSpreadsheet, Plus, Copy, Check, Trash2, Ban, Loader2 } from "lucide-react";
 import { useApiKeys } from "@/hooks/useApiKeys";
+import { useProfile } from "@/hooks/useProfile";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export function IntegrationsSettings() {
+  const { isAdmin } = useProfile();
   const { apiKeys, isLoading, createKey, revokeKey, deleteKey } = useApiKeys();
   const [newKeyName, setNewKeyName] = useState("");
   const [createdKey, setCreatedKey] = useState<string | null>(null);
@@ -91,8 +93,8 @@ export function IntegrationsSettings() {
         </CardContent>
       </Card>
 
-      {/* API Keys */}
-      <Card>
+      {/* API Keys — admin only */}
+      {isAdmin && <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10">
@@ -260,7 +262,7 @@ export function IntegrationsSettings() {
             </details>
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
       {/* Webhook */}
       <Card>

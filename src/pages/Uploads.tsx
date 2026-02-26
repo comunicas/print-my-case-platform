@@ -61,7 +61,8 @@ import { DataPagination } from "@/components/ui/data-pagination";
 export default function Uploads() {
   const navigate = useNavigate();
   const { pdvs, isLoading: pdvsLoading } = usePDVs();
-  const { isAdmin } = useProfile();
+  const { isAdmin, role } = useProfile();
+  const canUpload = role !== "viewer";
 
   const [searchQuery, setSearchQuery] = useState("");
   const { 
@@ -187,14 +188,16 @@ export default function Uploads() {
             </p>
           </div>
 
-          <Button 
-            className="w-full sm:w-auto" 
-            onClick={() => setIsUploadDialogOpen(true)}
-            disabled={activePdvs.length === 0}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Upload
-          </Button>
+          {canUpload && (
+            <Button 
+              className="w-full sm:w-auto" 
+              onClick={() => setIsUploadDialogOpen(true)}
+              disabled={activePdvs.length === 0}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Upload
+            </Button>
+          )}
         </div>
 
         {/* Filters Section */}

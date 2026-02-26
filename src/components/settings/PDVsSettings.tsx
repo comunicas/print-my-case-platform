@@ -37,6 +37,7 @@ import { parseZodErrors } from "@/lib/utils";
 import { usePDVs, PDV } from "@/hooks/usePDVs";
 import { useProfile } from "@/hooks/useProfile";
 import { useOrganizations } from "@/hooks/useOrganizations";
+import { useUserAllowedPDVs } from "@/hooks/useUserAllowedPDVs";
 
 interface EditingPDV {
   id: string;
@@ -50,6 +51,7 @@ export function PDVsSettings() {
   const { isAdmin, role } = useProfile();
   const isSuperAdmin = role === "super_admin";
   const { organizations } = useOrganizations();
+  const { allowedPdvIds, hasRestrictions } = useUserAllowedPDVs();
   const [selectedOrgFilter, setSelectedOrgFilter] = useState<string>("all");
   
   const { pdvs, isLoading, createPDV, updatePDV, deletePDV } = usePDVs({
@@ -104,12 +106,14 @@ export function PDVsSettings() {
     setFormErrors((prev) => ({ ...prev, [field]: "" }));
   };
 
-  const filteredPdvs = pdvs.filter(
-    (pdv) =>
-      pdv.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      pdv.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      pdv.machine_id.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredPdvs = pdvs
+    .filter((pdv) => !hasRestrictions || allowedPdvIds?.includes(pdv.id))
+    .filter(
+      (pdv) =>
+        pdv.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        pdv.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        pdv.machine_id.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
   const handleCreatePdv = () => {
     if (!validateForm(newPdv)) return;
