@@ -42,17 +42,22 @@ export function PDVFilter({
 }: PDVFilterProps) {
   const { preferences, updatePreferences } = usePreferences();
 
+  // Auto-select when only one PDV exists
+  useEffect(() => {
+    if (pdvs.length === 1 && value !== pdvs[0].id) {
+      onChange(pdvs[0].id);
+    }
+  }, [pdvs, value, onChange]);
+
   // Animation state for the Auto badge
   const [isAnimatingOut, setIsAnimatingOut] = useState(false);
   const [shouldShowBadge, setShouldShowBadge] = useState(showAutoAppliedBadge);
 
   useEffect(() => {
     if (showAutoAppliedBadge && !shouldShowBadge) {
-      // Badge appearing
       setShouldShowBadge(true);
       setIsAnimatingOut(false);
     } else if (!showAutoAppliedBadge && shouldShowBadge && !isAnimatingOut) {
-      // Badge disappearing - start animation
       setIsAnimatingOut(true);
       const timer = setTimeout(() => {
         setShouldShowBadge(false);
@@ -61,6 +66,16 @@ export function PDVFilter({
       return () => clearTimeout(timer);
     }
   }, [showAutoAppliedBadge, shouldShowBadge, isAnimatingOut]);
+
+  // When single PDV, show only static text
+  if (pdvs.length <= 1) {
+    if (pdvs.length === 0) return null;
+    return (
+      <div className={cn("flex items-center gap-1", className)}>
+        <span className="text-sm text-muted-foreground px-3 py-2">{pdvs[0].name}</span>
+      </div>
+    );
+  }
 
   const isCurrentDefault = value !== 'all' && value === preferences?.default_pdv;
   const canSaveAsDefault = value !== 'all' && value !== preferences?.default_pdv;

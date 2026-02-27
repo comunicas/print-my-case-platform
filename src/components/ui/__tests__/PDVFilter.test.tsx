@@ -200,4 +200,31 @@ describe('PDVFilter', () => {
       expect(handleChange).toHaveBeenCalledWith('pdv-1');
     });
   });
+
+  describe('single PDV', () => {
+    it('auto-selects the only PDV and hides the select', () => {
+      const handleChange = vi.fn();
+      const singlePdv = [{ id: 'pdv-1', name: 'PDV Centro' }];
+
+      render(
+        <Wrapper>
+          <PDVFilter value="all" onChange={handleChange} pdvs={singlePdv} />
+        </Wrapper>
+      );
+
+      expect(handleChange).toHaveBeenCalledWith('pdv-1');
+      expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+      expect(screen.getByText('PDV Centro')).toBeInTheDocument();
+    });
+
+    it('renders nothing when pdvs is empty', () => {
+      const { container } = render(
+        <Wrapper>
+          <PDVFilter value="all" onChange={vi.fn()} pdvs={[]} />
+        </Wrapper>
+      );
+
+      expect(container.innerHTML).toBe('');
+    });
+  });
 });
