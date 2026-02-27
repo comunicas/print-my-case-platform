@@ -42,7 +42,7 @@ export const SlotStack = React.memo(function SlotStack({
             'flex flex-col items-center gap-0.5 p-1 sm:p-1.5 rounded-lg cursor-pointer',
             'transition-all duration-300 ease-out',
             dimensions.slot,
-            'hover:scale-105 hover:shadow-md hover:bg-muted/50',
+            'group hover:scale-105 hover:shadow-md hover:bg-muted/50',
             isHighlighted && 'ring-2 ring-primary bg-primary/5',
             isFocused && 'ring-2 ring-primary bg-primary/10 shadow-lg scale-105',
             isFiltered && 'opacity-30 scale-[0.98]',
@@ -69,15 +69,16 @@ export const SlotStack = React.memo(function SlotStack({
             ))}
           </div>
           
-          {/* Badge de quantidade (apenas modo compacto) */}
-          {viewMode === 'compact' && (
-            <span className={cn(
-              'text-[7px] sm:text-[8px] font-bold text-white rounded-full px-1 leading-normal',
-              getQuantityBadgeColor(quantity, isActive)
-            )}>
-              {quantity}/{MAX_CAPACITY}
-            </span>
-          )}
+          {/* Badge de quantidade */}
+          <span className={cn(
+            'font-bold text-white rounded-full px-1 leading-normal transition-opacity duration-200',
+            viewMode === 'compact'
+              ? 'text-[7px] sm:text-[8px] opacity-100'
+              : 'text-[8px] sm:text-[9px] opacity-0 group-hover:opacity-100',
+            getQuantityBadgeColor(quantity, isActive)
+          )}>
+            {quantity}/{MAX_CAPACITY}
+          </span>
 
           {/* Número do slot */}
           <span className={cn(
