@@ -1,67 +1,83 @@
 
 
-# Corrigir Calendario de Periodo + Novos Presets
+# Limpeza de Legados e Ajustes no Estoque (Tabela + Mapa)
 
-## Problema 1: Calendario fecha ao primeiro clique
-Quando o popover abre, `calendarSelected` tem `from` e `to` preenchidos (o periodo atual). O react-day-picker v8 interpreta cliques sobre um range existente de formas inesperadas: pode enviar `{from: X, to: X}` (mesmo dia) no primeiro clique, e o codigo atual trata isso como selecao completa e fecha o popover.
+## Problemas Identificados
 
-## Problema 2: Presets incorretos
-- **Atual**: Hoje, 7d, 30d, 90d, Este mes, Mes passado
-- **Desejado**: Hoje, Ontem, Este mes, Mes anterior, Total
+| # | Local | Problema |
+|---|-------|----------|
+| 1 | `StockGridView.tsx` | `EmptySlot` importado mas nunca usado (codigo morto) |
+| 2 | `StockGridSkeleton.tsx` | Usa 10 blocos no skeleton, mas `MAX_CAPACITY` e 7 |
+| 3 | `ProductStockTable.tsx` | Paginacao manual (~25 linhas) quando existe `DataPagination` reutilizavel |
+| 4 | `StockLegend.tsx` | Cores de niveis hardcoded, duplicando `slotBlockColors` de `stockLabels.ts` |
+| 5 | `SlotDetailModal.tsx` | Barra de progresso com thresholds hardcoded em vez de usar `getSlotVisualStatus` |
+| 6 | `SlotStack.tsx` | Exporta `EmptySlot` que nao e usado por ninguem |
 
-## Solucao
+---
 
-### Correcao do calendario (`DateRangeFilter.tsx`)
+## Parte 1: Remover codigo morto
 
-1. **Logica de selecao em dois cliques**: Mudar `handleCalendarSelect` para:
-   - Primeiro clique: SEMPRE setar `pendingFrom` e aguardar segundo clique. Ignorar o `to` que o react-day-picker envia.
-   - Segundo clique (quando `pendingFrom` ja existe): calcular from/to com `min/max` entre `pendingFrom` e o dia clicado, aplicar e fechar.
-   - Trocar `Calendar mode="range"` para usar `onDayClick` manual em vez de `onSelect`, garantindo controle total sobre a logica de dois cliques.
+**`src/components/stock/StockGridView.tsx`**
+- Remover import de `EmptySlot` (linha 4) — nao e usado
 
-2. **Visual de selecao pendente**: Enquanto o usuario clicou apenas a primeira data, destacar o dia selecionado no calendario usando `modifiers` + estilos customizados, e mostrar o range parcial nos inputs.
+**`src/components/stock/SlotStack.tsx`**
+- Remover export de `EmptySlot` (linhas 140-145) — componente morto, nunca usado
 
-3. **Manter inputs manuais**: Os campos DD/MM/AAAA continuam funcionando, com a mesma logica de mascara e validacao.
+---
 
-### Novos presets
+## Parte 2: Corrigir skeleton
 
-Substituir os 6 presets atuais por 5 novos:
+**`src/components/stock/StockGridSkeleton.tsx`**
+- Trocar `Array.from({ length: 10 })` por `Array.from({ length: MAX_CAPACITY })` (importar de `stockGridUtils`)
+- Garante que o skeleton mostra a mesma quantidade de blocos que o slot real
 
-| Antes          | Depois         |
-|----------------|----------------|
-| Hoje           | Hoje           |
-| 7d             | Ontem          |
-| 30d            | Este mes       |
-| 90d            | Mes anterior   |
-| Este mes       | Total          |
-| Mes passado    | *(removido)*   |
+---
 
-O preset **Total** usa a prop `dataRange` (min/max dos dados) para mostrar todo o periodo disponivel. Se `dataRange` nao estiver disponivel, o botao fica desabilitado.
+## Parte 3: Usar DataPagination na tabela
 
-### Mudancas tecnicas detalhadas
+**`src/components/stock/ProductStockTable.tsx`**
+- Substituir a paginacao manual (linhas 296-320) pelo componente `DataPagination` que ja existe em `src/components/ui/data-pagination.tsx`
+- Remover estado `page` manual e calculos de `totalPages`
+- Usar as mesmas props padrao que Uploads ja usa
+- Reducao: ~20 linhas
 
-**`src/components/dashboard/DateRangeFilter.tsx`**:
+---
 
-1. Substituir array `PRESETS` pelos novos 4 presets fixos (Hoje, Ontem, Este mes, Mes anterior) + botao Total separado (depende de `dataRange` prop)
+## Parte 4: Unificar cores na legenda
 
-2. Reescrever `handleCalendarSelect` / trocar para `onDayClick`:
-   - Sem `pendingFrom`: setar `pendingFrom = day`, atualizar `fromInput`
-   - Com `pendingFrom`: calcular `from = min(pendingFrom, day)`, `to = max(pendingFrom, day)`, aplicar `onDateRangeChange`, limpar `pendingFrom`, fechar popover
+**`src/components/stock/StockLegend.tsx`**
+- Importar `slotBlockColors` e `slotVisualLabels` de `stockLabels.ts`
+- Substituir as 5 divs hardcoded por um loop sobre os status (full, medium, low/critical, empty, inactive)
+- Mantem marcas como estao (ja usam `BrandLogo`)
+- Reducao: ~15 linhas
 
-3. Ajustar `calendarSelected` para usar `modifiers` quando em modo de selecao pendente (destacar dia selecionado sem renderizar range)
+---
 
-4. Remover o botao "Ver tudo" da area de info (ja estara como preset "Total")
+## Parte 5: Unificar barra de progresso no SlotDetailModal
 
-5. Manter: inputs manuais, navegacao mes/ano, hint "Selecione a data final", display de periodo com dias
+**`src/components/stock/SlotDetailModal.tsx`**
+- Substituir thresholds hardcoded na barra de progresso (linhas 210-218) por reutilizacao de `getSlotVisualStatus` + mapeamento para cor CSS
+- Usar `slotBlockColors` para determinar a cor da barra
+- Mantem o mesmo visual, mas centraliza a logica
 
-**`src/lib/utils/date-presets.ts`**: Atualizar `datePresets` array para refletir os novos presets (usado em outras partes da aplicacao se referenciado)
+---
 
-### Arquivos alterados
-| Arquivo | Acao |
-|---------|------|
-| `src/components/dashboard/DateRangeFilter.tsx` | Editar (presets + logica calendario) |
-| `src/lib/utils/date-presets.ts` | Editar (atualizar presets) |
+## Resumo de arquivos
 
-### Sem alteracao em
-- `Index.tsx`, `MarketingAnalytics.tsx`, `CatalogLeadsSettings.tsx` — consomem `DateRangeFilter` sem mudanca de API
-- `Calendar.tsx` — componente base nao precisa mudar
+| Acao   | Arquivo                              | Parte |
+|--------|--------------------------------------|-------|
+| Editar | `src/components/stock/StockGridView.tsx` | 1 |
+| Editar | `src/components/stock/SlotStack.tsx`     | 1 |
+| Editar | `src/components/stock/StockGridSkeleton.tsx` | 2 |
+| Editar | `src/components/stock/ProductStockTable.tsx` | 3 |
+| Editar | `src/components/stock/StockLegend.tsx`   | 4 |
+| Editar | `src/components/stock/SlotDetailModal.tsx` | 5 |
+
+## Beneficios
+
+- Codigo morto removido (EmptySlot)
+- Skeleton consistente com o componente real
+- Paginacao padronizada via DataPagination
+- Cores centralizadas em stockLabels (1 lugar para mudar)
+- ~40 linhas de codigo duplicado/morto removidas
 
