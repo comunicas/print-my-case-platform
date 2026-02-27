@@ -1,43 +1,36 @@
 
-
-# Indicadores Visuais de Quantidade no Modo Compacto
+# Indicador Visual de Quantidade no Modo Expandido (Hover)
 
 ## Objetivo
-No modo compacto, os blocos empilhados ficam muito pequenos e dificeis de interpretar rapidamente. Adicionar um badge numerico de quantidade sobre cada slot para leitura instantanea.
+Adicionar o mesmo badge numerico de quantidade (`X/7`) que ja existe no modo compacto, mas no modo expandido ele aparece apenas ao passar o mouse sobre o slot (hover). Isso mantem o visual limpo e mostra a informacao sob demanda.
 
-## Alteracoes
+## Verificacao do Modo Compacto
+Badges verificados e funcionando corretamente:
+- Cores corretas por nivel de estoque (verde, amarelo, laranja, vermelho)
+- Texto legivel com quantidade/capacidade
+- Posicionamento correto entre blocos e numero do slot
 
-### 1. `src/components/stock/SlotStack.tsx`
+## Alteracao
 
-Adicionar um badge numerico (`quantity/MAX_CAPACITY`) visivel apenas no modo compacto, posicionado entre os blocos e o numero do slot. O badge tera cor de fundo baseada no status do estoque (critico, baixo, medio, cheio) para reforcar visualmente a urgencia.
+### `src/components/stock/SlotStack.tsx`
+Adicionar o badge de quantidade tambem no modo expandido, mas com classes CSS que o tornam invisivel por padrao e visivel no hover do container pai.
+
+Implementacao com CSS puro usando `group` + `group-hover`:
+1. Adicionar classe `group` ao `div` container do slot (linha 39)
+2. Renderizar o badge em ambos os modos, mas no modo expandido aplicar `opacity-0 group-hover:opacity-100 transition-opacity` para aparecer apenas no hover
 
 ```text
-Modo compacto atual:        Modo compacto novo:
-  [logo]                      [logo]
-  [blocos]                    [blocos]
-  [slot]                      [2/7]    ← badge colorido
-  [modelo]                    [slot]
-                              [modelo]
+Modo expandido (repouso):     Modo expandido (hover):
+  [logo]                        [logo]
+  [blocos]                      [blocos]
+                                [5/7]    ← badge aparece
+  [slot]                        [slot]
+  [modelo]                      [modelo]
 ```
 
-Cores do badge:
-- 0 unidades: vermelho (bg-red-500)
-- 1-2 unidades: laranja (bg-orange-500)
-- 3-5 unidades: amarelo (bg-yellow-500)
-- 6-7 unidades: verde (bg-green-500)
-- Inativo: cinza (bg-muted)
-
-O badge sera um `span` com `text-[7px] sm:text-[8px]`, `font-bold`, `text-white`, `rounded-full`, `px-1`, renderizado condicionalmente quando `viewMode === 'compact'`.
-
-No modo expandido, nada muda — os blocos ja sao grandes o suficiente para leitura visual.
-
-### 2. `src/lib/stockGridUtils.ts`
-
-Adicionar uma funcao utilitaria `getQuantityBadgeColor(quantity, isActive)` que retorna a classe de cor do badge baseada nos thresholds existentes (`STOCK_THRESHOLDS`).
-
-### Resumo
-
-- 1 funcao nova em `stockGridUtils.ts`
-- 1 elemento JSX novo em `SlotStack.tsx` (condicional ao modo compacto)
-- Zero mudancas em dimensoes, layout ou outros componentes
-
+Mudancas especificas:
+- Linha 39: adicionar `group` a className do div container
+- Linhas 72-80: remover condicional `viewMode === 'compact'`, renderizar sempre o badge
+- No modo expandido: adicionar `opacity-0 group-hover:opacity-100 transition-opacity duration-200`
+- No modo compacto: manter visibilidade permanente (sem classes de opacity)
+- Tamanho do badge no expanded: `text-[8px] sm:text-[9px]` (ligeiramente maior que no compacto)
