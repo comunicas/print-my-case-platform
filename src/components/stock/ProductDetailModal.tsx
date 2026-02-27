@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { MAX_CAPACITY } from '@/lib/stockTypes';
+import { getSlotVisualStatus } from '@/lib/stockGridUtils';
+import { slotBlockColors } from '@/lib/stockLabels';
 import { cn } from '@/lib/utils';
 import { Package, MapPin, BarChart3, Clock, TrendingUp } from 'lucide-react';
 import { useMemo } from 'react';
@@ -206,16 +208,20 @@ export function ProductDetailModal({ productName, isOpen, onClose, pdvId }: Prod
                 <span className="text-sm font-normal text-muted-foreground">/{productData.maxCapacity}</span>
               </p>
               <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                <div 
-                  className={cn(
-                    'h-full transition-all rounded-full',
-                    percentage <= 20 && 'bg-destructive',
-                    percentage > 20 && percentage <= 50 && 'bg-orange-500',
-                    percentage > 50 && percentage <= 70 && 'bg-yellow-500',
-                    percentage > 70 && 'bg-green-500'
-                  )}
-                  style={{ width: `${percentage}%` }}
-                />
+                {(() => {
+                  // Calcula uma quantidade representativa para determinar o status visual
+                  const representativeQty = Math.round((percentage / 100) * MAX_CAPACITY);
+                  const visualStatus = getSlotVisualStatus(representativeQty, true);
+                  return (
+                    <div 
+                      className={cn(
+                        'h-full transition-all rounded-full',
+                        slotBlockColors[visualStatus]
+                      )}
+                      style={{ width: `${percentage}%` }}
+                    />
+                  );
+                })()}
               </div>
             </div>
 

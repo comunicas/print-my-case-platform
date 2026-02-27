@@ -147,7 +147,7 @@ export function useProductStock() {
       suggestions: productSuggestions,
       filteredSlots: slotsFiltered,
     };
-  }, [slots, salesByProduct, filters]);
+  }, [slots, salesByProduct, filters.searchTerm, filters.brandFilter, filters.statusFilter, filters.salesIndexFilter]);
   
   const refetch = async () => {
     await Promise.all([refetchSlots(), refetchSales()]);
