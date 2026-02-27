@@ -7,6 +7,7 @@ import { OrgDetailDialog } from "@/components/settings/OrgDetailDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SearchFilter } from "@/components/ui/SearchFilter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -34,7 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building2, Plus, Search, Users, Store, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Building2, Plus, Users, Store, Pencil, Trash2, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -170,15 +171,12 @@ export default function Organizations() {
         </div>
 
         {/* Search */}
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nome, CNPJ ou email..."
-            className="pl-10"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+        <SearchFilter
+          value={searchTerm}
+          onChange={setSearchTerm}
+          placeholder="Buscar por nome, CNPJ ou email..."
+          className="max-w-md"
+        />
 
         {/* Organizations Grid */}
         {isLoading ? (

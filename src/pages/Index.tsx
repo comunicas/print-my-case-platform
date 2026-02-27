@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, lazy, Suspense, useCallback } from "react";
+import { useMemo, lazy, Suspense, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useActiveOrg } from "@/contexts/ActiveOrgContext";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -23,6 +23,7 @@ import { useDashboard } from "@/hooks/useDashboard";
 import { useDashboardDataRange } from "@/hooks/useDashboardDataRange";
 import { usePDVs } from "@/hooks/usePDVs";
 import { useSlotsData } from "@/hooks/useSlotsData";
+import { useDefaultPdvPreference } from "@/hooks/useDefaultPdvPreference";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 import { formatCurrency } from "@/lib/utils";
@@ -30,6 +31,7 @@ import { calculateTrend } from "@/lib/trendUtils";
 import { getLowStockItems } from "@/lib/dashboardUtils";
 import { getDateRangeFromPeriod, type DateRange } from "@/lib/utils/date-presets";
 import { PDVFilter } from "@/components/ui/PDVFilter";
+import { FilterBar } from "@/components/ui/FilterBar";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
@@ -87,7 +89,7 @@ const dateRangeSerializers = {
 
 export default function Index() {
   const navigate = useNavigate();
-  const { preferences, isLoading: isLoadingPreferences } = usePreferences();
+  const { preferences } = usePreferences();
   const { activeOrgId } = useActiveOrg();
   
   const [dateRange, setDateRange, clearDateRange] = useLocalStorageState<DateRange>(
@@ -95,10 +97,6 @@ export default function Index() {
     () => getDateRangeFromPeriod("30days"),
     dateRangeSerializers,
   );
-  const [selectedPdvId, setSelectedPdvId] = useState<string>("all");
-  const [pdvWasAutoApplied, setPdvWasAutoApplied] = useState(false);
-  const [prefsInitialized, setPrefsInitialized] = useState(false);
-  const [consolidatedOpen, setConsolidatedOpen] = useLocalStorageState('dashboard-consolidated-open', true);
 
   // Use activeOrgId from context for all users (unified via header OrgSwitcher)
   const effectiveOrgId = activeOrgId ?? undefined;
@@ -106,38 +104,13 @@ export default function Index() {
   const { pdvs = [], isLoading: pdvsLoading } = usePDVs({ 
     organizationId: effectiveOrgId
   });
-  
-  // Initialize from preferences once they load
-  useEffect(() => {
-    if (!prefsInitialized && preferences && !isLoadingPreferences && !pdvsLoading) {
-      const hasSavedRange = !!localStorage.getItem('dashboard-date-range');
-      if (!hasSavedRange) {
-        setDateRange(getDateRangeFromPeriod(preferences.default_period));
-      }
-      
-      if (preferences.default_pdv) {
-        const pdvExists = pdvs.some(p => p.id === preferences.default_pdv);
-        if (pdvExists) {
-          setSelectedPdvId(preferences.default_pdv);
-          setPdvWasAutoApplied(true);
-        }
-      }
-      setPrefsInitialized(true);
-    }
-  }, [preferences, prefsInitialized, isLoadingPreferences, pdvs, pdvsLoading, setDateRange]);
-  
-  const handlePdvChange = (value: string) => {
-    setSelectedPdvId(value);
-    setPdvWasAutoApplied(false);
-  };
 
-  // Reset PDV when active org changes (header switcher)
-  useEffect(() => {
-    if (activeOrgId) {
-      setSelectedPdvId("all");
-      setPdvWasAutoApplied(false);
-    }
-  }, [activeOrgId]);
+  const { 
+    selectedPdvId, 
+    setSelectedPdvId: handlePdvChange, 
+    wasAutoApplied: pdvWasAutoApplied 
+  } = useDefaultPdvPreference({ pdvs, isLoading: pdvsLoading });
+  const [consolidatedOpen, setConsolidatedOpen] = useLocalStorageState('dashboard-consolidated-open', true);
   
   const isMobile = useIsMobile();
 
@@ -270,7 +243,7 @@ export default function Index() {
         </div>
 
         {/* Filters Bar */}
-        <div data-testid="dashboard-filters" className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+        <FilterBar>
           <DateRangeFilter
             dateRange={dateRange}
             onDateRangeChange={setDateRange}
@@ -289,7 +262,7 @@ export default function Index() {
             pdvs={pdvs}
             showAutoAppliedBadge={pdvWasAutoApplied}
           />
-        </div>
+        </FilterBar>
 
         {/* Empty State */}
         {!hasData && (
