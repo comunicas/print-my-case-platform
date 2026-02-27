@@ -41,9 +41,19 @@ export function getSlotVisualStatus(quantity: number, isActive: boolean = true):
  */
 export function getBlockColorClass(index: number, quantity: number, isActive: boolean = true): string {
   if (!isActive) return 'bg-muted/30';
-  if (index >= quantity) return 'bg-gray-200 dark:bg-gray-700'; // Bloco vazio - cinza claro visível
+  if (index >= quantity) return 'bg-gray-200 dark:bg-gray-700';
   
-  // Blocos preenchidos usam cores baseadas no status visual
   const status = getSlotVisualStatus(quantity, isActive);
   return slotBlockColors[status] || slotBlockColors.medium;
+}
+
+/**
+ * Retorna a classe de cor de fundo para o badge de quantidade no modo compacto
+ */
+export function getQuantityBadgeColor(quantity: number, isActive: boolean = true): string {
+  if (!isActive) return 'bg-muted';
+  if (quantity === 0) return 'bg-red-500';
+  if (quantity <= STOCK_THRESHOLDS.CRITICAL) return 'bg-orange-500';
+  if (quantity <= STOCK_THRESHOLDS.LOW) return 'bg-yellow-500';
+  return 'bg-green-500';
 }
