@@ -11,6 +11,8 @@ import { GRID_LAYOUT, COLUMN_HEADERS } from '@/lib/stockGridUtils';
 import { SLOT_DIMENSIONS, StockViewMode } from '@/lib/stockViewModes';
 import { useLocalStorageState } from '@/hooks/useLocalStorageState';
 import { KNOWN_BRANDS } from '@/lib/brandAssets';
+import { getExactProductKey } from '@/lib/productNormalization';
+import { MAX_CAPACITY } from '@/lib/stockGridUtils';
 import { useStockFilters } from '@/contexts/StockFiltersContext';
 import { useGridKeyboardNavigation, findNextSlot, getFirstSlot } from '@/hooks/useGridKeyboardNavigation';
 import { useSwipeGesture } from '@/hooks/useSwipeGesture';
@@ -78,6 +80,21 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
       map.set(slot.slot, slot);
     }
     return map;
+  }, [slots]);
+
+  // Calcula totais agregados por modelo (para indicador multi-slot)
+  const productTotals = useMemo(() => {
+    const totals = new Map<string, { totalQty: number; totalCapacity: number; slotCount: number }>();
+    for (const slot of slots) {
+      const key = getExactProductKey(slot.model ? `${slot.brand} ${slot.model}` : slot.brand);
+      const prev = totals.get(key) || { totalQty: 0, totalCapacity: 0, slotCount: 0 };
+      totals.set(key, {
+        totalQty: prev.totalQty + slot.quantity,
+        totalCapacity: prev.totalCapacity + MAX_CAPACITY,
+        slotCount: prev.slotCount + 1,
+      });
+    }
+    return totals;
   }, [slots]);
 
   // Set de slots filtrados para verificação rápida
@@ -293,7 +310,10 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
                       const isFiltered = hasFilter && !isInFilteredSlots;
                       const isFocused = focusedSlot === slotNumber;
                       
-                      return (
+                          const productKey = getExactProductKey(slotData.model ? `${slotData.brand} ${slotData.model}` : slotData.brand);
+                          const aggInfo = productTotals.get(productKey);
+                          
+                          return (
                         <div 
                           key={slotNumber} 
                           ref={(el) => registerSlotRef(slotNumber, el)}
@@ -309,6 +329,7 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
                             isFiltered={isFiltered}
                             isFocused={isFocused}
                             viewMode={viewMode}
+                            aggregateInfo={aggInfo && aggInfo.slotCount > 1 ? aggInfo : undefined}
                             onClick={() => handleSlotClick(slotData)}
                           />
                         </div>
