@@ -1,143 +1,67 @@
 
 
-# Componentizar e Simplificar Filtros - Plano Revisado
+# Corrigir Calendario de Periodo + Novos Presets
 
-## Diagnostico Completo
+## Problema 1: Calendario fecha ao primeiro clique
+Quando o popover abre, `calendarSelected` tem `from` e `to` preenchidos (o periodo atual). O react-day-picker v8 interpreta cliques sobre um range existente de formas inesperadas: pode enviar `{from: X, to: X}` (mesmo dia) no primeiro clique, e o codigo atual trata isso como selecao completa e fecha o popover.
 
-Auditoria de todas as paginas com filtros:
+## Problema 2: Presets incorretos
+- **Atual**: Hoje, 7d, 30d, 90d, Este mes, Mes passado
+- **Desejado**: Hoje, Ontem, Este mes, Mes anterior, Total
 
-| Pagina         | PDV            | Busca              | Selects extras       | Pref. PDV                | Limpar filtros |
-|----------------|----------------|--------------------|-----------------------|--------------------------|----------------|
-| Dashboard      | PDVFilter      | --                 | DateRangeFilter       | Manual (~20 linhas)      | Nao            |
-| Estoque        | PDVFilter (ctx)| Autocomplete       | Brand, Status, Sales, SaleStatus | StockFiltersContext | Sim (botao)    |
-| Uploads        | PDVFilter      | Input c/ icone     | Tipo, Status          | useDefaultPdvPreference  | Nao            |
-| Financeiro     | PDVFilter      | --                 | --                    | useDefaultPdvPreference  | Nao            |
-| Marketing      | PDVFilter      | --                 | --                    | useDefaultPdvPreference  | Nao            |
-| Organizacoes   | --             | Input c/ icone     | --                    | --                       | Nao            |
+## Solucao
 
-### Problemas encontrados
+### Correcao do calendario (`DateRangeFilter.tsx`)
 
-1. **Dashboard (Index.tsx)** - Unica pagina que NAO usa `useDefaultPdvPreference`, reimplementa a mesma logica em ~20 linhas (linhas 98-132)
-2. **Layout de filtros inconsistente** - Dashboard usa `flex-col sm:flex-row gap-3`, Uploads usa `flex-col gap-3 md:flex-row`, Estoque usa `flex-col sm:flex-row flex-wrap gap-2 sm:gap-3`
-3. **Busca duplicada** - Uploads e Organizacoes tem o mesmo padrao de `Input` com icone `Search` posicionado absolutamente (~6 linhas cada)
-4. **Select repetitivo** - Uploads tem 2 selects manuais (tipo/status) com ~20 linhas. Estoque tem 4 selects manuais com ~60 linhas
-5. **Sem botao "Limpar"** - Uploads e Dashboard nao tem botao para limpar filtros ativos
-6. **Organizacoes** - Pagina admin (super_admin only) com busca simples, mesmo padrao de Input+Search duplicado
+1. **Logica de selecao em dois cliques**: Mudar `handleCalendarSelect` para:
+   - Primeiro clique: SEMPRE setar `pendingFrom` e aguardar segundo clique. Ignorar o `to` que o react-day-picker envia.
+   - Segundo clique (quando `pendingFrom` ja existe): calcular from/to com `min/max` entre `pendingFrom` e o dia clicado, aplicar e fechar.
+   - Trocar `Calendar mode="range"` para usar `onDayClick` manual em vez de `onSelect`, garantindo controle total sobre a logica de dois cliques.
 
----
+2. **Visual de selecao pendente**: Enquanto o usuario clicou apenas a primeira data, destacar o dia selecionado no calendario usando `modifiers` + estilos customizados, e mostrar o range parcial nos inputs.
 
-## Plano Dividido em 3 Partes
+3. **Manter inputs manuais**: Os campos DD/MM/AAAA continuam funcionando, com a mesma logica de mascara e validacao.
 
-### Parte 1: Criar componentes base (sem quebrar nada)
+### Novos presets
 
-Criar 3 componentes reutilizaveis que encapsulam padroes repetidos. Nenhuma pagina e alterada nesta parte.
+Substituir os 6 presets atuais por 5 novos:
 
-**Arquivo: `src/components/ui/FilterBar.tsx`**
-Wrapper de layout para barras de filtro. Padroniza espacamento, responsividade e botao "Limpar".
+| Antes          | Depois         |
+|----------------|----------------|
+| Hoje           | Hoje           |
+| 7d             | Ontem          |
+| 30d            | Este mes       |
+| 90d            | Mes anterior   |
+| Este mes       | Total          |
+| Mes passado    | *(removido)*   |
 
-```
-Props:
-- children: ReactNode
-- onClear?: () => void
-- hasActiveFilters?: boolean
-```
+O preset **Total** usa a prop `dataRange` (min/max dos dados) para mostrar todo o periodo disponivel. Se `dataRange` nao estiver disponivel, o botao fica desabilitado.
 
-Renderiza `div` com `flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 items-stretch sm:items-center` + botao "Limpar" condicional.
+### Mudancas tecnicas detalhadas
 
-**Arquivo: `src/components/ui/SearchFilter.tsx`**
-Input de busca padrao com icone e debounce opcional.
+**`src/components/dashboard/DateRangeFilter.tsx`**:
 
-```
-Props:
-- value: string
-- onChange: (value: string) => void
-- placeholder?: string
-- debounceMs?: number (default 0, sem debounce)
-- className?: string
-```
+1. Substituir array `PRESETS` pelos novos 4 presets fixos (Hoje, Ontem, Este mes, Mes anterior) + botao Total separado (depende de `dataRange` prop)
 
-Encapsula o padrao `div.relative > Search icon + Input.pl-10` que aparece em Uploads e Organizacoes.
+2. Reescrever `handleCalendarSelect` / trocar para `onDayClick`:
+   - Sem `pendingFrom`: setar `pendingFrom = day`, atualizar `fromInput`
+   - Com `pendingFrom`: calcular `from = min(pendingFrom, day)`, `to = max(pendingFrom, day)`, aplicar `onDateRangeChange`, limpar `pendingFrom`, fechar popover
 
-**Arquivo: `src/components/ui/SelectFilter.tsx`**
-Select generico para filtros.
+3. Ajustar `calendarSelected` para usar `modifiers` quando em modo de selecao pendente (destacar dia selecionado sem renderizar range)
 
-```
-Props:
-- value: string
-- onChange: (value: string) => void
-- placeholder: string
-- options: Array<{ value: string; label: string; icon?: ReactNode }>
-- className?: string
-- triggerClassName?: string
-- testId?: string
-```
+4. Remover o botao "Ver tudo" da area de info (ja estara como preset "Total")
 
-Encapsula `Select > SelectTrigger > SelectContent > SelectItems` que se repete em Estoque e Uploads.
+5. Manter: inputs manuais, navegacao mes/ano, hint "Selecione a data final", display de periodo com dias
 
-### Parte 2: Refatorar paginas existentes
+**`src/lib/utils/date-presets.ts`**: Atualizar `datePresets` array para refletir os novos presets (usado em outras partes da aplicacao se referenciado)
 
-Substituir codigo duplicado pelos novos componentes, pagina por pagina.
+### Arquivos alterados
+| Arquivo | Acao |
+|---------|------|
+| `src/components/dashboard/DateRangeFilter.tsx` | Editar (presets + logica calendario) |
+| `src/lib/utils/date-presets.ts` | Editar (atualizar presets) |
 
-**2a. `src/pages/Index.tsx` - Unificar preferencia PDV**
-- Substituir linhas 98-132 (estado manual + useEffect + handler) por `useDefaultPdvPreference`
-- Envolver filtros (DateRangeFilter + PDVFilter) com `FilterBar`
-- Manter DateRangeFilter e PDVFilter como estao (sao especializados)
-- Reducao: ~20 linhas removidas
-
-**2b. `src/pages/Uploads.tsx` - Usar novos componentes**
-- Substituir Input+Search (linhas 205-213) por `SearchFilter`
-- Substituir selects de tipo e status (linhas 224-245) por 2x `SelectFilter`
-- Envolver tudo com `FilterBar` incluindo botao "Limpar"
-- Adicionar logica `hasActiveFilters` (searchQuery ou filterType ou filterStatus diferente de default)
-- Reducao: ~25 linhas removidas
-
-**2c. `src/components/stock/StockFilters.tsx` - Usar SelectFilter**
-- Substituir os 4 selects manuais (Brand, Status, SalesIndex, SaleStatus) por `SelectFilter`
-- Envolver com `FilterBar` (que ja inclui o botao Limpar)
-- Manter `ProductSearchAutocomplete` e `PDVFilter` como estao
-- Manter tooltip do SaleStatus como esta (caso especial)
-- Reducao: ~50 linhas removidas
-
-**2d. `src/pages/Organizations.tsx` - Usar SearchFilter**
-- Substituir Input+Search (linhas 173-180) por `SearchFilter`
-- Reducao: ~5 linhas removidas
-
-### Parte 3: Consistencia em Financeiro e Marketing
-
-**3a. `src/pages/Financeiro.tsx`**
-- Sem mudancas — ja usa PDVFilter e useDefaultPdvPreference corretamente. Layout e simples (PDV + botao) e nao precisa de FilterBar.
-
-**3b. `src/pages/Marketing.tsx`**
-- Sem mudancas — mesmo caso do Financeiro. PDVFilter isolado no header, sem necessidade de wrapper.
-
----
-
-## O que NAO muda
-
-- `PDVFilter` — componente maduro com logica de Auto badge e favoritos
-- `DateRangeFilter` — componente especializado com calendario, presets e inputs manuais
-- `ProductSearchAutocomplete` — autocomplete com sugestoes de produto
-- `StockFiltersContext` — contexto com estado interdependente dos filtros
-- `useDefaultPdvPreference` — hook reutilizado, apenas Dashboard passa a usa-lo
-- `PublicBrandFilter` — pagina publica com design diferente
-
-## Resumo de arquivos
-
-| Acao    | Arquivo                                   | Parte |
-|---------|-------------------------------------------|-------|
-| Criar   | `src/components/ui/FilterBar.tsx`         | 1     |
-| Criar   | `src/components/ui/SearchFilter.tsx`      | 1     |
-| Criar   | `src/components/ui/SelectFilter.tsx`      | 1     |
-| Editar  | `src/pages/Index.tsx`                     | 2a    |
-| Editar  | `src/pages/Uploads.tsx`                   | 2b    |
-| Editar  | `src/components/stock/StockFilters.tsx`   | 2c    |
-| Editar  | `src/pages/Organizations.tsx`             | 2d    |
-
-## Beneficios
-
-- ~100 linhas de codigo duplicado removidas
-- Layout de filtros padronizado em todas as paginas
-- Botao "Limpar filtros" disponivel onde faltava (Uploads)
-- Dashboard usando o mesmo hook de preferencia PDV que as outras paginas
-- Novos filtros em qualquer pagina futura levam 3 linhas em vez de 15
+### Sem alteracao em
+- `Index.tsx`, `MarketingAnalytics.tsx`, `CatalogLeadsSettings.tsx` — consomem `DateRangeFilter` sem mudanca de API
+- `Calendar.tsx` — componente base nao precisa mudar
 
