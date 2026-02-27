@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { MAX_CAPACITY, getBlockColorClass } from '@/lib/stockGridUtils';
+import { MAX_CAPACITY, getBlockColorClass, getQuantityBadgeColor } from '@/lib/stockGridUtils';
 import { SLOT_DIMENSIONS, StockViewMode } from '@/lib/stockViewModes';
 
 interface SlotStackProps {
@@ -69,6 +69,16 @@ export const SlotStack = React.memo(function SlotStack({
             ))}
           </div>
           
+          {/* Badge de quantidade (apenas modo compacto) */}
+          {viewMode === 'compact' && (
+            <span className={cn(
+              'text-[7px] sm:text-[8px] font-bold text-white rounded-full px-1 leading-normal',
+              getQuantityBadgeColor(quantity, isActive)
+            )}>
+              {quantity}/{MAX_CAPACITY}
+            </span>
+          )}
+
           {/* Número do slot */}
           <span className={cn(
             'text-muted-foreground font-semibold mt-0.5',
