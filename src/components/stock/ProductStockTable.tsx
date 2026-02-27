@@ -17,6 +17,7 @@ import { productActionLabels, productActionColors, salesIndexLabels, salesIndexC
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useProductModal } from '@/contexts/ProductModalContext';
 import { useStockFilters } from '@/contexts/StockFiltersContext';
+import { DataPagination } from '@/components/ui/data-pagination';
 import { cn } from '@/lib/utils';
 
 interface ProductStockTableProps {
@@ -294,29 +295,16 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Mostrando {page * pageSize + 1}-{Math.min((page + 1) * pageSize, products.length)} de {products.length}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(p => Math.max(0, p - 1))}
-              disabled={page === 0}
-            >
-              Anterior
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-              disabled={page >= totalPages - 1}
-            >
-              Próximo
-            </Button>
-          </div>
-        </div>
+        <DataPagination
+          page={page + 1}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalCount={products.length}
+          hasNextPage={page < totalPages - 1}
+          hasPrevPage={page > 0}
+          onPageChange={(p) => setPage(p - 1)}
+          showPageSizeSelector={false}
+        />
       )}
     </div>
     </TooltipProvider>

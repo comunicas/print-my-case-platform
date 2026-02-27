@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { GRID_LAYOUT, COLUMN_HEADERS } from '@/lib/stockGridUtils';
+import { GRID_LAYOUT, COLUMN_HEADERS, MAX_CAPACITY } from '@/lib/stockGridUtils';
 import { SLOT_DIMENSIONS, StockViewMode } from '@/lib/stockViewModes';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -9,7 +9,7 @@ interface StockGridSkeletonProps {
 
 function SlotSkeleton({ viewMode, delay }: { viewMode: StockViewMode; delay: number }) {
   const dimensions = SLOT_DIMENSIONS[viewMode];
-  const blocks = Array.from({ length: 10 }, (_, i) => i);
+  const blocks = Array.from({ length: MAX_CAPACITY }, (_, i) => i);
   
   return (
     <div 

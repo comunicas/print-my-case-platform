@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback, RefObject } from 'react';
 import { Maximize2, X, Minimize2, Expand, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { SlotStack, EmptySlot } from './SlotStack';
+import { SlotStack } from './SlotStack';
 import { StockLegend } from './StockLegend';
 import { SlotDetailModal } from './SlotDetailModal';
 import { StockGridSkeleton } from './StockGridSkeleton';

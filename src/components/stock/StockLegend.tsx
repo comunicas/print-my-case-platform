@@ -1,8 +1,12 @@
 import { BrandLogo } from '@/components/ui/BrandLogo';
+import { slotBlockColors, slotVisualLabels } from '@/lib/stockLabels';
+import type { SlotVisualStatus } from '@/lib/stockTypes';
 
 interface StockLegendProps {
   brands?: string[];
 }
+
+const LEGEND_STATUSES: SlotVisualStatus[] = ['full', 'medium', 'critical', 'empty', 'inactive'];
 
 export function StockLegend({ brands = [] }: StockLegendProps) {
   return (
@@ -13,26 +17,12 @@ export function StockLegend({ brands = [] }: StockLegendProps) {
           Níveis:
         </span>
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-green-500" />
-            <span className="text-xs text-muted-foreground">Cheio</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-yellow-500" />
-            <span className="text-xs text-muted-foreground">Médio</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-orange-500" />
-            <span className="text-xs text-muted-foreground">Baixo</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-destructive" />
-            <span className="text-xs text-muted-foreground">Vazio</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-gray-200 dark:bg-gray-700" />
-            <span className="text-xs text-muted-foreground">Inativo</span>
-          </div>
+          {LEGEND_STATUSES.map((status) => (
+            <div key={status} className="flex items-center gap-1.5">
+              <div className={`w-3 h-3 rounded-sm ${slotBlockColors[status]}`} />
+              <span className="text-xs text-muted-foreground">{slotVisualLabels[status].label}</span>
+            </div>
+          ))}
         </div>
       </div>
 
