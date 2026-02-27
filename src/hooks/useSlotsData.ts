@@ -41,7 +41,7 @@ export function useSlotsData({ pdvId, allowedPdvIds }: UseSlotsDataParams = {}) 
           const pdvData = record.pdvs as { name: string } | null;
           return {
             id: record.id,
-            slot: record.slot_number,
+            slot: String(record.slot_number).padStart(2, '0'),
             productName: record.product_name,
             brand: extractBrandFromProductName(record.product_name),
             model: extractModelFromProductName(record.product_name),
