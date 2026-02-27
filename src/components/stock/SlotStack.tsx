@@ -136,11 +136,3 @@ export const SlotStack = React.memo(function SlotStack({
     </Tooltip>
   );
 });
-
-// Componente para slot vazio (sem produto)
-export function EmptySlot({ viewMode = 'expanded' }: { viewMode?: StockViewMode }) {
-  const dimensions = SLOT_DIMENSIONS[viewMode];
-  return (
-    <div className={cn(dimensions.slot, dimensions.height)} />
-  );
-}

@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { SlotData } from '@/lib/stockUtils';
 import { getSlotVisualStatus, MAX_CAPACITY, getBlockColorClass } from '@/lib/stockGridUtils';
-import { slotVisualLabels } from '@/lib/stockLabels';
+import { slotVisualLabels, slotBlockColors } from '@/lib/stockLabels';
 import { cn } from '@/lib/utils';
 import { Package, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useProductModal } from '@/contexts/ProductModalContext';
@@ -209,10 +209,7 @@ export function SlotDetailModal({
               <div 
                 className={cn(
                   'h-full transition-all rounded-full',
-                  slot.quantity === 0 && 'bg-destructive',
-                  slot.quantity > 0 && slot.quantity <= 2 && 'bg-orange-500',
-                  slot.quantity > 2 && slot.quantity <= 5 && 'bg-yellow-500',
-                  slot.quantity > 5 && 'bg-green-500'
+                  slotBlockColors[status]
                 )}
                 style={{ width: `${percentage}%` }}
               />
