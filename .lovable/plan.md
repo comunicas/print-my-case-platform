@@ -1,33 +1,33 @@
 
-
-# Remover Filtro de Organização Redundante do Dashboard
+# Auto-selecionar PDV unico e ocultar filtro desnecessario
 
 ## Problema
-
-Super admins veem dois seletores de organização:
-1. **OrgSwitcher no header** (via ActiveOrgContext) - controla a org ativa globalmente
-2. **Filtro "Todas as organizações" na barra de filtros do Dashboard** - controla apenas o dashboard com estado local proprio
-
-Eles operam independentemente, causando confusao. Alem disso, o dashboard ignora o OrgSwitcher do header para super_admins.
+Quando a organizacao tem apenas 1 PDV cadastrado, o filtro mostra "Todos os PDVs" como opcao, mas o resultado e identico ao de selecionar o unico PDV. Isso adiciona complexidade visual sem valor.
 
 ## Solucao
-
-Unificar para usar apenas o OrgSwitcher do header. O dashboard passara a ler `activeOrgId` do contexto para todos os usuarios, incluindo super_admins.
+Quando `pdvs.length === 1`, o componente `PDVFilter` automaticamente:
+1. Chama `onChange` com o ID do unico PDV (auto-selecao)
+2. Oculta o seletor completamente, mostrando apenas o nome do PDV como texto estatico (sem interacao)
 
 ## Alteracoes
 
-### 1. `src/pages/Index.tsx`
+### 1. `src/components/ui/PDVFilter.tsx`
+- Adicionar `useEffect` que detecta quando `pdvs.length === 1` e `value !== pdvs[0].id`, chamando `onChange(pdvs[0].id)` automaticamente
+- Quando `pdvs.length <= 1`, renderizar apenas o nome do PDV como texto (sem Select, sem botoes de favorito)
+- Manter o Select completo apenas quando `pdvs.length > 1`
 
-- Remover o import e uso de `useOrganizations` (era usado apenas para o filtro local de org)
-- Remover os estados `selectedOrgId` e o handler `handleOrgChange`
-- Remover todo o bloco JSX do filtro de organizacao (Select + botao RefreshCw)
-- Remover imports nao utilizados: `Building2`, `RefreshCw`, `Select`, `SelectContent`, `SelectItem`, `SelectTrigger`, `SelectValue`
-- Simplificar `effectiveOrgId`: usar `activeOrgId` do contexto para todos os usuarios (remover a condicao `isSuperAdmin ? selectedOrgId : ...`)
-- Remover `isSuperAdmin` do hook `useOrganizations` (nao sera mais necessario no dashboard)
+### 2. `src/contexts/StockFiltersContext.tsx`
+- Nenhuma alteracao necessaria — o contexto ja aceita qualquer valor de PDV
 
-### Resultado
+### 3. Testes
+- Atualizar `src/components/ui/__tests__/PDVFilter.test.tsx` com caso de teste para PDV unico: verificar que `onChange` e chamado com o ID do PDV e que o Select nao e renderizado
 
-- Super admins usam **apenas o OrgSwitcher do header** para trocar de organizacao
-- A troca de org no header automaticamente atualiza o Dashboard, Financeiro e todas as outras paginas
-- Zero impacto para usuarios nao-admin (ja usavam o header switcher)
+## Detalhes tecnicos
 
+```text
+pdvs.length > 1:   [Select: Todos os PDVs | PDV A | PDV B] + botoes favorito
+pdvs.length === 1: "PDV A" (texto simples, sem interacao)
+pdvs.length === 0: nada renderizado
+```
+
+O `useEffect` de auto-selecao garante que paginas que dependem do `selectedPdv` (Dashboard, Financeiro, Marketing, Uploads, Estoque) recebam o ID correto mesmo sem interacao do usuario.
