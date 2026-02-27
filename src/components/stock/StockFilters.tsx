@@ -1,12 +1,4 @@
-import { X, Info } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Info } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -19,6 +11,9 @@ import { BrandLogo } from '@/components/ui/BrandLogo';
 import { KNOWN_BRANDS } from '@/lib/brandAssets';
 import { ProductSearchAutocomplete, ProductSuggestion } from './ProductSearchAutocomplete';
 import { PDVFilter } from '@/components/ui/PDVFilter';
+import { FilterBar } from '@/components/ui/FilterBar';
+import { SelectFilter, type SelectFilterOption } from '@/components/ui/SelectFilter';
+import { useMemo } from 'react';
 
 interface StockFiltersProps {
   brands?: string[];
@@ -46,8 +41,39 @@ export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockF
   
   const { pdvs = [] } = usePDVs();
 
+  const brandOptions = useMemo<SelectFilterOption[]>(() => [
+    { value: 'all', label: 'Todas as marcas' },
+    ...brands.map((brand) => ({
+      value: brand,
+      label: brand,
+      icon: <BrandLogo brand={brand} size="xs" showTooltip={false} />,
+    })),
+  ], [brands]);
+
+  const statusOptions: SelectFilterOption[] = [
+    { value: 'all', label: 'Todos os status' },
+    { value: 'ok', label: 'Ok', icon: <span className="w-2 h-2 rounded-full bg-green-500" /> },
+    { value: 'redistribute', label: 'Redistribuir', icon: <span className="w-2 h-2 rounded-full bg-orange-500" /> },
+    { value: 'restock', label: 'Repor', icon: <span className="w-2 h-2 rounded-full bg-destructive" /> },
+  ];
+
+  const salesIndexOptions: SelectFilterOption[] = [
+    { value: 'all', label: 'Todas as vendas' },
+    { value: 'high', label: 'Alta' },
+    { value: 'medium', label: 'Média' },
+    { value: 'low', label: 'Baixa' },
+    { value: 'none', label: 'Nenhuma' },
+  ];
+
+  const saleStatusOptions: SelectFilterOption[] = [
+    { value: 'completed', label: 'Concluídas', icon: <span className="w-2 h-2 rounded-full bg-green-500" /> },
+    { value: 'cancelled', label: 'Canceladas', icon: <span className="w-2 h-2 rounded-full bg-destructive" /> },
+    { value: 'refunded', label: 'Reembolsadas', icon: <span className="w-2 h-2 rounded-full bg-orange-500" /> },
+    { value: 'all', label: 'Todas', icon: <span className="w-2 h-2 rounded-full bg-muted-foreground" /> },
+  ];
+
   return (
-    <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 items-stretch sm:items-center">
+    <FilterBar hasActiveFilters={hasActiveFilters} onClear={clearFilters}>
       {/* PDV Select */}
       <PDVFilter
         value={selectedPdv}
@@ -67,98 +93,43 @@ export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockF
       </div>
 
       {/* Brand Filter */}
-      <Select value={brandFilter} onValueChange={setBrandFilter}>
-        <SelectTrigger className="w-full sm:w-[160px]">
-          <SelectValue placeholder="Marca" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Todas as marcas</SelectItem>
-          {brands.map((brand) => (
-            <SelectItem key={brand} value={brand}>
-              <div className="flex items-center gap-2">
-                <BrandLogo brand={brand} size="xs" showTooltip={false} />
-                <span>{brand}</span>
-              </div>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <SelectFilter
+        value={brandFilter}
+        onChange={setBrandFilter}
+        placeholder="Marca"
+        options={brandOptions}
+        triggerClassName="w-full sm:w-[160px]"
+      />
 
       {/* Status Filter */}
-      <Select value={statusFilter} onValueChange={setStatusFilter}>
-        <SelectTrigger className="w-full sm:w-[150px]">
-          <SelectValue placeholder="Status" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Todos os status</SelectItem>
-          <SelectItem value="ok">
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-500" />
-              Ok
-            </span>
-          </SelectItem>
-          <SelectItem value="redistribute">
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-orange-500" />
-              Redistribuir
-            </span>
-          </SelectItem>
-          <SelectItem value="restock">
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-destructive" />
-              Repor
-            </span>
-          </SelectItem>
-        </SelectContent>
-      </Select>
+      <SelectFilter
+        value={statusFilter}
+        onChange={setStatusFilter}
+        placeholder="Status"
+        options={statusOptions}
+        triggerClassName="w-full sm:w-[150px]"
+      />
 
       {/* Sales Index Filter */}
-      <Select value={salesIndexFilter} onValueChange={setSalesIndexFilter}>
-        <SelectTrigger className="w-full sm:w-[140px]" data-testid="sales-index-filter">
-          <SelectValue placeholder="Vendas" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Todas as vendas</SelectItem>
-          <SelectItem value="high">Alta</SelectItem>
-          <SelectItem value="medium">Média</SelectItem>
-          <SelectItem value="low">Baixa</SelectItem>
-          <SelectItem value="none">Nenhuma</SelectItem>
-        </SelectContent>
-      </Select>
+      <SelectFilter
+        value={salesIndexFilter}
+        onChange={setSalesIndexFilter}
+        placeholder="Vendas"
+        options={salesIndexOptions}
+        triggerClassName="w-full sm:w-[140px]"
+        testId="sales-index-filter"
+      />
 
       {/* Sale Status Filter */}
       <div className="flex items-center gap-1">
-        <Select value={saleStatusFilter} onValueChange={(v) => setSaleStatusFilter(v as SaleStatusFilter)}>
-          <SelectTrigger className="w-full sm:w-[160px]" data-testid="sale-status-filter">
-            <SelectValue placeholder="Status venda" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="completed">
-              <span className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-green-500" />
-                Concluídas
-              </span>
-            </SelectItem>
-            <SelectItem value="cancelled">
-              <span className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-destructive" />
-                Canceladas
-              </span>
-            </SelectItem>
-            <SelectItem value="refunded">
-              <span className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-orange-500" />
-                Reembolsadas
-              </span>
-            </SelectItem>
-            <SelectItem value="all">
-              <span className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-muted-foreground" />
-                Todas
-              </span>
-            </SelectItem>
-          </SelectContent>
-        </Select>
+        <SelectFilter
+          value={saleStatusFilter}
+          onChange={(v) => setSaleStatusFilter(v as SaleStatusFilter)}
+          placeholder="Status venda"
+          options={saleStatusOptions}
+          triggerClassName="w-full sm:w-[160px]"
+          testId="sale-status-filter"
+        />
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -173,14 +144,6 @@ export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockF
           </Tooltip>
         </TooltipProvider>
       </div>
-
-      {/* Clear Filters */}
-      {hasActiveFilters && (
-        <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full sm:w-auto" data-testid="clear-filters">
-          <X className="h-4 w-4 mr-1" />
-          Limpar
-        </Button>
-      )}
-    </div>
+    </FilterBar>
   );
 }

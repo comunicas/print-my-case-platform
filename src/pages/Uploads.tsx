@@ -5,14 +5,9 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { FilterBar } from "@/components/ui/FilterBar";
+import { SearchFilter } from "@/components/ui/SearchFilter";
+import { SelectFilter } from "@/components/ui/SelectFilter";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,7 +26,6 @@ import {
 } from "@/components/ui/tooltip";
 import {
   Plus,
-  Search,
   Trash2,
   FileSpreadsheet,
   Package,
@@ -201,50 +195,55 @@ export default function Uploads() {
         </div>
 
         {/* Filters Section */}
-        <div className="flex flex-col gap-3 md:flex-row md:items-center">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por arquivo, PDV ou período..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
+        <FilterBar
+          hasActiveFilters={searchQuery !== "" || filterPdv !== "all" || filterType !== "all" || filterStatus !== "all"}
+          onClear={() => {
+            setSearchQuery("");
+            handlePdvChange("all");
+            setFilterType("all");
+            setFilterStatus("all");
+          }}
+        >
+          <SearchFilter
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Buscar por arquivo, PDV ou período..."
+            className="flex-1"
+          />
 
-          <div className="flex gap-2 flex-wrap">
-            <PDVFilter
-              value={filterPdv}
-              onChange={handlePdvChange}
-              pdvs={pdvs}
-              showAutoAppliedBadge={pdvWasAutoApplied}
-              triggerClassName="w-[160px]"
-            />
+          <PDVFilter
+            value={filterPdv}
+            onChange={handlePdvChange}
+            pdvs={pdvs}
+            showAutoAppliedBadge={pdvWasAutoApplied}
+            triggerClassName="w-[160px]"
+          />
 
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-[130px]">
-                <SelectValue placeholder="Tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os tipos</SelectItem>
-                <SelectItem value="sales">Vendas</SelectItem>
-                <SelectItem value="stock">Estoque</SelectItem>
-              </SelectContent>
-            </Select>
+          <SelectFilter
+            value={filterType}
+            onChange={setFilterType}
+            placeholder="Tipo"
+            triggerClassName="w-[130px]"
+            options={[
+              { value: "all", label: "Todos os tipos" },
+              { value: "sales", label: "Vendas" },
+              { value: "stock", label: "Estoque" },
+            ]}
+          />
 
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os status</SelectItem>
-                <SelectItem value="ready">Processado</SelectItem>
-                <SelectItem value="processing">Processando</SelectItem>
-                <SelectItem value="error">Erro</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+          <SelectFilter
+            value={filterStatus}
+            onChange={setFilterStatus}
+            placeholder="Status"
+            triggerClassName="w-[140px]"
+            options={[
+              { value: "all", label: "Todos os status" },
+              { value: "ready", label: "Processado" },
+              { value: "processing", label: "Processando" },
+              { value: "error", label: "Erro" },
+            ]}
+          />
+        </FilterBar>
 
         {/* Uploads Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
