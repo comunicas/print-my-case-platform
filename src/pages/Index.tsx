@@ -2,9 +2,8 @@ import { useState, useEffect, useMemo, lazy, Suspense, useCallback } from "react
 import { useNavigate } from "react-router-dom";
 import { useActiveOrg } from "@/contexts/ActiveOrgContext";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   DollarSign, 
   ShoppingCart, 
@@ -13,16 +12,15 @@ import {
   Loader2,
   Upload,
   Building2,
-  RefreshCw,
   FileSpreadsheet,
   RotateCcw,
   Ban,
   ChevronDown,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { CardHeader, CardTitle } from "@/components/ui/card";
 import { useDashboard } from "@/hooks/useDashboard";
 import { useDashboardDataRange } from "@/hooks/useDashboardDataRange";
-import { useOrganizations } from "@/hooks/useOrganizations";
 import { usePDVs } from "@/hooks/usePDVs";
 import { useSlotsData } from "@/hooks/useSlotsData";
 import { usePreferences } from "@/hooks/usePreferences";
@@ -90,7 +88,6 @@ const dateRangeSerializers = {
 export default function Index() {
   const navigate = useNavigate();
   const { preferences, isLoading: isLoadingPreferences } = usePreferences();
-  const { organizations, isSuperAdmin, refetch: refetchOrgs, isFetching: isRefetchingOrgs } = useOrganizations();
   const { activeOrgId } = useActiveOrg();
   
   const [dateRange, setDateRange, clearDateRange] = useLocalStorageState<DateRange>(
@@ -100,12 +97,11 @@ export default function Index() {
   );
   const [selectedPdvId, setSelectedPdvId] = useState<string>("all");
   const [pdvWasAutoApplied, setPdvWasAutoApplied] = useState(false);
-  const [selectedOrgId, setSelectedOrgId] = useState<string>("all");
   const [prefsInitialized, setPrefsInitialized] = useState(false);
   const [consolidatedOpen, setConsolidatedOpen] = useLocalStorageState('dashboard-consolidated-open', true);
 
-  // For super admins, use their local org selector; for multi-org users, use activeOrgId from context
-  const effectiveOrgId = isSuperAdmin ? selectedOrgId : (activeOrgId ?? undefined);
+  // Use activeOrgId from context for all users (unified via header OrgSwitcher)
+  const effectiveOrgId = activeOrgId ?? undefined;
   
   const { pdvs = [], isLoading: pdvsLoading } = usePDVs({ 
     organizationId: effectiveOrgId
@@ -114,7 +110,6 @@ export default function Index() {
   // Initialize from preferences once they load
   useEffect(() => {
     if (!prefsInitialized && preferences && !isLoadingPreferences && !pdvsLoading) {
-      // Only apply default_period if user has no saved date range in localStorage
       const hasSavedRange = !!localStorage.getItem('dashboard-date-range');
       if (!hasSavedRange) {
         setDateRange(getDateRangeFromPeriod(preferences.default_period));
@@ -135,21 +130,14 @@ export default function Index() {
     setSelectedPdvId(value);
     setPdvWasAutoApplied(false);
   };
-  
-  // Reset PDV when organization changes (super admin selector)
-  const handleOrgChange = (value: string) => {
-    setSelectedOrgId(value);
-    setSelectedPdvId("all");
-    setPdvWasAutoApplied(false);
-  };
 
-  // Reset PDV when active org changes (multi-org switcher)
+  // Reset PDV when active org changes (header switcher)
   useEffect(() => {
-    if (!isSuperAdmin && activeOrgId) {
+    if (activeOrgId) {
       setSelectedPdvId("all");
       setPdvWasAutoApplied(false);
     }
-  }, [activeOrgId, isSuperAdmin]);
+  }, [activeOrgId]);
   
   const isMobile = useIsMobile();
 
@@ -212,7 +200,7 @@ export default function Index() {
 
   const criticalStockCount = lowStockItems.length;
 
-  // ── Loading state (render-based, not early return — preserves hooks order) ──
+  // ── Loading state ──────────────────────────────────────────────────────────
 
   if (isLoading) {
     return (
@@ -227,7 +215,7 @@ export default function Index() {
   const dashboardContent = (
     <div data-testid="dashboard-page" className="space-y-4 md:space-y-6">
         {/* Super Admin Consolidated View - Collapsible, before header */}
-        {isSuperAdmin && globalMetrics && (
+        {globalMetrics && (
           <Collapsible open={consolidatedOpen} onOpenChange={setConsolidatedOpen}>
             <Card data-testid="global-metrics-card" className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
               <CollapsibleTrigger asChild>
@@ -289,42 +277,11 @@ export default function Index() {
             dataRange={dashboardDataRange}
             onReset={() => {
               clearDateRange();
-              // After clearing, apply preference default if available
               if (preferences?.default_period) {
                 setDateRange(getDateRangeFromPeriod(preferences.default_period));
               }
             }}
           />
-          
-          {/* Organization Filter - Super Admin only */}
-          {isSuperAdmin && (
-            <div className="flex items-center gap-1">
-              <Select value={selectedOrgId} onValueChange={handleOrgChange}>
-                <SelectTrigger className="w-full sm:w-[200px]">
-                  <Building2 className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <SelectValue placeholder="Todas as organizações" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as organizações</SelectItem>
-                  {organizations.map((org) => (
-                    <SelectItem key={org.id} value={org.id}>
-                      {org.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 shrink-0"
-                onClick={() => refetchOrgs()}
-                disabled={isRefetchingOrgs}
-                title="Atualizar lista"
-              >
-                <RefreshCw className={`h-4 w-4 ${isRefetchingOrgs ? 'animate-spin' : ''}`} />
-              </Button>
-            </div>
-          )}
           
           <PDVFilter
             value={selectedPdvId}
@@ -351,7 +308,7 @@ export default function Index() {
           </Card>
         )}
 
-        {/* KPI Cards - 2 columns on mobile, 3 on sm, 6 on desktop */}
+        {/* KPI Cards */}
         <div data-testid="kpi-grid" className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2 md:gap-4">
           <KPICard
             testId="kpi-revenue"
@@ -431,12 +388,10 @@ export default function Index() {
         {/* Charts - Only show if there's data */}
         {hasData && (
           <div data-testid="charts-section" className="space-y-4">
-            {/* Sales by Day - Full Width */}
             <Suspense fallback={<ChartSkeleton />}>
               <SalesByDayChart data={data?.salesByDay || []} animationDelay={0} />
             </Suspense>
 
-            {/* Row 1: Heatmap + Top Products */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
               <Suspense fallback={<ChartSkeleton />}>
                 <SalesHeatmapChart data={data?.salesByHourAndDay || []} animationDelay={100} />
@@ -446,7 +401,6 @@ export default function Index() {
               </Suspense>
             </div>
 
-            {/* Row 2: Stock by Brand + Stock History */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
               <Suspense fallback={<ChartSkeleton />}>
                 <StockByBrandChart pdvId={effectivePdvId} animationDelay={200} />
@@ -460,7 +414,6 @@ export default function Index() {
               </Suspense>
             </div>
 
-            {/* Stock Alerts Table */}
             <StockAlertsTable data={lowStockItems} animationDelay={300} selectedPdvId={effectivePdvId} />
           </div>
         )}
