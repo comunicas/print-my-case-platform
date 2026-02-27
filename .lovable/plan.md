@@ -1,49 +1,33 @@
 
-# Corrigir Acesso Multi-Org para Super Admins
+
+# Remover Filtro de Organização Redundante do Dashboard
 
 ## Problema
 
-O super_admin nao consegue ver os dados do Boulevard Tatuape no Financeiro porque o **OrgSwitcher nao aparece** no header. O hook `useUserOrganizations` busca apenas:
-1. A organizacao propria do usuario (via `profiles.organization_id`)
-2. Acessos explicitos na tabela `user_org_access`
+Super admins veem dois seletores de organização:
+1. **OrgSwitcher no header** (via ActiveOrgContext) - controla a org ativa globalmente
+2. **Filtro "Todas as organizações" na barra de filtros do Dashboard** - controla apenas o dashboard com estado local proprio
 
-Como o super_admin nao tem registro em `user_org_access` para a org HB Solucoes Digitais, `hasMultipleOrgs` retorna `false` e o switcher fica oculto.
+Eles operam independentemente, causando confusao. Alem disso, o dashboard ignora o OrgSwitcher do header para super_admins.
 
 ## Solucao
 
-Alterar o hook `useUserOrganizations` (`src/hooks/useUserOrganizations.ts`) para que super_admins vejam **todas as organizacoes** do sistema.
+Unificar para usar apenas o OrgSwitcher do header. O dashboard passara a ler `activeOrgId` do contexto para todos os usuarios, incluindo super_admins.
 
-### Alteracao no hook
+## Alteracoes
 
-Adicionar um passo intermediario entre buscar a org propria e buscar os grants:
+### 1. `src/pages/Index.tsx`
 
-```text
-// Se super_admin, buscar TODAS as organizacoes
-if (isSuperAdmin) {
-  const { data: allOrgs } = await supabase
-    .from("organizations")
-    .select("id, name")
-    .order("name");
-  
-  return (allOrgs ?? []).map(org => ({
-    id: org.id,
-    name: org.name,
-    accessLevel: org.id === profile.organization_id ? "owner" : "editor",
-  }));
-}
-```
+- Remover o import e uso de `useOrganizations` (era usado apenas para o filtro local de org)
+- Remover os estados `selectedOrgId` e o handler `handleOrgChange`
+- Remover todo o bloco JSX do filtro de organizacao (Select + botao RefreshCw)
+- Remover imports nao utilizados: `Building2`, `RefreshCw`, `Select`, `SelectContent`, `SelectItem`, `SelectTrigger`, `SelectValue`
+- Simplificar `effectiveOrgId`: usar `activeOrgId` do contexto para todos os usuarios (remover a condicao `isSuperAdmin ? selectedOrgId : ...`)
+- Remover `isSuperAdmin` do hook `useOrganizations` (nao sera mais necessario no dashboard)
 
-### Dependencia
+### Resultado
 
-O hook precisa saber se o usuario e super_admin. O `useProfile` ja expoe `isSuperAdmin`, entao basta importar e usar.
+- Super admins usam **apenas o OrgSwitcher do header** para trocar de organizacao
+- A troca de org no header automaticamente atualiza o Dashboard, Financeiro e todas as outras paginas
+- Zero impacto para usuarios nao-admin (ja usavam o header switcher)
 
-### Arquivos a alterar
-
-1. **`src/hooks/useUserOrganizations.ts`** - Adicionar busca de todas as orgs quando `isSuperAdmin` for true. Usar `useProfile().isSuperAdmin` para a verificacao.
-
-### Impacto
-
-- O OrgSwitcher passara a aparecer no header para super_admins
-- Ao trocar para HB Solucoes Digitais, o Financeiro mostrara os dados do Boulevard Tatuape
-- Nenhuma alteracao de banco necessaria
-- Nenhum impacto em usuarios que nao sao super_admin
