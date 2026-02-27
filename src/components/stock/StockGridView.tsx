@@ -330,7 +330,8 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
                             isFocused={isFocused}
                             viewMode={viewMode}
                             aggregateInfo={aggInfo && aggInfo.slotCount > 1 ? aggInfo : undefined}
-                            onClick={() => handleSlotClick(slotData)}
+                            slotData={slotData}
+                            onSlotClick={handleSlotClick}
                           />
                         </div>
                       );

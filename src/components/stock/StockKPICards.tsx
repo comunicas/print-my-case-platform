@@ -1,3 +1,4 @@
+import React from 'react';
 import { Package, Boxes, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { StockKPIs } from '@/lib/stockUtils';
@@ -7,7 +8,7 @@ interface StockKPICardsProps {
   isLoading?: boolean;
 }
 
-export function StockKPICards({ kpis, isLoading }: StockKPICardsProps) {
+export const StockKPICards = React.memo(function StockKPICards({ kpis, isLoading }: StockKPICardsProps) {
   const cards = [
     {
       title: 'Total Produtos',
@@ -63,4 +64,4 @@ export function StockKPICards({ kpis, isLoading }: StockKPICardsProps) {
       ))}
     </div>
   );
-}
+});

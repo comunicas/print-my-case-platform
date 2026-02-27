@@ -15,6 +15,28 @@ import { FilterBar } from '@/components/ui/FilterBar';
 import { SelectFilter, type SelectFilterOption } from '@/components/ui/SelectFilter';
 import { useMemo } from 'react';
 
+const STATUS_OPTIONS: SelectFilterOption[] = [
+  { value: 'all', label: 'Todos os status' },
+  { value: 'ok', label: 'Ok', icon: <span className="w-2 h-2 rounded-full bg-green-500" /> },
+  { value: 'redistribute', label: 'Redistribuir', icon: <span className="w-2 h-2 rounded-full bg-orange-500" /> },
+  { value: 'restock', label: 'Repor', icon: <span className="w-2 h-2 rounded-full bg-destructive" /> },
+];
+
+const SALES_INDEX_OPTIONS: SelectFilterOption[] = [
+  { value: 'all', label: 'Todas as vendas' },
+  { value: 'high', label: 'Alta' },
+  { value: 'medium', label: 'Média' },
+  { value: 'low', label: 'Baixa' },
+  { value: 'none', label: 'Nenhuma' },
+];
+
+const SALE_STATUS_OPTIONS: SelectFilterOption[] = [
+  { value: 'completed', label: 'Concluídas', icon: <span className="w-2 h-2 rounded-full bg-green-500" /> },
+  { value: 'cancelled', label: 'Canceladas', icon: <span className="w-2 h-2 rounded-full bg-destructive" /> },
+  { value: 'refunded', label: 'Reembolsadas', icon: <span className="w-2 h-2 rounded-full bg-orange-500" /> },
+  { value: 'all', label: 'Todas', icon: <span className="w-2 h-2 rounded-full bg-muted-foreground" /> },
+];
+
 interface StockFiltersProps {
   brands?: string[];
   suggestions?: ProductSuggestion[];
@@ -50,27 +72,7 @@ export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockF
     })),
   ], [brands]);
 
-  const statusOptions: SelectFilterOption[] = [
-    { value: 'all', label: 'Todos os status' },
-    { value: 'ok', label: 'Ok', icon: <span className="w-2 h-2 rounded-full bg-green-500" /> },
-    { value: 'redistribute', label: 'Redistribuir', icon: <span className="w-2 h-2 rounded-full bg-orange-500" /> },
-    { value: 'restock', label: 'Repor', icon: <span className="w-2 h-2 rounded-full bg-destructive" /> },
-  ];
-
-  const salesIndexOptions: SelectFilterOption[] = [
-    { value: 'all', label: 'Todas as vendas' },
-    { value: 'high', label: 'Alta' },
-    { value: 'medium', label: 'Média' },
-    { value: 'low', label: 'Baixa' },
-    { value: 'none', label: 'Nenhuma' },
-  ];
-
-  const saleStatusOptions: SelectFilterOption[] = [
-    { value: 'completed', label: 'Concluídas', icon: <span className="w-2 h-2 rounded-full bg-green-500" /> },
-    { value: 'cancelled', label: 'Canceladas', icon: <span className="w-2 h-2 rounded-full bg-destructive" /> },
-    { value: 'refunded', label: 'Reembolsadas', icon: <span className="w-2 h-2 rounded-full bg-orange-500" /> },
-    { value: 'all', label: 'Todas', icon: <span className="w-2 h-2 rounded-full bg-muted-foreground" /> },
-  ];
+  // Arrays estáticos movidos para fora do componente (STATUS_OPTIONS, etc.)
 
   return (
     <FilterBar hasActiveFilters={hasActiveFilters} onClear={clearFilters}>
@@ -106,7 +108,7 @@ export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockF
         value={statusFilter}
         onChange={setStatusFilter}
         placeholder="Status"
-        options={statusOptions}
+        options={STATUS_OPTIONS}
         triggerClassName="w-full sm:w-[150px]"
       />
 
@@ -115,7 +117,7 @@ export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockF
         value={salesIndexFilter}
         onChange={setSalesIndexFilter}
         placeholder="Vendas"
-        options={salesIndexOptions}
+        options={SALES_INDEX_OPTIONS}
         triggerClassName="w-full sm:w-[140px]"
         testId="sales-index-filter"
       />
@@ -126,7 +128,7 @@ export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockF
           value={saleStatusFilter}
           onChange={(v) => setSaleStatusFilter(v as SaleStatusFilter)}
           placeholder="Status venda"
-          options={saleStatusOptions}
+          options={SALE_STATUS_OPTIONS}
           triggerClassName="w-full sm:w-[160px]"
           testId="sale-status-filter"
         />

@@ -4,6 +4,7 @@ import { BrandLogo } from '@/components/ui/BrandLogo';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { MAX_CAPACITY, getBlockColorClass, getQuantityBadgeColor } from '@/lib/stockGridUtils';
 import { SLOT_DIMENSIONS, StockViewMode } from '@/lib/stockViewModes';
+import type { SlotData } from '@/lib/stockUtils';
 
 interface AggregateInfo {
   totalQty: number;
@@ -22,7 +23,10 @@ interface SlotStackProps {
   isFocused?: boolean;
   viewMode?: StockViewMode;
   aggregateInfo?: AggregateInfo;
+  /** @deprecated Use slotData + onSlotClick instead */
   onClick?: () => void;
+  slotData?: SlotData;
+  onSlotClick?: (data: SlotData) => void;
 }
 
 export const SlotStack = React.memo(function SlotStack({
@@ -37,7 +41,16 @@ export const SlotStack = React.memo(function SlotStack({
   viewMode = 'expanded',
   aggregateInfo,
   onClick,
+  slotData,
+  onSlotClick,
 }: SlotStackProps) {
+  const handleClick = React.useCallback(() => {
+    if (slotData && onSlotClick) {
+      onSlotClick(slotData);
+    } else if (onClick) {
+      onClick();
+    }
+  }, [slotData, onSlotClick, onClick]);
   const blocks = Array.from({ length: MAX_CAPACITY }, (_, i) => i);
   const dimensions = SLOT_DIMENSIONS[viewMode];
   
@@ -45,7 +58,7 @@ export const SlotStack = React.memo(function SlotStack({
     <Tooltip>
       <TooltipTrigger asChild>
         <div
-          onClick={onClick}
+          onClick={handleClick}
           className={cn(
             'relative flex flex-col items-center gap-0.5 p-1 sm:p-1.5 rounded-lg cursor-pointer',
             'transition-all duration-300 ease-out',

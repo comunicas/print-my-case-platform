@@ -1,3 +1,4 @@
+import React from 'react';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { slotBlockColors, slotVisualLabels } from '@/lib/stockLabels';
 import type { SlotVisualStatus } from '@/lib/stockTypes';
@@ -8,7 +9,7 @@ interface StockLegendProps {
 
 const LEGEND_STATUSES: SlotVisualStatus[] = ['full', 'medium', 'critical', 'empty', 'inactive'];
 
-export function StockLegend({ brands = [] }: StockLegendProps) {
+export const StockLegend = React.memo(function StockLegend({ brands = [] }: StockLegendProps) {
   return (
     <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 py-3 px-4 border-t border-border/50">
       {/* Níveis de estoque */}
@@ -49,4 +50,4 @@ export function StockLegend({ brands = [] }: StockLegendProps) {
       )}
     </div>
   );
-}
+});
