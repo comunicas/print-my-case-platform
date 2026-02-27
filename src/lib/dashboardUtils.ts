@@ -458,12 +458,22 @@ export function getLossesByDay(
 /**
  * Exporta dados para Excel
  */
-export function exportToExcel(data: Record<string, string | number>[], filename: string) {
-  // Usa a lib xlsx já instalada
-  import('xlsx').then((XLSX) => {
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Dados");
-    XLSX.writeFile(wb, `${filename}.xlsx`);
-  });
+export async function exportToExcel(data: Record<string, string | number>[], filename: string) {
+  const ExcelJS = await import('exceljs');
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Dados");
+
+  if (data.length > 0) {
+    worksheet.columns = Object.keys(data[0]).map(key => ({ header: key, key }));
+    data.forEach(row => worksheet.addRow(row));
+  }
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${filename}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
