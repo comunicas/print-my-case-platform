@@ -1,37 +1,43 @@
 
 
-# Corrigir Slots do Andar 1 Nao Aparecendo no Mapa de Estoque
+# Indicadores Visuais de Quantidade no Modo Compacto
 
-## Problema Raiz
-
-Os slots 1-4 (andar 1) estao armazenados no banco como `"1"`, `"2"`, `"3"`, `"4"` (sem zero a esquerda), mas o layout do grid (`GRID_LAYOUT`) espera `"01"`, `"02"`, `"03"`, `"04"`. Quando o `slotMap.get("01")` e chamado, retorna `undefined` porque a chave real e `"1"`.
-
-Todos os outros slots (11-99) nao tem esse problema porque ja sao naturalmente 2 digitos.
-
-## Solucao
-
-Normalizar os numeros de slot para sempre ter 2 digitos (zero-padded) no ponto de entrada dos dados no frontend.
+## Objetivo
+No modo compacto, os blocos empilhados ficam muito pequenos e dificeis de interpretar rapidamente. Adicionar um badge numerico de quantidade sobre cada slot para leitura instantanea.
 
 ## Alteracoes
 
-### 1. `src/hooks/useSlotsData.ts`
-- Na transformacao dos registros (`map`), aplicar `padStart(2, '0')` ao `slot_number` antes de atribuir a `slot`
-- Isso garante que `"1"` vira `"01"`, `"2"` vira `"02"`, etc.
-- Slots que ja tem 2+ digitos nao sao afetados
+### 1. `src/components/stock/SlotStack.tsx`
+
+Adicionar um badge numerico (`quantity/MAX_CAPACITY`) visivel apenas no modo compacto, posicionado entre os blocos e o numero do slot. O badge tera cor de fundo baseada no status do estoque (critico, baixo, medio, cheio) para reforcar visualmente a urgencia.
 
 ```text
-Antes:  slot: record.slot_number        → "1", "2", "3", "4"
-Depois: slot: record.slot_number.padStart(2, '0') → "01", "02", "03", "04"
+Modo compacto atual:        Modo compacto novo:
+  [logo]                      [logo]
+  [blocos]                    [blocos]
+  [slot]                      [2/7]    ← badge colorido
+  [modelo]                    [slot]
+                              [modelo]
 ```
 
-### Impacto
+Cores do badge:
+- 0 unidades: vermelho (bg-red-500)
+- 1-2 unidades: laranja (bg-orange-500)
+- 3-5 unidades: amarelo (bg-yellow-500)
+- 6-7 unidades: verde (bg-green-500)
+- Inativo: cinza (bg-muted)
 
-- Corrige a renderizacao do andar 1 no mapa de estoque
-- A tabela de produtos e KPIs ja funcionam corretamente (agrupam por `product_name`, nao por `slot_number`)
-- Navegacao por teclado e modal de detalhe do slot passam a funcionar para slots 01-04
-- Nenhuma alteracao no banco de dados necessaria
+O badge sera um `span` com `text-[7px] sm:text-[8px]`, `font-bold`, `text-white`, `rounded-full`, `px-1`, renderizado condicionalmente quando `viewMode === 'compact'`.
 
-### Por que normalizar no frontend e nao no banco
+No modo expandido, nada muda — os blocos ja sao grandes o suficiente para leitura visual.
 
-O dado ja esta persistido como `"1"`-`"4"` em registros existentes. Alterar no banco exigiria migrar dados antigos. A normalizacao no `useSlotsData` e o ponto unico de entrada para o frontend, garantindo consistencia sem risco de quebrar integracao com a API ou planilha.
+### 2. `src/lib/stockGridUtils.ts`
+
+Adicionar uma funcao utilitaria `getQuantityBadgeColor(quantity, isActive)` que retorna a classe de cor do badge baseada nos thresholds existentes (`STOCK_THRESHOLDS`).
+
+### Resumo
+
+- 1 funcao nova em `stockGridUtils.ts`
+- 1 elemento JSX novo em `SlotStack.tsx` (condicional ao modo compacto)
+- Zero mudancas em dimensoes, layout ou outros componentes
 
