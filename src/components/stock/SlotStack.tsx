@@ -5,6 +5,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { MAX_CAPACITY, getBlockColorClass, getQuantityBadgeColor } from '@/lib/stockGridUtils';
 import { SLOT_DIMENSIONS, StockViewMode } from '@/lib/stockViewModes';
 
+interface AggregateInfo {
+  totalQty: number;
+  totalCapacity: number;
+  slotCount: number;
+}
+
 interface SlotStackProps {
   slot: string;
   brand: string;
@@ -15,6 +21,7 @@ interface SlotStackProps {
   isFiltered?: boolean;
   isFocused?: boolean;
   viewMode?: StockViewMode;
+  aggregateInfo?: AggregateInfo;
   onClick?: () => void;
 }
 
@@ -28,6 +35,7 @@ export const SlotStack = React.memo(function SlotStack({
   isFiltered = false,
   isFocused = false,
   viewMode = 'expanded',
+  aggregateInfo,
   onClick,
 }: SlotStackProps) {
   const blocks = Array.from({ length: MAX_CAPACITY }, (_, i) => i);
@@ -39,7 +47,7 @@ export const SlotStack = React.memo(function SlotStack({
         <div
           onClick={onClick}
           className={cn(
-            'flex flex-col items-center gap-0.5 p-1 sm:p-1.5 rounded-lg cursor-pointer',
+            'relative flex flex-col items-center gap-0.5 p-1 sm:p-1.5 rounded-lg cursor-pointer',
             'transition-all duration-300 ease-out',
             dimensions.slot,
             'group hover:scale-105 hover:shadow-md hover:bg-muted/50',
@@ -49,6 +57,13 @@ export const SlotStack = React.memo(function SlotStack({
             !isActive && 'opacity-50'
           )}
         >
+          {/* Badge xN para modelos em múltiplos slots */}
+          {aggregateInfo && (
+            <span className="absolute -top-1 -right-1 text-[7px] sm:text-[8px] font-bold bg-muted text-muted-foreground rounded-full px-1 leading-normal z-10">
+              x{aggregateInfo.slotCount}
+            </span>
+          )}
+          
           {/* Logo da marca no topo */}
           <div className="mb-0.5">
             <BrandLogo brand={brand} size="xs" showTooltip={false} />
@@ -99,7 +114,7 @@ export const SlotStack = React.memo(function SlotStack({
           </span>
         </div>
       </TooltipTrigger>
-      <TooltipContent side="top" className="max-w-[200px]">
+      <TooltipContent side="top" className="max-w-[220px]">
         <div className="flex items-center gap-2">
           <BrandLogo brand={brand} size="sm" showTooltip={false} />
           <div>
@@ -109,6 +124,14 @@ export const SlotStack = React.memo(function SlotStack({
             </p>
           </div>
         </div>
+        {aggregateInfo && (
+          <>
+            <div className="border-t border-border my-1.5" />
+            <p className="text-xs text-muted-foreground">
+              Total: {aggregateInfo.totalQty}/{aggregateInfo.totalCapacity} em {aggregateInfo.slotCount} slots
+            </p>
+          </>
+        )}
       </TooltipContent>
     </Tooltip>
   );
