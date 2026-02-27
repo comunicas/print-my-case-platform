@@ -1,83 +1,113 @@
 
 
-# Limpeza de Legados e Ajustes no Estoque (Tabela + Mapa)
+# Analise de Performance do Estoque + Proximos Passos do Projeto
 
-## Problemas Identificados
+## Parte 1: Performance da Pagina de Estoque
 
-| # | Local | Problema |
-|---|-------|----------|
-| 1 | `StockGridView.tsx` | `EmptySlot` importado mas nunca usado (codigo morto) |
-| 2 | `StockGridSkeleton.tsx` | Usa 10 blocos no skeleton, mas `MAX_CAPACITY` e 7 |
-| 3 | `ProductStockTable.tsx` | Paginacao manual (~25 linhas) quando existe `DataPagination` reutilizavel |
-| 4 | `StockLegend.tsx` | Cores de niveis hardcoded, duplicando `slotBlockColors` de `stockLabels.ts` |
-| 5 | `SlotDetailModal.tsx` | Barra de progresso com thresholds hardcoded em vez de usar `getSlotVisualStatus` |
-| 6 | `SlotStack.tsx` | Exporta `EmptySlot` que nao e usado por ninguem |
+### O que ja esta bem feito
+- `SlotStack` usa `React.memo` — evita re-render de ~40 slots quando apenas 1 muda
+- `slotMap`, `productTotals`, `filteredSlotNumbers` estao em `useMemo`
+- Handlers (`handleSlotClick`, `handleCloseModal`, `handleModalNavigate`) estao em `useCallback`
+- `useProductStock` usa `useMemo` para agregar/filtrar produtos
+- Queries com `staleTime: 5min` e `placeholderData` para evitar fetches desnecessarios
+
+### Problemas identificados
+
+| # | Problema | Impacto | Local |
+|---|---------|---------|-------|
+| 1 | **Inline arrow no onClick do SlotStack** | Cria nova funcao a cada render do grid, quebrando o `React.memo` do SlotStack. Com ~40 slots, sao ~40 funcoes novas a cada re-render | `StockGridView.tsx` L333 |
+| 2 | **`StockFilters` nao e memoizado** | Recria arrays `statusOptions`, `salesIndexOptions`, `saleStatusOptions` a cada render. Sao constantes que nao mudam | `StockFilters.tsx` L53-73 |
+| 3 | **`useProductStock` depende de `filters` objeto inteiro** | O `useMemo` principal (L86-150) tem `filters` como dependencia. Qualquer mudanca em qualquer filtro recalcula tudo, mesmo que o filtro alterado nao afete o calculo | `useProductStock.ts` L150 |
+| 4 | **`ProductDetailModal` hardcoda thresholds de cor** | Barra de progresso (L210-216) usa thresholds hardcoded `20/50/70` em vez de `slotBlockColors` centralizado | `ProductDetailModal.tsx` L210 |
+| 5 | **`StockKPICards` nao tem memo** | Componente leve mas re-renderiza com qualquer mudanca no parent | `StockKPICards.tsx` |
+
+### Solucoes propostas
+
+**1. Eliminar inline arrows no grid (maior impacto)**
+
+Criar um wrapper memoizado para cada slot que encapsula o `onClick` com `useCallback` + `slotData` no closure, ou passar `slotData` como prop e usar callback estavel:
+
+```typescript
+// Trocar onClick={() => handleSlotClick(slotData)} por:
+<SlotStack
+  ...
+  slotData={slotData}
+  onSlotClick={handleSlotClick}  // referencia estavel via useCallback
+/>
+```
+
+Atualizar `SlotStack` para receber `slotData` e chamar `onSlotClick(slotData)` internamente.
+
+**2. Mover arrays estaticos para fora do componente**
+
+```typescript
+// Fora do componente StockFilters:
+const STATUS_OPTIONS: SelectFilterOption[] = [...];
+const SALES_INDEX_OPTIONS: SelectFilterOption[] = [...];
+const SALE_STATUS_OPTIONS: SelectFilterOption[] = [...];
+```
+
+**3. Desestruturar filtros no useMemo**
+
+Trocar a dependencia `filters` por campos individuais:
+```typescript
+}, [slots, salesByProduct, filters.searchTerm, filters.brandFilter, filters.statusFilter, filters.salesIndexFilter]);
+```
+
+**4. Unificar barra de progresso no ProductDetailModal**
+
+Usar `getSlotVisualStatus` + `slotBlockColors` igual ao `SlotDetailModal` ja refatorado.
+
+**5. Memo no StockKPICards**
+
+Envolver com `React.memo` — componente puro, props simples.
+
+### Arquivos a editar (Performance)
+
+| Arquivo | Mudanca |
+|---------|---------|
+| `src/components/stock/StockGridView.tsx` | Remover inline arrows, passar slotData como prop |
+| `src/components/stock/SlotStack.tsx` | Aceitar `slotData` + `onSlotClick` props |
+| `src/components/stock/StockFilters.tsx` | Extrair arrays estaticos para fora |
+| `src/hooks/useProductStock.ts` | Desestruturar filtros nas dependencias do useMemo |
+| `src/components/stock/ProductDetailModal.tsx` | Usar slotBlockColors centralizado |
+| `src/components/stock/StockKPICards.tsx` | Adicionar React.memo |
+| `src/components/stock/StockLegend.tsx` | Adicionar React.memo |
 
 ---
 
-## Parte 1: Remover codigo morto
+## Parte 2: Proximos Passos de Refatoracao e UX
 
-**`src/components/stock/StockGridView.tsx`**
-- Remover import de `EmptySlot` (linha 4) — nao e usado
+Apos analisar todo o projeto, identifiquei as seguintes oportunidades organizadas por prioridade:
 
-**`src/components/stock/SlotStack.tsx`**
-- Remover export de `EmptySlot` (linhas 140-145) — componente morto, nunca usado
+### Alta Prioridade
 
----
+| # | Area | Melhoria |
+|---|------|---------|
+| A1 | **Console warning** | `StockHistoryChart` gera warning de ref em `CartesianGrid`. Provavelmente precisa remover ref ou usar `forwardRef` no wrapper do recharts |
+| A2 | **Testes unitarios** | `FilterBar`, `SearchFilter`, `SelectFilter` nao tem testes. Componentes base reutilizados em 4+ paginas precisam de cobertura |
 
-## Parte 2: Corrigir skeleton
+### Media Prioridade
 
-**`src/components/stock/StockGridSkeleton.tsx`**
-- Trocar `Array.from({ length: 10 })` por `Array.from({ length: MAX_CAPACITY })` (importar de `stockGridUtils`)
-- Garante que o skeleton mostra a mesma quantidade de blocos que o slot real
+| # | Area | Melhoria |
+|---|------|---------|
+| M1 | **Marketing page** | Unica pagina que ainda nao migrou para os componentes `FilterBar`/`SelectFilter`/`SearchFilter` — verificar e migrar |
+| M2 | **Settings page** | Mesma verificacao: `PDVsSettings`, `TeamSettings` podem ter filtros legados |
+| M3 | **Export Excel** | O import de `exceljs` (~200KB) aparece nas dependencias. Verificar se ja esta com lazy loading ou se entra no bundle principal |
 
----
+### Baixa Prioridade (nice-to-have)
 
-## Parte 3: Usar DataPagination na tabela
+| # | Area | Melhoria |
+|---|------|---------|
+| B1 | **Skeleton consistency** | Algumas paginas usam `Loader2` spinner em vez de skeleton shimmer. Padronizar UX de loading |
+| B2 | **Error boundaries** | Nenhum error boundary encontrado. Um crash em qualquer chart derruba a pagina inteira |
+| B3 | **Acessibilidade** | Tooltips no grid de estoque nao sao acionaveis por teclado em mobile |
 
-**`src/components/stock/ProductStockTable.tsx`**
-- Substituir a paginacao manual (linhas 296-320) pelo componente `DataPagination` que ja existe em `src/components/ui/data-pagination.tsx`
-- Remover estado `page` manual e calculos de `totalPages`
-- Usar as mesmas props padrao que Uploads ja usa
-- Reducao: ~20 linhas
+### Sugestao de sequencia
 
----
-
-## Parte 4: Unificar cores na legenda
-
-**`src/components/stock/StockLegend.tsx`**
-- Importar `slotBlockColors` e `slotVisualLabels` de `stockLabels.ts`
-- Substituir as 5 divs hardcoded por um loop sobre os status (full, medium, low/critical, empty, inactive)
-- Mantem marcas como estao (ja usam `BrandLogo`)
-- Reducao: ~15 linhas
-
----
-
-## Parte 5: Unificar barra de progresso no SlotDetailModal
-
-**`src/components/stock/SlotDetailModal.tsx`**
-- Substituir thresholds hardcoded na barra de progresso (linhas 210-218) por reutilizacao de `getSlotVisualStatus` + mapeamento para cor CSS
-- Usar `slotBlockColors` para determinar a cor da barra
-- Mantem o mesmo visual, mas centraliza a logica
-
----
-
-## Resumo de arquivos
-
-| Acao   | Arquivo                              | Parte |
-|--------|--------------------------------------|-------|
-| Editar | `src/components/stock/StockGridView.tsx` | 1 |
-| Editar | `src/components/stock/SlotStack.tsx`     | 1 |
-| Editar | `src/components/stock/StockGridSkeleton.tsx` | 2 |
-| Editar | `src/components/stock/ProductStockTable.tsx` | 3 |
-| Editar | `src/components/stock/StockLegend.tsx`   | 4 |
-| Editar | `src/components/stock/SlotDetailModal.tsx` | 5 |
-
-## Beneficios
-
-- Codigo morto removido (EmptySlot)
-- Skeleton consistente com o componente real
-- Paginacao padronizada via DataPagination
-- Cores centralizadas em stockLabels (1 lugar para mudar)
-- ~40 linhas de codigo duplicado/morto removidas
+1. Aplicar otimizacoes de performance do Estoque (esta proposta)
+2. Corrigir warning do StockHistoryChart
+3. Adicionar testes para componentes base de filtro
+4. Verificar e migrar filtros em Marketing/Settings
+5. Adicionar Error Boundaries nas paginas principais
 
