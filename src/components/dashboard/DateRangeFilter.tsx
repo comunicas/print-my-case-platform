@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, subMonths, differenceInDays, getYear, getMonth, setMonth, setYear } from "date-fns";
+import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, subMonths, subDays, differenceInDays, getYear, getMonth, setMonth, setYear, isBefore, isAfter, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CalendarIcon, ChevronDown, X, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,12 +24,10 @@ interface DateRangeFilterProps {
 }
 
 const PRESETS = [
-  { label: "Hoje",        getDates: () => { const t = new Date(); return { from: startOfDay(t), to: endOfDay(t) }; } },
-  { label: "7d",          getDates: () => { const t = new Date(); return { from: startOfDay(subDays(t, 6)), to: endOfDay(t) }; } },
-  { label: "30d",         getDates: () => { const t = new Date(); return { from: startOfDay(subDays(t, 29)), to: endOfDay(t) }; } },
-  { label: "90d",         getDates: () => { const t = new Date(); return { from: startOfDay(subDays(t, 89)), to: endOfDay(t) }; } },
-  { label: "Este mês",    getDates: () => { const t = new Date(); return { from: startOfMonth(t), to: endOfDay(t) }; } },
-  { label: "Mês passado", getDates: () => { const t = new Date(); return { from: startOfMonth(subMonths(t, 1)), to: endOfMonth(subMonths(t, 1)) }; } },
+  { label: "Hoje", getDates: () => { const t = new Date(); return { from: startOfDay(t), to: endOfDay(t) }; } },
+  { label: "Ontem", getDates: () => { const t = subDays(new Date(), 1); return { from: startOfDay(t), to: endOfDay(t) }; } },
+  { label: "Este mês", getDates: () => { const t = new Date(); return { from: startOfMonth(t), to: endOfDay(t) }; } },
+  { label: "Mês anterior", getDates: () => { const t = new Date(); return { from: startOfMonth(subMonths(t, 1)), to: endOfMonth(subMonths(t, 1)) }; } },
 ];
 
 const MONTHS_PT = [
@@ -53,7 +51,6 @@ function formatDateInput(date: Date): string {
 }
 
 function applyDateMask(raw: string): string {
-  // Keep only digits
   const digits = raw.replace(/\D/g, "").substring(0, 8);
   let result = digits;
   if (digits.length > 4) result = digits.slice(0, 2) + "/" + digits.slice(2, 4) + "/" + digits.slice(4);
@@ -77,18 +74,21 @@ export function DateRangeFilter({
   const currentYear = getYear(new Date());
   const daysDiff = differenceInDays(dateRange.to, dateRange.from) + 1;
 
-
   const handlePresetClick = (getDates: () => { from: Date; to: Date }) => {
     const dates = getDates();
     onDateRangeChange(dates);
     setCurrentMonth(dates.from);
   };
 
-  const handleViewAll = () => {
+  const handleTotalClick = () => {
     if (dataRange) {
       onDateRangeChange({ from: dataRange.min, to: dataRange.max });
     }
   };
+
+  const isTotalActive = dataRange
+    ? isSameDay(dateRange.from, dataRange.min) && isSameDay(dateRange.to, dataRange.max)
+    : false;
 
   const needsYear = (date: Date) => getYear(date) !== currentYear;
 
@@ -111,14 +111,18 @@ export function DateRangeFilter({
     );
   };
 
-  const handleCalendarSelect = (range: { from?: Date; to?: Date } | undefined) => {
-    if (range?.from && !range?.to) {
-      // Primeira seleção — aguarda a segunda
-      setPendingFrom(range.from);
-      setFromInput(formatDateInput(range.from));
+  // Two-click day selection logic — bypasses react-day-picker range quirks
+  const handleDayClick = (day: Date) => {
+    if (!pendingFrom) {
+      // First click: store start date
+      setPendingFrom(day);
+      setFromInput(formatDateInput(day));
       setToInput("");
-    } else if (range?.from && range?.to) {
-      onDateRangeChange({ from: startOfDay(range.from), to: endOfDay(range.to) });
+    } else {
+      // Second click: compute range and close
+      const from = isBefore(day, pendingFrom) ? day : pendingFrom;
+      const to = isAfter(day, pendingFrom) ? day : pendingFrom;
+      onDateRangeChange({ from: startOfDay(from), to: endOfDay(to) });
       setPendingFrom(undefined);
       setFromInput("");
       setToInput("");
@@ -138,12 +142,14 @@ export function DateRangeFilter({
           const toDate = parseDateInput(toInput);
           if (toDate && toDate >= parsed) {
             onDateRangeChange({ from: startOfDay(parsed), to: endOfDay(toDate) });
+            setPendingFrom(undefined);
             setIsCalendarOpen(false);
           }
         } else {
           const fromDate = parseDateInput(fromInput);
           if (fromDate && parsed >= fromDate) {
             onDateRangeChange({ from: startOfDay(fromDate), to: endOfDay(parsed) });
+            setPendingFrom(undefined);
             setIsCalendarOpen(false);
           }
         }
@@ -165,9 +171,27 @@ export function DateRangeFilter({
     }
   };
 
+  // Build modifiers for the calendar based on current state
+  const calendarModifiers = pendingFrom
+    ? { pendingStart: pendingFrom }
+    : { rangeStart: dateRange.from, rangeEnd: dateRange.to };
+
+  const calendarModifiersStyles = pendingFrom
+    ? {
+        pendingStart: {
+          backgroundColor: "hsl(var(--primary))",
+          color: "hsl(var(--primary-foreground))",
+          borderRadius: "50%",
+        },
+      }
+    : {};
+
+  // When pending, show single selection; otherwise show the active range
   const calendarSelected = pendingFrom
-    ? { from: pendingFrom, to: undefined }
+    ? undefined // Don't pass range so DayPicker doesn't render range highlight
     : { from: dateRange.from, to: dateRange.to };
+
+  const isAnyPresetActive = PRESETS.some(p => isPresetActive(p.getDates)) || isTotalActive;
 
   return (
     <div data-testid="date-filter" className={cn("flex flex-col sm:flex-row sm:items-center gap-3", className)}>
@@ -176,7 +200,7 @@ export function DateRangeFilter({
         {PRESETS.map((preset) => (
           <Button
             key={preset.label}
-            data-testid={`date-preset-${preset.label.toLowerCase()}`}
+            data-testid={`date-preset-${preset.label.toLowerCase().replace(/\s+/g, "-")}`}
             variant={isPresetActive(preset.getDates) ? "default" : "outline"}
             size="sm"
             onClick={() => handlePresetClick(preset.getDates)}
@@ -185,6 +209,18 @@ export function DateRangeFilter({
             {preset.label}
           </Button>
         ))}
+
+        {/* Total preset — depends on dataRange */}
+        <Button
+          data-testid="date-preset-total"
+          variant={isTotalActive ? "default" : "outline"}
+          size="sm"
+          onClick={handleTotalClick}
+          disabled={!dataRange}
+          className="h-8 px-3"
+        >
+          Total
+        </Button>
 
         {/* Custom Date Picker */}
         <Popover open={isCalendarOpen} onOpenChange={handleOpenChange}>
@@ -195,7 +231,7 @@ export function DateRangeFilter({
               size="sm"
               className={cn(
                 "h-8 px-3 gap-1",
-                !PRESETS.some(p => isPresetActive(p.getDates)) && "border-primary"
+                !isAnyPresetActive && "border-primary"
               )}
             >
               <CalendarIcon className="h-3.5 w-3.5" />
@@ -237,7 +273,7 @@ export function DateRangeFilter({
               </Button>
             </div>
 
-            {/* Month + Year navigation selects — always visible */}
+            {/* Month + Year navigation */}
             <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30">
               <span className="text-xs text-muted-foreground shrink-0">Navegar:</span>
               <select
@@ -270,9 +306,11 @@ export function DateRangeFilter({
             <Calendar
               mode="range"
               selected={calendarSelected}
-              onSelect={handleCalendarSelect}
+              onDayClick={handleDayClick}
               month={currentMonth}
               onMonthChange={setCurrentMonth}
+              modifiers={calendarModifiers}
+              modifiersStyles={calendarModifiersStyles}
               disabled={(date) => {
                 if (dataRange) {
                   return date < dataRange.min || date > dataRange.max;
@@ -299,14 +337,6 @@ export function DateRangeFilter({
             <span className="hidden sm:inline">
               Dados: {formatDateDisplay(dataRange.min)} - {formatDateDisplay(dataRange.max)}
             </span>
-            <Button
-              variant="link"
-              size="sm"
-              className="h-auto p-0 text-xs"
-              onClick={handleViewAll}
-            >
-              Ver tudo
-            </Button>
           </>
         )}
 
