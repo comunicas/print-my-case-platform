@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useOrganization } from "@/hooks/useOrganization";
+import { useActiveOrg } from "@/contexts/ActiveOrgContext";
 import { toast } from "sonner";
 
 interface ApiKey {
@@ -29,34 +29,36 @@ function generateApiKey(): string {
 
 export function useApiKeys() {
   const { session } = useAuth();
-  const { organization } = useOrganization({ readOnly: true });
+  const { activeOrgId, isAllOrgs } = useActiveOrg();
   const queryClient = useQueryClient();
 
+  const orgId = isAllOrgs ? null : activeOrgId;
+
   const { data: apiKeys = [], isLoading } = useQuery({
-    queryKey: ["api-keys", organization?.id],
+    queryKey: ["api-keys", orgId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("api_keys")
         .select("id, name, key_prefix, is_active, last_used_at, created_at")
-        .eq("organization_id", organization!.id)
+        .eq("organization_id", orgId!)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
       return data as ApiKey[];
     },
-    enabled: !!organization?.id,
+    enabled: !!orgId,
   });
 
   const createKey = useMutation({
     mutationFn: async (name: string) => {
-      if (!organization?.id || !session?.user?.id) throw new Error("Sem organização ou sessão");
+      if (!orgId || !session?.user?.id) throw new Error("Sem organização ou sessão");
 
       const rawKey = generateApiKey();
       const keyHash = await hashKey(rawKey);
       const keyPrefix = rawKey.substring(0, 8);
 
       const { error } = await supabase.from("api_keys").insert({
-        organization_id: organization.id,
+        organization_id: orgId,
         key_hash: keyHash,
         key_prefix: keyPrefix,
         name,
@@ -117,5 +119,6 @@ export function useApiKeys() {
     createKey,
     revokeKey,
     deleteKey,
+    isAllOrgs,
   };
 }

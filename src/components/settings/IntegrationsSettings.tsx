@@ -24,16 +24,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ExternalLink, Key, Cloud, FileSpreadsheet, Plus, Copy, Check, Trash2, Ban, Loader2 } from "lucide-react";
+import { ExternalLink, Key, Cloud, FileSpreadsheet, Plus, Copy, Check, Trash2, Ban, Loader2, Info } from "lucide-react";
 import { useApiKeys } from "@/hooks/useApiKeys";
 import { useProfile } from "@/hooks/useProfile";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export function IntegrationsSettings() {
   const { isAdmin } = useProfile();
-  const { apiKeys, isLoading, createKey, revokeKey, deleteKey } = useApiKeys();
+  const { apiKeys, isLoading, createKey, revokeKey, deleteKey, isAllOrgs } = useApiKeys();
   const [newKeyName, setNewKeyName] = useState("");
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -95,6 +96,28 @@ export function IntegrationsSettings() {
 
       {/* API Keys — admin only */}
       {isAdmin && <Card>
+        {isAllOrgs ? (
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Key className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1">
+                <CardTitle className="text-base">API Keys</CardTitle>
+                <CardDescription>
+                  Autentique chamadas à API de ingestão de dados
+                </CardDescription>
+              </div>
+            </div>
+            <Alert className="mt-4">
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                Selecione uma organização específica no seletor acima para gerenciar API Keys.
+              </AlertDescription>
+            </Alert>
+          </CardHeader>
+        ) : (
+        <>
         <CardHeader>
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10">
@@ -262,6 +285,8 @@ export function IntegrationsSettings() {
             </details>
           </div>
         </CardContent>
+        </>
+        )}
       </Card>}
 
       {/* Webhook */}
