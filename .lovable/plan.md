@@ -1,72 +1,50 @@
 
-# Corrigir Conflitos de Filtros no Marketing
 
-## Problema Raiz
+# Corrigir RLS de catalog_short_links para Super Admins
 
-A pagina Marketing usa `useOrganization()` que **sempre** busca `profile.organization_id` (a org propria do usuario), ignorando completamente o OrgSwitcher. Isso causa:
+## Problema
 
-1. **Catalogos**: `PDVCatalogList` recebe `organization.id` fixo, mostrando apenas PDVs da org propria mesmo com "Todas as organizacoes" selecionado
-2. **Cupons**: Mesmo problema -- `CouponsSettings` recebe `organizationId={organization.id}` fixo
-3. **Midias**: Idem -- `MediaSettings` recebe `organizationId={organization.id}`
-4. **Leads**: `useCatalogLeads` nao filtra por org/PDV -- depende apenas do RLS
-5. **Guard quebrado**: `if (!organization) return "Organizacao nao encontrada"` bloqueia a pagina quando o contexto nao e a org propria
+A politica RLS atual da tabela `catalog_short_links` usa apenas `get_user_org_id(auth.uid())` para verificar se o PDV pertence a organizacao do usuario. Super admins nao conseguem criar/gerenciar short links para PDVs de outras organizacoes porque a politica nao inclui o bypass `is_super_admin()`.
+
+Politica atual:
+```text
+USING:  is_admin(auth.uid()) AND pdv_id IN (SELECT id FROM pdvs WHERE organization_id = get_user_org_id(auth.uid()))
+CHECK:  is_admin(auth.uid()) AND pdv_id IN (SELECT id FROM pdvs WHERE organization_id = get_user_org_id(auth.uid()))
+```
+
+## Tabelas Afetadas
+
+O mesmo padrao existe em outras tabelas do modulo Marketing que tambem precisam do bypass:
+
+1. **catalog_short_links** -- gerenciamento de links curtos
+2. **pdv_catalog_settings** -- configuracoes de catalogo por PDV  
+3. **pdv_marketing_media** -- midias de marketing por PDV
+4. **link_click_events** -- visualizacao de eventos de clique
 
 ## Solucao
 
-### 1. Marketing.tsx -- Integrar com ActiveOrgContext
-
-Substituir `useOrganization()` por `useActiveOrg()` como fonte de contexto organizacional:
-
-- Importar `useActiveOrg` do contexto
-- Usar `activeOrgId` para passar aos componentes filhos
-- Remover o guard `if (!organization)` que bloqueia quando "all" esta selecionado
-- Para super_admin com "all", os componentes recebem `undefined` como orgId e buscam tudo
-
-### 2. usePDVCatalogSettings -- Suportar modo "all"
-
-Atualmente recebe `organizationId` e faz `.eq("organization_id", organizationId)`. Precisa:
-
-- Quando `organizationId` for `undefined` ou `"all"`, buscar todos os PDVs ativos (sem filtro de org)
-- Manter o filtro `.eq()` quando for um ID especifico
-
-### 3. PDVCatalogList -- Aceitar orgId opcional
-
-- Tornar `organizationId` opcional na interface
-- Passar o valor correto do contexto ativo
-
-### 4. CouponsSettings -- Aceitar orgId opcional
-
-- Mesmo ajuste: quando `organizationId` for undefined, o hook ja buscara todos
-
-### 5. Remover guard de organizacao obrigatoria
-
-O `if (!organization)` impede renderizar quando "Todas as organizacoes" esta selecionado. Substituir por verificacao do `activeOrgId` -- se existe contexto ativo (mesmo "all"), renderizar normalmente.
-
----
+Atualizar as politicas RLS dessas 4 tabelas para incluir `OR is_super_admin(auth.uid())` como bypass, seguindo o padrao ja usado em `pdvs`, `uploads` e outras tabelas do sistema.
 
 ## Detalhes Tecnicos
 
-### Arquivo: `src/pages/Marketing.tsx`
-- Trocar `useOrganization({ readOnly: true })` por `useActiveOrg()`
-- Derivar `effectiveOrgId` de `activeOrgId` (quando "all", passar undefined para hooks)
-- Remover guard `if (!organization)` 
-- Passar `effectiveOrgId` para `CouponsSettings`, `MediaSettings`, `PDVCatalogList`
-- Manter `useProfile()` para `isAdmin`/`isSuperAdmin`
+Uma unica migracao SQL que:
 
-### Arquivo: `src/hooks/usePDVCatalogSettings.ts`
-- Tornar `organizationId` opcional
-- Quando undefined: buscar todos os PDVs ativos sem filtro de org (RLS garante isolamento)
-- Quando string: manter `.eq("organization_id", organizationId)`
+1. Remove as politicas atuais (DROP POLICY)
+2. Recria com a logica corrigida:
 
-### Arquivo: `src/components/settings/PDVCatalogList.tsx`
-- Tornar `organizationId` opcional na interface
+```text
+catalog_short_links (ALL):
+  USING/CHECK: (is_admin(...) AND pdv_id IN org_pdvs) OR is_super_admin(...)
 
-### Arquivo: `src/components/marketing/CouponsSettings.tsx`
-- Tornar `organizationId` opcional na interface
-- Propagar para `usePDVCatalogSettings`
+pdv_catalog_settings (ALL para admins):
+  USING/CHECK: (is_admin(...) AND pdv_id IN org_pdvs) OR is_super_admin(...)
 
-### Arquivo: `src/components/marketing/MediaSettings.tsx`
-- Tornar `organizationId` opcional na interface
+pdv_marketing_media (ALL para admins):
+  USING/CHECK: (is_admin(...) AND pdv_id IN org_pdvs) OR is_super_admin(...)
 
-### Memoria de rotas
-- Atualizar `routing-tab-naming-convention` para incluir `catalogos` na lista de tabs do Marketing
+link_click_events (SELECT):
+  USING: (is_admin(...) AND short_link_id IN org_links) OR is_super_admin(...)
+```
+
+A politica SELECT publica (`user_can_access_pdv`) em `pdv_catalog_settings` e `pdv_marketing_media` permanece inalterada pois ja funciona corretamente via a funcao que inclui bypass de super_admin.
+
