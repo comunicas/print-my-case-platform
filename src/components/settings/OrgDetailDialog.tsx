@@ -30,13 +30,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
-import { Loader2, Users, Store, Mail, MapPin, Pencil, Trash2, Building2, Plus } from "lucide-react";
+import { Loader2, Users, Store, Mail, MapPin, Pencil, Trash2, Building2, Plus, UserPlus, Link2 } from "lucide-react";
 import { getInitials } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { PDVForm } from "@/components/pdv/PDVForm";
 import { CreateUserDialog } from "@/components/team/CreateUserDialog";
 import { useOrgDetailActions } from "@/hooks/useOrgDetailActions";
+import { useOrgCrossAccess } from "@/hooks/useOrgCrossAccess";
+import { AddOrgAccessDialog } from "@/components/settings/AddOrgAccessDialog";
 import { roleLabels } from "@/lib/schemas/team";
+import { Separator } from "@/components/ui/separator";
 
 interface OrgDetailDialogProps {
   open: boolean;
@@ -55,6 +58,9 @@ export function OrgDetailDialog({
   const [activeTab, setActiveTab] = useState("users");
 
   const actions = useOrgDetailActions(organizationId, organizationName, open);
+  const crossAccess = useOrgCrossAccess(organizationId, open);
+
+  const totalUsers = (actions.members?.length ?? 0) + (crossAccess.crossUsers?.length ?? 0);
 
   return (
     <>
@@ -71,7 +77,7 @@ export function OrgDetailDialog({
             <TabsList className="w-full">
               <TabsTrigger value="users" className="flex-1 gap-1.5">
                 <Users className="h-4 w-4" />
-                Usuários ({actions.members?.length ?? 0})
+                Usuários ({totalUsers})
               </TabsTrigger>
               <TabsTrigger value="pdvs" className="flex-1 gap-1.5">
                 <Store className="h-4 w-4" />
@@ -156,6 +162,83 @@ export function OrgDetailDialog({
                   <p className="text-sm">Nenhum usuário nesta organização</p>
                 </div>
               )}
+
+              {/* Cross-org shared access section */}
+              <Separator className="my-4" />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-medium flex items-center gap-1.5">
+                    <Link2 className="h-4 w-4 text-muted-foreground" />
+                    Acesso compartilhado
+                    {crossAccess.crossUsers && crossAccess.crossUsers.length > 0 && (
+                      <Badge variant="secondary" className="text-xs ml-1">
+                        {crossAccess.crossUsers.length}
+                      </Badge>
+                    )}
+                  </h4>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={crossAccess.addAccess.open}
+                  >
+                    <UserPlus className="h-4 w-4 mr-1" />
+                    Adicionar
+                  </Button>
+                </div>
+
+                {crossAccess.crossUsersLoading ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : crossAccess.crossUsers && crossAccess.crossUsers.length > 0 ? (
+                  crossAccess.crossUsers.map((cu) => (
+                    <Card key={cu.id}>
+                      <CardContent className="flex items-center gap-3 p-3">
+                        <Avatar className="h-9 w-9">
+                          <AvatarFallback className="text-xs bg-accent text-accent-foreground">
+                            {getInitials(cu.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{cu.name}</p>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Building2 className="h-3 w-3" />
+                            <span className="truncate">{cu.org_name}</span>
+                          </div>
+                        </div>
+                        <Select
+                          value={cu.access_level}
+                          onValueChange={(val) =>
+                            crossAccess.updateAccessLevel({ accessId: cu.id, accessLevel: val })
+                          }
+                          disabled={crossAccess.isUpdatingAccess}
+                        >
+                          <SelectTrigger className="h-7 w-[120px] text-xs flex-shrink-0">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="viewer">Visualizador</SelectItem>
+                            <SelectItem value="editor">Editor</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive flex-shrink-0"
+                          onClick={() => crossAccess.removeAccess(cu.id)}
+                          disabled={crossAccess.isRemovingAccess}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <p className="text-xs text-muted-foreground text-center py-3">
+                    Nenhum usuário externo com acesso compartilhado
+                  </p>
+                )}
+              </div>
             </TabsContent>
 
             {/* PDVs Tab */}
@@ -390,6 +473,21 @@ export function OrgDetailDialog({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Add Cross-Org Access Dialog */}
+      <AddOrgAccessDialog
+        open={crossAccess.addAccess.isOpen}
+        onOpenChange={crossAccess.addAccess.close}
+        organizationName={organizationName}
+        searchTerm={crossAccess.addAccess.searchTerm}
+        onSearchChange={crossAccess.addAccess.setSearchTerm}
+        accessLevel={crossAccess.addAccess.accessLevel}
+        onAccessLevelChange={crossAccess.addAccess.setAccessLevel}
+        results={crossAccess.addAccess.results}
+        isSearching={crossAccess.addAccess.isSearching}
+        onGrant={crossAccess.addAccess.grant}
+        isGranting={crossAccess.addAccess.isGranting}
+      />
     </>
   );
 }
