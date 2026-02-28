@@ -90,7 +90,7 @@ const dateRangeSerializers = {
 export default function Index() {
   const navigate = useNavigate();
   const { preferences } = usePreferences();
-  const { activeOrgId } = useActiveOrg();
+  const { activeOrgId, isAllOrgs } = useActiveOrg();
   
   const [dateRange, setDateRange, clearDateRange] = useLocalStorageState<DateRange>(
     'dashboard-date-range',
@@ -98,8 +98,8 @@ export default function Index() {
     dateRangeSerializers,
   );
 
-  // Use activeOrgId from context for all users (unified via header OrgSwitcher)
-  const effectiveOrgId = activeOrgId ?? undefined;
+  // When "all" is selected, pass "all" to queries; otherwise pass the org UUID
+  const effectiveOrgId = isAllOrgs ? "all" : (activeOrgId ?? undefined);
   
   const { pdvs = [], isLoading: pdvsLoading } = usePDVs({ 
     organizationId: effectiveOrgId

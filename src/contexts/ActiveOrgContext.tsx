@@ -4,7 +4,7 @@ import { useUserOrganizations, AccessibleOrganization } from "@/hooks/useUserOrg
 import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 
 interface ActiveOrgContextType {
-  /** ID da organização atualmente selecionada */
+  /** ID da organização atualmente selecionada, ou "all" para todas */
   activeOrgId: string | null;
   /** Trocar para outra organização */
   setActiveOrgId: (orgId: string) => void;
@@ -12,6 +12,8 @@ interface ActiveOrgContextType {
   isOwnOrg: boolean;
   /** Se a org ativa é somente leitura (viewer) */
   isReadOnly: boolean;
+  /** Se "Todas as organizações" está selecionado */
+  isAllOrgs: boolean;
   /** Lista de organizações acessíveis */
   organizations: AccessibleOrganization[];
   /** Se o usuário tem acesso a múltiplas organizações */
@@ -23,44 +25,52 @@ interface ActiveOrgContextType {
 const ActiveOrgContext = createContext<ActiveOrgContextType | undefined>(undefined);
 
 export function ActiveOrgProvider({ children }: { children: ReactNode }) {
-  const { profile } = useProfile();
+  const { profile, role } = useProfile();
+  const isSuperAdmin = role === "super_admin";
   const { organizations, hasMultipleOrgs } = useUserOrganizations();
   const [activeOrgId, setActiveOrgIdRaw] = useLocalStorageState<string | null>("active-org-id", null);
 
-  // Initialize with user's own org
+  // Initialize: super_admins default to "all", others to own org
   useEffect(() => {
-    if (!activeOrgId && profile?.organization_id) {
-      setActiveOrgIdRaw(profile.organization_id);
-    }
-  }, [profile?.organization_id, activeOrgId, setActiveOrgIdRaw]);
-
-  // Validate saved org is still accessible
-  useEffect(() => {
-    if (activeOrgId && organizations.length > 0 && !organizations.some(o => o.id === activeOrgId)) {
-      // Saved org no longer accessible, reset to own org
-      if (profile?.organization_id) {
+    if (!activeOrgId) {
+      if (isSuperAdmin) {
+        setActiveOrgIdRaw("all");
+      } else if (profile?.organization_id) {
         setActiveOrgIdRaw(profile.organization_id);
       }
     }
-  }, [activeOrgId, organizations, profile?.organization_id, setActiveOrgIdRaw]);
+  }, [profile?.organization_id, activeOrgId, setActiveOrgIdRaw, isSuperAdmin]);
+
+  // Validate saved org is still accessible (skip validation for "all")
+  useEffect(() => {
+    if (activeOrgId && activeOrgId !== "all" && organizations.length > 0 && !organizations.some(o => o.id === activeOrgId)) {
+      if (isSuperAdmin) {
+        setActiveOrgIdRaw("all");
+      } else if (profile?.organization_id) {
+        setActiveOrgIdRaw(profile.organization_id);
+      }
+    }
+  }, [activeOrgId, organizations, profile?.organization_id, setActiveOrgIdRaw, isSuperAdmin]);
 
   const setActiveOrgId = useCallback((orgId: string) => {
     setActiveOrgIdRaw(orgId);
   }, [setActiveOrgIdRaw]);
 
+  const isAllOrgs = activeOrgId === "all";
   const activeOrg = useMemo(() => organizations.find(o => o.id === activeOrgId), [organizations, activeOrgId]);
-  const isOwnOrg = activeOrgId === profile?.organization_id;
-  const isReadOnly = activeOrg?.accessLevel === "viewer";
+  const isOwnOrg = isAllOrgs || activeOrgId === profile?.organization_id;
+  const isReadOnly = !isAllOrgs && activeOrg?.accessLevel === "viewer";
 
   const value = useMemo(() => ({
     activeOrgId,
     setActiveOrgId,
     isOwnOrg,
     isReadOnly,
+    isAllOrgs,
     organizations,
-    hasMultipleOrgs,
-    activeOrgName: activeOrg?.name ?? null,
-  }), [activeOrgId, setActiveOrgId, isOwnOrg, isReadOnly, organizations, hasMultipleOrgs, activeOrg?.name]);
+    hasMultipleOrgs: hasMultipleOrgs || isSuperAdmin,
+    activeOrgName: isAllOrgs ? "Todas as organizações" : (activeOrg?.name ?? null),
+  }), [activeOrgId, setActiveOrgId, isOwnOrg, isReadOnly, isAllOrgs, organizations, hasMultipleOrgs, isSuperAdmin, activeOrg?.name]);
 
   return (
     <ActiveOrgContext.Provider value={value}>
