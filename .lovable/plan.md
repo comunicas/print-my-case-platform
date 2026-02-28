@@ -1,51 +1,57 @@
 
 
-# Correcao dos Warnings de forwardRef
+# Mover "Pedidos" de Configuracoes para Marketing
 
-## Diagnostico Real
+## Justificativa
 
-Apos analise detalhada dos logs do console, identifiquei que os warnings **nao sao** especificos do `CollapsibleNavMenu` ou `StockHistoryChart`. O problema e sistemico e afeta **todos os componentes da aplicacao**.
+"Pedidos de Produtos" sao demandas vindas do catalogo publico — uma funcionalidade de marketing/vendas. Mante-los em Configuracoes mistura gestao operacional com infraestrutura. Movendo para Marketing, temos:
 
-### Causa Raiz
+- Cupons, Midias, Leads, **Pedidos**, Analytics — tudo relacionado ao catalogo publico num so lugar
+- Configuracoes fica mais enxuta (6 abas em vez de 7)
+- Fluxo mais intuitivo para o admin
 
-O projeto usa `react-router-dom ^7.12.0` com `React ^18.3.1`. Essa combinacao gera os warnings porque:
+## Mudancas Necessarias
 
-- **React Router v7** foi projetado para **React 19**, onde `forwardRef` nao e mais necessario (refs sao aceitas como props normais)
-- **React 18.3** adicionou warnings quando bibliotecas tentam passar refs para function components sem `forwardRef`
-- O React Router v7 passa refs internamente via `RenderedRoute`, e isso **cascateia** para todos os componentes filhos na arvore
+### 1. Adicionar aba "Pedidos" na pagina Marketing (`src/pages/Marketing.tsx`)
 
-### Evidencia dos Logs
+- Importar `ProductRequestsSettings` via lazy loading (ja existe em `src/components/settings/ProductRequestsSettings.tsx`)
+- Adicionar `TabsTrigger value="pedidos"` apos "Midias" (visivel apenas para admins, como Leads e Analytics)
+- Adicionar `TabsContent value="pedidos"` com o componente
+- Atualizar descricao do header: "Gerencie cupons, midias e pedidos dos seus PDVs"
 
-Todos os 36+ warnings seguem o mesmo padrao:
+### 2. Adicionar card "Pedidos" no MarketingOverview (`src/components/marketing/MarketingOverview.tsx`)
 
-```text
-Warning: Function components cannot be given refs.
-Check the render method of `App`.
-```
+- Adicionar card com icone `MessageSquare` na lista de cards admin-only
+- Texto: "Gerencie pedidos de produtos recebidos pelo catalogo publico"
+- Navega para `tab=pedidos`
 
-Os componentes afetados incluem: `App`, `ThemeProvider`, `TooltipProvider`, `Sonner`, `BrowserRouter`, `Routes`, `AuthProvider`, `ProfileProvider`, `ActiveOrgProvider`, `ProductModalProvider` — ou seja, **toda a arvore de componentes**, nao apenas CollapsibleNavMenu ou StockHistoryChart.
+### 3. Adicionar sub-item no sidebar (`src/components/layout/AppSidebar.tsx`)
 
-## Solucao Proposta
+- Adicionar `{ label: "Pedidos", href: "/marketing?tab=pedidos" }` em `marketingSubItems`
 
-### Downgrade do react-router-dom para v6
+### 4. Remover "Pedidos" da pagina Settings (`src/pages/Settings.tsx`)
 
-Trocar `react-router-dom` de `^7.12.0` para `^6.28.0` (ultima versao da linha v6), que e totalmente compativel com React 18 e nao gera esses warnings.
+- Remover lazy import de `ProductRequestsSettings`
+- Remover `"requests"` de `ADMIN_ONLY_TABS`
+- Remover `TabsTrigger value="requests"` e `TabsContent value="requests"`
+- Ajustar grid de `grid-cols-7` para `grid-cols-6`
 
-**Impacto na migracao:** Minimo. O projeto usa apenas APIs basicas do React Router (`BrowserRouter`, `Routes`, `Route`, `Navigate`, `useNavigate`, `useParams`, `useSearchParams`, `useLocation`) que sao identicas entre v6 e v7. Nao ha uso de APIs exclusivas do v7 (como `createBrowserRouter`, `loaders`, `actions`).
+### 5. Atualizar rota de notificacoes (se existir)
 
-### Arquivo a editar
+- Verificar se ha links internos apontando para `/settings?tab=requests` e redirecionar para `/marketing?tab=pedidos`
 
-| Arquivo | Mudanca |
-|---------|---------|
-| `package.json` | Trocar versao do `react-router-dom` de `^7.12.0` para `^6.28.0` |
+## Arquivos a Editar
 
-### Alternativa considerada e descartada
+| Arquivo | Acao |
+|---------|------|
+| `src/pages/Marketing.tsx` | Adicionar aba Pedidos (admin-only) |
+| `src/components/marketing/MarketingOverview.tsx` | Adicionar card Pedidos |
+| `src/components/layout/AppSidebar.tsx` | Adicionar sub-item Pedidos |
+| `src/pages/Settings.tsx` | Remover aba Pedidos, ajustar grid |
 
-Envolver cada componente com `React.forwardRef` seria necessario em 20+ arquivos e adicionaria complexidade sem beneficio real — os warnings sao cosmeticos e nao causam bugs funcionais. O downgrade e mais limpo.
+## Impacto
 
-### Resultado esperado
-
-- Eliminacao de **todos os 36+ warnings** de forwardRef no console
-- Zero impacto funcional na aplicacao
-- Compatibilidade total com React 18.3
+- **Zero mudanca no banco de dados** — os dados e RLS ficam identicos
+- **Zero mudanca nos componentes** — `ProductRequestsSettings` e `ProductRequestDetailModal` permanecem onde estao, apenas importados de outro lugar
+- **Rota antiga** (`/settings?tab=requests`) deixa de existir — nao ha deep links externos conhecidos
 
