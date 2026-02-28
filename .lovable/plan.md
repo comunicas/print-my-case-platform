@@ -1,25 +1,26 @@
 
-# Mover API Key para HB Soluções Digitais
 
-## O que sera feito
+# Limpeza: Remover itens "Em breve" e usuario de teste
 
-Atualizar o `organization_id` da API Key **n8n-hbdigital-hostinger** de **RB Digital Tech** para **HB Soluções Digitais** diretamente no banco de dados.
+## 1. Remover cards "Em breve" da pagina de Integracoes
 
-## Comando
+O arquivo `IntegrationsSettings.tsx` possui dois cards placeholder marcados como "Em breve":
+- **Google Drive** (linhas 73-95): card desabilitado com badge "Em breve"
+- **Webhooks** (linhas 292-313): card desabilitado com badge "Em breve"
 
-```sql
-UPDATE api_keys 
-SET organization_id = '56bf08d1-6843-43ef-a880-776acafe8609'
-WHERE id = '8b5b35d8-3355-4a5a-8f3d-c259ce8099a8';
-```
+Ambos serao removidos, mantendo apenas o card funcional de **API Keys**. Imports nao utilizados (`ExternalLink`, `Cloud`, `FileSpreadsheet`, `Badge`) tambem serao removidos.
 
-## Impacto
+## 2. Remover usuario de teste do banco de dados
 
-- O sistema externo (n8n/Hostinger) continuara usando a mesma chave, sem necessidade de reconfiguracao
-- As Edge Functions `ingest-revenue` e `ingest-stock` passarao a associar os dados recebidos com essa chave aos PDVs da organizacao HB Soluções Digitais
-- O PDV BOULEVARD TATUAPE voltara a receber dados via API normalmente
-- A organizacao RB Digital Tech ficara sem API Key (precisara criar uma nova se necessario)
+O usuario **Viewer Teste** (`viewer.teste@printmycase.com`, ID: `40c6c368-956c-4298-ac7c-cbaa0b3e1363`) sera excluido via Edge Function `delete-user`, que ja existe e realiza hard delete no Auth (cascateando para `profiles`, `user_roles`, `preferences`, `user_pdvs`).
 
-## Verificacao pos-mudanca
+## Detalhes tecnicos
 
-Apos a atualizacao, um teste manual sera feito chamando a Edge Function `ingest-stock` com a chave existente para confirmar que ela agora e reconhecida como pertencente a HB.
+### Arquivo: `src/components/settings/IntegrationsSettings.tsx`
+- Remover o card Google Drive (linhas 73-95)
+- Remover o card Webhooks (linhas 292-313)
+- Limpar imports nao utilizados: `Badge`, `ExternalLink`, `Cloud`, `FileSpreadsheet`
+
+### Banco de dados
+- Chamar a Edge Function `delete-user` com o ID `40c6c368-956c-4298-ac7c-cbaa0b3e1363` para excluir o usuario de teste de forma segura
+
