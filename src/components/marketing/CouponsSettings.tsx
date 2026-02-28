@@ -11,7 +11,7 @@ import { usePDVCatalogSettings } from "@/hooks/usePDVCatalogSettings";
 import { cn } from "@/lib/utils";
 
 interface CouponsSettingsProps {
-  organizationId: string;
+  organizationId?: string;
   selectedPdvId?: string;
   isAdmin?: boolean;
 }

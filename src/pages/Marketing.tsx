@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/layout/AppLayout";
-import { useOrganization } from "@/hooks/useOrganization";
+import { useActiveOrg } from "@/contexts/ActiveOrgContext";
 import { usePDVs } from "@/hooks/usePDVs";
 import { useDefaultPdvPreference } from "@/hooks/useDefaultPdvPreference";
 import { useProfile } from "@/hooks/useProfile";
@@ -23,7 +23,9 @@ export default function Marketing() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab");
   
-  const { organization, isLoading: orgLoading } = useOrganization({ readOnly: true });
+  const { activeOrgId } = useActiveOrg();
+  const effectiveOrgId = activeOrgId === "all" ? undefined : activeOrgId ?? undefined;
+  
   const { pdvs = [], isLoading: pdvsLoading } = usePDVs();
   const { role, isAdmin } = useProfile();
   
@@ -33,7 +35,7 @@ export default function Marketing() {
     wasAutoApplied: pdvWasAutoApplied 
   } = useDefaultPdvPreference({ pdvs, isLoading: pdvsLoading });
 
-  const isLoading = orgLoading || pdvsLoading;
+  const isLoading = pdvsLoading;
   const isSuperAdmin = role === "super_admin";
 
   const handleTabChange = (value: string) => {
@@ -45,16 +47,6 @@ export default function Marketing() {
       <AppLayout>
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      </AppLayout>
-    );
-  }
-
-  if (!organization) {
-    return (
-      <AppLayout>
-        <div className="text-center py-16 text-muted-foreground">
-          Organização não encontrada.
         </div>
       </AppLayout>
     );
@@ -109,7 +101,7 @@ export default function Marketing() {
 
           <TabsContent value="cupons" className="mt-4">
             <Suspense fallback={<TabSkeleton />}>
-              <CouponsSettings organizationId={organization.id} selectedPdvId={selectedPdvId} isAdmin={isAdmin} />
+              <CouponsSettings organizationId={effectiveOrgId} selectedPdvId={selectedPdvId} isAdmin={isAdmin} />
             </Suspense>
           </TabsContent>
 
@@ -126,7 +118,7 @@ export default function Marketing() {
                   <h2 className="text-lg font-semibold">Mídias Disponíveis</h2>
                 )}
                 <MediaSettings 
-                  organizationId={organization.id} 
+                  organizationId={effectiveOrgId} 
                   selectedPdvId={selectedPdvId}
                   isAdmin={isSuperAdmin}
                 />
@@ -137,7 +129,7 @@ export default function Marketing() {
           {isAdmin && (
             <TabsContent value="catalogos" className="mt-4">
               <Suspense fallback={<TabSkeleton />}>
-                <PDVCatalogList organizationId={organization.id} />
+                <PDVCatalogList organizationId={effectiveOrgId} />
               </Suspense>
             </TabsContent>
           )}
