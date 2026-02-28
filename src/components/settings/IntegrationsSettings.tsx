@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ExternalLink, Key, Cloud, FileSpreadsheet, Plus, Copy, Check, Trash2, Ban, Loader2, Info } from "lucide-react";
+import { Key, Plus, Copy, Check, Trash2, Ban, Loader2, Info } from "lucide-react";
 import { useApiKeys } from "@/hooks/useApiKeys";
 import { useProfile } from "@/hooks/useProfile";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -70,30 +70,6 @@ export function IntegrationsSettings() {
 
   return (
     <div className="space-y-6">
-      {/* Google Drive */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <FileSpreadsheet className="h-5 w-5 text-primary" />
-            </div>
-            <div className="flex-1">
-              <CardTitle className="text-base">Google Drive</CardTitle>
-              <CardDescription>
-                Importe planilhas diretamente do Google Drive
-              </CardDescription>
-            </div>
-            <Badge variant="secondary">Em breve</Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Button variant="outline" disabled className="gap-2">
-            <ExternalLink className="h-4 w-4" />
-            Conectar
-          </Button>
-        </CardContent>
-      </Card>
-
       {/* API Keys — admin only */}
       {isAdmin && <Card>
         {isAllOrgs ? (
@@ -288,29 +264,6 @@ export function IntegrationsSettings() {
         </>
         )}
       </Card>}
-
-      {/* Webhook */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Cloud className="h-5 w-5 text-primary" />
-            </div>
-            <div className="flex-1">
-              <CardTitle className="text-base">Webhooks</CardTitle>
-              <CardDescription>
-                Receba notificações em tempo real
-              </CardDescription>
-            </div>
-            <Badge variant="secondary">Em breve</Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Button variant="outline" disabled className="gap-2">
-            Configurar
-          </Button>
-        </CardContent>
-      </Card>
 
       {/* Created Key Dialog */}
       <Dialog open={keyDialogOpen} onOpenChange={handleKeyDialogClose}>
