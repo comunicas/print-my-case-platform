@@ -1,82 +1,51 @@
 
+# Indicador Visual no OrgSwitcher + Logs de Auditoria Cross-Org
 
-# Adicionar Usuarios Existentes via Acesso Cross-Org (user_org_access)
+## 1. Indicador visual no OrgSwitcher
 
-## Situacao Atual
+No dropdown do `OrgSwitcher`, distinguir visualmente a organizacao principal ("owner") das organizacoes com acesso compartilhado ("viewer"/"editor").
 
-O `OrgDetailDialog` mostra apenas usuarios cujo `profiles.organization_id` e igual a organizacao visualizada. Nao existe nenhuma funcionalidade para:
-- Visualizar usuarios com acesso cross-org (via `user_org_access`)
-- Conceder acesso a usuarios de outras organizacoes
-- Remover acesso cross-org
-- Escolher nivel de acesso (viewer/editor)
+**Arquivo: `src/components/layout/OrgSwitcher.tsx`**
 
-A tabela `user_org_access` ja existe com constraint unico em `(user_id, organization_id)` e RLS configurado para super_admins e org_admins.
+- Para orgs com `accessLevel === "owner"`: mostrar icone `Building2` ao lado do nome (organizacao principal)
+- Para orgs com `accessLevel === "viewer"`: manter icone `Eye` existente + texto "Leitura"
+- Para orgs com `accessLevel === "editor"`: mostrar icone `Link` (indicando acesso compartilhado)
+- Apos o select, quando a org ativa nao for a propria, exibir um Badge indicando "Compartilhada" (alem do Badge "Somente leitura" ja existente para viewers)
 
-## Mudancas Planejadas
+Resultado visual: o usuario ve rapidamente quais orgs sao dele vs compartilhadas.
 
-### 1. Hook `useOrgDetailActions.ts` — Adicionar logica de acesso cross-org
+## 2. Logs de auditoria para acesso cross-org
 
-- **Nova query**: buscar registros de `user_org_access` para a organizacao, com JOIN em `profiles` para obter nome/email
-- **Mutation para adicionar acesso**: inserir em `user_org_access` com `access_level` escolhido
-- **Mutation para remover acesso**: deletar de `user_org_access`
-- **Mutation para alterar nivel**: atualizar `access_level` em `user_org_access`
-- **Estado do dialog de adicionar**: controlar abertura, busca de usuarios por email, e nivel de acesso selecionado
-- **Busca de usuarios**: query que busca profiles por email/nome que NAO pertencem a esta org (para evitar duplicatas)
+A tabela `audit_logs` ja existe com campos adequados (`event_type`, `actor_id`, `actor_email`, `target_email`, `organization_id`, `organization_name`, `metadata`). Porem o enum `audit_event_type` precisa de novos valores.
 
-### 2. `OrgDetailDialog.tsx` — UI para gerenciar acesso cross-org
+### 2a. Migracao de banco
 
-- Na aba "Usuarios", apos a lista de membros diretos, adicionar secao "Usuarios com acesso compartilhado"
-- Cada usuario cross-org mostra: avatar, nome, email, badge da org de origem, select de nivel (viewer/editor), botao remover
-- Botao "Adicionar Acesso" abre um dialog onde o super_admin:
-  1. Busca um usuario por email
-  2. Seleciona o nivel de acesso (viewer ou editor)
-  3. Confirma a adicao
+Adicionar 3 novos valores ao enum `audit_event_type`:
+- `cross_org_access_granted` — quando acesso compartilhado e concedido
+- `cross_org_access_revoked` — quando acesso compartilhado e removido
+- `cross_org_access_updated` — quando o nivel de acesso e alterado
 
-### 3. Novo componente `AddOrgAccessDialog`
+```text
+ALTER TYPE audit_event_type ADD VALUE 'cross_org_access_granted';
+ALTER TYPE audit_event_type ADD VALUE 'cross_org_access_revoked';
+ALTER TYPE audit_event_type ADD VALUE 'cross_org_access_updated';
+```
 
-Dialog simples com:
-- Campo de busca por email (com debounce)
-- Lista de resultados mostrando nome e email (excluindo quem ja tem acesso)
-- Select de nivel de acesso (viewer/editor)
-- Botao confirmar
+### 2b. Hook `useOrgCrossAccess.ts`
 
-## Arquivos a Editar
+Nas mutations `addAccessMutation`, `removeAccessMutation` e `updateAccessMutation`, apos o sucesso da operacao principal, inserir um registro na tabela `audit_logs` com:
+
+- `event_type`: o valor correspondente do enum
+- `actor_id` / `actor_email`: dados do usuario logado (obtidos via `useProfile`)
+- `target_email`: email do usuario que recebeu/perdeu acesso
+- `organization_id` / `organization_name`: org alvo
+- `metadata`: JSON com `{ access_level, user_id, user_name }`
+- `success`: true
+
+## Arquivos a editar
 
 | Arquivo | Acao |
 |---------|------|
-| `src/hooks/useOrgDetailActions.ts` | Adicionar queries e mutations para user_org_access |
-| `src/components/settings/OrgDetailDialog.tsx` | Adicionar secao de acesso cross-org e dialog de adicionar |
-
-## Detalhes Tecnicos
-
-### Query de usuarios com acesso cross-org
-```text
-SELECT uoa.id, uoa.access_level, uoa.user_id, p.name, p.email, o.name as org_name
-FROM user_org_access uoa
-JOIN profiles p ON p.id = uoa.user_id
-JOIN organizations o ON o.id = p.organization_id
-WHERE uoa.organization_id = <orgId>
-```
-
-### Busca de usuarios para adicionar
-```text
-SELECT p.id, p.name, p.email
-FROM profiles p
-WHERE p.organization_id != <orgId>
-  AND (p.email ILIKE '%search%' OR p.name ILIKE '%search%')
-  AND p.id NOT IN (SELECT user_id FROM user_org_access WHERE organization_id = <orgId>)
-LIMIT 10
-```
-
-### Insert de acesso
-```text
-INSERT INTO user_org_access (user_id, organization_id, access_level)
-VALUES (<userId>, <orgId>, <'viewer' | 'editor'>)
-```
-
-## Impacto
-
-- **Zero mudanca no banco de dados** — a tabela `user_org_access` e RLS ja existem
-- **Zero mudanca em outros componentes** — `useUserOrganizations` e `OrgSwitcher` ja consomem `user_org_access`
-- Usuarios adicionados via este fluxo verao a organizacao no `OrgSwitcher` automaticamente
-
+| Migracao SQL | Adicionar 3 valores ao enum `audit_event_type` |
+| `src/components/layout/OrgSwitcher.tsx` | Adicionar icones e badges para distinguir orgs proprias vs compartilhadas |
+| `src/hooks/useOrgCrossAccess.ts` | Inserir logs de auditoria nas 3 mutations (grant, revoke, update) |
