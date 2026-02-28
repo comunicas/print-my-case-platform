@@ -10,7 +10,7 @@ import { usePDVCatalogSettings, type ShortLink } from "@/hooks/usePDVCatalogSett
 import { CUSTOM_DOMAIN } from "@/lib/constants";
 
 interface PDVCatalogListProps {
-  organizationId: string;
+  organizationId?: string;
 }
 
 interface PDVCatalogRowProps {

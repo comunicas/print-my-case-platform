@@ -48,16 +48,19 @@ export function usePDVCatalogSettings(organizationId?: string) {
   const { data: pdvsWithSettings, isLoading, error } = useQuery({
     queryKey: ["pdv-catalog-settings", organizationId],
     queryFn: async () => {
-      if (!organizationId) return [];
-
-      const { data: pdvs, error: pdvsError } = await supabase
+      let query = supabase
         .from("pdvs")
         .select("id, name, location")
-        .eq("organization_id", organizationId)
         .eq("status", "active")
         .order("name");
 
+      if (organizationId) {
+        query = query.eq("organization_id", organizationId);
+      }
+
+      const { data: pdvs, error: pdvsError } = await query;
       if (pdvsError) throw pdvsError;
+      if (!pdvs || pdvs.length === 0) return [];
 
       const pdvIds = pdvs.map(p => p.id);
       
@@ -77,7 +80,7 @@ export function usePDVCatalogSettings(organizationId?: string) {
 
       return result;
     },
-    enabled: !!organizationId,
+    enabled: true,
   });
 
   const upsertSettings = useMutation({

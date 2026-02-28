@@ -40,7 +40,7 @@ import { MediaCard } from "./MediaCard";
 import { MediaLightbox } from "./lightbox";
 
 interface MediaSettingsProps {
-  organizationId: string;
+  organizationId?: string;
   selectedPdvId?: string;
   isAdmin?: boolean;
 }

@@ -29,15 +29,18 @@ export function usePDVMarketingMedia(organizationId?: string) {
   const { data: pdvsWithMedia, isLoading, error } = useQuery({
     queryKey: ["pdv-marketing-media", organizationId],
     queryFn: async () => {
-      if (!organizationId) return [];
-
       // Fetch PDVs
-      const { data: pdvs, error: pdvsError } = await supabase
+      let query = supabase
         .from("pdvs")
         .select("id, name, location")
-        .eq("organization_id", organizationId)
         .eq("status", "active")
         .order("name");
+
+      if (organizationId) {
+        query = query.eq("organization_id", organizationId);
+      }
+
+      const { data: pdvs, error: pdvsError } = await query;
 
       if (pdvsError) throw pdvsError;
 
