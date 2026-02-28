@@ -17,7 +17,7 @@ const MediaSettings = lazy(() => import("@/components/marketing/MediaSettings").
 const CatalogLeadsSettings = lazy(() => import("@/components/settings/CatalogLeadsSettings").then(m => ({ default: m.CatalogLeadsSettings })));
 const MarketingAnalytics = lazy(() => import("@/components/marketing/MarketingAnalytics").then(m => ({ default: m.MarketingAnalytics })));
 const ProductRequestsSettings = lazy(() => import("@/components/settings/ProductRequestsSettings").then(m => ({ default: m.ProductRequestsSettings })));
-const PDVCatalogList = lazy(() => import("@/components/settings/PDVCatalogList").then(m => ({ default: m.PDVCatalogList })));
+const PDVCatalogList = lazy(() => import("@/components/marketing/PDVCatalogList").then(m => ({ default: m.PDVCatalogList })));
 
 export default function Marketing() {
   const [searchParams, setSearchParams] = useSearchParams();
