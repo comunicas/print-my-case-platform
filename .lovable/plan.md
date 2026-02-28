@@ -1,51 +1,63 @@
 
-# Indicador Visual no OrgSwitcher + Logs de Auditoria Cross-Org
 
-## 1. Indicador visual no OrgSwitcher
+# Filtro "Todas as Organizacoes" no OrgSwitcher para Super Admin
 
-No dropdown do `OrgSwitcher`, distinguir visualmente a organizacao principal ("owner") das organizacoes com acesso compartilhado ("viewer"/"editor").
+## Problema
 
-**Arquivo: `src/components/layout/OrgSwitcher.tsx`**
+Atualmente o `OrgSwitcher` obriga o super_admin a selecionar uma unica organizacao por vez. Embora o card "Visao Consolidada" mostre metricas globais no topo, os KPIs principais, graficos e tabelas abaixo mostram dados de apenas uma organizacao. O super_admin quer ver os dados somados de TODAS as organizacoes nos KPIs e charts.
 
-- Para orgs com `accessLevel === "owner"`: mostrar icone `Building2` ao lado do nome (organizacao principal)
-- Para orgs com `accessLevel === "viewer"`: manter icone `Eye` existente + texto "Leitura"
-- Para orgs com `accessLevel === "editor"`: mostrar icone `Link` (indicando acesso compartilhado)
-- Apos o select, quando a org ativa nao for a propria, exibir um Badge indicando "Compartilhada" (alem do Badge "Somente leitura" ja existente para viewers)
+## Solucao
 
-Resultado visual: o usuario ve rapidamente quais orgs sao dele vs compartilhadas.
+Adicionar uma opcao "Todas as organizacoes" no `OrgSwitcher` exclusiva para super_admins. Quando selecionada, o dashboard (e outras paginas) mostra dados agregados de todas as orgs.
 
-## 2. Logs de auditoria para acesso cross-org
+## Mudancas
 
-A tabela `audit_logs` ja existe com campos adequados (`event_type`, `actor_id`, `actor_email`, `target_email`, `organization_id`, `organization_name`, `metadata`). Porem o enum `audit_event_type` precisa de novos valores.
+### 1. `ActiveOrgContext.tsx` — Permitir valor "all"
 
-### 2a. Migracao de banco
+- Alterar o tipo de `activeOrgId` para aceitar `"all"` alem de UUIDs
+- Para super_admins, inicializar com `"all"` em vez da org propria
+- Ajustar `isOwnOrg` e `isReadOnly` para tratar `"all"` corretamente
+- Expor flag `isAllOrgs` no contexto para facilitar uso em componentes
 
-Adicionar 3 novos valores ao enum `audit_event_type`:
-- `cross_org_access_granted` — quando acesso compartilhado e concedido
-- `cross_org_access_revoked` — quando acesso compartilhado e removido
-- `cross_org_access_updated` — quando o nivel de acesso e alterado
+### 2. `OrgSwitcher.tsx` — Adicionar opcao "Todas"
 
-```text
-ALTER TYPE audit_event_type ADD VALUE 'cross_org_access_granted';
-ALTER TYPE audit_event_type ADD VALUE 'cross_org_access_revoked';
-ALTER TYPE audit_event_type ADD VALUE 'cross_org_access_updated';
-```
+- Renderizar item "Todas as organizacoes" no topo do `SelectContent` quando o usuario for super_admin
+- Icone `Building2` com texto diferenciado
+- Quando selecionado, setar `activeOrgId` para `"all"`
+- Ocultar badge "Compartilhada"/"Somente leitura" quando "all" estiver ativo
 
-### 2b. Hook `useOrgCrossAccess.ts`
+### 3. `Index.tsx` (Dashboard) — Tratar org "all"
 
-Nas mutations `addAccessMutation`, `removeAccessMutation` e `updateAccessMutation`, apos o sucesso da operacao principal, inserir um registro na tabela `audit_logs` com:
+- Quando `activeOrgId === "all"`, passar `selectedOrganizationId` como `"all"` para `useDashboard`
+- O hook `useDashboard` ja suporta `"all"`: nao filtra por PDV nem por org, trazendo dados globais
+- Os KPIs, graficos e tabelas passam a mostrar a soma de todas as organizacoes
+- Manter o card "Visao Consolidada" visivel normalmente
 
-- `event_type`: o valor correspondente do enum
-- `actor_id` / `actor_email`: dados do usuario logado (obtidos via `useProfile`)
-- `target_email`: email do usuario que recebeu/perdeu acesso
-- `organization_id` / `organization_name`: org alvo
-- `metadata`: JSON com `{ access_level, user_id, user_name }`
-- `success`: true
+### 4. `usePDVs.ts` — Tratar org "all"
+
+- Quando `organizationId === "all"`, nao aplicar filtro de org (trazer todos os PDVs)
+- Isso permite que o filtro de PDV no dashboard liste PDVs de todas as orgs
+
+## Fluxo do usuario
+
+1. Super admin abre o dashboard
+2. No OrgSwitcher do cabecalho, ve "Todas as organizacoes" como primeira opcao
+3. Ao selecionar, KPIs mostram receita total, transacoes totais, etc. de todas as orgs somadas
+4. Graficos (vendas por dia, heatmap, top produtos) mostram dados agregados
+5. Pode voltar a filtrar por uma org especifica a qualquer momento
 
 ## Arquivos a editar
 
 | Arquivo | Acao |
 |---------|------|
-| Migracao SQL | Adicionar 3 valores ao enum `audit_event_type` |
-| `src/components/layout/OrgSwitcher.tsx` | Adicionar icones e badges para distinguir orgs proprias vs compartilhadas |
-| `src/hooks/useOrgCrossAccess.ts` | Inserir logs de auditoria nas 3 mutations (grant, revoke, update) |
+| `src/contexts/ActiveOrgContext.tsx` | Aceitar "all", expor `isAllOrgs` |
+| `src/components/layout/OrgSwitcher.tsx` | Adicionar opcao "Todas as organizacoes" para super_admins |
+| `src/pages/Index.tsx` | Passar "all" para useDashboard quando aplicavel |
+| `src/hooks/usePDVs.ts` | Nao filtrar por org quando "all" |
+
+## Impacto
+
+- Nenhuma mudanca no banco de dados
+- O hook `useDashboard` ja trata `selectedOrganizationId === "all"` corretamente — nao aplica filtro de org/pdv, resultando em dados globais
+- Outras paginas (Estoque, Uploads) tambem podem se beneficiar do `isAllOrgs` no futuro
+
