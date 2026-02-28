@@ -14,9 +14,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const CouponsSettings = lazy(() => import("@/components/marketing/CouponsSettings").then(m => ({ default: m.CouponsSettings })));
 const MarketingOverview = lazy(() => import("@/components/marketing/MarketingOverview").then(m => ({ default: m.MarketingOverview })));
 const MediaSettings = lazy(() => import("@/components/marketing/MediaSettings").then(m => ({ default: m.MediaSettings })));
-const CatalogLeadsSettings = lazy(() => import("@/components/settings/CatalogLeadsSettings").then(m => ({ default: m.CatalogLeadsSettings })));
+const CatalogLeadsSettings = lazy(() => import("@/components/marketing/CatalogLeadsSettings").then(m => ({ default: m.CatalogLeadsSettings })));
 const MarketingAnalytics = lazy(() => import("@/components/marketing/MarketingAnalytics").then(m => ({ default: m.MarketingAnalytics })));
-const ProductRequestsSettings = lazy(() => import("@/components/settings/ProductRequestsSettings").then(m => ({ default: m.ProductRequestsSettings })));
+const ProductRequestsSettings = lazy(() => import("@/components/marketing/ProductRequestsSettings").then(m => ({ default: m.ProductRequestsSettings })));
 const PDVCatalogList = lazy(() => import("@/components/marketing/PDVCatalogList").then(m => ({ default: m.PDVCatalogList })));
 
 export default function Marketing() {

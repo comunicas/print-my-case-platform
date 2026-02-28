@@ -5,3 +5,6 @@ export { MediaLightbox } from './lightbox';
 export { MarketingOverview } from './MarketingOverview';
 export { MarketingAnalytics } from './MarketingAnalytics';
 export { PDVCatalogList } from './PDVCatalogList';
+export { ProductRequestsSettings } from './ProductRequestsSettings';
+export { ProductRequestDetailModal } from './ProductRequestDetailModal';
+export { CatalogLeadsSettings } from './CatalogLeadsSettings';
