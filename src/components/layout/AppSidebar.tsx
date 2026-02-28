@@ -41,6 +41,7 @@ const stockSubItems = [
 const marketingSubItems = [
   { label: "Cupons", href: "/marketing?tab=cupons" },
   { label: "Mídias", href: "/marketing?tab=midias" },
+  { label: "Pedidos", href: "/marketing?tab=pedidos" },
 ];
 
 interface AppSidebarProps {
