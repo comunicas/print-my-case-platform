@@ -1,57 +1,60 @@
 
 
-# Mover "Pedidos" de Configuracoes para Marketing
+# Adicionar Error Boundaries nas Paginas Principais
 
-## Justificativa
+## Contexto
 
-"Pedidos de Produtos" sao demandas vindas do catalogo publico — uma funcionalidade de marketing/vendas. Mante-los em Configuracoes mistura gestao operacional com infraestrutura. Movendo para Marketing, temos:
+Atualmente o projeto nao possui nenhum Error Boundary. Se qualquer componente lanca um erro de renderizacao (ex: dado inesperado do backend, bug em um grafico), toda a aplicacao quebra e o usuario ve uma tela branca.
 
-- Cupons, Midias, Leads, **Pedidos**, Analytics — tudo relacionado ao catalogo publico num so lugar
-- Configuracoes fica mais enxuta (6 abas em vez de 7)
-- Fluxo mais intuitivo para o admin
+## Solucao
 
-## Mudancas Necessarias
+Criar um componente `ErrorBoundary` reutilizavel (class component, unico jeito suportado pelo React 18) e aplica-lo em dois niveis:
 
-### 1. Adicionar aba "Pedidos" na pagina Marketing (`src/pages/Marketing.tsx`)
+### Nivel 1 — Error Boundary Global (App.tsx)
 
-- Importar `ProductRequestsSettings` via lazy loading (ja existe em `src/components/settings/ProductRequestsSettings.tsx`)
-- Adicionar `TabsTrigger value="pedidos"` apos "Midias" (visivel apenas para admins, como Leads e Analytics)
-- Adicionar `TabsContent value="pedidos"` com o componente
-- Atualizar descricao do header: "Gerencie cupons, midias e pedidos dos seus PDVs"
+Envolver toda a arvore de rotas com um ErrorBoundary que mostra uma tela de fallback amigavel com botao "Recarregar pagina". Isso garante que nenhum erro nao tratado resulte em tela branca.
 
-### 2. Adicionar card "Pedidos" no MarketingOverview (`src/components/marketing/MarketingOverview.tsx`)
+### Nivel 2 — Error Boundary por Pagina (AppLayout)
 
-- Adicionar card com icone `MessageSquare` na lista de cards admin-only
-- Texto: "Gerencie pedidos de produtos recebidos pelo catalogo publico"
-- Navega para `tab=pedidos`
+Envolver o `children` dentro do `AppLayout` com um ErrorBoundary de pagina. Assim, se um componente dentro de uma pagina crashar, o sidebar e header continuam funcionando — apenas o conteudo principal mostra a mensagem de erro com opcao de voltar ao Dashboard.
 
-### 3. Adicionar sub-item no sidebar (`src/components/layout/AppSidebar.tsx`)
-
-- Adicionar `{ label: "Pedidos", href: "/marketing?tab=pedidos" }` em `marketingSubItems`
-
-### 4. Remover "Pedidos" da pagina Settings (`src/pages/Settings.tsx`)
-
-- Remover lazy import de `ProductRequestsSettings`
-- Remover `"requests"` de `ADMIN_ONLY_TABS`
-- Remover `TabsTrigger value="requests"` e `TabsContent value="requests"`
-- Ajustar grid de `grid-cols-7` para `grid-cols-6`
-
-### 5. Atualizar rota de notificacoes (se existir)
-
-- Verificar se ha links internos apontando para `/settings?tab=requests` e redirecionar para `/marketing?tab=pedidos`
-
-## Arquivos a Editar
+## Arquivos
 
 | Arquivo | Acao |
 |---------|------|
-| `src/pages/Marketing.tsx` | Adicionar aba Pedidos (admin-only) |
-| `src/components/marketing/MarketingOverview.tsx` | Adicionar card Pedidos |
-| `src/components/layout/AppSidebar.tsx` | Adicionar sub-item Pedidos |
-| `src/pages/Settings.tsx` | Remover aba Pedidos, ajustar grid |
+| `src/components/ui/ErrorBoundary.tsx` | **Criar** — Class component com dois modos de fallback (full-page e inline) |
+| `src/App.tsx` | Envolver a arvore de rotas com `<ErrorBoundary>` global |
+| `src/components/layout/AppLayout.tsx` | Envolver `{children}` com `<ErrorBoundary>` inline |
 
-## Impacto
+## Detalhes Tecnicos
 
-- **Zero mudanca no banco de dados** — os dados e RLS ficam identicos
-- **Zero mudanca nos componentes** — `ProductRequestsSettings` e `ProductRequestDetailModal` permanecem onde estao, apenas importados de outro lugar
-- **Rota antiga** (`/settings?tab=requests`) deixa de existir — nao ha deep links externos conhecidos
+### ErrorBoundary.tsx
+
+- Class component com `componentDidCatch` para log de erros no console
+- Props: `fallback?: ReactNode` e `onReset?: () => void`
+- Estado: `hasError`, `error`
+- Fallback padrao: Card centralizado com icone `AlertTriangle`, mensagem do erro, e botao "Tentar novamente" que chama `setState({ hasError: false })` + `onReset`
+- Exportar tambem um `PageErrorFallback` (componente funcional) para uso inline que mostra o erro com botao de voltar ao Dashboard
+
+### App.tsx
+
+```text
+<ErrorBoundary>
+  <BrowserRouter>
+    ...
+  </BrowserRouter>
+</ErrorBoundary>
+```
+
+### AppLayout.tsx
+
+```text
+<main>
+  <ErrorBoundary fallback={<PageErrorFallback />}>
+    {children}
+  </ErrorBoundary>
+</main>
+```
+
+Assim, um crash no Dashboard nao derruba o sidebar, e o usuario pode navegar para outra pagina sem recarregar.
 
