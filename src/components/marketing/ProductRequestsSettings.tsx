@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Search, MoreHorizontal, MessageSquare, Phone, CheckCircle2, XCircle, Clock, TrendingUp, Users, Package } from "lucide-react";
+import { Loader2, Search, MoreHorizontal, MessageSquare, Phone, CheckCircle2, XCircle, Clock, TrendingUp, Package } from "lucide-react";
 import { useProductRequests, ProductRequestStatus, ProductRequest } from "@/hooks/useProductRequests";
 import { ProductRequestDetailModal } from "./ProductRequestDetailModal";
 import { useDebounce } from "@/hooks/useDebounce";
