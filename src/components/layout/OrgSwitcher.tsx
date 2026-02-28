@@ -35,11 +35,6 @@ export function OrgSwitcher() {
     <div className="flex items-center gap-2">
       <Select value={activeOrgId ?? ""} onValueChange={setActiveOrgId}>
         <SelectTrigger className="w-full sm:w-[200px] h-9">
-          {isAllOrgs ? (
-            <Globe className="h-4 w-4 mr-2 text-primary flex-shrink-0" />
-          ) : (
-            <Building2 className="h-4 w-4 mr-2 text-muted-foreground flex-shrink-0" />
-          )}
           <SelectValue placeholder="Selecione a empresa" />
         </SelectTrigger>
         <SelectContent>
