@@ -16,6 +16,7 @@ const MarketingOverview = lazy(() => import("@/components/marketing/MarketingOve
 const MediaSettings = lazy(() => import("@/components/marketing/MediaSettings").then(m => ({ default: m.MediaSettings })));
 const CatalogLeadsSettings = lazy(() => import("@/components/settings/CatalogLeadsSettings").then(m => ({ default: m.CatalogLeadsSettings })));
 const MarketingAnalytics = lazy(() => import("@/components/marketing/MarketingAnalytics").then(m => ({ default: m.MarketingAnalytics })));
+const ProductRequestsSettings = lazy(() => import("@/components/settings/ProductRequestsSettings").then(m => ({ default: m.ProductRequestsSettings })));
 
 export default function Marketing() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -99,6 +100,7 @@ export default function Marketing() {
           <TabsList>
             <TabsTrigger value="cupons">Cupons</TabsTrigger>
             <TabsTrigger value="midias">Mídias</TabsTrigger>
+            {isAdmin && <TabsTrigger value="pedidos">Pedidos</TabsTrigger>}
             {isAdmin && <TabsTrigger value="leads">Leads</TabsTrigger>}
             {isAdmin && <TabsTrigger value="analytics">Analytics</TabsTrigger>}
           </TabsList>
@@ -129,6 +131,14 @@ export default function Marketing() {
               </div>
             </Suspense>
           </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="pedidos" className="mt-4">
+              <Suspense fallback={<TabSkeleton />}>
+                <ProductRequestsSettings />
+              </Suspense>
+            </TabsContent>
+          )}
 
           {isAdmin && (
             <TabsContent value="leads" className="mt-4">

@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Ticket, Image, ArrowRight, UserPlus, BarChart3 } from "lucide-react";
+import { Ticket, Image, ArrowRight, UserPlus, BarChart3, MessageSquare } from "lucide-react";
 
 interface MarketingOverviewProps {
   onNavigate: (tab: string) => void;
@@ -23,6 +23,12 @@ export function MarketingOverview({ onNavigate, isAdmin }: MarketingOverviewProp
     },
     ...(isAdmin
       ? [
+          {
+            id: "pedidos",
+            title: "Pedidos",
+            description: "Gerencie pedidos de produtos recebidos pelo catálogo público.",
+            icon: MessageSquare,
+          },
           {
             id: "leads",
             title: "Leads",

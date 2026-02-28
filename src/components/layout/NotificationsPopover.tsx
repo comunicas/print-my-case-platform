@@ -21,7 +21,7 @@ const typeConfig: Record<
   product_request: {
     icon: ShoppingBag,
     className: "text-blue-500 bg-blue-500/10",
-    route: "/settings?tab=pedidos",
+    route: "/marketing?tab=pedidos",
   },
   upload_processed: {
     icon: FileCheck,
