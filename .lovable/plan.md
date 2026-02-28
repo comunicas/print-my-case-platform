@@ -1,23 +1,25 @@
 
-# Mover ProductRequestsSettings e CatalogLeadsSettings para o modulo Marketing
+
+# Corrigir warnings de lint nos arquivos movidos
+
+## Problemas encontrados
+
+### 1. `ProductRequestsSettings.tsx` - Imports nao usados
+- **Linha 1**: `useMemo` importado mas nunca utilizado
+- **Linha 32**: `Users` (lucide-react) importado mas nunca utilizado
+
+### 2. Cores hardcoded (`blue-500`, `green-500`)
+Apos analise, `bg-blue-500/10` e `bg-green-500/10` sao um padrao consistente no projeto (usados em `ProductAnalyticsKPIs`, `NotificationsPopover`, etc.). **Nao sao warnings reais** -- sao classes utilitarias do Tailwind usadas como convencao de design para KPI cards. Nenhuma alteracao necessaria aqui.
+
+### 3. `ProductRequestDetailModal.tsx` e `CatalogLeadsSettings.tsx`
+Sem warnings de lint. Todos os imports estao em uso.
 
 ## Mudancas
 
-### 1. Mover arquivos
-- `src/components/settings/ProductRequestsSettings.tsx` -> `src/components/marketing/ProductRequestsSettings.tsx`
-- `src/components/settings/ProductRequestDetailModal.tsx` -> `src/components/marketing/ProductRequestDetailModal.tsx`
-- `src/components/settings/CatalogLeadsSettings.tsx` -> `src/components/marketing/CatalogLeadsSettings.tsx`
+### Arquivo: `src/components/marketing/ProductRequestsSettings.tsx`
 
-### 2. Atualizar import interno
-- Em `ProductRequestsSettings.tsx`, o import do `ProductRequestDetailModal` muda de `"./ProductRequestDetailModal"` (sem alteracao necessaria, pois ambos estarao no mesmo diretorio)
+1. Remover `useMemo` do import do React (linha 1)
+2. Remover `Users` do import do lucide-react (linha 32)
 
-### 3. Atualizar `src/pages/Marketing.tsx`
-- Lazy import de `CatalogLeadsSettings`: trocar path de `@/components/settings/CatalogLeadsSettings` para `@/components/marketing/CatalogLeadsSettings`
-- Lazy import de `ProductRequestsSettings`: trocar path de `@/components/settings/ProductRequestsSettings` para `@/components/marketing/ProductRequestsSettings`
+Resultado: 2 linhas editadas, zero impacto funcional.
 
-### 4. Atualizar barrel exports
-- **Remover** de `src/components/settings/index.ts`: exports de `ProductRequestsSettings`, `ProductRequestDetailModal` e `CatalogLeadsSettings`
-- **Adicionar** em `src/components/marketing/index.ts`: exports dos tres componentes
-
-### Resumo
-Sao 5 arquivos editados (2 barrel indexes + 1 pagina) e 3 arquivos movidos. Nenhum outro arquivo no projeto referencia esses componentes.
