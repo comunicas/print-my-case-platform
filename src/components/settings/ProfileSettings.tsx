@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Camera, Lock, Loader2 } from "lucide-react";
+import { Lock, Loader2 } from "lucide-react";
 import { PasswordStrengthIndicator } from "@/components/ui/password-strength";
 import { toast } from "sonner";
 import { profileFormSchema, passwordFormSchema } from "@/lib/schemas/settings";
@@ -137,15 +137,6 @@ export function ProfileSettings({ profile, role, session, updateProfile }: Profi
                 {initials}
               </AvatarFallback>
             </Avatar>
-            <div className="space-y-1">
-              <Button variant="outline" size="sm" className="gap-2" disabled>
-                <Camera className="h-4 w-4" />
-                Alterar foto
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                JPG, PNG ou GIF. Máximo 2MB.
-              </p>
-            </div>
           </div>
 
           <Separator />

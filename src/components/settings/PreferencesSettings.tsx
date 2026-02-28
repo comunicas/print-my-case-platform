@@ -3,8 +3,6 @@ import { useTheme } from "next-themes";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
@@ -119,107 +117,6 @@ export function PreferencesSettings({ preferences, pdvs, updatePreferences }: Pr
             </RadioGroup>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="language">Idioma</Label>
-            <Select
-              value={localPreferences.language}
-              onValueChange={(value) =>
-                setLocalPreferences({ ...localPreferences, language: value })
-              }
-            >
-              <SelectTrigger className="w-full md:w-[200px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pt-BR">Português (BR)</SelectItem>
-                <SelectItem value="en">English</SelectItem>
-                <SelectItem value="es">Español</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Notifications */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Notificações</CardTitle>
-          <CardDescription>
-            Configure quais notificações você deseja receber
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Notificações por email</Label>
-              <p className="text-sm text-muted-foreground">
-                Receba atualizações importantes por email
-              </p>
-            </div>
-            <Switch
-              checked={localPreferences.notifications.email}
-              onCheckedChange={(checked) =>
-                setLocalPreferences({
-                  ...localPreferences,
-                  notifications: { ...localPreferences.notifications, email: checked },
-                })
-              }
-            />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Alertas de estoque baixo</Label>
-              <p className="text-sm text-muted-foreground">
-                Seja notificado quando produtos estiverem acabando
-              </p>
-            </div>
-            <Switch
-              checked={localPreferences.notifications.stockAlerts}
-              onCheckedChange={(checked) =>
-                setLocalPreferences({
-                  ...localPreferences,
-                  notifications: { ...localPreferences.notifications, stockAlerts: checked },
-                })
-              }
-            />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Relatórios semanais</Label>
-              <p className="text-sm text-muted-foreground">
-                Receba um resumo semanal de vendas e estoque
-              </p>
-            </div>
-            <Switch
-              checked={localPreferences.notifications.weeklyReports}
-              onCheckedChange={(checked) =>
-                setLocalPreferences({
-                  ...localPreferences,
-                  notifications: { ...localPreferences.notifications, weeklyReports: checked },
-                })
-              }
-            />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Uploads processados</Label>
-              <p className="text-sm text-muted-foreground">
-                Notifique quando um upload for processado
-              </p>
-            </div>
-            <Switch
-              checked={localPreferences.notifications.uploadProcessed}
-              onCheckedChange={(checked) =>
-                setLocalPreferences({
-                  ...localPreferences,
-                  notifications: { ...localPreferences.notifications, uploadProcessed: checked },
-                })
-              }
-            />
-          </div>
         </CardContent>
       </Card>
 

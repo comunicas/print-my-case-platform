@@ -258,24 +258,12 @@ export function TeamSettings() {
           </p>
         </div>
 
-        {isSuperAdmin ? (
+        {isSuperAdmin && (
           <Button size="sm" onClick={() => setIsCreateDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Criar Usuário
           </Button>
-        ) : isAdmin ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button disabled size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar Membro
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Em breve: sistema de convites por email</p>
-            </TooltipContent>
-          </Tooltip>
-        ) : null}
+        )}
       </div>
 
       {/* Org Filter + Search Bar */}
