@@ -5,6 +5,7 @@ import { AppHeader } from "./AppHeader";
 import { MobileSidebar } from "./MobileSidebar";
 import { useBreakpoint } from "@/hooks/use-mobile";
 import { useSidebarPreferences } from "@/hooks/useSidebarPreferences";
+import { ErrorBoundary, PageErrorFallback } from "@/components/ui/ErrorBoundary";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -73,7 +74,9 @@ export function AppLayout({ children }: AppLayoutProps) {
           onMenuClick={() => setMobileMenuOpen(true)}
         />
         <main className="flex-1 p-4 md:p-5 lg:p-6 overflow-auto">
-          {children}
+          <ErrorBoundary fallback={<PageErrorFallback />}>
+            {children}
+          </ErrorBoundary>
         </main>
       </div>
     </div>

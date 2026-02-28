@@ -10,6 +10,7 @@ import { ActiveOrgProvider } from "@/contexts/ActiveOrgContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { lazy, Suspense } from "react";
 import { Loader2 } from "lucide-react";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
 // Lazy load das páginas
 const Index = lazy(() => import("./pages/Index"));
@@ -49,6 +50,7 @@ const App = () => (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <TooltipProvider>
         <Sonner />
+        <ErrorBoundary>
         <BrowserRouter>
           <Suspense fallback={<PageLoader />}>
             <Routes>
@@ -86,6 +88,7 @@ const App = () => (
             </Routes>
           </Suspense>
         </BrowserRouter>
+        </ErrorBoundary>
       </TooltipProvider>
     </ThemeProvider>
   </QueryClientProvider>
