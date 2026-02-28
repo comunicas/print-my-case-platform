@@ -1203,6 +1203,9 @@ export type Database = {
         | "permission_violation"
         | "organization_creation"
         | "role_assignment"
+        | "cross_org_access_granted"
+        | "cross_org_access_revoked"
+        | "cross_org_access_updated"
       member_status: "active" | "pending" | "inactive"
       pdv_status: "active" | "inactive"
       upload_status: "processing" | "ready" | "error"
@@ -1342,6 +1345,9 @@ export const Constants = {
         "permission_violation",
         "organization_creation",
         "role_assignment",
+        "cross_org_access_granted",
+        "cross_org_access_revoked",
+        "cross_org_access_updated",
       ],
       member_status: ["active", "pending", "inactive"],
       pdv_status: ["active", "inactive"],
