@@ -1,46 +1,72 @@
 
-# Mover Catalogos para o modulo Marketing
+# Corrigir Conflitos de Filtros no Marketing
 
-## Situacao Atual
+## Problema Raiz
 
-O gerenciamento de catalogos publicos (`PDVCatalogList`) esta embutido dentro da tab **Organizacao** em Configuracoes. Isso inclui:
-- Configuracao de slugs publicos por PDV
-- Links curtos com contagem de cliques
-- Toggle de ativacao/desativacao
+A pagina Marketing usa `useOrganization()` que **sempre** busca `profile.organization_id` (a org propria do usuario), ignorando completamente o OrgSwitcher. Isso causa:
 
-Isso nao faz sentido em "Organizacao" -- catalogos sao ferramentas de marketing, assim como cupons, midias e leads.
+1. **Catalogos**: `PDVCatalogList` recebe `organization.id` fixo, mostrando apenas PDVs da org propria mesmo com "Todas as organizacoes" selecionado
+2. **Cupons**: Mesmo problema -- `CouponsSettings` recebe `organizationId={organization.id}` fixo
+3. **Midias**: Idem -- `MediaSettings` recebe `organizationId={organization.id}`
+4. **Leads**: `useCatalogLeads` nao filtra por org/PDV -- depende apenas do RLS
+5. **Guard quebrado**: `if (!organization) return "Organizacao nao encontrada"` bloqueia a pagina quando o contexto nao e a org propria
 
-## Mudancas Propostas
+## Solucao
 
-### 1. Nova aba "Catalogos" no modulo Marketing
+### 1. Marketing.tsx -- Integrar com ActiveOrgContext
 
-Adicionar uma nova tab `catalogos` entre as tabs existentes, visivel apenas para admins. Ela exibira o componente `PDVCatalogList` ja existente, com filtro por PDV (aproveitando o `PDVFilter` ja presente na pagina).
+Substituir `useOrganization()` por `useActiveOrg()` como fonte de contexto organizacional:
 
-### 2. Remover catalogos da tab Organizacao
+- Importar `useActiveOrg` do contexto
+- Usar `activeOrgId` para passar aos componentes filhos
+- Remover o guard `if (!organization)` que bloqueia quando "all" esta selecionado
+- Para super_admin com "all", os componentes recebem `undefined` como orgId e buscam tudo
 
-Remover o bloco `PDVCatalogList`, o `Separator` e o import do componente em `OrganizationSettings.tsx`. A tab Organizacao ficara focada apenas nos dados cadastrais.
+### 2. usePDVCatalogSettings -- Suportar modo "all"
 
-### 3. Atualizar o overview do Marketing
+Atualmente recebe `organizationId` e faz `.eq("organization_id", organizationId)`. Precisa:
 
-Adicionar um card "Catalogos" no `MarketingOverview` para que admins vejam a opcao na pagina inicial do modulo.
+- Quando `organizationId` for `undefined` ou `"all"`, buscar todos os PDVs ativos (sem filtro de org)
+- Manter o filtro `.eq()` quando for um ID especifico
+
+### 3. PDVCatalogList -- Aceitar orgId opcional
+
+- Tornar `organizationId` opcional na interface
+- Passar o valor correto do contexto ativo
+
+### 4. CouponsSettings -- Aceitar orgId opcional
+
+- Mesmo ajuste: quando `organizationId` for undefined, o hook ja buscara todos
+
+### 5. Remover guard de organizacao obrigatoria
+
+O `if (!organization)` impede renderizar quando "Todas as organizacoes" esta selecionado. Substituir por verificacao do `activeOrgId` -- se existe contexto ativo (mesmo "all"), renderizar normalmente.
 
 ---
 
 ## Detalhes Tecnicos
 
 ### Arquivo: `src/pages/Marketing.tsx`
-- Adicionar nova tab `catalogos` no `TabsList` (restrita a admins)
-- Adicionar `TabsContent` com `PDVCatalogList` passando `organizationId` e filtrando por `selectedPdvId`
-- Lazy import do `PDVCatalogList`
+- Trocar `useOrganization({ readOnly: true })` por `useActiveOrg()`
+- Derivar `effectiveOrgId` de `activeOrgId` (quando "all", passar undefined para hooks)
+- Remover guard `if (!organization)` 
+- Passar `effectiveOrgId` para `CouponsSettings`, `MediaSettings`, `PDVCatalogList`
+- Manter `useProfile()` para `isAdmin`/`isSuperAdmin`
 
-### Arquivo: `src/components/settings/OrganizationSettings.tsx`
-- Remover import do `PDVCatalogList`
-- Remover o bloco JSX do Separator + secao "Catalogos Publicos" (linhas 173-189)
-- Remover import do `Separator` (nao utilizado em outro lugar do arquivo)
+### Arquivo: `src/hooks/usePDVCatalogSettings.ts`
+- Tornar `organizationId` opcional
+- Quando undefined: buscar todos os PDVs ativos sem filtro de org (RLS garante isolamento)
+- Quando string: manter `.eq("organization_id", organizationId)`
 
-### Arquivo: `src/components/marketing/MarketingOverview.tsx`
-- Adicionar card "Catalogos" com icone `Globe` e descricao sobre configuracao de URLs publicas por PDV
-- Posicionar entre "Midias" e "Pedidos" na lista de cards
+### Arquivo: `src/components/settings/PDVCatalogList.tsx`
+- Tornar `organizationId` opcional na interface
+
+### Arquivo: `src/components/marketing/CouponsSettings.tsx`
+- Tornar `organizationId` opcional na interface
+- Propagar para `usePDVCatalogSettings`
+
+### Arquivo: `src/components/marketing/MediaSettings.tsx`
+- Tornar `organizationId` opcional na interface
 
 ### Memoria de rotas
-- Adicionar `catalogos` a lista de tabs do Marketing
+- Atualizar `routing-tab-naming-convention` para incluir `catalogos` na lista de tabs do Marketing
