@@ -17,6 +17,7 @@ const MediaSettings = lazy(() => import("@/components/marketing/MediaSettings").
 const CatalogLeadsSettings = lazy(() => import("@/components/settings/CatalogLeadsSettings").then(m => ({ default: m.CatalogLeadsSettings })));
 const MarketingAnalytics = lazy(() => import("@/components/marketing/MarketingAnalytics").then(m => ({ default: m.MarketingAnalytics })));
 const ProductRequestsSettings = lazy(() => import("@/components/settings/ProductRequestsSettings").then(m => ({ default: m.ProductRequestsSettings })));
+const PDVCatalogList = lazy(() => import("@/components/settings/PDVCatalogList").then(m => ({ default: m.PDVCatalogList })));
 
 export default function Marketing() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -100,6 +101,7 @@ export default function Marketing() {
           <TabsList>
             <TabsTrigger value="cupons">Cupons</TabsTrigger>
             <TabsTrigger value="midias">Mídias</TabsTrigger>
+            {isAdmin && <TabsTrigger value="catalogos">Catálogos</TabsTrigger>}
             {isAdmin && <TabsTrigger value="pedidos">Pedidos</TabsTrigger>}
             {isAdmin && <TabsTrigger value="leads">Leads</TabsTrigger>}
             {isAdmin && <TabsTrigger value="analytics">Analytics</TabsTrigger>}
@@ -131,6 +133,14 @@ export default function Marketing() {
               </div>
             </Suspense>
           </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="catalogos" className="mt-4">
+              <Suspense fallback={<TabSkeleton />}>
+                <PDVCatalogList organizationId={organization.id} />
+              </Suspense>
+            </TabsContent>
+          )}
 
           {isAdmin && (
             <TabsContent value="pedidos" className="mt-4">
