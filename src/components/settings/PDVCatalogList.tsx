@@ -18,6 +18,7 @@ interface PDVCatalogRowProps {
     id: string;
     name: string;
     location: string;
+    organization_name: string | null;
     catalog_settings: {
       public_slug: string | null;
       is_public_enabled: boolean;
@@ -26,9 +27,10 @@ interface PDVCatalogRowProps {
   };
   onSave: (pdvId: string, slug: string, enabled: boolean) => void;
   isSaving: boolean;
+  showOrgName: boolean;
 }
 
-function PDVCatalogRow({ pdv, onSave, isSaving }: PDVCatalogRowProps) {
+function PDVCatalogRow({ pdv, onSave, isSaving, showOrgName }: PDVCatalogRowProps) {
   const [enabled, setEnabled] = useState(pdv.catalog_settings?.is_public_enabled || false);
   const [slug, setSlug] = useState(pdv.catalog_settings?.public_slug || "");
   
@@ -49,7 +51,12 @@ function PDVCatalogRow({ pdv, onSave, isSaving }: PDVCatalogRowProps) {
       <div className="flex items-center justify-between">
         <div>
           <p className="font-medium">{pdv.name}</p>
-          <p className="text-sm text-muted-foreground">{pdv.location}</p>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <p className="text-sm text-muted-foreground">{pdv.location}</p>
+            {showOrgName && pdv.organization_name && (
+              <Badge variant="secondary" className="text-xs font-normal">{pdv.organization_name}</Badge>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {enabled && slug && (
@@ -151,6 +158,7 @@ function PDVCatalogRow({ pdv, onSave, isSaving }: PDVCatalogRowProps) {
 
 export function PDVCatalogList({ organizationId }: PDVCatalogListProps) {
   const { pdvsWithSettings, isLoading, upsertSettings } = usePDVCatalogSettings(organizationId);
+  const showOrgName = !organizationId;
 
   const handleSave = (pdvId: string, slug: string, enabled: boolean) => {
     upsertSettings.mutate({
@@ -176,6 +184,7 @@ export function PDVCatalogList({ organizationId }: PDVCatalogListProps) {
           pdv={pdv}
           onSave={handleSave}
           isSaving={upsertSettings.isPending}
+          showOrgName={showOrgName}
         />
       ))}
     </div>

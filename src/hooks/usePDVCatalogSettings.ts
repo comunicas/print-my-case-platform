@@ -29,6 +29,8 @@ interface PDVWithCatalogSettings {
   id: string;
   name: string;
   location: string;
+  organization_id: string;
+  organization_name: string | null;
   catalog_settings: PDVCatalogSettings | null;
   short_link: ShortLink | null;
 }
@@ -50,7 +52,7 @@ export function usePDVCatalogSettings(organizationId?: string) {
     queryFn: async () => {
       let query = supabase
         .from("pdvs")
-        .select("id, name, location")
+        .select("id, name, location, organization_id")
         .eq("status", "active")
         .order("name");
 
@@ -64,16 +66,22 @@ export function usePDVCatalogSettings(organizationId?: string) {
 
       const pdvIds = pdvs.map(p => p.id);
       
-      const [settingsRes, shortLinksRes] = await Promise.all([
+      const orgIds = [...new Set(pdvs.map(p => p.organization_id))];
+
+      const [settingsRes, shortLinksRes, orgsRes] = await Promise.all([
         supabase.from("pdv_catalog_settings").select("*").in("pdv_id", pdvIds),
         supabase.from("catalog_short_links").select("*").in("pdv_id", pdvIds),
+        supabase.from("organizations").select("id, name").in("id", orgIds),
       ]);
 
       if (settingsRes.error) throw settingsRes.error;
       if (shortLinksRes.error) throw shortLinksRes.error;
 
+      const orgMap = new Map(orgsRes.data?.map(o => [o.id, o.name]) || []);
+
       const result: PDVWithCatalogSettings[] = pdvs.map(pdv => ({
         ...pdv,
+        organization_name: orgMap.get(pdv.organization_id) || null,
         catalog_settings: settingsRes.data?.find(s => s.pdv_id === pdv.id) as PDVCatalogSettings | undefined || null,
         short_link: shortLinksRes.data?.find(s => s.pdv_id === pdv.id) as ShortLink | undefined || null,
       }));
