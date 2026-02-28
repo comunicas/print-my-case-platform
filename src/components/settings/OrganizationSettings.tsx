@@ -5,14 +5,14 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { organizationFormSchema } from "@/lib/schemas/settings";
 import { parseZodErrors } from "@/lib/utils";
 import { Organization } from "@/hooks/useOrganization";
 import { UseMutationResult } from "@tanstack/react-query";
-import { PDVCatalogList } from "./PDVCatalogList";
+
 interface OrganizationSettingsProps {
   organization: Organization;
   isAdmin: boolean;
@@ -170,23 +170,6 @@ export function OrganizationSettings({ organization, isAdmin, updateOrganization
           </div>
         )}
 
-        {isAdmin && (
-          <>
-            <Separator />
-            
-            {/* Catálogo Público por PDV */}
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-base font-semibold">Catálogos Públicos</h3>
-                <p className="text-sm text-muted-foreground">
-                  Configure URLs públicas independentes para cada PDV. Clientes poderão ver a disponibilidade dos produtos sem login.
-                </p>
-              </div>
-
-              <PDVCatalogList organizationId={organization.id} />
-            </div>
-          </>
-        )}
       </CardContent>
     </Card>
   );

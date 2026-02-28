@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Ticket, Image, ArrowRight, UserPlus, BarChart3, MessageSquare } from "lucide-react";
+import { Ticket, Image, ArrowRight, UserPlus, BarChart3, MessageSquare, Globe } from "lucide-react";
 
 interface MarketingOverviewProps {
   onNavigate: (tab: string) => void;
@@ -23,6 +23,12 @@ export function MarketingOverview({ onNavigate, isAdmin }: MarketingOverviewProp
     },
     ...(isAdmin
       ? [
+          {
+            id: "catalogos",
+            title: "Catálogos",
+            description: "Configure URLs públicas para cada PDV e acompanhe cliques nos links curtos.",
+            icon: Globe,
+          },
           {
             id: "pedidos",
             title: "Pedidos",
