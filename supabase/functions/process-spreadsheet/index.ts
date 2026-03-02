@@ -737,10 +737,56 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Batch insert ONLY CLEAN RECORDS (chunks of 500)
+      // === DEDUPLICATION: remove records that already exist via API ===
+      const uniqueOrderNumbers = [...new Set(
+        cleanRecords
+          .map(r => r?.order_number as string)
+          .filter(Boolean)
+      )];
+
+      const existingApiOrderNumbers = new Set<string>();
+
+      if (uniqueOrderNumbers.length > 0) {
+        const dedupChunkSize = 500;
+        for (let i = 0; i < uniqueOrderNumbers.length; i += dedupChunkSize) {
+          const chunk = uniqueOrderNumbers.slice(i, i + dedupChunkSize);
+          const { data: existingRecords, error: dedupError } = await supabase
+            .from("sales_records")
+            .select("order_number")
+            .eq("pdv_id", pdvId)
+            .eq("source", "api")
+            .in("order_number", chunk);
+
+          if (dedupError) {
+            console.warn(`[process-spreadsheet] Upload ${uploadId}: Dedup query error (non-fatal):`, dedupError.message);
+          } else if (existingRecords) {
+            for (const rec of existingRecords) {
+              existingApiOrderNumbers.add(rec.order_number);
+            }
+          }
+        }
+      }
+
+      let dedupSkipped = 0;
+      let finalRecords = cleanRecords;
+
+      if (existingApiOrderNumbers.size > 0) {
+        finalRecords = cleanRecords.filter(r => 
+          !existingApiOrderNumbers.has(r?.order_number as string)
+        );
+        dedupSkipped = cleanRecords.length - finalRecords.length;
+        skippedRecords += dedupSkipped;
+        console.log(`[process-spreadsheet] Upload ${uploadId}: DEDUP - Ignored ${dedupSkipped} records already ingested via API`);
+      }
+
+      // Add explicit source field to each record
+      const recordsToInsert = finalRecords.map(r => ({ ...r, source: "spreadsheet" }));
+      // === END DEDUPLICATION ===
+
+      // Batch insert ONLY DEDUPLICATED CLEAN RECORDS (chunks of 500)
       const chunkSize = 500;
-      for (let i = 0; i < cleanRecords.length; i += chunkSize) {
-        const chunk = cleanRecords.slice(i, i + chunkSize);
+      for (let i = 0; i < recordsToInsert.length; i += chunkSize) {
+        const chunk = recordsToInsert.slice(i, i + chunkSize);
         const { error: insertError } = await supabase
           .from("sales_records")
           .insert(chunk);
