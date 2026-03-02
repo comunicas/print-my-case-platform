@@ -139,6 +139,23 @@ export function useFinancialEntries({ referenceMonth, category, pdvId }: UseFina
       const prevMonthStr = format(subMonths(startOfMonth(targetMonth), 1), "yyyy-MM-dd");
       const targetMonthStr = format(startOfMonth(targetMonth), "yyyy-MM-dd");
 
+      // Verificar se já existem entradas no mês de destino
+      let checkQuery = supabase
+        .from("financial_entries")
+        .select("id", { count: "exact", head: true })
+        .eq("reference_month", targetMonthStr)
+        .in("category", ["fixas", "deducoes"]);
+
+      if (orgId) {
+        checkQuery = checkQuery.eq("organization_id", orgId);
+      }
+
+      const { count, error: checkError } = await checkQuery;
+      if (checkError) throw checkError;
+      if (count && count > 0) {
+        throw new Error("Já existem despesas neste mês. Exclua-as antes de copiar novamente.");
+      }
+
       let query = supabase
         .from("financial_entries")
         .select("*")
