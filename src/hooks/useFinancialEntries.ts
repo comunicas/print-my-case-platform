@@ -29,7 +29,9 @@ export function useFinancialEntries({ referenceMonth, category, pdvId }: UseFina
   const { activeOrgId } = useActiveOrg();
   const queryClient = useQueryClient();
 
-  const orgId = activeOrgId ?? profile?.organization_id;
+  const isAllOrgs = activeOrgId === "all";
+  const orgId = isAllOrgs ? null : (activeOrgId ?? profile?.organization_id);
+  const writeOrgId = orgId ?? profile?.organization_id;
   const monthStr = format(startOfMonth(referenceMonth), "yyyy-MM-dd");
 
   const entriesQuery = useQuery({
@@ -38,9 +40,12 @@ export function useFinancialEntries({ referenceMonth, category, pdvId }: UseFina
       let query = supabase
         .from("financial_entries")
         .select("*")
-        .eq("organization_id", orgId!)
         .eq("reference_month", monthStr)
         .order("created_at", { ascending: false });
+
+      if (orgId) {
+        query = query.eq("organization_id", orgId);
+      }
 
       if (category) {
         query = query.eq("category", category);
@@ -54,7 +59,7 @@ export function useFinancialEntries({ referenceMonth, category, pdvId }: UseFina
       if (error) throw error;
       return data as FinancialEntry[];
     },
-    enabled: !!orgId,
+    enabled: !!orgId || isAllOrgs,
   });
 
   const createEntry = useMutation({
@@ -65,11 +70,11 @@ export function useFinancialEntries({ referenceMonth, category, pdvId }: UseFina
       reference_month: Date;
       pdv_id?: string | null;
     }) => {
-      if (!orgId || !profile?.id) throw new Error("Sem organização");
+      if (!writeOrgId || !profile?.id) throw new Error("Sem organização");
       const { data, error } = await supabase
         .from("financial_entries")
         .insert({
-          organization_id: orgId,
+          organization_id: writeOrgId,
           pdv_id: entry.pdv_id || null,
           category: entry.category,
           description: entry.description,
@@ -130,16 +135,19 @@ export function useFinancialEntries({ referenceMonth, category, pdvId }: UseFina
 
   const copyFromPreviousMonth = useMutation({
     mutationFn: async ({ targetMonth }: { targetMonth: Date }) => {
-      if (!orgId || !profile?.id) throw new Error("Sem organização");
+      if (!writeOrgId || !profile?.id) throw new Error("Sem organização");
       const prevMonthStr = format(subMonths(startOfMonth(targetMonth), 1), "yyyy-MM-dd");
       const targetMonthStr = format(startOfMonth(targetMonth), "yyyy-MM-dd");
 
       let query = supabase
         .from("financial_entries")
         .select("*")
-        .eq("organization_id", orgId)
         .eq("reference_month", prevMonthStr)
         .in("category", ["fixas", "deducoes"]);
+
+      if (orgId) {
+        query = query.eq("organization_id", orgId);
+      }
 
       if (pdvId) {
         query = query.or(`pdv_id.eq.${pdvId},pdv_id.is.null`);
