@@ -117,6 +117,50 @@ function ExpandableRow({ label, total, prefix, entries, isLoading }: ExpandableR
   );
 }
 
+function MarginRow({
+  label,
+  numerator,
+  denominator,
+  absoluteValue,
+  isLoading,
+}: {
+  label: string;
+  numerator: number;
+  denominator: number;
+  absoluteValue: number;
+  isLoading?: boolean;
+}) {
+  const pct = denominator !== 0 ? (numerator / denominator) * 100 : null;
+  const isPositive = pct !== null && pct >= 0;
+
+  return (
+    <div className="flex items-center justify-between py-1.5">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      {isLoading ? (
+        <Skeleton className="h-5 w-20" />
+      ) : (
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-mono tabular-nums text-muted-foreground">
+            {formatCurrency(absoluteValue)}
+          </span>
+          <span
+            className={cn(
+              "text-xs font-semibold px-2 py-0.5 rounded-full",
+              pct === null
+                ? "bg-muted text-muted-foreground"
+                : isPositive
+                  ? "bg-primary/10 text-primary"
+                  : "bg-destructive/10 text-destructive"
+            )}
+          >
+            {pct === null ? "—" : `${pct.toFixed(1)}%`}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SectionSeparator() {
   return <div className="border-t border-dashed border-muted-foreground/20 mx-4" />;
 }
@@ -249,13 +293,32 @@ export function DRETable({ dre, isLoading, entriesByCategory }: DRETableProps) {
         )}
 
         {/* Resultado do Mês */}
-        <div className="bg-muted/30 rounded-b-xl">
+        <div className="bg-muted/30">
           <DRERow
             prefix="(=)"
-            label={dre.implantacao > 0 ? "Resultado do Mês" : "Resultado do Mês"}
+            label="Resultado do Mês"
             value={dre.resultadoMes}
             bold
             highlight
+            isLoading={isLoading}
+          />
+        </div>
+
+        {/* Margens */}
+        <SectionSeparator />
+        <div className="py-2 px-4 space-y-1 rounded-b-xl">
+          <MarginRow
+            label="Margem Bruta"
+            numerator={dre.lucroBruto}
+            denominator={dre.receitaLiquida}
+            absoluteValue={dre.lucroBruto}
+            isLoading={isLoading}
+          />
+          <MarginRow
+            label="Margem Operacional"
+            numerator={dre.resultadoOperacional}
+            denominator={dre.receitaLiquida}
+            absoluteValue={dre.resultadoOperacional}
             isLoading={isLoading}
           />
         </div>
