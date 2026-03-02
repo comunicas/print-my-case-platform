@@ -1,58 +1,136 @@
 
-# Corrigir erro "[object Object]" no upload de vendas
 
-## Problema identificado
+# Auditoria completa: Super Admin sem restrições
 
-Ao tentar subir a planilha do Tatuapé, o toast de erro exibe "Erro inesperado - [object Object]" porque a funcao `parseUploadError` nao extrai corretamente a mensagem de erros que sao objetos simples do Supabase (nao instancias de `Error`).
+## Problema
 
-O Supabase retorna erros como `{message: "...", statusCode: 409}` ou `{error: "...", status: 403}`. O codigo atual faz `String(error)` que resulta em `"[object Object]"`.
+O super_admin deve ter acesso irrestrito a todas as operações em todas as tabelas. A revisão das políticas RLS revela que **diversas tabelas** não incluem o bypass `is_super_admin()`, causando bloqueios como o erro de upload reportado.
 
-A edge function `process-spreadsheet` nao aparece nos logs, indicando que o erro ocorre **antes** do processamento — provavelmente no upload do arquivo ao storage ou na insercao do registro na tabela `uploads`.
+## Tabelas com políticas que precisam de correção
 
-## Solucao
+### 1. uploads (causa do erro atual)
 
-### 1. Corrigir `parseUploadError` para extrair mensagens de objetos
+| Operação | Status | Problema |
+|----------|--------|----------|
+| SELECT | OK | usa `user_can_access_pdv` que inclui super_admin |
+| INSERT | BLOQUEADO | exige `uploaded_by = auth.uid()` + PDV da própria org |
+| UPDATE | BLOQUEADO | exige `uploaded_by = auth.uid()` + PDV da própria org |
+| DELETE | BLOQUEADO | exige `is_admin` + PDV da própria org |
 
-**Arquivo:** `src/lib/errors/uploadErrors.ts`
+### 2. sales_records
 
-Alterar a extracao da mensagem de erro (linha 15) para lidar com objetos simples:
+| Operação | Status | Problema |
+|----------|--------|----------|
+| SELECT | OK | `user_can_access_pdv` inclui super_admin |
+| INSERT | BLOQUEADO | exige PDV da própria org |
+| UPDATE | BLOQUEADO | `is_admin` + própria org |
+| DELETE | BLOQUEADO | `is_admin` + própria org |
 
-```typescript
-function extractErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === 'string') return error;
-  if (error && typeof error === 'object') {
-    const obj = error as Record<string, unknown>;
-    // Supabase retorna { message, statusCode } ou { error, status }
-    if (typeof obj.message === 'string') return obj.message;
-    if (typeof obj.error === 'string') return obj.error;
-    if (typeof obj.error_description === 'string') return obj.error_description;
-    try { return JSON.stringify(error); } catch { /* fall through */ }
-  }
-  return String(error);
-}
+### 3. stock_records
+
+| Operação | Status | Problema |
+|----------|--------|----------|
+| SELECT | OK | `user_can_access_pdv` inclui super_admin |
+| INSERT | BLOQUEADO | exige PDV da própria org |
+| UPDATE | BLOQUEADO | `is_admin` + própria org |
+| DELETE | BLOQUEADO | `is_admin` + própria org |
+
+### 4. stock_history
+
+| Operação | Status | Problema |
+|----------|--------|----------|
+| SELECT | OK | inclui `is_super_admin` |
+| INSERT | BLOQUEADO | exige PDV da própria org |
+| UPDATE | BLOQUEADO | exige PDV da própria org |
+| DELETE | BLOQUEADO | `is_admin` + própria org |
+
+### 5. upload_anomalies
+
+| Operação | Status | Problema |
+|----------|--------|----------|
+| SELECT | OK | via `user_can_access_pdv` |
+| INSERT | BLOQUEADO | exige upload da própria org |
+| DELETE | BLOQUEADO | `is_admin` + própria org |
+
+### 6. financial_entries
+
+| Operação | Status | Problema |
+|----------|--------|----------|
+| SELECT | OK | inclui `is_super_admin` |
+| INSERT | BLOQUEADO | `is_admin` + própria org |
+| UPDATE | BLOQUEADO | `is_admin` + própria org |
+| DELETE | BLOQUEADO | `is_admin` + própria org |
+
+### 7. products
+
+| Operação | Status | Problema |
+|----------|--------|----------|
+| SELECT | OK | inclui `user_has_org_access` |
+| ALL (manage) | BLOQUEADO | `is_admin` + própria org, sem super_admin |
+
+### 8. product_requests
+
+| Operação | Status | Problema |
+|----------|--------|----------|
+| SELECT | BLOQUEADO | `is_admin` + própria org |
+| INSERT | OK | público |
+| UPDATE | BLOQUEADO | `is_admin` + própria org |
+| DELETE | BLOQUEADO | `is_admin` + própria org |
+
+### 9. notifications
+
+| Operação | Status | Problema |
+|----------|--------|----------|
+| SELECT | PARCIAL | baseado em org, sem super_admin explícito |
+| INSERT | BLOQUEADO | `is_admin` + própria org |
+| UPDATE | BLOQUEADO | baseado em org |
+| DELETE | BLOQUEADO | `is_admin` + própria org |
+
+### 10. user_pdvs
+
+| Operação | Status | Problema |
+|----------|--------|----------|
+| SELECT (próprio) | OK | |
+| ALL (manage) | BLOQUEADO | `is_admin` + PDV da própria org |
+
+### 11. catalog_leads
+
+| Operação | Status | Problema |
+|----------|--------|----------|
+| SELECT | OK | tem policy separada para super_admin |
+| DELETE | BLOQUEADO | `is_admin` + própria org |
+
+## Tabelas já corretas (não precisam de alteração)
+
+- **organizations**: SELECT, INSERT, UPDATE, DELETE -- todas com super_admin
+- **pdvs**: INSERT, UPDATE, DELETE, SELECT -- todas com super_admin
+- **api_keys**: todas as operações com super_admin
+- **pdv_catalog_settings**: ALL com super_admin
+- **pdv_marketing_media**: ALL com super_admin
+- **catalog_short_links**: ALL com super_admin
+- **profiles**: SELECT, UPDATE, DELETE com super_admin
+- **user_roles**: usa `is_admin` que inclui super_admin
+- **audit_logs**: INSERT por actor, SELECT por super_admin
+- **user_org_access**: ALL por super_admin
+
+## Solução
+
+Uma única migration SQL que atualiza todas as políticas listadas acima, adicionando `OR is_super_admin(auth.uid())` em cada uma. O padrão será:
+
+```text
+DROP POLICY "nome_antigo" ON tabela;
+CREATE POLICY "nome_antigo" ON tabela
+  FOR operacao TO authenticated
+  USING/WITH CHECK (
+    is_super_admin(auth.uid())
+    OR (regra_original)
+  );
 ```
 
-Usar `extractErrorMessage` em ambas as funcoes `parseUploadError` e `parseDeleteError`.
+### Resumo da migration
 
-### 2. Adicionar log de debug no `useUploads.ts`
+- **11 tabelas** afetadas
+- **~30 políticas** a serem atualizadas
+- **Risco**: Baixo -- apenas adiciona permissão que já deveria existir
+- **Impacto**: Super admin poderá operar sem restrição em qualquer organização, incluindo uploads, vendas, estoque, financeiro e notificações
 
-**Arquivo:** `src/hooks/useUploads.ts`
-
-Adicionar `console.error` no `onError` da mutacao `createUpload` para capturar o erro real:
-
-```typescript
-onError: (error) => {
-  console.error("[createUpload] Error object:", error, typeof error);
-  const parsedError = parseUploadError(error);
-  // ...
-}
-```
-
-Isso garantira que, mesmo se o erro voltar a ocorrer, teremos a informacao completa nos logs do console.
-
-## Detalhes tecnicos
-
-- **Arquivos modificados:** 2 (`src/lib/errors/uploadErrors.ts`, `src/hooks/useUploads.ts`)
-- **Risco:** Baixo — apenas melhora a extracao de mensagens de erro, sem alterar logica de negocio
-- **Impacto:** O usuario vera a mensagem real do erro em vez de "[object Object]", permitindo diagnosticar e resolver o problema do upload
