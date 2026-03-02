@@ -1,136 +1,93 @@
 
 
-# Auditoria completa: Super Admin sem restrições
+# Revisao: "Todas as organizacoes" -- problemas de agregacao
 
-## Problema
+## Diagnostico
 
-O super_admin deve ter acesso irrestrito a todas as operações em todas as tabelas. A revisão das políticas RLS revela que **diversas tabelas** não incluem o bypass `is_super_admin()`, causando bloqueios como o erro de upload reportado.
+Ao selecionar "Todas as organizacoes", o `activeOrgId` e setado para `"all"`. A maioria dos hooks trata isso corretamente no **Dashboard** (useDashboard, usePDVs, useStockHistory removem filtros de org quando o valor e "all"). Porem, varios hooks e paginas **nao tratam** o caso "all" e acabam passando o valor literal ou quebrando a logica.
 
-## Tabelas com políticas que precisam de correção
+## Problemas encontrados
 
-### 1. uploads (causa do erro atual)
+### 1. useFinancialEntries / useDRE -- NAO agrega todas as orgs
+- `orgId = activeOrgId ?? profile?.organization_id` resulta em `"all"` (string literal)
+- Usa `.eq("organization_id", "all")` que nao retorna nenhum resultado
+- **Impacto:** Financeiro fica vazio quando "Todas as organizacoes" esta selecionado
 
-| Operação | Status | Problema |
-|----------|--------|----------|
-| SELECT | OK | usa `user_can_access_pdv` que inclui super_admin |
-| INSERT | BLOQUEADO | exige `uploaded_by = auth.uid()` + PDV da própria org |
-| UPDATE | BLOQUEADO | exige `uploaded_by = auth.uid()` + PDV da própria org |
-| DELETE | BLOQUEADO | exige `is_admin` + PDV da própria org |
+### 2. useUploads -- ignora contexto de org completamente
+- A query nao filtra por organizacao; depende apenas do RLS
+- O RLS via `user_can_access_pdv` funciona para super_admin (ve tudo)
+- **Parcialmente OK**, mas sem consistencia com o filtro de org do header
 
-### 2. sales_records
+### 3. useSlotsData / useProductStock -- depende apenas de pdvId e allowedPdvIds
+- Quando "Todas as organizacoes" esta ativo e nenhum PDV e selecionado, o super_admin ve todos os slots de todas as orgs (via RLS)
+- **OK** para super_admin, mas nao filtra quando uma org especifica e selecionada no switcher (o `usePDVs` ja cuida disso pois recebe `activeOrgId`)
 
-| Operação | Status | Problema |
-|----------|--------|----------|
-| SELECT | OK | `user_can_access_pdv` inclui super_admin |
-| INSERT | BLOQUEADO | exige PDV da própria org |
-| UPDATE | BLOQUEADO | `is_admin` + própria org |
-| DELETE | BLOQUEADO | `is_admin` + própria org |
+### 4. useNotifications -- sem filtro de org
+- Busca todas as notificacoes que o RLS permite
+- **OK** para super_admin (ve tudo), mas nao filtra por org ativa
 
-### 3. stock_records
+### 5. useApiKeys -- trata "all" corretamente
+- `const orgId = isAllOrgs ? null : activeOrgId;` e depois nao aplica filtro se null
+- **OK**
 
-| Operação | Status | Problema |
-|----------|--------|----------|
-| SELECT | OK | `user_can_access_pdv` inclui super_admin |
-| INSERT | BLOQUEADO | exige PDV da própria org |
-| UPDATE | BLOQUEADO | `is_admin` + própria org |
-| DELETE | BLOQUEADO | `is_admin` + própria org |
+### 6. Financeiro (pagina) -- nao passa contexto de org
+- `usePDVs()` sem `organizationId` usa `activeOrgId` diretamente, o que funciona
+- Mas `useDRE` e `useFinancialEntries` usam `activeOrgId` como UUID direto (bug)
 
-### 4. stock_history
+## Solucao
 
-| Operação | Status | Problema |
-|----------|--------|----------|
-| SELECT | OK | inclui `is_super_admin` |
-| INSERT | BLOQUEADO | exige PDV da própria org |
-| UPDATE | BLOQUEADO | exige PDV da própria org |
-| DELETE | BLOQUEADO | `is_admin` + própria org |
+### Passo 1: Corrigir useFinancialEntries
 
-### 5. upload_anomalies
+Quando `activeOrgId === "all"`, nao filtrar por `organization_id`, trazendo dados de todas as orgs:
 
-| Operação | Status | Problema |
-|----------|--------|----------|
-| SELECT | OK | via `user_can_access_pdv` |
-| INSERT | BLOQUEADO | exige upload da própria org |
-| DELETE | BLOQUEADO | `is_admin` + própria org |
+```typescript
+// De:
+const orgId = activeOrgId ?? profile?.organization_id;
+// query.eq("organization_id", orgId!)
 
-### 6. financial_entries
-
-| Operação | Status | Problema |
-|----------|--------|----------|
-| SELECT | OK | inclui `is_super_admin` |
-| INSERT | BLOQUEADO | `is_admin` + própria org |
-| UPDATE | BLOQUEADO | `is_admin` + própria org |
-| DELETE | BLOQUEADO | `is_admin` + própria org |
-
-### 7. products
-
-| Operação | Status | Problema |
-|----------|--------|----------|
-| SELECT | OK | inclui `user_has_org_access` |
-| ALL (manage) | BLOQUEADO | `is_admin` + própria org, sem super_admin |
-
-### 8. product_requests
-
-| Operação | Status | Problema |
-|----------|--------|----------|
-| SELECT | BLOQUEADO | `is_admin` + própria org |
-| INSERT | OK | público |
-| UPDATE | BLOQUEADO | `is_admin` + própria org |
-| DELETE | BLOQUEADO | `is_admin` + própria org |
-
-### 9. notifications
-
-| Operação | Status | Problema |
-|----------|--------|----------|
-| SELECT | PARCIAL | baseado em org, sem super_admin explícito |
-| INSERT | BLOQUEADO | `is_admin` + própria org |
-| UPDATE | BLOQUEADO | baseado em org |
-| DELETE | BLOQUEADO | `is_admin` + própria org |
-
-### 10. user_pdvs
-
-| Operação | Status | Problema |
-|----------|--------|----------|
-| SELECT (próprio) | OK | |
-| ALL (manage) | BLOQUEADO | `is_admin` + PDV da própria org |
-
-### 11. catalog_leads
-
-| Operação | Status | Problema |
-|----------|--------|----------|
-| SELECT | OK | tem policy separada para super_admin |
-| DELETE | BLOQUEADO | `is_admin` + própria org |
-
-## Tabelas já corretas (não precisam de alteração)
-
-- **organizations**: SELECT, INSERT, UPDATE, DELETE -- todas com super_admin
-- **pdvs**: INSERT, UPDATE, DELETE, SELECT -- todas com super_admin
-- **api_keys**: todas as operações com super_admin
-- **pdv_catalog_settings**: ALL com super_admin
-- **pdv_marketing_media**: ALL com super_admin
-- **catalog_short_links**: ALL com super_admin
-- **profiles**: SELECT, UPDATE, DELETE com super_admin
-- **user_roles**: usa `is_admin` que inclui super_admin
-- **audit_logs**: INSERT por actor, SELECT por super_admin
-- **user_org_access**: ALL por super_admin
-
-## Solução
-
-Uma única migration SQL que atualiza todas as políticas listadas acima, adicionando `OR is_super_admin(auth.uid())` em cada uma. O padrão será:
-
-```text
-DROP POLICY "nome_antigo" ON tabela;
-CREATE POLICY "nome_antigo" ON tabela
-  FOR operacao TO authenticated
-  USING/WITH CHECK (
-    is_super_admin(auth.uid())
-    OR (regra_original)
-  );
+// Para:
+const orgId = activeOrgId === "all" ? null : (activeOrgId ?? profile?.organization_id);
+// Se orgId, filtra; senao, nao aplica filtro de org
 ```
 
-### Resumo da migration
+Mesma logica nas mutations (createEntry, copyFromPreviousMonth): usar `profile?.organization_id` como fallback quando orgId e null, ja que a criacao sempre precisa de uma org concreta.
 
-- **11 tabelas** afetadas
-- **~30 políticas** a serem atualizadas
-- **Risco**: Baixo -- apenas adiciona permissão que já deveria existir
-- **Impacto**: Super admin poderá operar sem restrição em qualquer organização, incluindo uploads, vendas, estoque, financeiro e notificações
+### Passo 2: Corrigir useDRE
+
+Quando `orgId === "all"` ou null (modo global), buscar PDVs de todas as organizacoes em vez de filtrar por uma org especifica:
+
+```typescript
+const orgId = activeOrgId === "all" ? null : (activeOrgId ?? profile?.organization_id);
+
+// Na query de vendas:
+if (orgId) {
+  // Filtrar PDVs da org
+  pdvQuery = pdvQuery.eq("organization_id", orgId);
+}
+// Se orgId e null, busca todos os PDVs (RLS garante isolamento)
+```
+
+### Passo 3: Corrigir useFinancialEntries mutations
+
+As operacoes de escrita (create, copy) devem usar `profile?.organization_id` quando o contexto e "all", pois um lancamento financeiro sempre pertence a uma organizacao concreta:
+
+```typescript
+const writeOrgId = orgId ?? profile?.organization_id;
+// Usar writeOrgId nas mutations
+```
+
+### Passo 4: Validar pagina Financeiro
+
+Adicionar tratamento para modo "Todas as organizacoes" na pagina -- possivelmente mostrar um aviso de que o DRE exibe dados consolidados de todas as orgs.
+
+## Resumo tecnico
+
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/hooks/useFinancialEntries.ts` | Tratar `activeOrgId === "all"` removendo filtro de org na leitura, usando org do perfil na escrita |
+| `src/hooks/useDRE.ts` | Tratar `activeOrgId === "all"` removendo filtro de org na busca de PDVs |
+
+- **Arquivos modificados:** 2
+- **Risco:** Baixo -- apenas corrige logica de filtro que ja estava silenciosamente falhando
+- **Impacto:** Financeiro e DRE funcionarao corretamente quando "Todas as organizacoes" estiver selecionado, mostrando dados agregados
 
