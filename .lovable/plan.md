@@ -1,42 +1,38 @@
 
 
-# Corrigir dre_config: duplicatas e upsert com NULL
+# Corrigir leitura de dre_config no modo "Todas as organizacoes"
 
-## Problema encontrado no teste
+## Problema
 
-O teste revelou dois bugs:
+O teste revelou que a configuracao de custos (unit_cost=17, stone_rate=0.02) foi salva corretamente no banco, mas o DRE continua mostrando CMV e Taxas Stone como R$ 0,00.
 
-1. **Duplicatas no banco**: Ha 5 registros duplicados para a mesma organizacao com `pdv_id = NULL`. Isso acontece porque o PostgreSQL trata cada `NULL` como valor unico em constraints `UNIQUE`, entao o `UNIQUE(organization_id, pdv_id)` nao impede insercoes duplicadas quando `pdv_id` e NULL.
+A causa: quando o usuario seleciona "Todas as organizacoes", o `activeOrgId` e "all", e o hook `useDREConfig` define `orgId = null`, desabilitando a query de leitura (`enabled: !!orgId`). Resultado: `unitCost` e `stoneRate` ficam com valor padrao 0.
 
-2. **Query retorna erro**: O `maybeSingle()` no hook falha silenciosamente quando ha multiplas linhas, retornando `null`. Com `unitCost = 0`, CMV e Taxas ficam R$ 0,00 no DRE mesmo apos salvar.
+O **save** funciona porque usa `writeOrgId` (que faz fallback para `profile.organization_id`), mas o **read** nao busca dados.
 
 ## Solucao
 
-### 1. Migration SQL
+Alterar o `useDREConfig` para que, no modo "all orgs", a query de leitura tambem use `profile?.organization_id` como fallback (mesmo comportamento do write).
 
-- Limpar registros duplicados (manter apenas o mais recente por org)
-- Remover o constraint UNIQUE antigo
-- Criar dois partial unique indexes:
-  - `dre_config_org_null_pdv ON (organization_id) WHERE pdv_id IS NULL` -- garante 1 config por org sem PDV
-  - `dre_config_org_pdv ON (organization_id, pdv_id) WHERE pdv_id IS NOT NULL` -- garante 1 config por org+pdv
+### Alteracao em `src/hooks/useDREConfig.ts`
 
-### 2. Hook useDREConfig.ts
-
-Substituir o `upsert` (que falha com NULLs no onConflict) por logica de check-then-insert/update:
-
-```text
-1. Busca config existente com SELECT ... maybeSingle()
-2. Se existe -> UPDATE pelo id
-3. Se nao existe -> INSERT novo registro
+Linha 24 - mudar de:
+```
+const orgId = isAllOrgs ? null : (activeOrgId ?? profile?.organization_id);
 ```
 
-## Arquivos
+Para:
+```
+const orgId = isAllOrgs ? profile?.organization_id : (activeOrgId ?? profile?.organization_id);
+```
 
-| Arquivo | Acao |
-|---------|------|
-| Nova migration SQL | Limpar duplicatas + criar partial unique indexes |
-| `src/hooks/useDREConfig.ts` | Trocar upsert por select+update/insert |
+Isso faz com que, no modo "all orgs", a config seja buscada da organizacao propria do usuario (a mesma onde ele salvou). O `writeOrgId` ja usa esse mesmo valor, entao leitura e escrita ficam consistentes.
 
-- **1 migration + 1 arquivo modificado**
-- **Risco**: Baixo -- correcao pontual
+## Impacto
+
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/hooks/useDREConfig.ts` | 1 linha: fallback de orgId no modo "all" |
+
+Nenhuma migration necessaria. Apos essa correcao, o DRE deve recalcular CMV e Taxas Stone mesmo no modo "Todas as organizacoes".
 
