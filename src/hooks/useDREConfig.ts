@@ -31,7 +31,7 @@ export function useDREConfig({ pdvId }: { pdvId?: string | null } = {}) {
 
       // Try PDV-specific config first, then org-level
       if (pdvId) {
-        const { data: pdvConfig } = await (supabase as unknown as any)
+        const { data: pdvConfig } = await supabase
           .from("dre_config")
           .select("*")
           .eq("organization_id", orgId)
@@ -42,7 +42,7 @@ export function useDREConfig({ pdvId }: { pdvId?: string | null } = {}) {
       }
 
       // Fallback to org-level config (pdv_id IS NULL)
-      const { data, error } = await (supabase as unknown as any)
+      const { data, error } = await supabase
         .from("dre_config")
         .select("*")
         .eq("organization_id", orgId)
@@ -59,23 +59,43 @@ export function useDREConfig({ pdvId }: { pdvId?: string | null } = {}) {
     mutationFn: async (values: { unit_cost: number; stone_rate: number; tax_rate: number }) => {
       if (!writeOrgId) throw new Error("Sem organização");
 
-      const { data, error } = await (supabase as unknown as any)
+      // Check if config already exists
+      const { data: existing } = await supabase
         .from("dre_config")
-        .upsert(
-          {
-            organization_id: writeOrgId,
-            pdv_id: null,
+        .select("id")
+        .eq("organization_id", writeOrgId)
+        .is("pdv_id", null)
+        .maybeSingle();
+
+      if (existing) {
+        // UPDATE existing record by id
+        const { data, error } = await supabase
+          .from("dre_config")
+          .update({
             unit_cost: values.unit_cost,
             stone_rate: values.stone_rate,
             tax_rate: values.tax_rate,
-          },
-          { onConflict: "organization_id,pdv_id" }
-        )
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+          })
+          .eq("id", existing.id)
+          .select()
+          .single();
+        if (error) throw error;
+        return data;
+      } else {
+        // INSERT new record
+        const { data, error } = await supabase
+          .from("dre_config")
+          .insert({
+            organization_id: writeOrgId,
+            unit_cost: values.unit_cost,
+            stone_rate: values.stone_rate,
+            tax_rate: values.tax_rate,
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        return data;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dre-config"] });
