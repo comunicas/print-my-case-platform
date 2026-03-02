@@ -3,7 +3,8 @@ import { cn } from "@/lib/utils";
 import { DREData } from "@/hooks/useDRE";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Info } from "lucide-react";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import type { FinancialEntry } from "@/hooks/useFinancialEntries";
 
 interface DRETableProps {
@@ -123,19 +124,31 @@ function MarginRow({
   denominator,
   absoluteValue,
   isLoading,
+  tooltip,
 }: {
   label: string;
   numerator: number;
   denominator: number;
   absoluteValue: number;
   isLoading?: boolean;
+  tooltip?: string;
 }) {
   const pct = denominator !== 0 ? (numerator / denominator) * 100 : null;
   const isPositive = pct !== null && pct >= 0;
 
   return (
     <div className="flex items-center justify-between py-1.5">
-      <span className="text-xs text-muted-foreground">{label}</span>
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="text-xs text-muted-foreground flex items-center gap-1 cursor-help border-b border-dotted border-muted-foreground/40">
+              {label}
+              <Info className="h-3 w-3 text-muted-foreground/50" />
+            </span>
+          </TooltipTrigger>
+          {tooltip && <TooltipContent side="top"><p className="text-xs">{tooltip}</p></TooltipContent>}
+        </Tooltip>
+      </TooltipProvider>
       {isLoading ? (
         <Skeleton className="h-5 w-20" />
       ) : (
@@ -313,6 +326,7 @@ export function DRETable({ dre, isLoading, entriesByCategory }: DRETableProps) {
             denominator={dre.receitaLiquida}
             absoluteValue={dre.lucroBruto}
             isLoading={isLoading}
+            tooltip="Lucro Bruto ÷ Receita Líquida × 100"
           />
           <MarginRow
             label="Margem Operacional"
@@ -320,6 +334,7 @@ export function DRETable({ dre, isLoading, entriesByCategory }: DRETableProps) {
             denominator={dre.receitaLiquida}
             absoluteValue={dre.resultadoOperacional}
             isLoading={isLoading}
+            tooltip="Resultado Operacional ÷ Receita Líquida × 100"
           />
         </div>
       </div>
