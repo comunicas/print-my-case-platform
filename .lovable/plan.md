@@ -1,43 +1,55 @@
 
-# Adicionar verificacao de duplicatas no "copiar despesas do mes anterior"
+# Autocomplete de descricao no formulario de despesa
 
-## Problema
+## O que sera feito
 
-A mutacao `copyFromPreviousMonth` nao verifica se ja existem entradas no mes de destino. Se o usuario clicar duas vezes (ou o botao nao desabilitar a tempo), as despesas sao duplicadas.
+Substituir o campo de texto simples "Descricao" no formulario de nova despesa por um **combobox com autocomplete** que sugere descricoes ja utilizadas anteriormente na mesma categoria. O usuario podera selecionar uma sugestao existente ou digitar uma descricao nova livremente.
 
-## Solucao
+## Abordagem
 
-Antes de inserir as copias, verificar se ja existem entradas com categorias "fixas" ou "deducoes" no mes de destino. Se existirem, abortar com mensagem amigavel.
+Usar um Popover + Command (cmdk) para criar um combobox inline, similar ao padrao ja existente no projeto. Quando o usuario foca no campo, aparece uma lista de sugestoes filtradas pela categoria selecionada. Ao digitar, a lista filtra em tempo real.
 
-### Alteracao em `src/hooks/useFinancialEntries.ts`
+## Alteracoes
 
-Na `mutationFn` de `copyFromPreviousMonth`, logo apos calcular `targetMonthStr` (linha ~140), adicionar uma query que verifica se ja existem entradas no mes de destino:
+### 1. Novo hook: `src/hooks/useFinancialDescriptions.ts`
+
+Query dedicada que busca descricoes distintas da tabela `financial_entries`, filtradas por categoria e organizacao. Retorna um array de strings unicas, ordenadas alfabeticamente.
 
 ```typescript
-// Verificar se ja existem entradas copiadas no mes de destino
-let checkQuery = supabase
-  .from("financial_entries")
-  .select("id", { count: "exact", head: true })
-  .eq("reference_month", targetMonthStr)
-  .in("category", ["fixas", "deducoes"]);
-
-if (orgId) {
-  checkQuery = checkQuery.eq("organization_id", orgId);
-}
-
-const { count, error: checkError } = await checkQuery;
-if (checkError) throw checkError;
-if (count && count > 0) {
-  throw new Error("Ja existem despesas neste mes. Exclua-as antes de copiar novamente.");
-}
+// Query: SELECT DISTINCT description FROM financial_entries
+//   WHERE organization_id = orgId AND category = category
+//   ORDER BY description
 ```
 
-Isso fica antes da query que busca as entradas do mes anterior (linha ~142), garantindo que a operacao e abortada antes de qualquer insert.
+- Usa `useQuery` com queryKey `["financial-descriptions", orgId, category]`
+- Habilitado apenas quando `category` e `orgId` estao definidos
 
-## Impacto
+### 2. Atualizar `src/components/financeiro/FinancialEntryForm.tsx`
 
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/hooks/useFinancialEntries.ts` | ~10 linhas: verificacao de duplicatas antes do insert |
+- Importar o novo hook `useFinancialDescriptions`
+- Importar `Popover`, `PopoverTrigger`, `PopoverContent` e componentes `Command`
+- Observar o valor atual de `category` via `form.watch("category")`
+- Chamar `useFinancialDescriptions({ category })`
+- Substituir o `<Input>` do campo descricao por um combobox:
+  - Input editavel que permite digitacao livre (nao e um select fechado)
+  - Popover que abre ao focar mostrando sugestoes filtradas
+  - Ao selecionar uma sugestao, preenche o campo e fecha o popover
+  - Ao digitar texto novo (sem selecionar), o valor digitado e mantido normalmente
+- Estado local `popoverOpen` controla visibilidade da lista de sugestoes
 
-Nenhuma migration necessaria. A mensagem de erro aparecera como toast vermelho caso o usuario tente copiar duas vezes.
+### Comportamento esperado
+
+1. Usuario seleciona categoria (ex: "Despesas Fixas")
+2. Ao clicar no campo descricao, aparece lista com descricoes ja usadas nessa categoria (ex: "Aluguel", "Internet", "Energia")
+3. Ao digitar, a lista filtra em tempo real
+4. Pode selecionar uma sugestao (preenche o campo) ou digitar algo totalmente novo
+5. Campo continua validando normalmente (minimo 1 caractere, maximo 200)
+
+## Detalhes tecnicos
+
+| Arquivo | Tipo | Descricao |
+|---------|------|-----------|
+| `src/hooks/useFinancialDescriptions.ts` | Novo | Hook que busca descricoes distintas por categoria |
+| `src/components/financeiro/FinancialEntryForm.tsx` | Alterado | Campo descricao vira combobox com sugestoes |
+
+Nenhuma migration de banco necessaria -- a query usa dados ja existentes na tabela `financial_entries`.
