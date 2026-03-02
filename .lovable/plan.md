@@ -1,81 +1,158 @@
 
 
-# Auditoria do DRE e Financeiro: Problemas Criticos Encontrados
+# DRE Completo com Custos Variaveis Dinamicos
 
-## Problemas Identificados
+## Dados necessarios para um DRE funcional
 
-### 1. CRITICO: Vendas canceladas inflam o faturamento
+Para montar o DRE corretamente, precisamos de 3 parametros configuraveis pelo usuario, alem dos dados que ja temos automaticamente:
 
-O DRE soma `amount` de TODAS as vendas sem filtrar por status. Os dados reais mostram:
+### Parametros configuraveis (por organizacao, opcionalmente por PDV)
 
-| Status | Qtd | Valor Total | Refund |
-|--------|-----|-------------|--------|
-| Completed | 674 | R$ 48.142 | R$ 69 |
-| Cancelled | 330 | R$ 23.547 | R$ 0 |
-| Refunded | 8 | R$ 609 | R$ 609 |
+| Parametro | Exemplo | Onde e usado |
+|-----------|---------|-------------|
+| Custo unitario medio (CMV) | R$ 17,00 | Multiplicado pela qtd de vendas do mes |
+| Taxa Stone (MDR %) | 2,00% | Aplicado apenas sobre vendas no cartao |
+| Aliquota de impostos (%) | 0,00% | Aplicado sobre receita bruta (ISS/ICMS) |
 
-As 330 vendas canceladas (R$ 23.547) estao sendo contadas como faturamento sem nenhuma deducao correspondente, pois `refund_amount` delas e zero. Isso infla o faturamento bruto em ~33%.
+### Dados automaticos (ja existentes)
 
-**Correcao:** Filtrar vendas canceladas (`status != 'Cancelled'`) na query do DRE. Vendas com status "Refunded" ja possuem o `refund_amount` preenchido corretamente e devem continuar sendo contabilizadas normalmente (faturamento + deducao).
+| Dado | Fonte |
+|------|-------|
+| Receita Bruta | `sales_records` (vendas nao canceladas) |
+| Reembolsos | `sales_records.refund_amount` |
+| Qtd vendas no mes | `COUNT(*)` de sales_records |
+| Receita em cartao | `SUM(amount)` onde `payment_method = 'creditCard'` |
+| Despesas Fixas | `financial_entries` categoria "fixas" |
+| Implantacao | `financial_entries` categoria "implantacao" |
 
-### 2. CRITICO: Limite de 1000 linhas do banco de dados
+### Precisa de mais algum dado?
 
-Ja existem 1012 vendas no total. A query do DRE busca todas as vendas do mes sem paginacao, e o banco retorna no maximo 1000 linhas por padrao. Conforme o volume cresce, os totais ficarao incorretos silenciosamente.
+Para o modelo atual (vending machine), esses dados sao suficientes. Futuramente pode-se adicionar:
+- **Custo por produto** (em vez de custo medio unico) -- adicionando coluna `cost` na tabela `products`
+- **Taxa de antecipacao Stone** -- se usar antecipacao de recebiveis
+- **Tarifa bancaria fixa** -- mensalidade de conta, etc.
+- **Depreciacao** -- rateio mensal de equipamentos
 
-**Correcao:** Usar uma funcao SQL (RPC) que faz a agregacao diretamente no banco, retornando apenas os totais sem limite de linhas.
+Mas para um DRE simples e funcional, os 3 parametros acima cobrem tudo.
 
-### 3. MENOR: Desconto ignorado no calculo
+## Estrutura final do DRE
 
-Os campos `discount_amount` e `actual_paid_amount` existem nas vendas mas nao sao usados no DRE. Embora a contabilidade do faturamento bruto normalmente use o valor cheio (`amount`), os descontos poderiam ser apresentados como uma linha de deducao separada para maior transparencia.
-
-### 4. MENOR: Formulario com bug no Select de categoria
-
-O Select de categoria no formulario de edicao usa `defaultValue` em vez de `value`, fazendo com que ao editar uma despesa existente, o dropdown pode nao refletir a categoria salva.
-
-### 5. MENOR: Cache do DRE nao invalida apos CRUD de entries
-
-As mutations de create/update/delete invalidam `["financial-entries"]`, mas o DRE usa `useFinancialEntries` internamente, entao os totais recalculam corretamente. Porem, a `queryKey` `["dre-sales"]` esta correta pois so depende de sales_records.
-
-## Solucao
-
-### Passo 1: Criar funcao SQL para agregar vendas
-
-Nova funcao RPC que calcula faturamento e deducoes diretamente no banco, eliminando o limite de 1000 linhas e filtrando vendas canceladas:
-
-```sql
-CREATE OR REPLACE FUNCTION get_dre_sales_summary(
-  p_pdv_ids uuid[],
-  p_start_date timestamptz,
-  p_end_date timestamptz
-) RETURNS TABLE(faturamento numeric, deducoes numeric) AS $$
-  SELECT
-    COALESCE(SUM(amount), 0) as faturamento,
-    COALESCE(SUM(refund_amount), 0) as deducoes
-  FROM sales_records
-  WHERE pdv_id = ANY(p_pdv_ids)
-    AND payment_date >= p_start_date
-    AND payment_date <= p_end_date
-    AND status != 'Cancelled'
-$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public';
+```text
+ Receita Bruta                              R$ 18.605
+ (-) Impostos sobre vendas (0%)             R$      0   [automatico: receita * tax_rate]
+ (-) Reembolsos / Deducoes                  R$    xxx   [automatico + manuais]
+ = Receita Liquida                          R$ 18.605
+ ------------------------------------------------
+ (-) CMV (277 un x R$ 17,00)               R$  4.709   [automatico: qtd_vendas * unit_cost]
+ (-) Taxas Stone (2% cartao)               R$    372   [automatico: receita_cartao * stone_rate]
+ = Lucro Bruto                             R$ 13.524
+ ------------------------------------------------
+ (-) Despesas Fixas (OPEX)                  R$  4.000   [manual: financial_entries]
+ = Resultado Operacional (EBITDA)           R$  9.524
+ ------------------------------------------------
+ (-) Implantacao (one-off)                  R$  7.950   [manual: financial_entries, condicional]
+ = Resultado do Mes                         R$  1.574
 ```
 
-### Passo 2: Atualizar useDRE para usar a funcao RPC
+## Implementacao tecnica
 
-Substituir a query atual (que busca todas as vendas e soma no JS) por uma chamada `supabase.rpc('get_dre_sales_summary', ...)` que retorna apenas os dois totais.
+### 1. Nova tabela `dre_config`
 
-### Passo 3: Corrigir Select do formulario
+Armazena as configuracoes de custo variavel por organizacao/PDV:
 
-Trocar `defaultValue` por `value` no Select de categoria do `FinancialEntryForm`.
+```sql
+CREATE TABLE dre_config (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES organizations(id),
+  pdv_id uuid REFERENCES pdvs(id),       -- NULL = vale pra toda org
+  unit_cost numeric NOT NULL DEFAULT 0,   -- custo medio por unidade vendida
+  stone_rate numeric NOT NULL DEFAULT 0,  -- ex: 0.02 = 2%
+  tax_rate numeric NOT NULL DEFAULT 0,    -- ex: 0.06 = 6%
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(organization_id, pdv_id)         -- uma config por org/pdv
+);
+```
 
-## Resumo tecnico
+Com RLS para admins da organizacao.
 
-| Arquivo | Alteracao |
-|---------|-----------|
-| Migration SQL | Criar funcao `get_dre_sales_summary` |
-| `src/hooks/useDRE.ts` | Usar RPC em vez de query direta; remover loop JS |
-| `src/components/financeiro/FinancialEntryForm.tsx` | Corrigir Select para usar `value` |
+### 2. Atualizar RPC `get_dre_sales_summary`
 
-- **Arquivos modificados:** 2 + 1 migration
-- **Risco:** Baixo -- corrige calculos incorretos sem alterar estrutura
-- **Impacto:** Faturamento bruto correto (sem vendas canceladas), sem limite de linhas, formulario de edicao funcional
+Adicionar retorno de `sales_count` e `card_revenue` para calcular CMV e taxa Stone:
+
+```sql
+RETURNS TABLE(
+  faturamento numeric,
+  deducoes numeric,
+  sales_count bigint,       -- NOVO: qtd de vendas
+  card_revenue numeric      -- NOVO: receita apenas cartao
+)
+```
+
+```sql
+SELECT
+  COALESCE(SUM(amount), 0) as faturamento,
+  COALESCE(SUM(COALESCE(refund_amount, 0)), 0) as deducoes,
+  COUNT(*) as sales_count,
+  COALESCE(SUM(CASE WHEN payment_method = 'creditCard' THEN amount ELSE 0 END), 0) as card_revenue
+FROM sales_records
+WHERE pdv_id = ANY(p_pdv_ids)
+  AND status != 'Cancelled'
+  AND payment_date BETWEEN p_start_date AND p_end_date
+```
+
+### 3. Novo hook `useDREConfig`
+
+Busca e gerencia a configuracao da tabela `dre_config`. CRUD simples com upsert (insere ou atualiza).
+
+### 4. Atualizar `useDRE.ts`
+
+Novo `DREData`:
+
+```text
+DREData {
+  receitaBruta          // faturamento
+  impostos              // receitaBruta * tax_rate
+  reembolsos            // refunds auto + entries manuais "deducoes"
+  receitaLiquida        // receitaBruta - impostos - reembolsos
+  cmv                   // sales_count * unit_cost
+  taxasStone            // card_revenue * stone_rate
+  lucroBruto            // receitaLiquida - cmv - taxasStone
+  despesasFixas         // entries "fixas"
+  resultadoOperacional  // lucroBruto - despesasFixas
+  implantacao           // entries "implantacao"
+  resultadoMes          // resultadoOperacional - implantacao
+}
+```
+
+### 5. Atualizar `DRETable.tsx`
+
+Nova ordem com secoes visuais e labels descritivos (ex: "CMV (277 un x R$ 17,00)").
+
+### 6. UI para configurar os parametros
+
+Secao de configuracao inline na pagina Financeiro (ou modal), com 3 campos:
+
+- **Custo unitario medio** (R$) -- input numerico
+- **Taxa Stone MDR** (%) -- input numerico
+- **Aliquota de impostos** (%) -- input numerico
+
+Aparece como um card de configuracao no topo ou como botao de engrenagem ao lado do titulo.
+
+### Resumo de arquivos
+
+| Arquivo | Acao |
+|---------|------|
+| Migration SQL | Criar tabela `dre_config` + RLS; atualizar RPC |
+| `src/hooks/useDREConfig.ts` | Novo hook CRUD para config |
+| `src/hooks/useDRE.ts` | Novo DREData com custos variaveis |
+| `src/components/financeiro/DRETable.tsx` | Nova estrutura de linhas |
+| `src/components/financeiro/DREConfigCard.tsx` | Novo componente de config |
+| `src/components/financeiro/index.ts` | Exportar novos componentes |
+| `src/pages/Financeiro.tsx` | Integrar config e nova estrutura |
+
+- **Arquivos novos:** 2
+- **Arquivos modificados:** 5
+- **1 migration SQL**
+- **Risco:** Baixo -- componentes novos, dados existentes nao mudam
 
