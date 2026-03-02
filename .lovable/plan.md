@@ -1,60 +1,42 @@
 
-# Criar tabela dre_config (faltou na migration anterior)
 
-## Problema encontrado
+# Corrigir dre_config: duplicatas e upsert com NULL
 
-A migration anterior atualizou apenas a RPC `get_dre_sales_summary` (adicionando `sales_count` e `card_revenue`), mas **nao criou a tabela `dre_config`** que armazena os parametros de custos variaveis (custo unitario, taxa Stone, aliquota de impostos).
+## Problema encontrado no teste
 
-Por isso:
-- O botao "Configurar custos" abre o formulario, mas os campos mostram apenas placeholders (17.00, 2.00)
-- Clicar em "Salvar" causa erro silencioso (tabela inexistente)
-- CMV e Taxas Stone ficam sempre R$ 0,00 no DRE
+O teste revelou dois bugs:
+
+1. **Duplicatas no banco**: Ha 5 registros duplicados para a mesma organizacao com `pdv_id = NULL`. Isso acontece porque o PostgreSQL trata cada `NULL` como valor unico em constraints `UNIQUE`, entao o `UNIQUE(organization_id, pdv_id)` nao impede insercoes duplicadas quando `pdv_id` e NULL.
+
+2. **Query retorna erro**: O `maybeSingle()` no hook falha silenciosamente quando ha multiplas linhas, retornando `null`. Com `unitCost = 0`, CMV e Taxas ficam R$ 0,00 no DRE mesmo apos salvar.
 
 ## Solucao
 
-Criar a migration SQL que faltou com:
+### 1. Migration SQL
 
-### Tabela `dre_config`
+- Limpar registros duplicados (manter apenas o mais recente por org)
+- Remover o constraint UNIQUE antigo
+- Criar dois partial unique indexes:
+  - `dre_config_org_null_pdv ON (organization_id) WHERE pdv_id IS NULL` -- garante 1 config por org sem PDV
+  - `dre_config_org_pdv ON (organization_id, pdv_id) WHERE pdv_id IS NOT NULL` -- garante 1 config por org+pdv
+
+### 2. Hook useDREConfig.ts
+
+Substituir o `upsert` (que falha com NULLs no onConflict) por logica de check-then-insert/update:
 
 ```text
-dre_config
-  id               uuid (PK)
-  organization_id  uuid (FK -> organizations)
-  pdv_id           uuid (FK -> pdvs, nullable)
-  unit_cost        numeric (default 0)
-  stone_rate       numeric (default 0)
-  tax_rate         numeric (default 0)
-  created_at       timestamptz
-  updated_at       timestamptz
-  UNIQUE(organization_id, pdv_id)
+1. Busca config existente com SELECT ... maybeSingle()
+2. Se existe -> UPDATE pelo id
+3. Se nao existe -> INSERT novo registro
 ```
-
-### RLS Policies
-
-- **SELECT**: admins da org + super_admins
-- **INSERT**: admins da org + super_admins
-- **UPDATE**: admins da org + super_admins
-- **DELETE**: admins da org + super_admins
-
-Usando as funcoes auxiliares ja existentes: `is_admin()`, `is_super_admin()`, `get_user_org_id()`.
-
-### Trigger de updated_at
-
-Reutilizar o pattern existente de `updated_at = now()` via trigger.
 
 ## Arquivos
 
 | Arquivo | Acao |
 |---------|------|
-| Nova migration SQL | Criar tabela `dre_config` + RLS + trigger |
+| Nova migration SQL | Limpar duplicatas + criar partial unique indexes |
+| `src/hooks/useDREConfig.ts` | Trocar upsert por select+update/insert |
 
-Nenhuma alteracao de codigo necessaria -- os hooks `useDREConfig` e o componente `DREConfigCard` ja estao implementados corretamente e referenciando esta tabela.
+- **1 migration + 1 arquivo modificado**
+- **Risco**: Baixo -- correcao pontual
 
-## Resultado esperado
-
-Apos a migration:
-1. Abrir "Configurar custos", preencher custo unitario R$ 17, taxa Stone 2%, salvar
-2. O DRE recalcula automaticamente:
-   - CMV = 8 vendas x R$ 17 = R$ 136,00
-   - Taxas Stone = 2% x R$ 559,20 = R$ 11,18
-   - Lucro Bruto = R$ 559,20 - R$ 136,00 - R$ 11,18 = R$ 412,02
