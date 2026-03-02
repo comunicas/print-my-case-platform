@@ -1182,6 +1182,16 @@ export type Database = {
         }
         Returns: string
       }
+      get_annual_dre_summary: {
+        Args: { p_pdv_ids: string[]; p_year: number }
+        Returns: {
+          card_revenue: number
+          deducoes: number
+          faturamento: number
+          month_start: string
+          sales_count: number
+        }[]
+      }
       get_dre_sales_summary: {
         Args: { p_end_date: string; p_pdv_ids: string[]; p_start_date: string }
         Returns: {
