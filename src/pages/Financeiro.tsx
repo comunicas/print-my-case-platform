@@ -153,14 +153,14 @@ export default function Financeiro() {
             />
 
             {/* Copy from previous month */}
-            {isAdmin && !entriesLoading && entries.length === 0 && (
+            {isAdmin && !entriesLoading && (
               <Card className="border-dashed">
                 <CardContent className="flex items-center gap-4 py-4 px-5">
                   <Copy className="h-5 w-5 text-muted-foreground shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">Nenhuma despesa neste mês</p>
+                    <p className="text-sm font-medium">Copiar do mês anterior</p>
                     <p className="text-xs text-muted-foreground">
-                      Deseja copiar as despesas fixas e deduções do mês anterior?
+                      Copiar despesas fixas e deduções do mês anterior para este mês
                     </p>
                   </div>
                   <Button
