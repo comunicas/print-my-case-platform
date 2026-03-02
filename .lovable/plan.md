@@ -1,27 +1,43 @@
 
-# Adicionar tooltips explicativos nos indicadores de margem
+# Adicionar verificacao de duplicatas no "copiar despesas do mes anterior"
 
-## Verificacao do teste
+## Problema
 
-As margens estao funcionando corretamente:
-- Margem Bruta: 74.6% (verde) -- calculo correto (9932 / 13321)
-- Margem Operacional: 44.5% (verde) -- calculo correto (5932 / 13321)
-- Cores verde para positivo funcionando
-- Divisao por zero mostra "--" quando receita e zero
+A mutacao `copyFromPreviousMonth` nao verifica se ja existem entradas no mes de destino. Se o usuario clicar duas vezes (ou o botao nao desabilitar a tempo), as despesas sao duplicadas.
 
-## Alteracao proposta
+## Solucao
 
-Adicionar um tooltip em cada label de margem explicando a formula do calculo.
+Antes de inserir as copias, verificar se ja existem entradas com categorias "fixas" ou "deducoes" no mes de destino. Se existirem, abortar com mensagem amigavel.
 
-### Arquivo: `src/components/financeiro/DRETable.tsx`
+### Alteracao em `src/hooks/useFinancialEntries.ts`
 
-1. Importar `Tooltip`, `TooltipTrigger`, `TooltipContent`, `TooltipProvider` de `@/components/ui/tooltip`
-2. No componente `MarginRow`, adicionar uma prop `tooltip` (string)
-3. Envolver o label da margem com um Tooltip que exibe a explicacao ao passar o mouse
-4. Passar os textos explicativos nas chamadas:
-   - Margem Bruta: "Lucro Bruto / Receita Liquida x 100"
-   - Margem Operacional: "Resultado Operacional / Receita Liquida x 100"
+Na `mutationFn` de `copyFromPreviousMonth`, logo apos calcular `targetMonthStr` (linha ~140), adicionar uma query que verifica se ja existem entradas no mes de destino:
 
-O label tera um icone sutil de info ou underline pontilhado para indicar que ha tooltip disponivel.
+```typescript
+// Verificar se ja existem entradas copiadas no mes de destino
+let checkQuery = supabase
+  .from("financial_entries")
+  .select("id", { count: "exact", head: true })
+  .eq("reference_month", targetMonthStr)
+  .in("category", ["fixas", "deducoes"]);
 
-Apenas 1 arquivo modificado, sem migrations.
+if (orgId) {
+  checkQuery = checkQuery.eq("organization_id", orgId);
+}
+
+const { count, error: checkError } = await checkQuery;
+if (checkError) throw checkError;
+if (count && count > 0) {
+  throw new Error("Ja existem despesas neste mes. Exclua-as antes de copiar novamente.");
+}
+```
+
+Isso fica antes da query que busca as entradas do mes anterior (linha ~142), garantindo que a operacao e abortada antes de qualquer insert.
+
+## Impacto
+
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/hooks/useFinancialEntries.ts` | ~10 linhas: verificacao de duplicatas antes do insert |
+
+Nenhuma migration necessaria. A mensagem de erro aparecera como toast vermelho caso o usuario tente copiar duas vezes.
