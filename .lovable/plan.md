@@ -1,16 +1,31 @@
 
-# Mover botao "Copiar despesas" da aba DRE para a aba Despesas
+
+# Mostrar botao "Copiar despesas" sempre abaixo da lista
+
+## Problema
+O card "Copiar despesas do mes anterior" so aparece quando nao ha despesas no mes (`entries.length === 0`). O usuario quer que o botao esteja sempre visivel abaixo da lista, permitindo copiar as despesas fixas e deducoes do mes anterior independentemente de ja existirem entradas.
 
 ## Alteracao
 
-Mover o card "Nenhuma despesa neste mes / Copiar despesas" (linhas 143-164) da `TabsContent value="dre"` para a `TabsContent value="despesas"`, logo apos o componente `FinancialEntriesList`.
+| Arquivo | Mudanca |
+|---------|---------|
+| `src/pages/Financeiro.tsx` | Remover a condicao `entries.length === 0` da linha 156, mantendo apenas `isAdmin && !entriesLoading`. Ajustar o texto do card para funcionar nos dois cenarios (com e sem despesas existentes). |
 
-O card continuara visivel apenas quando: usuario e admin, nao esta carregando, e nao existem entries no mes selecionado.
+### Detalhes tecnicos
 
-## Arquivo modificado
+Linha 156 atual:
+```typescript
+{isAdmin && !entriesLoading && entries.length === 0 && (
+```
 
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/pages/Financeiro.tsx` | Remover bloco do card de copia da aba DRE (linhas 143-164) e inserir o mesmo bloco na aba Despesas, apos o `FinancialEntriesList` (apos linha 176) |
+Sera alterada para:
+```typescript
+{isAdmin && !entriesLoading && (
+```
 
-Nenhuma outra alteracao necessaria -- a logica, imports e estado ja estao no mesmo componente.
+O texto sera ajustado para:
+- Titulo: "Copiar do mes anterior"
+- Descricao: "Copiar despesas fixas e deducoes do mes anterior para este mes"
+
+A logica de validacao (impedir duplicatas) ja existe no hook `copyFromPreviousMonth` -- ele verifica se ja existem entradas de categorias `fixas`/`deducoes` antes de inserir e exibe erro caso ja existam.
+
