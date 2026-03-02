@@ -91,14 +91,14 @@ export function useAnnualDRE({ year, pdvId }: UseAnnualDREOptions) {
 
   const salesByMonth = new Map(
     salesData.map((s) => {
-      const monthIdx = new Date(s.month_start).getMonth();
+      const monthIdx = new Date(s.month_start).getUTCMonth();
       return [monthIdx, s];
     })
   );
 
   const entriesByMonth = new Map<number, { deducoes: number; fixas: number; implantacao: number }>();
   for (const e of entriesData) {
-    const monthIdx = new Date(e.reference_month).getMonth();
+    const monthIdx = new Date(e.reference_month).getUTCMonth();
     const current = entriesByMonth.get(monthIdx) ?? { deducoes: 0, fixas: 0, implantacao: 0 };
     const cat = e.category as "deducoes" | "fixas" | "implantacao";
     if (cat in current) {
