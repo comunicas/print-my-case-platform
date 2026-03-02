@@ -32,7 +32,7 @@ export function useDRE({ referenceMonth, pdvId }: UseDREOptions) {
   const startStr = format(monthStart, "yyyy-MM-dd'T'00:00:00");
   const endStr = format(monthEnd, "yyyy-MM-dd'T'23:59:59");
 
-  // Query de vendas do mês
+  // Query de vendas do mês (via RPC para evitar limite de 1000 linhas)
   const salesQuery = useQuery({
     queryKey: ["dre-sales", orgId, startStr, endStr, pdvId],
     queryFn: async () => {
@@ -51,24 +51,19 @@ export function useDRE({ referenceMonth, pdvId }: UseDREOptions) {
       const pdvIds = pdvId ? [pdvId] : pdvs.map((p) => p.id);
       if (pdvIds.length === 0) return { faturamento: 0, deducoes: 0 };
 
-      const { data: sales, error } = await supabase
-        .from("sales_records")
-        .select("amount, refund_amount, status")
-        .in("pdv_id", pdvIds)
-        .gte("payment_date", startStr)
-        .lte("payment_date", endStr);
+      const { data, error } = await supabase.rpc("get_dre_sales_summary", {
+        p_pdv_ids: pdvIds,
+        p_start_date: startStr,
+        p_end_date: endStr,
+      });
 
       if (error) throw error;
 
-      let faturamento = 0;
-      let deducoes = 0;
-
-      for (const sale of sales ?? []) {
-        faturamento += Number(sale.amount) || 0;
-        deducoes += Number(sale.refund_amount) || 0;
-      }
-
-      return { faturamento, deducoes };
+      const row = data?.[0];
+      return {
+        faturamento: Number(row?.faturamento) || 0,
+        deducoes: Number(row?.deducoes) || 0,
+      };
     },
     enabled: !!orgId || isAllOrgs,
   });

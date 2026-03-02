@@ -1134,6 +1134,13 @@ export type Database = {
         }
         Returns: string
       }
+      get_dre_sales_summary: {
+        Args: { p_end_date: string; p_pdv_ids: string[]; p_start_date: string }
+        Returns: {
+          deducoes: number
+          faturamento: number
+        }[]
+      }
       get_org_user_ids: { Args: { _user_id: string }; Returns: string[] }
       get_public_organization: {
         Args: { p_slug: string }
