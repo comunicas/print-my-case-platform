@@ -2,8 +2,3 @@ export { DRETable } from "./DRETable";
 export { DREConfigCard } from "./DREConfigCard";
 export { FinancialEntryForm } from "./FinancialEntryForm";
 export { FinancialEntriesList } from "./FinancialEntriesList";
-export { AnnualSummary } from "./AnnualSummary";
-export { AnnualKPICards } from "./AnnualKPICards";
-export { RevenueEvolutionChart } from "./RevenueEvolutionChart";
-export { MarginsChart } from "./MarginsChart";
-export { CostCompositionChart } from "./CostCompositionChart";

@@ -56,26 +56,19 @@ export function useDREConfig({ pdvId }: { pdvId?: string | null } = {}) {
   });
 
   const upsertConfig = useMutation({
-    mutationFn: async (values: { unit_cost: number; stone_rate: number; tax_rate: number; pdv_id?: string | null }) => {
+    mutationFn: async (values: { unit_cost: number; stone_rate: number; tax_rate: number }) => {
       if (!writeOrgId) throw new Error("Sem organização");
 
-      const targetPdvId = values.pdv_id ?? null;
-
-      // Check if config already exists for this scope
-      let existingQuery = supabase
+      // Check if config already exists
+      const { data: existing } = await supabase
         .from("dre_config")
         .select("id")
-        .eq("organization_id", writeOrgId);
-
-      if (targetPdvId) {
-        existingQuery = existingQuery.eq("pdv_id", targetPdvId);
-      } else {
-        existingQuery = existingQuery.is("pdv_id", null);
-      }
-
-      const { data: existing } = await existingQuery.maybeSingle();
+        .eq("organization_id", writeOrgId)
+        .is("pdv_id", null)
+        .maybeSingle();
 
       if (existing) {
+        // UPDATE existing record by id
         const { data, error } = await supabase
           .from("dre_config")
           .update({
@@ -89,6 +82,7 @@ export function useDREConfig({ pdvId }: { pdvId?: string | null } = {}) {
         if (error) throw error;
         return data;
       } else {
+        // INSERT new record
         const { data, error } = await supabase
           .from("dre_config")
           .insert({
@@ -96,7 +90,6 @@ export function useDREConfig({ pdvId }: { pdvId?: string | null } = {}) {
             unit_cost: values.unit_cost,
             stone_rate: values.stone_rate,
             tax_rate: values.tax_rate,
-            ...(targetPdvId ? { pdv_id: targetPdvId } : {}),
           })
           .select()
           .single();
@@ -115,7 +108,6 @@ export function useDREConfig({ pdvId }: { pdvId?: string | null } = {}) {
   });
 
   const config = configQuery.data;
-  const isFromPdv = !!config?.pdv_id;
 
   return {
     config,
@@ -123,7 +115,6 @@ export function useDREConfig({ pdvId }: { pdvId?: string | null } = {}) {
     stoneRate: config?.stone_rate ?? 0,
     taxRate: config?.tax_rate ?? 0,
     isLoading: configQuery.isLoading,
-    isFromPdv,
     upsertConfig,
   };
 }

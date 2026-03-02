@@ -1,93 +1,43 @@
 
+# Adicionar verificacao de duplicatas no "copiar despesas do mes anterior"
 
-# Filtro de meses e alternancia de tipo de grafico no Resumo
+## Problema
 
-## Resumo
+A mutacao `copyFromPreviousMonth` nao verifica se ja existem entradas no mes de destino. Se o usuario clicar duas vezes (ou o botao nao desabilitar a tempo), as despesas sao duplicadas.
 
-Adicionar dois controles na aba Resumo do Financeiro:
-1. **Toggle "Ano completo"** ao lado do seletor de ano -- permite ver todos os 12 meses (incluindo futuros zerados) ou apenas ate o mes atual
-2. **Seletor de tipo de grafico** em cada ChartCard -- permite alternar entre diferentes visualizacoes (Area, Barras, Linha) para a mesma informacao
+## Solucao
 
----
+Antes de inserir as copias, verificar se ja existem entradas com categorias "fixas" ou "deducoes" no mes de destino. Se existirem, abortar com mensagem amigavel.
 
-## Alteracoes
+### Alteracao em `src/hooks/useFinancialEntries.ts`
 
-### 1. `src/components/financeiro/AnnualSummary.tsx`
-- Adicionar estado `showFullYear` (boolean, default `false`)
-- Renderizar um toggle/switch "Ano completo" ao lado do seletor de ano
-- Quando ativo, passar `monthlyData` completo (12 meses) em vez do filtrado
-- Quando desativado, manter o comportamento atual (filtra meses futuros)
-
-### 2. `src/components/dashboard/ChartCard.tsx`
-- Adicionar prop opcional `chartTypeOptions` (array de tipos disponiveis, ex: `["area", "bar", "line"]`)
-- Adicionar prop opcional `activeChartType` e `onChartTypeChange`
-- Renderizar botoes pequenos (icones) no header do card quando `chartTypeOptions` esta presente
-- Usar icones do lucide: `AreaChart`, `BarChart3`, `LineChart`
-
-### 3. `src/components/financeiro/RevenueEvolutionChart.tsx`
-- Adicionar estado local `chartType` com opcoes: `area` (default), `bar`, `line`
-- Renderizar o grafico correspondente ao tipo selecionado
-- Passar `chartTypeOptions` ao `ChartCard`
-
-### 4. `src/components/financeiro/MarginsChart.tsx`
-- Adicionar estado local `chartType` com opcoes: `line` (default), `area`, `bar`
-- Renderizar o grafico correspondente ao tipo selecionado
-
-### 5. `src/components/financeiro/CostCompositionChart.tsx`
-- Adicionar estado local `chartType` com opcoes: `bar` (default), `area`, `line`
-- Renderizar o grafico correspondente ao tipo selecionado
-
----
-
-## Detalhes tecnicos
-
-### Toggle "Ano completo" no AnnualSummary
+Na `mutationFn` de `copyFromPreviousMonth`, logo apos calcular `targetMonthStr` (linha ~140), adicionar uma query que verifica se ja existem entradas no mes de destino:
 
 ```typescript
-const [showFullYear, setShowFullYear] = useState(false);
+// Verificar se ja existem entradas copiadas no mes de destino
+let checkQuery = supabase
+  .from("financial_entries")
+  .select("id", { count: "exact", head: true })
+  .eq("reference_month", targetMonthStr)
+  .in("category", ["fixas", "deducoes"]);
 
-const displayData = useMemo(() => {
-  if (showFullYear || year < currentYear) return monthlyData;
-  if (year === currentYear) return monthlyData.filter((m) => m.monthIndex <= currentMonth);
-  return [];
-}, [monthlyData, year, currentYear, currentMonth, showFullYear]);
+if (orgId) {
+  checkQuery = checkQuery.eq("organization_id", orgId);
+}
+
+const { count, error: checkError } = await checkQuery;
+if (checkError) throw checkError;
+if (count && count > 0) {
+  throw new Error("Ja existem despesas neste mes. Exclua-as antes de copiar novamente.");
+}
 ```
 
-UI: Switch compacto com label "Ano completo" posicionado ao lado do seletor de ano.
+Isso fica antes da query que busca as entradas do mes anterior (linha ~142), garantindo que a operacao e abortada antes de qualquer insert.
 
-### ChartCard com seletor de tipo
-
-Adicionar ao header do ChartCard um grupo de botoes pequenos (toggle group) com icones representando cada tipo de grafico:
-
-```text
-+-------------------------------------------+
-| [icon] Titulo          [Area] [Bar] [Line] |
-| Descricao                                  |
-+-------------------------------------------+
-```
-
-Usar `ToggleGroup` do Radix/Shadcn para manter consistencia visual.
-
-### Graficos multi-tipo
-
-Cada componente de grafico tera um switch interno:
-
-```typescript
-const [chartType, setChartType] = useState<"area" | "bar" | "line">("area");
-
-// No render, trocar entre AreaChart, BarChart e LineChart do Recharts
-// mantendo os mesmos dataKeys, config, tooltips e legends
-```
-
----
-
-## Arquivos modificados
+## Impacto
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `AnnualSummary.tsx` | Adicionar toggle "Ano completo" com estado local |
-| `ChartCard.tsx` | Adicionar props para seletor de tipo de grafico no header |
-| `RevenueEvolutionChart.tsx` | Suportar 3 tipos de grafico (area/bar/line) |
-| `MarginsChart.tsx` | Suportar 3 tipos de grafico (line/area/bar) |
-| `CostCompositionChart.tsx` | Suportar 3 tipos de grafico (bar/area/line) |
+| `src/hooks/useFinancialEntries.ts` | ~10 linhas: verificacao de duplicatas antes do insert |
 
+Nenhuma migration necessaria. A mensagem de erro aparecera como toast vermelho caso o usuario tente copiar duas vezes.

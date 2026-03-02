@@ -5,9 +5,8 @@ import { ChevronLeft, ChevronRight, Plus, Wallet, Copy } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PDVFilter } from "@/components/ui/PDVFilter";
-import { DRETable, DREConfigCard, FinancialEntryForm, FinancialEntriesList, AnnualSummary } from "@/components/financeiro";
+import { DRETable, DREConfigCard, FinancialEntryForm, FinancialEntriesList } from "@/components/financeiro";
 import { useFinancialEntries, type FinancialEntry } from "@/hooks/useFinancialEntries";
 import { useDRE } from "@/hooks/useDRE";
 import { useProfile } from "@/hooks/useProfile";
@@ -23,7 +22,6 @@ export default function Financeiro() {
   const [referenceMonth, setReferenceMonth] = useState(() => startOfMonth(new Date()));
   const [formOpen, setFormOpen] = useState(false);
   const [editEntry, setEditEntry] = useState<FinancialEntry | null>(null);
-  const [activeTab, setActiveTab] = useState("resumo");
 
   const pdvId = selectedPdvId === "all" ? undefined : selectedPdvId;
 
@@ -82,23 +80,9 @@ export default function Financeiro() {
 
   const monthLabel = format(referenceMonth, "MMMM 'de' yyyy", { locale: ptBR });
 
-  const MonthSelector = () => (
-    <div className="flex items-center justify-center gap-3">
-      <Button variant="outline" size="icon" onClick={handlePrevMonth}>
-        <ChevronLeft className="h-4 w-4" />
-      </Button>
-      <span className="text-sm font-medium capitalize min-w-[180px] text-center">
-        {monthLabel}
-      </span>
-      <Button variant="outline" size="icon" onClick={handleNextMonth}>
-        <ChevronRight className="h-4 w-4" />
-      </Button>
-    </div>
-  );
-
   return (
     <AppLayout>
-      <div className="p-4 md:p-6 space-y-4 max-w-3xl mx-auto">
+      <div className="p-4 md:p-6 space-y-6 max-w-3xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -112,7 +96,7 @@ export default function Financeiro() {
               pdvs={pdvs}
               showAutoAppliedBadge={wasAutoApplied}
             />
-            {isAdmin && activeTab === "despesas" && (
+            {isAdmin && (
               <Button onClick={handleOpenNew} size="sm">
                 <Plus className="h-4 w-4 mr-1" />
                 Nova Despesa
@@ -121,61 +105,61 @@ export default function Financeiro() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full">
-            <TabsTrigger value="resumo" className="flex-1">Resumo</TabsTrigger>
-            <TabsTrigger value="dre" className="flex-1">DRE</TabsTrigger>
-            <TabsTrigger value="despesas" className="flex-1">Despesas</TabsTrigger>
-          </TabsList>
+        {/* Config de custos variáveis */}
+        {isAdmin && <DREConfigCard pdvId={pdvId} />}
 
-          {/* Tab: Resumo */}
-          <TabsContent value="resumo">
-            <AnnualSummary pdvId={pdvId} />
-          </TabsContent>
+        {/* Month selector */}
+        <div className="flex items-center justify-center gap-3">
+          <Button variant="outline" size="icon" onClick={handlePrevMonth}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm font-medium capitalize min-w-[180px] text-center">
+            {monthLabel}
+          </span>
+          <Button variant="outline" size="icon" onClick={handleNextMonth}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
 
-          {/* Tab: DRE */}
-          <TabsContent value="dre" className="space-y-4">
-            {isAdmin && <DREConfigCard pdvId={pdvId} />}
-            <MonthSelector />
-            <DRETable dre={dre} isLoading={dreLoading} entriesByCategory={entriesByCategory} />
-          </TabsContent>
+        {/* DRE */}
+        <DRETable dre={dre} isLoading={dreLoading} entriesByCategory={entriesByCategory} />
 
-          {/* Tab: Despesas */}
-          <TabsContent value="despesas" className="space-y-4">
-            <MonthSelector />
-            <FinancialEntriesList
-              entries={entries}
-              isLoading={entriesLoading}
-              isAdmin={isAdmin}
-              onEdit={handleEdit}
-              onDelete={(id) => deleteEntry.mutate(id)}
-            />
+        {/* Copy from previous month banner */}
+        {isAdmin && !entriesLoading && entries.length === 0 && (
+          <Card className="border-dashed">
+            <CardContent className="flex items-center gap-4 py-4 px-5">
+              <Copy className="h-5 w-5 text-muted-foreground shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">Nenhuma despesa neste mês</p>
+                <p className="text-xs text-muted-foreground">
+                  Deseja copiar as despesas fixas e deduções do mês anterior?
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => copyFromPreviousMonth.mutate({ targetMonth: referenceMonth })}
+                disabled={copyFromPreviousMonth.isPending}
+              >
+                {copyFromPreviousMonth.isPending ? "Copiando…" : "Copiar despesas"}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
-            {/* Copy from previous month */}
-            {isAdmin && !entriesLoading && (
-              <Card className="border-dashed">
-                <CardContent className="flex items-center gap-4 py-4 px-5">
-                  <Copy className="h-5 w-5 text-muted-foreground shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">Copiar do mês anterior</p>
-                    <p className="text-xs text-muted-foreground">
-                      Copiar despesas fixas e deduções do mês anterior para este mês
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => copyFromPreviousMonth.mutate({ targetMonth: referenceMonth })}
-                    disabled={copyFromPreviousMonth.isPending}
-                  >
-                    {copyFromPreviousMonth.isPending ? "Copiando…" : "Copiar despesas"}
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
+        {/* Entries list */}
+        <div>
+          <h2 className="text-sm font-semibold mb-3 text-muted-foreground">
+            Despesas do mês
+          </h2>
+          <FinancialEntriesList
+            entries={entries}
+            isLoading={entriesLoading}
+            isAdmin={isAdmin}
+            onEdit={handleEdit}
+            onDelete={(id) => deleteEntry.mutate(id)}
+          />
+        </div>
       </div>
 
       <FinancialEntryForm
