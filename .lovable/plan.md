@@ -1,55 +1,67 @@
 
-# Autocomplete de descricao no formulario de despesa
 
-## O que sera feito
+# Correção do autocomplete de descrição no formulário de despesas
 
-Substituir o campo de texto simples "Descricao" no formulario de nova despesa por um **combobox com autocomplete** que sugere descricoes ja utilizadas anteriormente na mesma categoria. O usuario podera selecionar uma sugestao existente ou digitar uma descricao nova livremente.
+## Problema identificado
 
-## Abordagem
+O campo de autocomplete de descrição **não funciona corretamente** porque o `PopoverTrigger` com `asChild` envolve o `<Input>`, transformando-o em um elemento do tipo "button" internamente. Isso causa:
 
-Usar um Popover + Command (cmdk) para criar um combobox inline, similar ao padrao ja existente no projeto. Quando o usuario foca no campo, aparece uma lista de sugestoes filtradas pela categoria selecionada. Ao digitar, a lista filtra em tempo real.
+1. O popover com sugestões não aparece ao focar/digitar
+2. O campo pode perder foco ou não aceitar digitação em alguns cenários
+3. O Radix Popover dentro de um Dialog tem conflitos de foco conhecidos
 
-## Alteracoes
+A query de dados funciona corretamente -- retorna 6 descrições únicas para a categoria "fixas" (Aluguel, Internet, Licenciamento, Limpeza, Marketing).
 
-### 1. Novo hook: `src/hooks/useFinancialDescriptions.ts`
+## Solução
 
-Query dedicada que busca descricoes distintas da tabela `financial_entries`, filtradas por categoria e organizacao. Retorna um array de strings unicas, ordenadas alfabeticamente.
+Substituir a abordagem `Popover + PopoverTrigger` por um padrão de **dropdown controlado manualmente** usando posicionamento absoluto, sem depender do Radix Popover. Isso elimina os conflitos de foco com o Dialog.
 
-```typescript
-// Query: SELECT DISTINCT description FROM financial_entries
-//   WHERE organization_id = orgId AND category = category
-//   ORDER BY description
+### Alteracao em `src/components/financeiro/FinancialEntryForm.tsx`
+
+1. Remover imports de `Popover`, `PopoverContent`, `PopoverTrigger`
+2. Manter o `Input` como elemento normal (sem wrapper de trigger)
+3. Renderizar a lista de sugestoes como um `div` com posicao absoluta abaixo do input, controlado pelo estado `popoverOpen`
+4. Usar `Command` / `CommandList` / `CommandGroup` / `CommandItem` dentro desse div para manter o mesmo visual
+5. Adicionar handler `onBlur` com `setTimeout` para fechar ao perder foco (permitindo clique nos itens antes)
+
+### Estrutura do campo corrigido
+
+```text
+<FormItem className="relative">
+  <FormLabel>Descricao</FormLabel>
+  <FormControl>
+    <Input
+      ref={inputRef}
+      value={field.value}
+      onChange={...}  // atualiza valor + abre lista
+      onFocus={...}   // abre lista
+      onBlur={...}    // fecha lista com delay
+    />
+  </FormControl>
+  {popoverOpen && filteredSuggestions.length > 0 && (
+    <div className="absolute z-50 top-full mt-1 w-full ...">
+      <Command>
+        <CommandList>
+          <CommandGroup>
+            <CommandItem onMouseDown={...} />
+          </CommandGroup>
+        </CommandList>
+      </Command>
+    </div>
+  )}
+</FormItem>
 ```
 
-- Usa `useQuery` com queryKey `["financial-descriptions", orgId, category]`
-- Habilitado apenas quando `category` e `orgId` estao definidos
+Pontos importantes:
+- Usar `onMouseDown` (nao `onSelect`) nos itens para evitar que o `onBlur` do input feche a lista antes do clique
+- `z-50` garante que a lista fique acima dos outros campos do formulario
+- Sem conflito com o Dialog pai pois nao usa Radix Popover
 
-### 2. Atualizar `src/components/financeiro/FinancialEntryForm.tsx`
-
-- Importar o novo hook `useFinancialDescriptions`
-- Importar `Popover`, `PopoverTrigger`, `PopoverContent` e componentes `Command`
-- Observar o valor atual de `category` via `form.watch("category")`
-- Chamar `useFinancialDescriptions({ category })`
-- Substituir o `<Input>` do campo descricao por um combobox:
-  - Input editavel que permite digitacao livre (nao e um select fechado)
-  - Popover que abre ao focar mostrando sugestoes filtradas
-  - Ao selecionar uma sugestao, preenche o campo e fecha o popover
-  - Ao digitar texto novo (sem selecionar), o valor digitado e mantido normalmente
-- Estado local `popoverOpen` controla visibilidade da lista de sugestoes
-
-### Comportamento esperado
-
-1. Usuario seleciona categoria (ex: "Despesas Fixas")
-2. Ao clicar no campo descricao, aparece lista com descricoes ja usadas nessa categoria (ex: "Aluguel", "Internet", "Energia")
-3. Ao digitar, a lista filtra em tempo real
-4. Pode selecionar uma sugestao (preenche o campo) ou digitar algo totalmente novo
-5. Campo continua validando normalmente (minimo 1 caractere, maximo 200)
-
-## Detalhes tecnicos
+### Impacto
 
 | Arquivo | Tipo | Descricao |
 |---------|------|-----------|
-| `src/hooks/useFinancialDescriptions.ts` | Novo | Hook que busca descricoes distintas por categoria |
-| `src/components/financeiro/FinancialEntryForm.tsx` | Alterado | Campo descricao vira combobox com sugestoes |
+| `src/components/financeiro/FinancialEntryForm.tsx` | Alterado | Trocar Popover por dropdown absoluto |
 
-Nenhuma migration de banco necessaria -- a query usa dados ja existentes na tabela `financial_entries`.
+Nenhuma migration necessaria. O hook `useFinancialDescriptions` permanece inalterado.
+
