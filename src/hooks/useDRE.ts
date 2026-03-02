@@ -24,7 +24,8 @@ interface UseDREOptions {
 export function useDRE({ referenceMonth, pdvId }: UseDREOptions) {
   const { profile } = useProfile();
   const { activeOrgId } = useActiveOrg();
-  const orgId = activeOrgId ?? profile?.organization_id;
+  const isAllOrgs = activeOrgId === "all";
+  const orgId = isAllOrgs ? null : (activeOrgId ?? profile?.organization_id);
 
   const monthStart = startOfMonth(referenceMonth);
   const monthEnd = endOfMonth(referenceMonth);
@@ -35,11 +36,14 @@ export function useDRE({ referenceMonth, pdvId }: UseDREOptions) {
   const salesQuery = useQuery({
     queryKey: ["dre-sales", orgId, startStr, endStr, pdvId],
     queryFn: async () => {
-      // Buscar PDVs da org
+      // Buscar PDVs da org (ou todos se "all")
       let pdvQuery = supabase
         .from("pdvs")
-        .select("id")
-        .eq("organization_id", orgId!);
+        .select("id");
+
+      if (orgId) {
+        pdvQuery = pdvQuery.eq("organization_id", orgId);
+      }
 
       const { data: pdvs, error: pdvError } = await pdvQuery;
       if (pdvError) throw pdvError;
@@ -66,7 +70,7 @@ export function useDRE({ referenceMonth, pdvId }: UseDREOptions) {
 
       return { faturamento, deducoes };
     },
-    enabled: !!orgId,
+    enabled: !!orgId || isAllOrgs,
   });
 
   // Dados de despesas manuais
