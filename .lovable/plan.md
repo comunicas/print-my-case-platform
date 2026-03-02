@@ -1,43 +1,57 @@
 
-# Adicionar verificacao de duplicatas no "copiar despesas do mes anterior"
 
-## Problema
+# Adicionar suporte para configuracao de custos por PDV no DREConfigCard
 
-A mutacao `copyFromPreviousMonth` nao verifica se ja existem entradas no mes de destino. Se o usuario clicar duas vezes (ou o botao nao desabilitar a tempo), as despesas sao duplicadas.
+## Contexto
 
-## Solucao
+O hook `useDREConfig` ja busca config especifica por PDV (fallback para org-level), porem a mutacao `upsertConfig` sempre salva com `pdv_id IS NULL` (nivel organizacao). A UI precisa permitir que o admin escolha se a config e global ou especifica para o PDV selecionado.
 
-Antes de inserir as copias, verificar se ja existem entradas com categorias "fixas" ou "deducoes" no mes de destino. Se existirem, abortar com mensagem amigavel.
+## Resultado do teste de duplicatas
 
-### Alteracao em `src/hooks/useFinancialEntries.ts`
+- Copiar despesas do mes anterior: funcionando
+- Apos copiar, o banner desaparece (UI impede re-clique)
+- A verificacao de duplicatas no backend funciona como rede de seguranca
+- Margens exibem "--" quando receita e zero
 
-Na `mutationFn` de `copyFromPreviousMonth`, logo apos calcular `targetMonthStr` (linha ~140), adicionar uma query que verifica se ja existem entradas no mes de destino:
+**Obs:** Os dados de teste criados em Abril e Maio de 2026 precisam ser limpos.
 
-```typescript
-// Verificar se ja existem entradas copiadas no mes de destino
-let checkQuery = supabase
-  .from("financial_entries")
-  .select("id", { count: "exact", head: true })
-  .eq("reference_month", targetMonthStr)
-  .in("category", ["fixas", "deducoes"]);
+## Alteracoes propostas
 
-if (orgId) {
-  checkQuery = checkQuery.eq("organization_id", orgId);
-}
+### 1. `src/hooks/useDREConfig.ts` - Aceitar pdvId na mutacao
 
-const { count, error: checkError } = await checkQuery;
-if (checkError) throw checkError;
-if (count && count > 0) {
-  throw new Error("Ja existem despesas neste mes. Exclua-as antes de copiar novamente.");
-}
+Modificar `upsertConfig.mutationFn` para receber um campo opcional `pdv_id` nos valores. Quando presente, a mutacao salva/atualiza o registro com aquele `pdv_id`; quando ausente, mantém o comportamento atual (org-level, `pdv_id IS NULL`).
+
+```text
+mutationFn: async (values: { 
+  unit_cost: number; 
+  stone_rate: number; 
+  tax_rate: number;
+  pdv_id?: string | null;  // NOVO
+})
 ```
 
-Isso fica antes da query que busca as entradas do mes anterior (linha ~142), garantindo que a operacao e abortada antes de qualquer insert.
+A logica de check/insert/update passa a usar o `pdv_id` informado em vez de fixar `IS NULL`.
 
-## Impacto
+### 2. `src/components/financeiro/DREConfigCard.tsx` - Toggle de escopo
 
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/hooks/useFinancialEntries.ts` | ~10 linhas: verificacao de duplicatas antes do insert |
+Adicionar um indicador visual e toggle para que o admin escolha salvar a config como:
+- **Global (organizacao)** - aplica a todos os PDVs sem config propria
+- **Especifica para o PDV selecionado** - so aplica quando aquele PDV esta filtrado
 
-Nenhuma migration necessaria. A mensagem de erro aparecera como toast vermelho caso o usuario tente copiar duas vezes.
+Alteracoes na UI:
+- Mostrar um Badge indicando se a config atual vem do PDV ou e herdada da org
+- Adicionar um Switch ou ToggleGroup com labels "Global" / "Este PDV" (visivel apenas quando um PDV esta selecionado)
+- O `handleSave` passa `pdv_id` para a mutacao quando o toggle esta em "Este PDV"
+- Quando nenhum PDV esta selecionado (filtro "Todos"), o toggle nao aparece e a config e sempre global
+
+### 3. Limpeza dos dados de teste
+
+Excluir as 10 entradas financeiras criadas durante o teste (Abril e Maio 2026).
+
+## Detalhes tecnicos
+
+- O banco ja suporta `pdv_id` na tabela `dre_config` com indices unicos parciais (um para `pdv_id IS NULL`, outro para `pdv_id IS NOT NULL`)
+- As RLS policies ja cobrem insert/update/select/delete para admins na mesma org
+- Nenhuma migration necessaria
+- Arquivos modificados: `useDREConfig.ts`, `DREConfigCard.tsx`
+
