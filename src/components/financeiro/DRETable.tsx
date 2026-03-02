@@ -26,20 +26,22 @@ interface DRERowProps {
   prefix?: string;
   bold?: boolean;
   highlight?: boolean;
+  muted?: boolean;
   isLoading?: boolean;
 }
 
-function DRERow({ label, value, prefix = "", bold, highlight, isLoading }: DRERowProps) {
+function DRERow({ label, value, prefix = "", bold, highlight, muted, isLoading }: DRERowProps) {
   const isPositive = value >= 0;
   return (
     <div
       className={cn(
         "flex items-center justify-between py-3 px-4",
         bold && "font-semibold",
-        highlight && "bg-muted/50 rounded-lg"
+        highlight && "bg-muted/50 rounded-lg",
+        muted && "opacity-50"
       )}
     >
-      <span className="text-sm text-muted-foreground">
+      <span className={cn("text-sm", muted ? "text-muted-foreground/60" : "text-muted-foreground")}>
         {prefix && <span className="mr-1">{prefix}</span>}
         {label}
       </span>
@@ -49,7 +51,8 @@ function DRERow({ label, value, prefix = "", bold, highlight, isLoading }: DRERo
         <span
           className={cn(
             "text-sm font-mono tabular-nums",
-            highlight && (isPositive ? "text-primary" : "text-destructive")
+            highlight && (isPositive ? "text-primary" : "text-destructive"),
+            muted && "text-muted-foreground/60"
           )}
         >
           {formatCurrency(value)}
@@ -114,30 +117,63 @@ function ExpandableRow({ label, total, prefix, entries, isLoading }: ExpandableR
   );
 }
 
+function SectionSeparator() {
+  return <div className="border-t border-dashed border-muted-foreground/20 mx-4" />;
+}
+
 export function DRETable({ dre, isLoading, entriesByCategory }: DRETableProps) {
   const deducoes = entriesByCategory?.deducoes ?? [];
   const implantacao = entriesByCategory?.implantacao ?? [];
   const fixas = entriesByCategory?.fixas ?? [];
 
+  // Labels dinâmicos
+  const cmvLabel = dre.unitCost > 0
+    ? `CMV (${dre.salesCount} un × ${formatCurrency(dre.unitCost)})`
+    : "CMV (Custo Mercadoria Vendida)";
+
+  const stoneLabel = dre.stoneRate > 0
+    ? `Taxas Stone (${(dre.stoneRate * 100).toFixed(1)}% cartão)`
+    : "Taxas Stone (MDR)";
+
+  const taxLabel = dre.taxRate > 0
+    ? `Impostos sobre vendas (${(dre.taxRate * 100).toFixed(1)}%)`
+    : "Impostos sobre vendas";
+
+  
+
   return (
     <div className="rounded-xl border bg-card">
       <div className="p-4 border-b">
-        <h3 className="font-semibold text-base">Demonstração do Resultado</h3>
+        <h3 className="font-semibold text-base">Demonstração do Resultado (DRE)</h3>
       </div>
-      <div className="divide-y">
+      <div className="divide-y divide-transparent">
+        {/* Receita Bruta */}
         <DRERow
           prefix="(+)"
-          label="Faturamento Bruto"
-          value={dre.faturamentoBruto}
+          label="Receita Bruta"
+          value={dre.receitaBruta}
           isLoading={isLoading}
         />
+
+        {/* Impostos */}
+        <DRERow
+          prefix="(−)"
+          label={taxLabel}
+          value={dre.impostos}
+          isLoading={isLoading}
+          muted={dre.taxRate === 0}
+        />
+
+        {/* Reembolsos / Deduções */}
         <ExpandableRow
           prefix="(−)"
-          label="Deduções da Venda"
-          total={dre.deducoes}
+          label="Reembolsos / Deduções"
+          total={dre.reembolsos}
           entries={deducoes}
           isLoading={isLoading}
         />
+
+        {/* Receita Líquida */}
         <DRERow
           prefix="(=)"
           label="Receita Líquida"
@@ -147,30 +183,82 @@ export function DRETable({ dre, isLoading, entriesByCategory }: DRETableProps) {
           isLoading={isLoading}
         />
 
-        <div className="pt-1" />
-        <ExpandableRow
+        <SectionSeparator />
+
+        {/* CMV */}
+        <DRERow
           prefix="(−)"
-          label="Despesas de Implantação"
-          total={dre.despesasImplantacao}
-          entries={implantacao}
+          label={cmvLabel}
+          value={dre.cmv}
+          isLoading={isLoading}
+          muted={dre.unitCost === 0}
+        />
+
+        {/* Taxas Stone */}
+        <DRERow
+          prefix="(−)"
+          label={stoneLabel}
+          value={dre.taxasStone}
+          isLoading={isLoading}
+          muted={dre.stoneRate === 0}
+        />
+
+        {/* Lucro Bruto */}
+        <DRERow
+          prefix="(=)"
+          label="Lucro Bruto"
+          value={dre.lucroBruto}
+          bold
+          highlight
           isLoading={isLoading}
         />
+
+        <SectionSeparator />
+
+        {/* Despesas Fixas */}
         <ExpandableRow
           prefix="(−)"
-          label="Despesas Fixas"
+          label="Despesas Fixas (OPEX)"
           total={dre.despesasFixas}
           entries={fixas}
           isLoading={isLoading}
         />
-        <div className="pt-1" />
+
+        {/* Resultado Operacional */}
         <DRERow
           prefix="(=)"
-          label="Resultado Operacional"
+          label="Resultado Operacional (EBITDA)"
           value={dre.resultadoOperacional}
           bold
           highlight
           isLoading={isLoading}
         />
+
+        {/* Implantação - condicional */}
+        {dre.implantacao > 0 && (
+          <>
+            <SectionSeparator />
+            <ExpandableRow
+              prefix="(−)"
+              label="Implantação (one-off)"
+              total={dre.implantacao}
+              entries={implantacao}
+              isLoading={isLoading}
+            />
+          </>
+        )}
+
+        {/* Resultado do Mês */}
+        <div className="bg-muted/30 rounded-b-xl">
+          <DRERow
+            prefix="(=)"
+            label={dre.implantacao > 0 ? "Resultado do Mês" : "Resultado do Mês"}
+            value={dre.resultadoMes}
+            bold
+            highlight
+            isLoading={isLoading}
+          />
+        </div>
       </div>
     </div>
   );

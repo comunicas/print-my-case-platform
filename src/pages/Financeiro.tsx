@@ -6,7 +6,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PDVFilter } from "@/components/ui/PDVFilter";
-import { DRETable, FinancialEntryForm, FinancialEntriesList } from "@/components/financeiro";
+import { DRETable, DREConfigCard, FinancialEntryForm, FinancialEntriesList } from "@/components/financeiro";
 import { useFinancialEntries, type FinancialEntry } from "@/hooks/useFinancialEntries";
 import { useDRE } from "@/hooks/useDRE";
 import { useProfile } from "@/hooks/useProfile";
@@ -104,6 +104,9 @@ export default function Financeiro() {
             )}
           </div>
         </div>
+
+        {/* Config de custos variáveis */}
+        {isAdmin && <DREConfigCard pdvId={pdvId} />}
 
         {/* Month selector */}
         <div className="flex items-center justify-center gap-3">

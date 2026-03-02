@@ -3,15 +3,27 @@ import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "./useProfile";
 import { useActiveOrg } from "@/contexts/ActiveOrgContext";
 import { useFinancialEntries } from "./useFinancialEntries";
+import { useDREConfig } from "./useDREConfig";
 import { startOfMonth, endOfMonth, format } from "date-fns";
 
 export interface DREData {
-  faturamentoBruto: number;
-  deducoes: number;
+  receitaBruta: number;
+  impostos: number;
+  reembolsos: number;
   receitaLiquida: number;
-  despesasImplantacao: number;
+  cmv: number;
+  taxasStone: number;
+  lucroBruto: number;
   despesasFixas: number;
   resultadoOperacional: number;
+  implantacao: number;
+  resultadoMes: number;
+  // Metadata for labels
+  salesCount: number;
+  unitCost: number;
+  stoneRate: number;
+  taxRate: number;
+  cardRevenue: number;
 }
 
 export type { FinancialEntry } from "./useFinancialEntries";
@@ -32,26 +44,23 @@ export function useDRE({ referenceMonth, pdvId }: UseDREOptions) {
   const startStr = format(monthStart, "yyyy-MM-dd'T'00:00:00");
   const endStr = format(monthEnd, "yyyy-MM-dd'T'23:59:59");
 
-  // Query de vendas do mês (via RPC para evitar limite de 1000 linhas)
+  // Config de custos variáveis
+  const { unitCost, stoneRate, taxRate, isLoading: configLoading } = useDREConfig({ pdvId });
+
+  // Query de vendas do mês (via RPC)
   const salesQuery = useQuery({
     queryKey: ["dre-sales", orgId, startStr, endStr, pdvId],
     queryFn: async () => {
-      // Buscar PDVs da org (ou todos se "all")
-      let pdvQuery = supabase
-        .from("pdvs")
-        .select("id");
-
-      if (orgId) {
-        pdvQuery = pdvQuery.eq("organization_id", orgId);
-      }
+      let pdvQuery = supabase.from("pdvs").select("id");
+      if (orgId) pdvQuery = pdvQuery.eq("organization_id", orgId);
 
       const { data: pdvs, error: pdvError } = await pdvQuery;
       if (pdvError) throw pdvError;
 
       const pdvIds = pdvId ? [pdvId] : pdvs.map((p) => p.id);
-      if (pdvIds.length === 0) return { faturamento: 0, deducoes: 0 };
+      if (pdvIds.length === 0) return { faturamento: 0, deducoes: 0, sales_count: 0, card_revenue: 0 };
 
-      const { data, error } = await supabase.rpc("get_dre_sales_summary", {
+      const { data, error } = await (supabase as unknown as any).rpc("get_dre_sales_summary", {
         p_pdv_ids: pdvIds,
         p_start_date: startStr,
         p_end_date: endStr,
@@ -63,6 +72,8 @@ export function useDRE({ referenceMonth, pdvId }: UseDREOptions) {
       return {
         faturamento: Number(row?.faturamento) || 0,
         deducoes: Number(row?.deducoes) || 0,
+        sales_count: Number(row?.sales_count) || 0,
+        card_revenue: Number(row?.card_revenue) || 0,
       };
     },
     enabled: !!orgId || isAllOrgs,
@@ -74,24 +85,34 @@ export function useDRE({ referenceMonth, pdvId }: UseDREOptions) {
     pdvId,
   });
 
-  const faturamento = salesQuery.data?.faturamento ?? 0;
-  const deducoesAuto = salesQuery.data?.deducoes ?? 0;
-  const deducoesTotal = deducoesAuto + totalDeducoes;
-  const receitaLiquida = faturamento - deducoesTotal;
-  const resultadoOperacional = receitaLiquida - totalImplantacao - totalFixas;
+  const sales = salesQuery.data ?? { faturamento: 0, deducoes: 0, sales_count: 0, card_revenue: 0 };
 
-  // Criar entrada virtual para reembolsos automáticos
+  // Cálculos do DRE
+  const receitaBruta = sales.faturamento;
+  const impostos = receitaBruta * taxRate;
+  const reembolsosAuto = sales.deducoes;
+  const reembolsos = reembolsosAuto + totalDeducoes;
+  const receitaLiquida = receitaBruta - impostos - reembolsos;
+  const cmv = sales.sales_count * unitCost;
+  const taxasStone = sales.card_revenue * stoneRate;
+  const lucroBruto = receitaLiquida - cmv - taxasStone;
+  const despesasFixas = totalFixas;
+  const resultadoOperacional = lucroBruto - despesasFixas;
+  const implantacao = totalImplantacao;
+  const resultadoMes = resultadoOperacional - implantacao;
+
+  // Entries enriquecidas com reembolsos automáticos
   const enrichedEntriesByCategory = {
     ...entriesByCategory,
     deducoes: [
-      ...(deducoesAuto > 0
+      ...(reembolsosAuto > 0
         ? [{
             id: "auto-refunds",
             organization_id: orgId ?? "",
             pdv_id: null,
             category: "deducoes",
             description: "Reembolsos / Cancelamentos",
-            amount: deducoesAuto,
+            amount: reembolsosAuto,
             reference_month: format(monthStart, "yyyy-MM-dd"),
             created_by: "",
             created_at: "",
@@ -103,18 +124,28 @@ export function useDRE({ referenceMonth, pdvId }: UseDREOptions) {
   };
 
   const dre: DREData = {
-    faturamentoBruto: faturamento,
-    deducoes: deducoesTotal,
+    receitaBruta,
+    impostos,
+    reembolsos,
     receitaLiquida,
-    despesasImplantacao: totalImplantacao,
-    despesasFixas: totalFixas,
+    cmv,
+    taxasStone,
+    lucroBruto,
+    despesasFixas,
     resultadoOperacional,
+    implantacao,
+    resultadoMes,
+    salesCount: sales.sales_count,
+    unitCost,
+    stoneRate,
+    taxRate,
+    cardRevenue: sales.card_revenue,
   };
 
   return {
     dre,
     entriesByCategory: enrichedEntriesByCategory,
-    isLoading: salesQuery.isLoading || entriesLoading,
+    isLoading: salesQuery.isLoading || entriesLoading || configLoading,
     error: salesQuery.error,
   };
 }
