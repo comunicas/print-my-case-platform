@@ -139,6 +139,18 @@ export default function Financeiro() {
             {isAdmin && <DREConfigCard pdvId={pdvId} />}
             <MonthSelector />
             <DRETable dre={dre} isLoading={dreLoading} entriesByCategory={entriesByCategory} />
+          </TabsContent>
+
+          {/* Tab: Despesas */}
+          <TabsContent value="despesas" className="space-y-4">
+            <MonthSelector />
+            <FinancialEntriesList
+              entries={entries}
+              isLoading={entriesLoading}
+              isAdmin={isAdmin}
+              onEdit={handleEdit}
+              onDelete={(id) => deleteEntry.mutate(id)}
+            />
 
             {/* Copy from previous month */}
             {isAdmin && !entriesLoading && entries.length === 0 && (
@@ -162,18 +174,6 @@ export default function Financeiro() {
                 </CardContent>
               </Card>
             )}
-          </TabsContent>
-
-          {/* Tab: Despesas */}
-          <TabsContent value="despesas" className="space-y-4">
-            <MonthSelector />
-            <FinancialEntriesList
-              entries={entries}
-              isLoading={entriesLoading}
-              isAdmin={isAdmin}
-              onEdit={handleEdit}
-              onDelete={(id) => deleteEntry.mutate(id)}
-            />
           </TabsContent>
         </Tabs>
       </div>
