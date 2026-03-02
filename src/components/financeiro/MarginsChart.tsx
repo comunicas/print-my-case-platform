@@ -1,5 +1,5 @@
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ReferenceLine } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ReferenceLine, Legend } from "recharts";
 import type { MonthlyDREData } from "@/hooks/useAnnualDRE";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { Percent } from "lucide-react";
@@ -16,8 +16,8 @@ interface MarginsChartProps {
 export function MarginsChart({ data }: MarginsChartProps) {
   const chartData = data.map((d) => ({
     monthLabel: d.monthLabel,
-    margemBruta: d.receitaBruta > 0 ? (d.lucroBruto / d.receitaBruta) * 100 : null,
-    margemOperacional: d.receitaBruta > 0 ? (d.resultadoOperacional / d.receitaBruta) * 100 : null,
+    margemBruta: d.receitaLiquida > 0 ? (d.lucroBruto / d.receitaLiquida) * 100 : null,
+    margemOperacional: d.receitaLiquida > 0 ? (d.resultadoOperacional / d.receitaLiquida) * 100 : null,
   }));
 
   const hasData = chartData.some((d) => d.margemBruta !== null);
@@ -41,13 +41,25 @@ export function MarginsChart({ data }: MarginsChartProps) {
             axisLine={false}
             width={45}
           />
-          <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" strokeWidth={1} />
+          <ReferenceLine
+            y={0}
+            stroke="hsl(var(--muted-foreground))"
+            strokeDasharray="4 4"
+            strokeWidth={1}
+            label={{ value: "Breakeven", position: "insideTopRight", fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+          />
+          <Legend
+            verticalAlign="top"
+            height={36}
+            formatter={(value: string) => chartConfig[value as keyof typeof chartConfig]?.label ?? value}
+          />
           <ChartTooltip
             content={
               <ChartTooltipContent
-                formatter={(value) => {
+                formatter={(value, name) => {
                   if (value === null || value === undefined) return ["—", ""];
-                  return [`${Number(value).toFixed(1)}%`, ""];
+                  const cfg = chartConfig[name as keyof typeof chartConfig];
+                  return [`${Number(value).toFixed(1)}%`, cfg?.label ?? name];
                 }}
               />
             }

@@ -1,5 +1,5 @@
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { formatCurrency } from "@/lib/utils";
 import type { MonthlyDREData } from "@/hooks/useAnnualDRE";
 import { ChartCard } from "@/components/dashboard/ChartCard";
@@ -37,6 +37,11 @@ export function RevenueEvolutionChart({ data }: RevenueEvolutionChartProps) {
             tickLine={false}
             axisLine={false}
             width={60}
+          />
+          <Legend
+            verticalAlign="top"
+            height={36}
+            formatter={(value: string) => chartConfig[value as keyof typeof chartConfig]?.label ?? value}
           />
           <ChartTooltip
             content={

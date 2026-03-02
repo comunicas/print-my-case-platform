@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAnnualDRE } from "@/hooks/useAnnualDRE";
@@ -15,6 +15,17 @@ export function AnnualSummary({ pdvId }: AnnualSummaryProps) {
   const [year, setYear] = useState(() => new Date().getFullYear());
   const { monthlyData, kpis, isLoading } = useAnnualDRE({ year, pdvId });
 
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth(); // 0-11
+
+  const displayData = useMemo(() => {
+    if (year < currentYear) return monthlyData;
+    if (year === currentYear) return monthlyData.filter((m) => m.monthIndex <= currentMonth);
+    return []; // future year
+  }, [monthlyData, year, currentYear, currentMonth]);
+
+  const monthsWithData = displayData.filter((m) => m.receitaBruta > 0).length;
+
   return (
     <div className="space-y-4">
       {/* Year selector */}
@@ -28,15 +39,15 @@ export function AnnualSummary({ pdvId }: AnnualSummaryProps) {
         </Button>
       </div>
 
-      <AnnualKPICards kpis={kpis} isLoading={isLoading} />
+      <AnnualKPICards kpis={kpis} isLoading={isLoading} monthsWithData={monthsWithData} />
 
       <div className="space-y-4">
-        <RevenueEvolutionChart data={monthlyData} />
-        <MarginsChart data={monthlyData} />
-        <CostCompositionChart data={monthlyData} />
+        <RevenueEvolutionChart data={displayData} />
+        <MarginsChart data={displayData} />
+        <CostCompositionChart data={displayData} />
       </div>
 
-      {!isLoading && monthlyData.every((m) => m.receitaBruta === 0) && (
+      {!isLoading && displayData.every((m) => m.receitaBruta === 0) && (
         <p className="text-center text-sm text-muted-foreground py-8">
           Nenhum dado de vendas encontrado para {year}.
         </p>
