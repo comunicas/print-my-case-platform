@@ -1,39 +1,51 @@
 
 
-# Correcao de dados de vendas - PDV Tiete Plaza
+# Deduplicacao process-spreadsheet: ignorar registros que ja existem via API
 
-## Problema 1: 71 registros duplicados
+## Contexto
 
-Existem 71 registros de `source = 'spreadsheet'` que duplicam registros ja existentes via `source = 'api'` com o mesmo `order_number` e `pdv_id`. Isso infla os calculos de receita no dashboard.
+A Edge Function `process-spreadsheet` atualmente insere todos os registros validos da planilha sem verificar se ja existe um registro com o mesmo `order_number` e `pdv_id` vindo da API (`source = 'api'`). Isso causou os 71 duplicados que corrigimos manualmente.
 
-**Acao:** Deletar os 71 registros `spreadsheet` duplicados, mantendo os registros `api` como fonte primaria.
+## Mudanca
 
-```sql
-DELETE FROM sales_records
-WHERE pdv_id = 'b2c3d4e5-f6a7-8901-bcde-f23456789012'
-  AND source = 'spreadsheet'
-  AND order_number IN (
-    SELECT order_number FROM sales_records
-    WHERE pdv_id = 'b2c3d4e5-f6a7-8901-bcde-f23456789012'
-      AND source = 'api'
-  );
+Adicionar uma etapa de deduplicacao no fluxo de vendas (entre a filtragem de anomalias e a insercao em batch), que:
+
+1. Coleta todos os `order_number` dos registros limpos (pos-anomalia)
+2. Consulta `sales_records` para encontrar quais desses `order_number` ja existem com `source = 'api'` para o mesmo `pdv_id`
+3. Filtra os registros da planilha, removendo os que ja possuem correspondente via API
+4. Loga quantos registros foram ignorados por duplicidade
+5. Adiciona o campo `source: 'spreadsheet'` explicitamente nos registros inseridos (ja e o default da coluna, mas torna explicito)
+
+## Detalhes tecnicos
+
+### Arquivo: `supabase/functions/process-spreadsheet/index.ts`
+
+Apos a filtragem de anomalias (linha ~715) e antes do batch insert (linha ~742), inserir:
+
+```text
+cleanRecords (pos-anomalia)
+    |
+    v
+[NOVO] Coletar order_numbers unicos
+    |
+    v
+[NOVO] SELECT order_number FROM sales_records 
+       WHERE pdv_id = ? AND source = 'api' 
+       AND order_number IN (...)
+    |
+    v
+[NOVO] Filtrar cleanRecords removendo os que tem match
+    |
+    v
+Batch insert (registros sem duplicata)
 ```
 
-## Problema 2: payment_date nulo em venda concluida
+A consulta sera feita em chunks de 500 order_numbers para respeitar limites do Supabase. O campo `source: 'spreadsheet'` sera adicionado a cada registro antes da insercao.
 
-O registro `id = 5539ed51-6eef-432e-8cb6-12c4448a6866` (iPhone 15 Pro Max, R$ 6.990, status "Concluido") tem `payment_date = NULL`, mas possui `order_completion_time = 2026-02-21 21:16:56+00`.
+### Impacto
 
-**Acao:** Preencher `payment_date` com o valor de `order_completion_time`.
-
-```sql
-UPDATE sales_records
-SET payment_date = '2026-02-21 21:16:56+00'
-WHERE id = '5539ed51-6eef-432e-8cb6-12c4448a6866';
-```
-
-## Impacto
-
-- Remove ~R$ 4.962 de receita inflada nos graficos
-- Torna visivel a venda de R$ 6.990 nos filtros por data do dashboard
-- Nenhuma alteracao de codigo necessaria -- apenas correcao de dados
+- Zero alteracao no frontend
+- Uploads futuros ignoram automaticamente pedidos ja ingeridos via API
+- Log claro de quantos registros foram ignorados por duplicidade
+- Contagem de `records_count` reflete apenas registros efetivamente inseridos
 
