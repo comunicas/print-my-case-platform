@@ -27,13 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Command,
-  CommandEmpty,
   CommandGroup,
   CommandItem,
   CommandList,
@@ -146,56 +140,47 @@ export function FinancialEntryForm({
               control={form.control}
               name="description"
               render={({ field }) => (
-                <FormItem className="flex flex-col">
+                <FormItem className="relative flex flex-col">
                   <FormLabel>Descrição</FormLabel>
-                  <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Input
-                          ref={inputRef}
-                          placeholder="Ex: Aluguel do ponto"
-                          maxLength={200}
-                          autoComplete="off"
-                          value={field.value}
-                          onChange={(e) => {
-                            field.onChange(e.target.value);
-                            if (!popoverOpen && e.target.value.length >= 0) {
-                              setPopoverOpen(true);
-                            }
-                          }}
-                          onFocus={() => setPopoverOpen(true)}
-                        />
-                      </FormControl>
-                    </PopoverTrigger>
-                    {filteredSuggestions.length > 0 && (
-                      <PopoverContent
-                        className="p-0 w-[var(--radix-popover-trigger-width)]"
-                        align="start"
-                        sideOffset={4}
-                        onOpenAutoFocus={(e) => e.preventDefault()}
-                      >
-                        <Command>
-                          <CommandList>
-                            <CommandGroup>
-                              {filteredSuggestions.map((suggestion) => (
-                                <CommandItem
-                                  key={suggestion}
-                                  value={suggestion}
-                                  onSelect={() => {
-                                    field.onChange(suggestion);
-                                    setPopoverOpen(false);
-                                    inputRef.current?.focus();
-                                  }}
-                                >
-                                  {suggestion}
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    )}
-                  </Popover>
+                  <FormControl>
+                    <Input
+                      ref={inputRef}
+                      placeholder="Ex: Aluguel do ponto"
+                      maxLength={200}
+                      autoComplete="off"
+                      value={field.value}
+                      onChange={(e) => {
+                        field.onChange(e.target.value);
+                        if (!popoverOpen) setPopoverOpen(true);
+                      }}
+                      onFocus={() => setPopoverOpen(true)}
+                      onBlur={() => setTimeout(() => setPopoverOpen(false), 150)}
+                    />
+                  </FormControl>
+                  {popoverOpen && filteredSuggestions.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-md border bg-popover shadow-md">
+                      <Command>
+                        <CommandList>
+                          <CommandGroup>
+                            {filteredSuggestions.map((suggestion) => (
+                              <CommandItem
+                                key={suggestion}
+                                value={suggestion}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  field.onChange(suggestion);
+                                  setPopoverOpen(false);
+                                  inputRef.current?.focus();
+                                }}
+                              >
+                                {suggestion}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </div>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
