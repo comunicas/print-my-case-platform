@@ -1137,8 +1137,10 @@ export type Database = {
       get_dre_sales_summary: {
         Args: { p_end_date: string; p_pdv_ids: string[]; p_start_date: string }
         Returns: {
+          card_revenue: number
           deducoes: number
           faturamento: number
+          sales_count: number
         }[]
       }
       get_org_user_ids: { Args: { _user_id: string }; Returns: string[] }
