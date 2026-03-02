@@ -195,6 +195,54 @@ export type Database = {
           },
         ]
       }
+      dre_config: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string
+          pdv_id: string | null
+          stone_rate: number
+          tax_rate: number
+          unit_cost: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id: string
+          pdv_id?: string | null
+          stone_rate?: number
+          tax_rate?: number
+          unit_cost?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string
+          pdv_id?: string | null
+          stone_rate?: number
+          tax_rate?: number
+          unit_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dre_config_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dre_config_pdv_id_fkey"
+            columns: ["pdv_id"]
+            isOneToOne: false
+            referencedRelation: "pdvs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financial_entries: {
         Row: {
           amount: number
