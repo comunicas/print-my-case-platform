@@ -1,51 +1,37 @@
 
 
-# Deduplicacao process-spreadsheet: ignorar registros que ja existem via API
+# Limpeza completa dos dados de vendas
 
-## Contexto
+## O que sera apagado
 
-A Edge Function `process-spreadsheet` atualmente insere todos os registros validos da planilha sem verificar se ja existe um registro com o mesmo `order_number` e `pdv_id` vindo da API (`source = 'api'`). Isso causou os 71 duplicados que corrigimos manualmente.
+| Tabela | Registros | Detalhes |
+|--------|-----------|----------|
+| sales_records | 239 | 65 API (Tatuape) + 103 planilha (Tatuape) + 71 API (Tiete) |
+| upload_anomalies | 0 | Nenhuma anomalia registrada |
+| uploads (tipo sales) | 1 | REVENUE-TATUAPE.xlsx |
 
-## Mudanca
-
-Adicionar uma etapa de deduplicacao no fluxo de vendas (entre a filtragem de anomalias e a insercao em batch), que:
-
-1. Coleta todos os `order_number` dos registros limpos (pos-anomalia)
-2. Consulta `sales_records` para encontrar quais desses `order_number` ja existem com `source = 'api'` para o mesmo `pdv_id`
-3. Filtra os registros da planilha, removendo os que ja possuem correspondente via API
-4. Loga quantos registros foram ignorados por duplicidade
-5. Adiciona o campo `source: 'spreadsheet'` explicitamente nos registros inseridos (ja e o default da coluna, mas torna explicito)
+Os dados de **estoque** (stock_records, stock_history, uploads tipo stock) serao **mantidos**.
 
 ## Detalhes tecnicos
 
-### Arquivo: `supabase/functions/process-spreadsheet/index.ts`
-
-Apos a filtragem de anomalias (linha ~715) e antes do batch insert (linha ~742), inserir:
-
-```text
-cleanRecords (pos-anomalia)
-    |
-    v
-[NOVO] Coletar order_numbers unicos
-    |
-    v
-[NOVO] SELECT order_number FROM sales_records 
-       WHERE pdv_id = ? AND source = 'api' 
-       AND order_number IN (...)
-    |
-    v
-[NOVO] Filtrar cleanRecords removendo os que tem match
-    |
-    v
-Batch insert (registros sem duplicata)
+### Passo 1: Apagar registros de vendas
+```sql
+DELETE FROM sales_records;
 ```
 
-A consulta sera feita em chunks de 500 order_numbers para respeitar limites do Supabase. O campo `source: 'spreadsheet'` sera adicionado a cada registro antes da insercao.
+### Passo 2: Apagar anomalias do upload de vendas
+```sql
+DELETE FROM upload_anomalies 
+WHERE upload_id = '92865b0c-01f9-47bc-b83e-2d4d5be8c854';
+```
 
-### Impacto
+### Passo 3: Apagar upload de vendas
+```sql
+DELETE FROM uploads WHERE type = 'sales';
+```
 
-- Zero alteracao no frontend
-- Uploads futuros ignoram automaticamente pedidos ja ingeridos via API
-- Log claro de quantos registros foram ignorados por duplicidade
-- Contagem de `records_count` reflete apenas registros efetivamente inseridos
+### Passo 4: Verificacao
+Confirmar que as tabelas estao zeradas e o dashboard reflete os dados limpos.
+
+Apos a limpeza, voce podera subir a nova planilha com os dados corretos. A deduplicacao implementada anteriormente garantira que uploads futuros nao criem duplicatas com dados da API.
 
