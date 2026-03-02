@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { financialEntrySchema, type FinancialEntryFormData } from "@/lib/schemas/financial";
@@ -26,7 +26,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { usePDVs } from "@/hooks/usePDVs";
+import { useFinancialDescriptions } from "@/hooks/useFinancialDescriptions";
 import { format } from "date-fns";
 import type { FinancialEntry } from "@/hooks/useFinancialEntries";
 
@@ -39,7 +52,6 @@ interface FinancialEntryFormProps {
   defaultMonth: Date;
 }
 
-
 export function FinancialEntryForm({
   open,
   onOpenChange,
@@ -49,6 +61,8 @@ export function FinancialEntryForm({
   defaultMonth,
 }: FinancialEntryFormProps) {
   const { pdvs } = usePDVs();
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<FinancialEntryFormData>({
     resolver: zodResolver(financialEntrySchema),
@@ -60,6 +74,14 @@ export function FinancialEntryForm({
       pdv_id: null,
     },
   });
+
+  const category = form.watch("category");
+  const descriptionValue = form.watch("description");
+  const { data: suggestions = [] } = useFinancialDescriptions({ category });
+
+  const filteredSuggestions = suggestions.filter((s) =>
+    s.toLowerCase().includes((descriptionValue ?? "").toLowerCase())
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -124,11 +146,56 @@ export function FinancialEntryForm({
               control={form.control}
               name="description"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex flex-col">
                   <FormLabel>Descrição</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ex: Aluguel do ponto" maxLength={200} {...field} />
-                  </FormControl>
+                  <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Input
+                          ref={inputRef}
+                          placeholder="Ex: Aluguel do ponto"
+                          maxLength={200}
+                          autoComplete="off"
+                          value={field.value}
+                          onChange={(e) => {
+                            field.onChange(e.target.value);
+                            if (!popoverOpen && e.target.value.length >= 0) {
+                              setPopoverOpen(true);
+                            }
+                          }}
+                          onFocus={() => setPopoverOpen(true)}
+                        />
+                      </FormControl>
+                    </PopoverTrigger>
+                    {filteredSuggestions.length > 0 && (
+                      <PopoverContent
+                        className="p-0 w-[var(--radix-popover-trigger-width)]"
+                        align="start"
+                        sideOffset={4}
+                        onOpenAutoFocus={(e) => e.preventDefault()}
+                      >
+                        <Command>
+                          <CommandList>
+                            <CommandGroup>
+                              {filteredSuggestions.map((suggestion) => (
+                                <CommandItem
+                                  key={suggestion}
+                                  value={suggestion}
+                                  onSelect={() => {
+                                    field.onChange(suggestion);
+                                    setPopoverOpen(false);
+                                    inputRef.current?.focus();
+                                  }}
+                                >
+                                  {suggestion}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    )}
+                  </Popover>
                   <FormMessage />
                 </FormItem>
               )}
