@@ -21,7 +21,7 @@ export function useDREConfig({ pdvId }: { pdvId?: string | null } = {}) {
   const queryClient = useQueryClient();
 
   const isAllOrgs = activeOrgId === "all";
-  const orgId = isAllOrgs ? null : (activeOrgId ?? profile?.organization_id);
+  const orgId = isAllOrgs ? profile?.organization_id : (activeOrgId ?? profile?.organization_id);
   const writeOrgId = orgId ?? profile?.organization_id;
 
   const configQuery = useQuery({
