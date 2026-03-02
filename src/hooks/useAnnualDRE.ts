@@ -157,13 +157,13 @@ export function useAnnualDRE({ year, pdvId }: UseAnnualDREOptions) {
     resultadoOperacionalTotal: monthlyData.reduce((s, m) => s + m.resultadoOperacional, 0),
     margemBrutaMedia:
       monthsWithRevenue.length > 0
-        ? monthsWithRevenue.reduce((s, m) => s + (m.receitaBruta > 0 ? (m.lucroBruto / m.receitaBruta) * 100 : 0), 0) /
+        ? monthsWithRevenue.reduce((s, m) => s + (m.receitaLiquida > 0 ? (m.lucroBruto / m.receitaLiquida) * 100 : 0), 0) /
           monthsWithRevenue.length
         : 0,
     margemOperacionalMedia:
       monthsWithRevenue.length > 0
         ? monthsWithRevenue.reduce(
-            (s, m) => s + (m.receitaBruta > 0 ? (m.resultadoOperacional / m.receitaBruta) * 100 : 0),
+            (s, m) => s + (m.receitaLiquida > 0 ? (m.resultadoOperacional / m.receitaLiquida) * 100 : 0),
             0
           ) / monthsWithRevenue.length
         : 0,

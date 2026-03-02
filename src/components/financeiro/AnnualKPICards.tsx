@@ -7,33 +7,36 @@ import { cn } from "@/lib/utils";
 interface AnnualKPICardsProps {
   kpis: AnnualKPIs;
   isLoading: boolean;
+  monthsWithData?: number;
 }
 
-export function AnnualKPICards({ kpis, isLoading }: AnnualKPICardsProps) {
+export function AnnualKPICards({ kpis, isLoading, monthsWithData = 0 }: AnnualKPICardsProps) {
+  const hasData = monthsWithData > 0;
+
   const cards = [
     {
       label: "Receita Bruta",
-      value: formatCurrency(kpis.receitaBrutaTotal),
+      value: hasData ? formatCurrency(kpis.receitaBrutaTotal) : "—",
       icon: DollarSign,
       color: "text-chart-1",
     },
     {
       label: "Resultado Operacional",
-      value: formatCurrency(kpis.resultadoOperacionalTotal),
+      value: hasData ? formatCurrency(kpis.resultadoOperacionalTotal) : "—",
       icon: TrendingUp,
-      color: kpis.resultadoOperacionalTotal >= 0 ? "text-chart-2" : "text-destructive",
+      color: hasData && kpis.resultadoOperacionalTotal < 0 ? "text-destructive" : "text-chart-2",
     },
     {
       label: "Margem Bruta Média",
-      value: `${kpis.margemBrutaMedia.toFixed(1)}%`,
+      value: hasData ? `${kpis.margemBrutaMedia.toFixed(1)}%` : "—",
       icon: Percent,
       color: "text-chart-3",
     },
     {
       label: "Margem Operacional Média",
-      value: `${kpis.margemOperacionalMedia.toFixed(1)}%`,
+      value: hasData ? `${kpis.margemOperacionalMedia.toFixed(1)}%` : "—",
       icon: Target,
-      color: kpis.margemOperacionalMedia >= 0 ? "text-chart-4" : "text-destructive",
+      color: hasData && kpis.margemOperacionalMedia < 0 ? "text-destructive" : "text-chart-4",
     },
   ];
 
@@ -49,7 +52,14 @@ export function AnnualKPICards({ kpis, isLoading }: AnnualKPICardsProps) {
             {isLoading ? (
               <div className="h-7 w-24 bg-muted animate-pulse rounded" />
             ) : (
-              <p className="text-lg font-bold">{card.value}</p>
+              <>
+                <p className="text-lg font-bold">{card.value}</p>
+                {hasData && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {monthsWithData} {monthsWithData === 1 ? "mês" : "meses"} com dados
+                  </p>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
