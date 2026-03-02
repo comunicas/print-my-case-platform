@@ -1,37 +1,58 @@
 
+# Corrigir erro "[object Object]" no upload de vendas
 
-# Limpeza completa dos dados de vendas
+## Problema identificado
 
-## O que sera apagado
+Ao tentar subir a planilha do Tatuapé, o toast de erro exibe "Erro inesperado - [object Object]" porque a funcao `parseUploadError` nao extrai corretamente a mensagem de erros que sao objetos simples do Supabase (nao instancias de `Error`).
 
-| Tabela | Registros | Detalhes |
-|--------|-----------|----------|
-| sales_records | 239 | 65 API (Tatuape) + 103 planilha (Tatuape) + 71 API (Tiete) |
-| upload_anomalies | 0 | Nenhuma anomalia registrada |
-| uploads (tipo sales) | 1 | REVENUE-TATUAPE.xlsx |
+O Supabase retorna erros como `{message: "...", statusCode: 409}` ou `{error: "...", status: 403}`. O codigo atual faz `String(error)` que resulta em `"[object Object]"`.
 
-Os dados de **estoque** (stock_records, stock_history, uploads tipo stock) serao **mantidos**.
+A edge function `process-spreadsheet` nao aparece nos logs, indicando que o erro ocorre **antes** do processamento — provavelmente no upload do arquivo ao storage ou na insercao do registro na tabela `uploads`.
+
+## Solucao
+
+### 1. Corrigir `parseUploadError` para extrair mensagens de objetos
+
+**Arquivo:** `src/lib/errors/uploadErrors.ts`
+
+Alterar a extracao da mensagem de erro (linha 15) para lidar com objetos simples:
+
+```typescript
+function extractErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object') {
+    const obj = error as Record<string, unknown>;
+    // Supabase retorna { message, statusCode } ou { error, status }
+    if (typeof obj.message === 'string') return obj.message;
+    if (typeof obj.error === 'string') return obj.error;
+    if (typeof obj.error_description === 'string') return obj.error_description;
+    try { return JSON.stringify(error); } catch { /* fall through */ }
+  }
+  return String(error);
+}
+```
+
+Usar `extractErrorMessage` em ambas as funcoes `parseUploadError` e `parseDeleteError`.
+
+### 2. Adicionar log de debug no `useUploads.ts`
+
+**Arquivo:** `src/hooks/useUploads.ts`
+
+Adicionar `console.error` no `onError` da mutacao `createUpload` para capturar o erro real:
+
+```typescript
+onError: (error) => {
+  console.error("[createUpload] Error object:", error, typeof error);
+  const parsedError = parseUploadError(error);
+  // ...
+}
+```
+
+Isso garantira que, mesmo se o erro voltar a ocorrer, teremos a informacao completa nos logs do console.
 
 ## Detalhes tecnicos
 
-### Passo 1: Apagar registros de vendas
-```sql
-DELETE FROM sales_records;
-```
-
-### Passo 2: Apagar anomalias do upload de vendas
-```sql
-DELETE FROM upload_anomalies 
-WHERE upload_id = '92865b0c-01f9-47bc-b83e-2d4d5be8c854';
-```
-
-### Passo 3: Apagar upload de vendas
-```sql
-DELETE FROM uploads WHERE type = 'sales';
-```
-
-### Passo 4: Verificacao
-Confirmar que as tabelas estao zeradas e o dashboard reflete os dados limpos.
-
-Apos a limpeza, voce podera subir a nova planilha com os dados corretos. A deduplicacao implementada anteriormente garantira que uploads futuros nao criem duplicatas com dados da API.
-
+- **Arquivos modificados:** 2 (`src/lib/errors/uploadErrors.ts`, `src/hooks/useUploads.ts`)
+- **Risco:** Baixo — apenas melhora a extracao de mensagens de erro, sem alterar logica de negocio
+- **Impacto:** O usuario vera a mensagem real do erro em vez de "[object Object]", permitindo diagnosticar e resolver o problema do upload
