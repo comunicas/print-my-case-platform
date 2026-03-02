@@ -244,6 +244,7 @@ export function useUploads(filters: UploadsFilters = {}) {
       });
     },
     onError: (error) => {
+      console.error("[createUpload] Error object:", error, typeof error);
       const parsedError = parseUploadError(error);
       toast.error(parsedError.title, {
         description: parsedError.description,

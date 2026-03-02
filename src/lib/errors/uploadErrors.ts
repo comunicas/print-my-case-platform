@@ -11,8 +11,21 @@ export interface ParsedUploadError {
 /**
  * Parse Supabase/storage errors into user-friendly messages in Portuguese
  */
+function extractErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object') {
+    const obj = error as Record<string, unknown>;
+    if (typeof obj.message === 'string') return obj.message;
+    if (typeof obj.error === 'string') return obj.error;
+    if (typeof obj.error_description === 'string') return obj.error_description;
+    try { return JSON.stringify(error); } catch { /* fall through */ }
+  }
+  return String(error);
+}
+
 export function parseUploadError(error: unknown): ParsedUploadError {
-  const errorMessage = error instanceof Error ? error.message : String(error);
+  const errorMessage = extractErrorMessage(error);
   const lowerMessage = errorMessage.toLowerCase();
 
   // Network/connectivity errors
@@ -108,7 +121,7 @@ export function parseUploadError(error: unknown): ParsedUploadError {
  * Parse delete operation errors
  */
 export function parseDeleteError(error: unknown): ParsedUploadError {
-  const errorMessage = error instanceof Error ? error.message : String(error);
+  const errorMessage = extractErrorMessage(error);
   const lowerMessage = errorMessage.toLowerCase();
 
   // Admin-only restriction
