@@ -417,7 +417,7 @@ export function getLossesByDay(
   
   // Agrupa cancelamentos por dia
   for (const cancel of cancellations) {
-    const date = cancel.payment_date.substring(0, 10);
+    const date = format(parseISO(cancel.payment_date), 'yyyy-MM-dd');
     const current = byDay.get(date) || { 
       cancellations: 0, cancellationCount: 0, 
       refunds: 0, refundCount: 0 
