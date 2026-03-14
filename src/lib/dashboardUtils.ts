@@ -118,7 +118,7 @@ export function getSalesByDay(sales: SaleRecord[]): SalesByDayData[] {
   
   for (const sale of sales) {
     // Extrai os primeiros 10 caracteres (YYYY-MM-DD) independente do formato
-    const date = sale.payment_date.substring(0, 10);
+    const date = format(parseISO(sale.payment_date), 'yyyy-MM-dd');
     const current = byDay.get(date) || { revenue: 0, count: 0 };
     current.revenue += Number(sale.amount) - Number(sale.refund_amount || 0);
     current.count += 1;
@@ -417,7 +417,7 @@ export function getLossesByDay(
   
   // Agrupa cancelamentos por dia
   for (const cancel of cancellations) {
-    const date = cancel.payment_date.substring(0, 10);
+    const date = format(parseISO(cancel.payment_date), 'yyyy-MM-dd');
     const current = byDay.get(date) || { 
       cancellations: 0, cancellationCount: 0, 
       refunds: 0, refundCount: 0 
@@ -431,7 +431,7 @@ export function getLossesByDay(
   for (const sale of sales) {
     const refundAmount = Number(sale.refund_amount || 0);
     if (refundAmount > 0) {
-      const date = sale.payment_date.substring(0, 10);
+      const date = format(parseISO(sale.payment_date), 'yyyy-MM-dd');
       const current = byDay.get(date) || { 
         cancellations: 0, cancellationCount: 0, 
         refunds: 0, refundCount: 0 

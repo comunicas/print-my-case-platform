@@ -1,21 +1,67 @@
 
 
-## Correção de Fuso Horário — 5 linhas em 2 arquivos
+# Correção do autocomplete de descrição no formulário de despesas
 
-### Alterações
+## Problema identificado
 
-**1. `src/lib/dashboardUtils.ts`**
+O campo de autocomplete de descrição **não funciona corretamente** porque o `PopoverTrigger` com `asChild` envolve o `<Input>`, transformando-o em um elemento do tipo "button" internamente. Isso causa:
 
-- **Linha 121** (`getSalesByDay`): `sale.payment_date.substring(0, 10)` → `format(parseISO(sale.payment_date), 'yyyy-MM-dd')`
-- **Linha 420** (`getLossesByDay` — cancelamentos): mesma substituição
-- **Linha 434** (`getLossesByDay` — reembolsos): mesma substituição
+1. O popover com sugestões não aparece ao focar/digitar
+2. O campo pode perder foco ou não aceitar digitação em alguns cenários
+3. O Radix Popover dentro de um Dialog tem conflitos de foco conhecidos
 
-**2. `src/hooks/useProductAnalytics.ts`**
+A query de dados funciona corretamente -- retorna 6 descrições únicas para a categoria "fixas" (Aluguel, Internet, Licenciamento, Limpeza, Marketing).
 
-- **Linha 88** (vendas por hora): `date.getUTCHours()` → `date.getHours()`
-- **Linha 115** (vendas por dia da semana): `date.getUTCDay()` → `date.getDay()`
+## Solução
 
-### Nota sobre o contexto salvo
+Substituir a abordagem `Popover + PopoverTrigger` por um padrão de **dropdown controlado manualmente** usando posicionamento absoluto, sem depender do Radix Popover. Isso elimina os conflitos de foco com o Dialog.
 
-A memória do projeto diz que UTC foi escolhido intencionalmente, mas isso está incorreto: os timestamps no banco **não** são meia-noite UTC — são horários reais (ex: `22:58:48+00`). O `substring(0,10)` extrai o dia UTC, deslocando vendas noturnas BRT para o dia seguinte. A correção com `parseISO` + horário local resolve isso.
+### Alteracao em `src/components/financeiro/FinancialEntryForm.tsx`
+
+1. Remover imports de `Popover`, `PopoverContent`, `PopoverTrigger`
+2. Manter o `Input` como elemento normal (sem wrapper de trigger)
+3. Renderizar a lista de sugestoes como um `div` com posicao absoluta abaixo do input, controlado pelo estado `popoverOpen`
+4. Usar `Command` / `CommandList` / `CommandGroup` / `CommandItem` dentro desse div para manter o mesmo visual
+5. Adicionar handler `onBlur` com `setTimeout` para fechar ao perder foco (permitindo clique nos itens antes)
+
+### Estrutura do campo corrigido
+
+```text
+<FormItem className="relative">
+  <FormLabel>Descricao</FormLabel>
+  <FormControl>
+    <Input
+      ref={inputRef}
+      value={field.value}
+      onChange={...}  // atualiza valor + abre lista
+      onFocus={...}   // abre lista
+      onBlur={...}    // fecha lista com delay
+    />
+  </FormControl>
+  {popoverOpen && filteredSuggestions.length > 0 && (
+    <div className="absolute z-50 top-full mt-1 w-full ...">
+      <Command>
+        <CommandList>
+          <CommandGroup>
+            <CommandItem onMouseDown={...} />
+          </CommandGroup>
+        </CommandList>
+      </Command>
+    </div>
+  )}
+</FormItem>
+```
+
+Pontos importantes:
+- Usar `onMouseDown` (nao `onSelect`) nos itens para evitar que o `onBlur` do input feche a lista antes do clique
+- `z-50` garante que a lista fique acima dos outros campos do formulario
+- Sem conflito com o Dialog pai pois nao usa Radix Popover
+
+### Impacto
+
+| Arquivo | Tipo | Descricao |
+|---------|------|-----------|
+| `src/components/financeiro/FinancialEntryForm.tsx` | Alterado | Trocar Popover por dropdown absoluto |
+
+Nenhuma migration necessaria. O hook `useFinancialDescriptions` permanece inalterado.
 
