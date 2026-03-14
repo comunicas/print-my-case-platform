@@ -1,10 +1,11 @@
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine, Legend } from "recharts";
 import { TrendingDown } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { formatCurrency, pluralize } from "@/lib/utils";
-import { exportToExcel, LossesByDayData } from "@/lib/dashboardUtils";
+import { exportToExcel, LossesByDayData, aggregateLossesByMonth } from "@/lib/dashboardUtils";
 import { ChartCard } from "./ChartCard";
+import { Button } from "@/components/ui/button";
 
 interface LossesByDayChartProps {
   data: LossesByDayData[];
@@ -22,18 +23,26 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
+type ViewMode = "daily" | "monthly";
+
 export function LossesByDayChart({ data, animationDelay = 0 }: LossesByDayChartProps) {
+  const [viewMode, setViewMode] = useState<ViewMode>("daily");
+
+  const displayData = useMemo(() => {
+    return viewMode === "monthly" ? aggregateLossesByMonth(data) : data;
+  }, [data, viewMode]);
+
   const { averageLoss, totalLosses } = useMemo(() => {
-    const total = data.reduce((sum, d) => sum + d.total, 0);
-    const daysWithLosses = data.filter(d => d.total > 0).length;
+    const total = displayData.reduce((sum, d) => sum + d.total, 0);
+    const withLosses = displayData.filter(d => d.total > 0).length;
     return {
-      averageLoss: daysWithLosses > 0 ? total / daysWithLosses : 0,
+      averageLoss: withLosses > 0 ? total / withLosses : 0,
       totalLosses: total,
     };
-  }, [data]);
+  }, [displayData]);
 
   const handleExport = () => {
-    const exportData = data.map(d => ({
+    const exportData = displayData.map(d => ({
       Data: d.dateDisplay,
       Cancelamentos: d.cancellations,
       "Qtd. Cancelamentos": d.cancellationCount,
@@ -41,25 +50,52 @@ export function LossesByDayChart({ data, animationDelay = 0 }: LossesByDayChartP
       "Qtd. Reembolsos": d.refundCount,
       "Total Perdas": d.total,
     }));
-    exportToExcel(exportData, "perdas-por-dia");
+    exportToExcel(exportData, viewMode === "monthly" ? "perdas-por-mes" : "perdas-por-dia");
   };
 
   if (data.length === 0 || totalLosses === 0) {
     return null;
   }
 
+  const title = viewMode === "monthly" ? "Perdas por Mês" : "Perdas por Dia";
+  const description = viewMode === "monthly"
+    ? "Cancelamentos e reembolsos agregados por mês"
+    : "Cancelamentos e reembolsos ao longo do período";
+
+  const viewToggle = (
+    <div className="flex items-center gap-1 rounded-md border border-border p-0.5">
+      <Button
+        variant={viewMode === "daily" ? "secondary" : "ghost"}
+        size="sm"
+        className="h-6 px-2 text-xs"
+        onClick={() => setViewMode("daily")}
+      >
+        Diário
+      </Button>
+      <Button
+        variant={viewMode === "monthly" ? "secondary" : "ghost"}
+        size="sm"
+        className="h-6 px-2 text-xs"
+        onClick={() => setViewMode("monthly")}
+      >
+        Mensal
+      </Button>
+    </div>
+  );
+
   return (
     <ChartCard
       testId="losses-by-day-chart"
-      title="Perdas por Dia"
-      description="Cancelamentos e reembolsos ao longo do período"
+      title={title}
+      description={description}
       icon={TrendingDown}
       iconColor="text-destructive"
       onExport={handleExport}
       animationDelay={animationDelay}
+      headerBadge={viewToggle}
     >
       <ChartContainer config={chartConfig} className="h-[300px] w-full">
-        <BarChart data={data} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
+        <BarChart data={displayData} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
           <XAxis
             dataKey="dateDisplay"

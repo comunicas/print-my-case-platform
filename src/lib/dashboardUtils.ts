@@ -456,6 +456,65 @@ export function getLossesByDay(
 }
 
 /**
+ * Agrega dados diários de vendas por mês
+ */
+export function aggregateByMonth(data: SalesByDayData[]): SalesByDayData[] {
+  const byMonth = new Map<string, { revenue: number; count: number }>();
+
+  for (const d of data) {
+    const monthKey = d.date.substring(0, 7); // yyyy-MM
+    const current = byMonth.get(monthKey) || { revenue: 0, count: 0 };
+    current.revenue += d.revenue;
+    current.count += d.count;
+    byMonth.set(monthKey, current);
+  }
+
+  return Array.from(byMonth.entries())
+    .map(([monthKey, vals]) => ({
+      date: monthKey,
+      dateDisplay: format(parseISO(`${monthKey}-01`), "MMM/yy", { locale: ptBR }),
+      revenue: vals.revenue,
+      count: vals.count,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * Agrega dados diários de perdas por mês
+ */
+export function aggregateLossesByMonth(data: LossesByDayData[]): LossesByDayData[] {
+  const byMonth = new Map<string, {
+    cancellations: number; cancellationCount: number;
+    refunds: number; refundCount: number;
+  }>();
+
+  for (const d of data) {
+    const monthKey = d.date.substring(0, 7);
+    const current = byMonth.get(monthKey) || {
+      cancellations: 0, cancellationCount: 0,
+      refunds: 0, refundCount: 0,
+    };
+    current.cancellations += d.cancellations;
+    current.cancellationCount += d.cancellationCount;
+    current.refunds += d.refunds;
+    current.refundCount += d.refundCount;
+    byMonth.set(monthKey, current);
+  }
+
+  return Array.from(byMonth.entries())
+    .map(([monthKey, vals]) => ({
+      date: monthKey,
+      dateDisplay: format(parseISO(`${monthKey}-01`), "MMM/yy", { locale: ptBR }),
+      cancellations: vals.cancellations,
+      cancellationCount: vals.cancellationCount,
+      refunds: vals.refunds,
+      refundCount: vals.refundCount,
+      total: vals.cancellations + vals.refunds,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
  * Exporta dados para Excel
  */
 export async function exportToExcel(data: Record<string, string | number>[], filename: string) {

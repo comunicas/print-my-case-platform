@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { TrendingUp } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine, Cell, Legend } from "recharts";
-import { SalesByDayData, exportToExcel } from "@/lib/dashboardUtils";
+import { SalesByDayData, exportToExcel, aggregateByMonth } from "@/lib/dashboardUtils";
 import { formatCurrency, pluralize } from "@/lib/utils";
 import { ChartCard } from "./ChartCard";
+import { Button } from "@/components/ui/button";
 
 interface SalesByDayChartProps {
   data: SalesByDayData[];
@@ -18,31 +19,38 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
+type ViewMode = "daily" | "monthly";
+
 export function SalesByDayChart({ data, animationDelay = 0 }: SalesByDayChartProps) {
-  const { processedData, average, maxIdx, minIdx } = useMemo(() => {
-    if (data.length === 0) return { processedData: [], average: 0, maxIdx: -1, minIdx: -1 };
+  const [viewMode, setViewMode] = useState<ViewMode>("daily");
+
+  const displayData = useMemo(() => {
+    return viewMode === "monthly" ? aggregateByMonth(data) : data;
+  }, [data, viewMode]);
+
+  const { average, maxIdx, minIdx } = useMemo(() => {
+    if (displayData.length === 0) return { average: 0, maxIdx: -1, minIdx: -1 };
     
-    const revenues = data.map(d => d.revenue);
+    const revenues = displayData.map(d => d.revenue);
     const max = Math.max(...revenues);
     const min = Math.min(...revenues);
     const avg = revenues.reduce((a, b) => a + b, 0) / revenues.length;
     
     return {
-      processedData: data,
       average: avg,
       maxIdx: revenues.indexOf(max),
       minIdx: revenues.indexOf(min),
     };
-  }, [data]);
+  }, [displayData]);
   
   const handleExport = () => {
     exportToExcel(
-      data.map(d => ({
+      displayData.map(d => ({
         Data: d.dateDisplay,
         Receita: d.revenue,
         Quantidade: d.count,
       })),
-      "vendas-por-dia"
+      viewMode === "monthly" ? "vendas-por-mes" : "vendas-por-dia"
     );
   };
   
@@ -52,28 +60,55 @@ export function SalesByDayChart({ data, animationDelay = 0 }: SalesByDayChartPro
     return "hsl(var(--chart-1))";
   };
 
-  if (processedData.length === 0) {
+  if (data.length === 0) {
     return null;
   }
+
+  const title = viewMode === "monthly" ? "Vendas por Mês" : "Vendas por Dia";
+  const description = viewMode === "monthly"
+    ? "Receita agregada por mês"
+    : "Evolução da receita ao longo do período";
+
+  const viewToggle = (
+    <div className="flex items-center gap-1 rounded-md border border-border p-0.5">
+      <Button
+        variant={viewMode === "daily" ? "secondary" : "ghost"}
+        size="sm"
+        className="h-6 px-2 text-xs"
+        onClick={() => setViewMode("daily")}
+      >
+        Diário
+      </Button>
+      <Button
+        variant={viewMode === "monthly" ? "secondary" : "ghost"}
+        size="sm"
+        className="h-6 px-2 text-xs"
+        onClick={() => setViewMode("monthly")}
+      >
+        Mensal
+      </Button>
+    </div>
+  );
 
   return (
     <ChartCard
       testId="sales-by-day-chart"
-      title="Vendas por Dia"
-      description="Evolução da receita ao longo do período"
+      title={title}
+      description={description}
       icon={TrendingUp}
       iconColor="text-chart-2"
       onExport={handleExport}
       exportTestId="export-sales-by-day"
       animationDelay={animationDelay}
+      headerBadge={viewToggle}
     >
       <ChartContainer 
         config={chartConfig} 
         className="h-[300px] w-full"
         role="img"
-        aria-label={`Gráfico de vendas por dia mostrando ${processedData.length} dias. Média: ${formatCurrency(average)}`}
+        aria-label={`Gráfico de ${title.toLowerCase()} mostrando ${displayData.length} ${viewMode === "monthly" ? "meses" : "dias"}. Média: ${formatCurrency(average)}`}
       >
-        <BarChart data={processedData} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
+        <BarChart data={displayData} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
           <XAxis
             dataKey="dateDisplay"
@@ -96,7 +131,7 @@ export function SalesByDayChart({ data, animationDelay = 0 }: SalesByDayChartPro
                   const entry = item.payload as SalesByDayData;
                   return [
                     <div key="tooltip" className="flex flex-col gap-1">
-                      <span className="font-medium">Dia {entry.dateDisplay}</span>
+                      <span className="font-medium">{entry.dateDisplay}</span>
                       <span>Receita: {formatCurrency(entry.revenue)}</span>
                       <span className="text-muted-foreground text-sm">
                         {pluralize(entry.count, 'venda', 'vendas')}
@@ -125,7 +160,7 @@ export function SalesByDayChart({ data, animationDelay = 0 }: SalesByDayChartPro
             }}
           />
           <Bar dataKey="revenue" radius={[4, 4, 0, 0]} name="Receita">
-            {processedData.map((_, index) => (
+            {displayData.map((_, index) => (
               <Cell key={`cell-${index}`} fill={getBarColor(index)} />
             ))}
           </Bar>
