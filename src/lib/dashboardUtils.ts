@@ -118,7 +118,7 @@ export function getSalesByDay(sales: SaleRecord[]): SalesByDayData[] {
   
   for (const sale of sales) {
     // Extrai os primeiros 10 caracteres (YYYY-MM-DD) independente do formato
-    const date = sale.payment_date.substring(0, 10);
+    const date = format(parseISO(sale.payment_date), 'yyyy-MM-dd');
     const current = byDay.get(date) || { revenue: 0, count: 0 };
     current.revenue += Number(sale.amount) - Number(sale.refund_amount || 0);
     current.count += 1;
