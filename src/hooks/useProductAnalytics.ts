@@ -85,7 +85,7 @@ export function useProductAnalytics(productName: string | null, pdvId?: string) 
         const timeSource = sale.order_time || sale.payment_date;
         if (!timeSource) return;
         const date = new Date(timeSource);
-        const hour = date.getUTCHours();
+        const hour = date.getHours();
         hourCounts[hour].count++;
         hourCounts[hour].revenue += Number(sale.amount || 0);
       });
