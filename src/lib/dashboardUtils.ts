@@ -431,7 +431,7 @@ export function getLossesByDay(
   for (const sale of sales) {
     const refundAmount = Number(sale.refund_amount || 0);
     if (refundAmount > 0) {
-      const date = sale.payment_date.substring(0, 10);
+      const date = format(parseISO(sale.payment_date), 'yyyy-MM-dd');
       const current = byDay.get(date) || { 
         cancellations: 0, cancellationCount: 0, 
         refunds: 0, refundCount: 0 

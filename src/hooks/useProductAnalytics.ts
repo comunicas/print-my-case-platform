@@ -112,7 +112,7 @@ export function useProductAnalytics(productName: string | null, pdvId?: string) 
         const timeSource = sale.order_time || sale.payment_date;
         if (!timeSource) return;
         const date = new Date(timeSource);
-        const day = date.getUTCDay();
+        const day = date.getDay();
         dayCounts[day].count++;
         dayCounts[day].revenue += Number(sale.amount || 0);
       });
