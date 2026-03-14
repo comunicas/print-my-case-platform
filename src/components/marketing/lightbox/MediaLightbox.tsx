@@ -25,8 +25,8 @@ export function MediaLightbox({
   const [slideshowActive, setSlideshowActive] = useState(false);
   const [slideshowInterval, setSlideshowInterval] = useState(5000);
   const [slideshowProgress, setSlideshowProgress] = useState(0);
-  const slideshowTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const slideshowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Zoom states
   const [zoomLevel, setZoomLevel] = useState(1);
