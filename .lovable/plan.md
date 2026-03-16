@@ -1,20 +1,67 @@
 
 
-## Tooltips nos Índices Financeiros
+# Correção do autocomplete de descrição no formulário de despesas
 
-Adicionar tooltips explicativos em cada indicador do `FinancialSummaryCard` usando os componentes `Tooltip` já existentes no projeto.
+## Problema identificado
 
-### Alteração
+O campo de autocomplete de descrição **não funciona corretamente** porque o `PopoverTrigger` com `asChild` envolve o `<Input>`, transformando-o em um elemento do tipo "button" internamente. Isso causa:
 
-**`src/components/dashboard/FinancialSummaryCard.tsx`**
+1. O popover com sugestões não aparece ao focar/digitar
+2. O campo pode perder foco ou não aceitar digitação em alguns cenários
+3. O Radix Popover dentro de um Dialog tem conflitos de foco conhecidos
 
-- Importar `Tooltip, TooltipTrigger, TooltipContent, TooltipProvider` de `@/components/ui/tooltip`
-- Adicionar campo `tooltip` em cada indicador no array `indicators`:
-  - **Margem Operacional**: "Resultado Operacional ÷ Receita Líquida × 100. Verde ≥ 20%, Amarelo ≥ 10%, Vermelho < 10%"
-  - **Custo por Máquina**: "(CMV + Taxas + Despesas Fixas) ÷ Nº de PDVs ativos"
-  - **Taxa de Perda**: "(Cancelamentos + Estornos) ÷ Receita Bruta × 100. Verde ≤ 2%, Amarelo ≤ 5%, Vermelho > 5%"
-- Envolver cada indicador com `Tooltip` + `TooltipTrigger` (cursor pointer no label) + `TooltipContent` com a fórmula
-- Envolver o grid com `TooltipProvider`
+A query de dados funciona corretamente -- retorna 6 descrições únicas para a categoria "fixas" (Aluguel, Internet, Licenciamento, Limpeza, Marketing).
 
-Alteração simples, 1 arquivo.
+## Solução
+
+Substituir a abordagem `Popover + PopoverTrigger` por um padrão de **dropdown controlado manualmente** usando posicionamento absoluto, sem depender do Radix Popover. Isso elimina os conflitos de foco com o Dialog.
+
+### Alteracao em `src/components/financeiro/FinancialEntryForm.tsx`
+
+1. Remover imports de `Popover`, `PopoverContent`, `PopoverTrigger`
+2. Manter o `Input` como elemento normal (sem wrapper de trigger)
+3. Renderizar a lista de sugestoes como um `div` com posicao absoluta abaixo do input, controlado pelo estado `popoverOpen`
+4. Usar `Command` / `CommandList` / `CommandGroup` / `CommandItem` dentro desse div para manter o mesmo visual
+5. Adicionar handler `onBlur` com `setTimeout` para fechar ao perder foco (permitindo clique nos itens antes)
+
+### Estrutura do campo corrigido
+
+```text
+<FormItem className="relative">
+  <FormLabel>Descricao</FormLabel>
+  <FormControl>
+    <Input
+      ref={inputRef}
+      value={field.value}
+      onChange={...}  // atualiza valor + abre lista
+      onFocus={...}   // abre lista
+      onBlur={...}    // fecha lista com delay
+    />
+  </FormControl>
+  {popoverOpen && filteredSuggestions.length > 0 && (
+    <div className="absolute z-50 top-full mt-1 w-full ...">
+      <Command>
+        <CommandList>
+          <CommandGroup>
+            <CommandItem onMouseDown={...} />
+          </CommandGroup>
+        </CommandList>
+      </Command>
+    </div>
+  )}
+</FormItem>
+```
+
+Pontos importantes:
+- Usar `onMouseDown` (nao `onSelect`) nos itens para evitar que o `onBlur` do input feche a lista antes do clique
+- `z-50` garante que a lista fique acima dos outros campos do formulario
+- Sem conflito com o Dialog pai pois nao usa Radix Popover
+
+### Impacto
+
+| Arquivo | Tipo | Descricao |
+|---------|------|-----------|
+| `src/components/financeiro/FinancialEntryForm.tsx` | Alterado | Trocar Popover por dropdown absoluto |
+
+Nenhuma migration necessaria. O hook `useFinancialDescriptions` permanece inalterado.
 
