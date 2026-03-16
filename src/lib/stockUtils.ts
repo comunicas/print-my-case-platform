@@ -131,8 +131,11 @@ export function aggregateProductStock(
 export function getProductStatus(product: ProductStock): ProductActionStatus {
   const avgQuantity = product.totalQuantity / product.slots.length;
   
-  // Se média baixa, precisa repor
-  if (avgQuantity <= 2) return 'restock';
+  // Se média baixa E produto vende, precisa repor
+  if (avgQuantity <= 2) {
+    if (product.salesIndex === 'none') return 'ok'; // Não vende, não repor
+    return 'restock';
+  }
   
   // Se tem slots vazios mas outros cheios, redistribuir
   if (product.hasOutOfStock && !product.hasLowStock) return 'redistribute';
