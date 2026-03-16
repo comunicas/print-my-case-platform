@@ -5,33 +5,41 @@ import { StockKPIs } from '@/lib/stockUtils';
 
 interface StockKPICardsProps {
   kpis: StockKPIs;
+  globalKpis?: StockKPIs;
   isLoading?: boolean;
 }
 
-export const StockKPICards = React.memo(function StockKPICards({ kpis, isLoading }: StockKPICardsProps) {
+export const StockKPICards = React.memo(function StockKPICards({ kpis, globalKpis, isLoading }: StockKPICardsProps) {
+  const isFiltered = !!globalKpis;
+
+  const formatValue = (filtered: number, global: number | undefined) => {
+    if (!isFiltered || global === undefined) return String(filtered);
+    return `${filtered} de ${global}`;
+  };
+
   const cards = [
     {
       title: 'Total Produtos',
-      value: kpis.totalProducts,
+      value: formatValue(kpis.totalProducts, globalKpis?.totalProducts),
       icon: Package,
-      description: 'Modelos únicos',
+      description: isFiltered ? 'Filtrado' : 'Modelos únicos',
     },
     {
       title: 'Total Unidades',
-      value: kpis.totalUnits,
+      value: formatValue(kpis.totalUnits, globalKpis?.totalUnits),
       icon: Boxes,
-      description: 'Itens em estoque',
+      description: isFiltered ? 'Filtrado' : 'Itens em estoque',
     },
     {
       title: 'Produtos Críticos',
-      value: kpis.criticalProducts,
+      value: String(kpis.criticalProducts),
       icon: AlertTriangle,
       description: 'Precisam reposição',
       highlight: kpis.criticalProducts > 0 ? 'destructive' : undefined,
     },
     {
       title: 'Redistribuir',
-      value: kpis.redistributeProducts,
+      value: String(kpis.redistributeProducts),
       icon: RefreshCw,
       description: 'Rebalancear slots',
       highlight: kpis.redistributeProducts > 0 ? 'warning' : undefined,

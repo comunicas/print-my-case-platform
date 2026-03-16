@@ -159,6 +159,7 @@ export function useProductStock() {
   return {
     products,
     kpis,
+    globalKpis,
     brands,
     slots,
     filteredSlots,
