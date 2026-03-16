@@ -18,6 +18,7 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { CardHeader, CardTitle } from "@/components/ui/card";
 import { useDashboard } from "@/hooks/useDashboard";
+import { useDRE } from "@/hooks/useDRE";
 import { useDashboardDataRange } from "@/hooks/useDashboardDataRange";
 import { usePDVs } from "@/hooks/usePDVs";
 import { useSlotsData } from "@/hooks/useSlotsData";
