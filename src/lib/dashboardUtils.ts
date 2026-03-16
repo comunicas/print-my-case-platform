@@ -333,6 +333,7 @@ export function getLowStockItems(
         salesIndex: getSalesIndex(salesCount),
       };
     })
+    .filter(item => item.salesIndex !== 'none')
     .sort((a, b) => a.quantity - b.quantity);
 }
 
