@@ -128,6 +128,12 @@ export default function Index() {
   });
   const { data: slotsData, refetch: refetchSlots } = useSlotsData({ pdvId: effectivePdvId });
 
+  // DRE data for financial indices (current month)
+  const { dre, isLoading: dreLoading } = useDRE({
+    referenceMonth: new Date(),
+    pdvId: effectivePdvId,
+  });
+
   // Pull-to-refresh handler
   const handleRefresh = useCallback(async () => {
     await Promise.all([refetch(), refetchSlots()]);
@@ -163,15 +169,27 @@ export default function Index() {
   const globalMetrics = data?.globalMetrics;
   const hasData = data?.hasData || false;
 
+  const totalLosses = kpis.totalCancellations + kpis.totalRefunds;
+  const previousLosses = kpis.previousCancellationsTotal + kpis.previousRefunds;
+  const lossTransactions = kpis.cancelledTransactions + kpis.refundedTransactions;
+
   const trends = useMemo(() => ({
     revenue: calculateTrend(kpis.totalRevenue, kpis.previousRevenue, dateRange.from, dateRange.to),
     transactions: calculateTrend(kpis.transactions, kpis.previousTransactions, dateRange.from, dateRange.to),
-    refunds: calculateTrend(kpis.totalRefunds, kpis.previousRefunds, dateRange.from, dateRange.to),
-    cancellations: calculateTrend(kpis.totalCancellations, kpis.previousCancellationsTotal, dateRange.from, dateRange.to),
+    losses: calculateTrend(totalLosses, previousLosses, dateRange.from, dateRange.to),
     avgTicket: calculateTrend(kpis.avgTicket, kpis.previousAvgTicket, dateRange.from, dateRange.to),
-  }), [kpis, dateRange.from, dateRange.to]);
+  }), [kpis, totalLosses, previousLosses, dateRange.from, dateRange.to]);
 
-  const criticalStockCount = lowStockItems.length;
+  // Financial indices
+  const margemOperacional = dre.receitaLiquida > 0
+    ? (dre.resultadoOperacional / dre.receitaLiquida) * 100
+    : 0;
+  const custoTotal = dre.cmv + dre.taxasStone + dre.despesasFixas;
+  const activePdvCount = kpis.activePdvs || 1;
+  const custoPorMaquina = custoTotal / activePdvCount;
+  const taxaPerda = kpis.grossRevenue > 0
+    ? (totalLosses / kpis.grossRevenue) * 100
+    : 0;
 
   // ── Loading state ──────────────────────────────────────────────────────────
 
