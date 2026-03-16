@@ -4,6 +4,7 @@ import { useProfile } from "./useProfile";
 import { useActiveOrg } from "@/contexts/ActiveOrgContext";
 import { useDREConfig } from "./useDREConfig";
 import { startOfMonth, subMonths, format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export interface MonthSummary {
   month: Date;
