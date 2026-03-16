@@ -123,7 +123,17 @@ export function useProductStock() {
     // Filtro por status
     if (filters.statusFilter && filters.statusFilter !== 'all') {
       filtered = filtered.filter(p => p.status === filters.statusFilter);
-      slotsFiltered = slotsFiltered.filter(s => getProductActionStatus(s.quantity) === filters.statusFilter);
+      // Use aggregated product status for slot filtering (consistency with table)
+      const productStatusMap = new Map<string, ProductActionStatus>();
+      for (const p of filtered) {
+        for (const slot of p.slots) {
+          productStatusMap.set(`${slot.pdvId}-${slot.slotNumber}`, p.status);
+        }
+      }
+      slotsFiltered = slotsFiltered.filter(s => {
+        const key = `${s.pdvId}-${s.slot}`;
+        return productStatusMap.has(key);
+      });
     }
     
     // Filtro por índice de vendas
