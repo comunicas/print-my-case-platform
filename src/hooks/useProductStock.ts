@@ -5,16 +5,14 @@ import { useSlotsData } from './useSlotsData';
 import { useStockFilters } from '@/contexts/StockFiltersContext';
 import { useUserAllowedPDVs } from './useUserAllowedPDVs';
 import { 
-  ProductStock, 
-  StockKPIs, 
   SlotData,
   aggregateProductStock, 
   calculateStockKPIs,
   extractUniqueBrands,
   getSalesIndex,
-  getProductActionStatus,
   matchesSearchFilter,
 } from '@/lib/stockUtils';
+import type { ProductActionStatus } from '@/lib/stockTypes';
 import { GRID_LAYOUT } from '@/lib/stockGridUtils';
 import type { ProductSuggestion } from '@/components/stock/ProductSearchAutocomplete';
 import { PRODUCT_STOCK_SALES_LIMIT } from '@/lib/constants';
@@ -123,7 +121,17 @@ export function useProductStock() {
     // Filtro por status
     if (filters.statusFilter && filters.statusFilter !== 'all') {
       filtered = filtered.filter(p => p.status === filters.statusFilter);
-      slotsFiltered = slotsFiltered.filter(s => getProductActionStatus(s.quantity) === filters.statusFilter);
+      // Use aggregated product status for slot filtering (consistency with table)
+      const productStatusMap = new Map<string, ProductActionStatus>();
+      for (const p of filtered) {
+        for (const slot of p.slots) {
+          productStatusMap.set(`${slot.pdvId}-${slot.slotNumber}`, p.status);
+        }
+      }
+      slotsFiltered = slotsFiltered.filter(s => {
+        const key = `${s.pdvId}-${s.slot}`;
+        return productStatusMap.has(key);
+      });
     }
     
     // Filtro por índice de vendas

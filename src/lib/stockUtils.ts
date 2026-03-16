@@ -8,8 +8,11 @@ export type { ProductActionStatus, SalesIndex };
  * Determina o status de ação de um slot individual baseado na quantidade
  * Indica o que deve ser feito: ok, redistribuir ou repor
  */
-export function getProductActionStatus(quantity: number): ProductActionStatus {
-  if (quantity <= 2) return 'restock';
+export function getProductActionStatus(quantity: number, salesIndex?: SalesIndex): ProductActionStatus {
+  if (quantity <= 2) {
+    if (salesIndex && salesIndex === 'none') return 'ok';
+    return 'restock';
+  }
   if (quantity <= 5) return 'redistribute';
   return 'ok';
 }
@@ -128,8 +131,11 @@ export function aggregateProductStock(
 export function getProductStatus(product: ProductStock): ProductActionStatus {
   const avgQuantity = product.totalQuantity / product.slots.length;
   
-  // Se média baixa, precisa repor
-  if (avgQuantity <= 2) return 'restock';
+  // Se média baixa E produto vende, precisa repor
+  if (avgQuantity <= 2) {
+    if (product.salesIndex === 'none') return 'ok'; // Não vende, não repor
+    return 'restock';
+  }
   
   // Se tem slots vazios mas outros cheios, redistribuir
   if (product.hasOutOfStock && !product.hasLowStock) return 'redistribute';
