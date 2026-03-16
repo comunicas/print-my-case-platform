@@ -300,7 +300,7 @@ export default function Index() {
         )}
 
         {/* KPI Cards */}
-        <div data-testid="kpi-grid" className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2 md:gap-4">
+        <div data-testid="kpi-grid" className="grid grid-cols-2 xl:grid-cols-4 gap-2 md:gap-4">
           <KPICard
             testId="kpi-revenue"
             title="Receita"
@@ -324,32 +324,23 @@ export default function Index() {
             trend={trends.avgTicket}
           />
           <KPICard
-            testId="kpi-refunds"
-            title="Reembolsos"
-            value={formatCurrency(kpis.totalRefunds)}
-            icon={RotateCcw}
-            trend={trends.refunds}
-            subtitle={kpis.refundedTransactions > 0 ? `${kpis.refundedTransactions} transações` : undefined}
-            variant={kpis.totalRefunds > 0 ? "danger" : "default"}
-          />
-          <KPICard
-            testId="kpi-cancellations"
-            title="Cancelamentos"
-            value={formatCurrency(kpis.totalCancellations)}
-            icon={Ban}
-            trend={trends.cancellations}
-            subtitle={kpis.cancelledTransactions > 0 ? `${kpis.cancelledTransactions} desistências` : undefined}
-            variant={kpis.totalCancellations > 0 ? "warning" : "default"}
-          />
-          <KPICard
-            testId="kpi-critical-stock"
-            title="Estoque Crítico"
-            value={criticalStockCount.toString()}
+            testId="kpi-losses"
+            title="Perdas"
+            value={formatCurrency(totalLosses)}
             icon={AlertTriangle}
-            subtitle="Slots com 0-1 unidades"
-            variant={criticalStockCount > 0 ? "danger" : "success"}
+            trend={trends.losses}
+            subtitle={lossTransactions > 0 ? `${lossTransactions} transações` : undefined}
+            variant={totalLosses > 0 ? "danger" : "default"}
           />
         </div>
+
+        {/* Financial Summary Indices */}
+        <FinancialSummaryCard
+          margemOperacional={margemOperacional}
+          custoporMaquina={custoPorMaquina}
+          taxaPerda={taxaPerda}
+          isLoading={dreLoading}
+        />
 
         {/* Loss Analysis Card */}
         <LossAnalysisCard
