@@ -57,6 +57,7 @@ export function FinancialSummaryCard({
       colorClass: getMarginColor(margemOperacional),
       bgClass: "bg-primary/10",
       iconColor: "text-primary",
+      tooltip: "Resultado Operacional ÷ Receita Líquida × 100\nVerde ≥ 20% · Amarelo ≥ 10% · Vermelho < 10%",
     },
     {
       label: "Custo por Máquina",
@@ -65,6 +66,7 @@ export function FinancialSummaryCard({
       colorClass: "text-foreground",
       bgClass: "bg-secondary",
       iconColor: "text-muted-foreground",
+      tooltip: "(CMV + Taxas + Despesas Fixas) ÷ Nº de PDVs ativos",
     },
     {
       label: "Taxa de Perda",
@@ -73,6 +75,7 @@ export function FinancialSummaryCard({
       colorClass: getLossColor(taxaPerda),
       bgClass: "bg-destructive/10",
       iconColor: "text-destructive",
+      tooltip: "(Cancelamentos + Estornos) ÷ Receita Bruta × 100\nVerde ≤ 2% · Amarelo ≤ 5% · Vermelho > 5%",
     },
   ];
 
