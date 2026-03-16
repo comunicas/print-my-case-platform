@@ -112,7 +112,7 @@ export function useMonthlyDRESummary({ pdvId, months = 6 }: UseMonthlyDRESummary
 
         return {
           month,
-          label: format(month, "MMM/yy"),
+          label: format(month, "MMM/yy", { locale: ptBR }),
           receita,
           custos,
           resultado,
