@@ -13,13 +13,12 @@ import {
   Upload,
   Building2,
   FileSpreadsheet,
-  RotateCcw,
-  Ban,
   ChevronDown,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { CardHeader, CardTitle } from "@/components/ui/card";
 import { useDashboard } from "@/hooks/useDashboard";
+import { useDRE } from "@/hooks/useDRE";
 import { useDashboardDataRange } from "@/hooks/useDashboardDataRange";
 import { usePDVs } from "@/hooks/usePDVs";
 import { useSlotsData } from "@/hooks/useSlotsData";
@@ -43,6 +42,7 @@ import { QuickStats } from "@/components/dashboard/QuickStats";
 import { StockAlertsTable } from "@/components/dashboard/StockAlertsTable";
 import { ChartSkeleton } from "@/components/dashboard/ChartSkeleton";
 import { LossAnalysisCard } from "@/components/dashboard/LossAnalysisCard";
+import { FinancialSummaryCard } from "@/components/dashboard/FinancialSummaryCard";
 
 // Lazy load dos charts pesados (usam recharts)
 const SalesByDayChart = lazy(() => import("@/components/dashboard/SalesByDayChart").then(m => ({ default: m.SalesByDayChart })));
@@ -128,6 +128,12 @@ export default function Index() {
   });
   const { data: slotsData, refetch: refetchSlots } = useSlotsData({ pdvId: effectivePdvId });
 
+  // DRE data for financial indices (current month)
+  const { dre, isLoading: dreLoading } = useDRE({
+    referenceMonth: new Date(),
+    pdvId: effectivePdvId,
+  });
+
   // Pull-to-refresh handler
   const handleRefresh = useCallback(async () => {
     await Promise.all([refetch(), refetchSlots()]);
@@ -163,15 +169,27 @@ export default function Index() {
   const globalMetrics = data?.globalMetrics;
   const hasData = data?.hasData || false;
 
+  const totalLosses = kpis.totalCancellations + kpis.totalRefunds;
+  const previousLosses = kpis.previousCancellationsTotal + kpis.previousRefunds;
+  const lossTransactions = kpis.cancelledTransactions + kpis.refundedTransactions;
+
   const trends = useMemo(() => ({
     revenue: calculateTrend(kpis.totalRevenue, kpis.previousRevenue, dateRange.from, dateRange.to),
     transactions: calculateTrend(kpis.transactions, kpis.previousTransactions, dateRange.from, dateRange.to),
-    refunds: calculateTrend(kpis.totalRefunds, kpis.previousRefunds, dateRange.from, dateRange.to),
-    cancellations: calculateTrend(kpis.totalCancellations, kpis.previousCancellationsTotal, dateRange.from, dateRange.to),
+    losses: calculateTrend(totalLosses, previousLosses, dateRange.from, dateRange.to),
     avgTicket: calculateTrend(kpis.avgTicket, kpis.previousAvgTicket, dateRange.from, dateRange.to),
-  }), [kpis, dateRange.from, dateRange.to]);
+  }), [kpis, totalLosses, previousLosses, dateRange.from, dateRange.to]);
 
-  const criticalStockCount = lowStockItems.length;
+  // Financial indices
+  const margemOperacional = dre.receitaLiquida > 0
+    ? (dre.resultadoOperacional / dre.receitaLiquida) * 100
+    : 0;
+  const custoTotal = dre.cmv + dre.taxasStone + dre.despesasFixas;
+  const activePdvCount = kpis.activePdvs || 1;
+  const custoPorMaquina = custoTotal / activePdvCount;
+  const taxaPerda = kpis.grossRevenue > 0
+    ? (totalLosses / kpis.grossRevenue) * 100
+    : 0;
 
   // ── Loading state ──────────────────────────────────────────────────────────
 
@@ -282,7 +300,7 @@ export default function Index() {
         )}
 
         {/* KPI Cards */}
-        <div data-testid="kpi-grid" className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2 md:gap-4">
+        <div data-testid="kpi-grid" className="grid grid-cols-2 xl:grid-cols-4 gap-2 md:gap-4">
           <KPICard
             testId="kpi-revenue"
             title="Receita"
@@ -306,32 +324,23 @@ export default function Index() {
             trend={trends.avgTicket}
           />
           <KPICard
-            testId="kpi-refunds"
-            title="Reembolsos"
-            value={formatCurrency(kpis.totalRefunds)}
-            icon={RotateCcw}
-            trend={trends.refunds}
-            subtitle={kpis.refundedTransactions > 0 ? `${kpis.refundedTransactions} transações` : undefined}
-            variant={kpis.totalRefunds > 0 ? "danger" : "default"}
-          />
-          <KPICard
-            testId="kpi-cancellations"
-            title="Cancelamentos"
-            value={formatCurrency(kpis.totalCancellations)}
-            icon={Ban}
-            trend={trends.cancellations}
-            subtitle={kpis.cancelledTransactions > 0 ? `${kpis.cancelledTransactions} desistências` : undefined}
-            variant={kpis.totalCancellations > 0 ? "warning" : "default"}
-          />
-          <KPICard
-            testId="kpi-critical-stock"
-            title="Estoque Crítico"
-            value={criticalStockCount.toString()}
+            testId="kpi-losses"
+            title="Perdas"
+            value={formatCurrency(totalLosses)}
             icon={AlertTriangle}
-            subtitle="Slots com 0-1 unidades"
-            variant={criticalStockCount > 0 ? "danger" : "success"}
+            trend={trends.losses}
+            subtitle={lossTransactions > 0 ? `${lossTransactions} transações` : undefined}
+            variant={totalLosses > 0 ? "danger" : "default"}
           />
         </div>
+
+        {/* Financial Summary Indices */}
+        <FinancialSummaryCard
+          margemOperacional={margemOperacional}
+          custoporMaquina={custoPorMaquina}
+          taxaPerda={taxaPerda}
+          isLoading={dreLoading}
+        />
 
         {/* Loss Analysis Card */}
         <LossAnalysisCard
