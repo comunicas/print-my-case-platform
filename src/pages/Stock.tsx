@@ -32,7 +32,7 @@ function StockContent() {
   };
 
   const isMobile = useIsMobile();
-  const { products, kpis, brands, slots, filteredSlots, suggestions, isLoading, isFetching, refetch } = useProductStock();
+  const { products, kpis, globalKpis, brands, slots, filteredSlots, suggestions, isLoading, isFetching, refetch } = useProductStock();
 
   const handleRefresh = async () => {
     await refetch();
@@ -58,7 +58,7 @@ function StockContent() {
         </p>
       </div>
 
-      <StockKPICards kpis={kpis} isLoading={isLoading} />
+      <StockKPICards kpis={kpis} globalKpis={globalKpis} isLoading={isLoading} />
 
       {!hasData ? (
         <StockEmptyState />

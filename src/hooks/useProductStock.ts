@@ -83,7 +83,7 @@ export function useProductStock() {
   }, [salesData]);
   
   // Agrega produtos e aplica filtros
-  const { products, kpis, brands, suggestions, filteredSlots } = useMemo(() => {
+  const { products, kpis, globalKpis, brands, suggestions, filteredSlots } = useMemo(() => {
     const allProducts = aggregateProductStock(slots, salesByProduct);
     const uniqueBrands = extractUniqueBrands(slots);
     
@@ -140,9 +140,12 @@ export function useProductStock() {
       acc + floor.slots.filter(s => s !== null).length, 0
     );
     
+    const hasActiveFilters = !!(filters.searchTerm || filters.brandFilter !== 'all' || filters.statusFilter !== 'all' || filters.salesIndexFilter !== 'all');
+    
     return {
       products: filtered,
       kpis: calculateStockKPIs(filtered, totalSlots),
+      globalKpis: hasActiveFilters ? calculateStockKPIs(allProducts, totalSlots) : undefined,
       brands: uniqueBrands,
       suggestions: productSuggestions,
       filteredSlots: slotsFiltered,
@@ -156,6 +159,7 @@ export function useProductStock() {
   return {
     products,
     kpis,
+    globalKpis,
     brands,
     slots,
     filteredSlots,
