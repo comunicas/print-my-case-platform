@@ -5,16 +5,14 @@ import { useSlotsData } from './useSlotsData';
 import { useStockFilters } from '@/contexts/StockFiltersContext';
 import { useUserAllowedPDVs } from './useUserAllowedPDVs';
 import { 
-  ProductStock, 
-  StockKPIs, 
   SlotData,
   aggregateProductStock, 
   calculateStockKPIs,
   extractUniqueBrands,
   getSalesIndex,
-  getProductActionStatus,
   matchesSearchFilter,
 } from '@/lib/stockUtils';
+import type { ProductActionStatus } from '@/lib/stockTypes';
 import { GRID_LAYOUT } from '@/lib/stockGridUtils';
 import type { ProductSuggestion } from '@/components/stock/ProductSearchAutocomplete';
 import { PRODUCT_STOCK_SALES_LIMIT } from '@/lib/constants';
