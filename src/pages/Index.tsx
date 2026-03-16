@@ -42,6 +42,7 @@ import { QuickStats } from "@/components/dashboard/QuickStats";
 import { StockAlertsTable } from "@/components/dashboard/StockAlertsTable";
 import { ChartSkeleton } from "@/components/dashboard/ChartSkeleton";
 import { LossAnalysisCard } from "@/components/dashboard/LossAnalysisCard";
+import { FinancialSummaryCard } from "@/components/dashboard/FinancialSummaryCard";
 
 // Lazy load dos charts pesados (usam recharts)
 const SalesByDayChart = lazy(() => import("@/components/dashboard/SalesByDayChart").then(m => ({ default: m.SalesByDayChart })));
