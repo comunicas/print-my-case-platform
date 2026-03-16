@@ -140,9 +140,12 @@ export function useProductStock() {
       acc + floor.slots.filter(s => s !== null).length, 0
     );
     
+    const hasActiveFilters = !!(filters.searchTerm || filters.brandFilter !== 'all' || filters.statusFilter !== 'all' || filters.salesIndexFilter !== 'all');
+    
     return {
       products: filtered,
       kpis: calculateStockKPIs(filtered, totalSlots),
+      globalKpis: hasActiveFilters ? calculateStockKPIs(allProducts, totalSlots) : undefined,
       brands: uniqueBrands,
       suggestions: productSuggestions,
       filteredSlots: slotsFiltered,
