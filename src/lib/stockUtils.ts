@@ -13,7 +13,6 @@ export function getProductActionStatus(quantity: number, salesIndex?: SalesIndex
     if (salesIndex && salesIndex === 'none') return 'ok';
     return 'restock';
   }
-  if (quantity <= 5) return 'redistribute';
   return 'ok';
 }
 
@@ -129,18 +128,13 @@ export function aggregateProductStock(
  * Determina o status do produto baseado em slots
  */
 export function getProductStatus(product: ProductStock): ProductActionStatus {
-  const avgQuantity = product.totalQuantity / product.slots.length;
-  
-  // Se média baixa E produto vende, precisa repor
-  if (avgQuantity <= 2) {
-    if (product.salesIndex === 'none') return 'ok'; // Não vende, não repor
+  // Estoque total <= 2: repor se vende, ok se não vende
+  if (product.totalQuantity <= 2) {
+    if (product.salesIndex === 'none') return 'ok';
     return 'restock';
   }
-  
-  // Se tem slots vazios mas outros cheios, redistribuir
-  if (product.hasOutOfStock && !product.hasLowStock) return 'redistribute';
-  if (product.hasOutOfStock && product.totalQuantity > product.slots.length * 2) return 'redistribute';
-  
+  // Tem slot vazio mas estoque total > 2: redistribuir
+  if (product.hasOutOfStock) return 'redistribute';
   return 'ok';
 }
 
