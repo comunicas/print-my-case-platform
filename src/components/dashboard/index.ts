@@ -2,6 +2,7 @@ export { ChartCard } from './ChartCard';
 export { ChartEmptyState } from './ChartEmptyState';
 export { ChartSkeleton } from './ChartSkeleton';
 export { DateRangeFilter } from './DateRangeFilter';
+export { FinancialSummaryCard } from './FinancialSummaryCard';
 export { KPICard } from './KPICard';
 export { LossAnalysisCard } from './LossAnalysisCard';
 export { LossesByDayChart } from './LossesByDayChart';
