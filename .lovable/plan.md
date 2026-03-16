@@ -1,67 +1,60 @@
 
 
-# Correção do autocomplete de descrição no formulário de despesas
+## Revisão do Algoritmo de Status do Estoque
 
-## Problema identificado
+### Problemas na lógica atual
 
-O campo de autocomplete de descrição **não funciona corretamente** porque o `PopoverTrigger` com `asChild` envolve o `<Input>`, transformando-o em um elemento do tipo "button" internamente. Isso causa:
-
-1. O popover com sugestões não aparece ao focar/digitar
-2. O campo pode perder foco ou não aceitar digitação em alguns cenários
-3. O Radix Popover dentro de um Dialog tem conflitos de foco conhecidos
-
-A query de dados funciona corretamente -- retorna 6 descrições únicas para a categoria "fixas" (Aluguel, Internet, Licenciamento, Limpeza, Marketing).
-
-## Solução
-
-Substituir a abordagem `Popover + PopoverTrigger` por um padrão de **dropdown controlado manualmente** usando posicionamento absoluto, sem depender do Radix Popover. Isso elimina os conflitos de foco com o Dialog.
-
-### Alteracao em `src/components/financeiro/FinancialEntryForm.tsx`
-
-1. Remover imports de `Popover`, `PopoverContent`, `PopoverTrigger`
-2. Manter o `Input` como elemento normal (sem wrapper de trigger)
-3. Renderizar a lista de sugestoes como um `div` com posicao absoluta abaixo do input, controlado pelo estado `popoverOpen`
-4. Usar `Command` / `CommandList` / `CommandGroup` / `CommandItem` dentro desse div para manter o mesmo visual
-5. Adicionar handler `onBlur` com `setTimeout` para fechar ao perder foco (permitindo clique nos itens antes)
-
-### Estrutura do campo corrigido
-
+**1. "Repor" usa média por slot, não total**
 ```text
-<FormItem className="relative">
-  <FormLabel>Descricao</FormLabel>
-  <FormControl>
-    <Input
-      ref={inputRef}
-      value={field.value}
-      onChange={...}  // atualiza valor + abre lista
-      onFocus={...}   // abre lista
-      onBlur={...}    // fecha lista com delay
-    />
-  </FormControl>
-  {popoverOpen && filteredSuggestions.length > 0 && (
-    <div className="absolute z-50 top-full mt-1 w-full ...">
-      <Command>
-        <CommandList>
-          <CommandGroup>
-            <CommandItem onMouseDown={...} />
-          </CommandGroup>
-        </CommandList>
-      </Command>
-    </div>
-  )}
-</FormItem>
+Atual:  avgQuantity (total/slots) <= 2 → restock
+Errado: iPhone com 2 slots, 3 unidades (avg 1.5) → "Repor", mas tem 3 unidades
+```
+O usuário quer: **totalQuantity <= 2** como threshold, não a média.
+
+**2. "Redistribuir" tem branch morto**
+```text
+Linha 141: hasOutOfStock && !hasLowStock → NUNCA executa
+Motivo: se qty=0 (hasOutOfStock=true), então qty<=2 (hasLowStock=true)
+         Logo !hasLowStock é sempre false quando hasOutOfStock é true
 ```
 
-Pontos importantes:
-- Usar `onMouseDown` (nao `onSelect`) nos itens para evitar que o `onBlur` do input feche a lista antes do clique
-- `z-50` garante que a lista fique acima dos outros campos do formulario
-- Sem conflito com o Dialog pai pois nao usa Radix Popover
+**3. "Redistribuir" deveria significar estoque mal distribuído**
+Produto com 1 slot vazio e outro com 5+ unidades = redistribuir (mover unidades entre slots).
 
-### Impacto
+### Nova lógica proposta
 
-| Arquivo | Tipo | Descricao |
-|---------|------|-----------|
-| `src/components/financeiro/FinancialEntryForm.tsx` | Alterado | Trocar Popover por dropdown absoluto |
+```text
+1. totalQuantity <= 2 + vende     → "Repor"    (pouco estoque, produto vende)
+2. totalQuantity <= 2 + não vende → "Ok"       (pouco estoque, mas não vende)
+3. hasOutOfStock + totalQuantity > 2 → "Redistribuir" (tem estoque, mas mal distribuído)
+4. senão                           → "Ok"
+```
 
-Nenhuma migration necessaria. O hook `useFinancialDescriptions` permanece inalterado.
+| Cenário | Slots | Total | Vendas | Antes | Depois |
+|---------|-------|-------|--------|-------|--------|
+| iPhone 15 PM | 2 slots (0,1) | 1 | Alta | Repor | Repor ✓ |
+| iPhone 15 PM | 2 slots (0,5) | 5 | Alta | Redistribuir | Redistribuir ✓ |
+| Galaxy A53 | 1 slot (0) | 0 | Nenhuma | Ok | Ok ✓ |
+| Moto G54 | 2 slots (0,3) | 3 | Média | Redistribuir | Redistribuir ✓ |
+| iPhone 14 | 1 slot (5) | 5 | Alta | Ok | Ok ✓ |
+
+### Alterações
+
+**`src/lib/stockUtils.ts`** — Reescrever `getProductStatus`:
+```typescript
+export function getProductStatus(product: ProductStock): ProductActionStatus {
+  // Estoque total <= 2: repor se vende, ok se não vende
+  if (product.totalQuantity <= 2) {
+    if (product.salesIndex === 'none') return 'ok';
+    return 'restock';
+  }
+  // Tem slot vazio mas estoque total > 2: redistribuir
+  if (product.hasOutOfStock) return 'redistribute';
+  return 'ok';
+}
+```
+
+Também atualizar `getProductActionStatus` (slot-level) para consistência.
+
+**1 arquivo, ~10 linhas alteradas.**
 
