@@ -1,67 +1,27 @@
 
 
-# Correção do autocomplete de descrição no formulário de despesas
+## Indicador "X de Y total" nos KPIs do Estoque
 
-## Problema identificado
+### Alterações
 
-O campo de autocomplete de descrição **não funciona corretamente** porque o `PopoverTrigger` com `asChild` envolve o `<Input>`, transformando-o em um elemento do tipo "button" internamente. Isso causa:
+**1. `src/hooks/useProductStock.ts`**
+- Calcular `globalKpis` com `allProducts` (antes dos filtros) além do `kpis` filtrado já existente
+- Expor `globalKpis` e `hasActiveFilters` no retorno do hook
 
-1. O popover com sugestões não aparece ao focar/digitar
-2. O campo pode perder foco ou não aceitar digitação em alguns cenários
-3. O Radix Popover dentro de um Dialog tem conflitos de foco conhecidos
+**2. `src/components/stock/StockKPICards.tsx`**
+- Receber props opcionais `globalKpis` e `isFiltered`
+- Quando `isFiltered === true`, exibir o valor como `"11 de 72"` (filtrado de global) nos cards de Total Produtos e Total Unidades
+- Nos cards Críticos e Redistribuir, mostrar apenas o valor filtrado (já faz sentido isolado)
+- Adicionar um badge/texto sutil "Filtrado" ou ajustar a descrição para indicar contexto
 
-A query de dados funciona corretamente -- retorna 6 descrições únicas para a categoria "fixas" (Aluguel, Internet, Licenciamento, Limpeza, Marketing).
+### Comportamento
 
-## Solução
-
-Substituir a abordagem `Popover + PopoverTrigger` por um padrão de **dropdown controlado manualmente** usando posicionamento absoluto, sem depender do Radix Popover. Isso elimina os conflitos de foco com o Dialog.
-
-### Alteracao em `src/components/financeiro/FinancialEntryForm.tsx`
-
-1. Remover imports de `Popover`, `PopoverContent`, `PopoverTrigger`
-2. Manter o `Input` como elemento normal (sem wrapper de trigger)
-3. Renderizar a lista de sugestoes como um `div` com posicao absoluta abaixo do input, controlado pelo estado `popoverOpen`
-4. Usar `Command` / `CommandList` / `CommandGroup` / `CommandItem` dentro desse div para manter o mesmo visual
-5. Adicionar handler `onBlur` com `setTimeout` para fechar ao perder foco (permitindo clique nos itens antes)
-
-### Estrutura do campo corrigido
-
-```text
-<FormItem className="relative">
-  <FormLabel>Descricao</FormLabel>
-  <FormControl>
-    <Input
-      ref={inputRef}
-      value={field.value}
-      onChange={...}  // atualiza valor + abre lista
-      onFocus={...}   // abre lista
-      onBlur={...}    // fecha lista com delay
-    />
-  </FormControl>
-  {popoverOpen && filteredSuggestions.length > 0 && (
-    <div className="absolute z-50 top-full mt-1 w-full ...">
-      <Command>
-        <CommandList>
-          <CommandGroup>
-            <CommandItem onMouseDown={...} />
-          </CommandGroup>
-        </CommandList>
-      </Command>
-    </div>
-  )}
-</FormItem>
-```
-
-Pontos importantes:
-- Usar `onMouseDown` (nao `onSelect`) nos itens para evitar que o `onBlur` do input feche a lista antes do clique
-- `z-50` garante que a lista fique acima dos outros campos do formulario
-- Sem conflito com o Dialog pai pois nao usa Radix Popover
+| Estado | Exibição |
+|--------|----------|
+| Sem filtros | `72` (normal, como hoje) |
+| Com filtros | `11 de 72` nos cards de produtos/unidades |
 
 ### Impacto
-
-| Arquivo | Tipo | Descricao |
-|---------|------|-----------|
-| `src/components/financeiro/FinancialEntryForm.tsx` | Alterado | Trocar Popover por dropdown absoluto |
-
-Nenhuma migration necessaria. O hook `useFinancialDescriptions` permanece inalterado.
+- 2 arquivos, ~15 linhas alteradas
+- Sem migrations
 
