@@ -1,64 +1,67 @@
 
 
-## Relatório Financeiro com Quebra Mensal e Resumo por PDV
+# Correção do autocomplete de descrição no formulário de despesas
 
-### Problema
+## Problema identificado
 
-A página Financeiro mostra apenas 1 mês por vez. O usuário precisa ver um panorama de vários meses, sincronizado com o mês atual, e comparar performance entre PDVs.
+O campo de autocomplete de descrição **não funciona corretamente** porque o `PopoverTrigger` com `asChild` envolve o `<Input>`, transformando-o em um elemento do tipo "button" internamente. Isso causa:
 
-### Proposta
+1. O popover com sugestões não aparece ao focar/digitar
+2. O campo pode perder foco ou não aceitar digitação em alguns cenários
+3. O Radix Popover dentro de um Dialog tem conflitos de foco conhecidos
 
-Adicionar uma aba **"Resumo"** acima do DRE existente com:
+A query de dados funciona corretamente -- retorna 6 descrições únicas para a categoria "fixas" (Aluguel, Internet, Licenciamento, Limpeza, Marketing).
 
-1. **Tabela resumo mensal** — últimos 6 meses lado a lado, com linhas para Receita, Custos, Resultado e Margem Operacional
-2. **Quebra por PDV** — quando "Todos PDVs" selecionado, mostra cards comparando cada PDV no mês atual
-3. **Mês atual sincronizado** — o resumo sempre inicia no mês corrente e permite scroll para meses anteriores
+## Solução
 
-### Layout
+Substituir a abordagem `Popover + PopoverTrigger` por um padrão de **dropdown controlado manualmente** usando posicionamento absoluto, sem depender do Radix Popover. Isso elimina os conflitos de foco com o Dialog.
+
+### Alteracao em `src/components/financeiro/FinancialEntryForm.tsx`
+
+1. Remover imports de `Popover`, `PopoverContent`, `PopoverTrigger`
+2. Manter o `Input` como elemento normal (sem wrapper de trigger)
+3. Renderizar a lista de sugestoes como um `div` com posicao absoluta abaixo do input, controlado pelo estado `popoverOpen`
+4. Usar `Command` / `CommandList` / `CommandGroup` / `CommandItem` dentro desse div para manter o mesmo visual
+5. Adicionar handler `onBlur` com `setTimeout` para fechar ao perder foco (permitindo clique nos itens antes)
+
+### Estrutura do campo corrigido
 
 ```text
-┌─────────────────────────────────────────────┐
-│ Financeiro              [PDV ▾] [+ Despesa] │
-├─────────────────────────────────────────────┤
-│  [Resumo]  [DRE]  [Despesas]                │
-├─────────────────────────────────────────────┤
-│ Aba Resumo:                                 │
-│ ┌─ Tabela 6 meses ────────────────────────┐ │
-│ │        Mar/26  Fev/26  Jan/26  Dez/25   │ │
-│ │ Receita  R$X    R$X     R$X     R$X     │ │
-│ │ Custos   R$X    R$X     R$X     R$X     │ │
-│ │ Result.  R$X    R$X     R$X     R$X     │ │
-│ │ Margem   XX%    XX%     XX%     XX%     │ │
-│ └─────────────────────────────────────────┘ │
-│ ┌─ Comparativo PDVs (mês atual) ─────────┐ │
-│ │ PDV Tietê     │ PDV Tatuapé            │ │
-│ │ Receita R$X   │ Receita R$X            │ │
-│ │ Margem  XX%   │ Margem  XX%            │ │
-│ └─────────────────────────────────────────┘ │
-├─────────────────────────────────────────────┤
-│ Aba DRE: (existente, sem alteração)         │
-│ Aba Despesas: (existente, sem alteração)    │
-└─────────────────────────────────────────────┘
+<FormItem className="relative">
+  <FormLabel>Descricao</FormLabel>
+  <FormControl>
+    <Input
+      ref={inputRef}
+      value={field.value}
+      onChange={...}  // atualiza valor + abre lista
+      onFocus={...}   // abre lista
+      onBlur={...}    // fecha lista com delay
+    />
+  </FormControl>
+  {popoverOpen && filteredSuggestions.length > 0 && (
+    <div className="absolute z-50 top-full mt-1 w-full ...">
+      <Command>
+        <CommandList>
+          <CommandGroup>
+            <CommandItem onMouseDown={...} />
+          </CommandGroup>
+        </CommandList>
+      </Command>
+    </div>
+  )}
+</FormItem>
 ```
 
-### Alterações por arquivo
+Pontos importantes:
+- Usar `onMouseDown` (nao `onSelect`) nos itens para evitar que o `onBlur` do input feche a lista antes do clique
+- `z-50` garante que a lista fique acima dos outros campos do formulario
+- Sem conflito com o Dialog pai pois nao usa Radix Popover
 
-1. **`src/hooks/useMonthlyDRESummary.ts`** (novo) — Hook que chama a RPC `get_annual_dre_summary` para o ano corrente + busca `financial_entries` agrupadas por mês, calcula Receita, Custos Totais, Resultado e Margem para os últimos 6 meses
-2. **`src/hooks/usePDVComparison.ts`** (novo) — Hook que itera os PDVs do usuário e chama `useDRE` para cada um no mês atual, retornando array comparativo
-3. **`src/components/financeiro/MonthlyBreakdownTable.tsx`** (novo) — Tabela horizontal com últimos 6 meses, scroll horizontal no mobile
-4. **`src/components/financeiro/PDVComparisonCards.tsx`** (novo) — Grid de cards com métricas por PDV no mês selecionado
-5. **`src/pages/Financeiro.tsx`** — Reestruturar com Tabs (Resumo / DRE / Despesas), mover conteúdo existente para aba DRE e Despesas
-6. **`src/components/financeiro/index.ts`** — Exportar novos componentes
+### Impacto
 
-### Dados
+| Arquivo | Tipo | Descricao |
+|---------|------|-----------|
+| `src/components/financeiro/FinancialEntryForm.tsx` | Alterado | Trocar Popover por dropdown absoluto |
 
-- **Tabela mensal**: Usa RPC `get_annual_dre_summary` (já existe) + `financial_entries` agrupadas por `reference_month`
-- **Comparativo PDV**: Usa `get_dre_sales_summary` por PDV individual para o mês corrente
-- **Sincronização**: Mês atual é `startOfMonth(new Date())`, tabela mostra 6 meses retroativos
-
-### Considerações
-
-- No mobile, a tabela de meses terá scroll horizontal
-- O comparativo PDV só aparece quando "Todos" está selecionado no filtro
-- Nenhuma alteração de banco necessária — as RPCs existentes cobrem tudo
+Nenhuma migration necessaria. O hook `useFinancialDescriptions` permanece inalterado.
 
