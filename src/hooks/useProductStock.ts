@@ -83,7 +83,7 @@ export function useProductStock() {
   }, [salesData]);
   
   // Agrega produtos e aplica filtros
-  const { products, kpis, brands, suggestions, filteredSlots } = useMemo(() => {
+  const { products, kpis, globalKpis, brands, suggestions, filteredSlots } = useMemo(() => {
     const allProducts = aggregateProductStock(slots, salesByProduct);
     const uniqueBrands = extractUniqueBrands(slots);
     

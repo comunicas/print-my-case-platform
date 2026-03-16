@@ -58,7 +58,7 @@ function StockContent() {
         </p>
       </div>
 
-      <StockKPICards kpis={kpis} isLoading={isLoading} />
+      <StockKPICards kpis={kpis} globalKpis={globalKpis} isLoading={isLoading} />
 
       {!hasData ? (
         <StockEmptyState />
