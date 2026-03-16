@@ -13,7 +13,6 @@ export function getProductActionStatus(quantity: number, salesIndex?: SalesIndex
     if (salesIndex && salesIndex === 'none') return 'ok';
     return 'restock';
   }
-  if (quantity <= 5) return 'redistribute';
   return 'ok';
 }
 
