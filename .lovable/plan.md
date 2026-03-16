@@ -1,67 +1,64 @@
 
 
-# Correção do autocomplete de descrição no formulário de despesas
+## Correção dos Cálculos de Status e Filtros do Estoque
 
-## Problema identificado
+### Problema Principal: Status "Repor" ignora vendas
 
-O campo de autocomplete de descrição **não funciona corretamente** porque o `PopoverTrigger` com `asChild` envolve o `<Input>`, transformando-o em um elemento do tipo "button" internamente. Isso causa:
+A função `getProductStatus` (stockUtils.ts:128) calcula o status baseado **apenas na quantidade em estoque**, ignorando completamente as vendas. Resultado: Galaxy A53 com 0/7 de estoque e **0 vendas** aparece como "Repor" — mas não faz sentido repor um produto que ninguém compra.
 
-1. O popover com sugestões não aparece ao focar/digitar
-2. O campo pode perder foco ou não aceitar digitação em alguns cenários
-3. O Radix Popover dentro de um Dialog tem conflitos de foco conhecidos
-
-A query de dados funciona corretamente -- retorna 6 descrições únicas para a categoria "fixas" (Aluguel, Internet, Licenciamento, Limpeza, Marketing).
-
-## Solução
-
-Substituir a abordagem `Popover + PopoverTrigger` por um padrão de **dropdown controlado manualmente** usando posicionamento absoluto, sem depender do Radix Popover. Isso elimina os conflitos de foco com o Dialog.
-
-### Alteracao em `src/components/financeiro/FinancialEntryForm.tsx`
-
-1. Remover imports de `Popover`, `PopoverContent`, `PopoverTrigger`
-2. Manter o `Input` como elemento normal (sem wrapper de trigger)
-3. Renderizar a lista de sugestoes como um `div` com posicao absoluta abaixo do input, controlado pelo estado `popoverOpen`
-4. Usar `Command` / `CommandList` / `CommandGroup` / `CommandItem` dentro desse div para manter o mesmo visual
-5. Adicionar handler `onBlur` com `setTimeout` para fechar ao perder foco (permitindo clique nos itens antes)
-
-### Estrutura do campo corrigido
-
+**Lógica atual (errada):**
 ```text
-<FormItem className="relative">
-  <FormLabel>Descricao</FormLabel>
-  <FormControl>
-    <Input
-      ref={inputRef}
-      value={field.value}
-      onChange={...}  // atualiza valor + abre lista
-      onFocus={...}   // abre lista
-      onBlur={...}    // fecha lista com delay
-    />
-  </FormControl>
-  {popoverOpen && filteredSuggestions.length > 0 && (
-    <div className="absolute z-50 top-full mt-1 w-full ...">
-      <Command>
-        <CommandList>
-          <CommandGroup>
-            <CommandItem onMouseDown={...} />
-          </CommandGroup>
-        </CommandList>
-      </Command>
-    </div>
-  )}
-</FormItem>
+avgQuantity <= 2  →  restock (SEMPRE, mesmo com 0 vendas)
 ```
 
-Pontos importantes:
-- Usar `onMouseDown` (nao `onSelect`) nos itens para evitar que o `onBlur` do input feche a lista antes do clique
-- `z-50` garante que a lista fique acima dos outros campos do formulario
-- Sem conflito com o Dialog pai pois nao usa Radix Popover
+**Lógica corrigida:**
+```text
+avgQuantity <= 2 + vendas alta/média  →  restock (urgente, vende e está acabando)
+avgQuantity <= 2 + vendas baixa       →  restock (menor urgência, mas vende)
+avgQuantity <= 2 + vendas nenhuma     →  ok (não vende, não precisa repor)
+hasOutOfStock + estoque redistribuível →  redistribute
+tudo certo                             →  ok
+```
 
-### Impacto
+### Problema Secundário: Filtro de status no grid usa lógica diferente
 
-| Arquivo | Tipo | Descricao |
-|---------|------|-----------|
-| `src/components/financeiro/FinancialEntryForm.tsx` | Alterado | Trocar Popover por dropdown absoluto |
+Em `useProductStock.ts:126`, o filtro de status para slots usa `getProductActionStatus(s.quantity)` que é puramente baseado em quantidade. Isso pode causar inconsistências entre a tabela (que usa `getProductStatus` agregado) e o grid (que usa a lógica individual).
 
-Nenhuma migration necessaria. O hook `useFinancialDescriptions` permanece inalterado.
+### Plano de Correção (3 etapas)
+
+**Etapa 1 — `src/lib/stockUtils.ts`**: Corrigir `getProductStatus` para considerar `salesIndex`
+
+- Produto com `avgQuantity <= 2` + `salesIndex === 'none'` → `'ok'` (não vende, não repor)
+- Produto com `avgQuantity <= 2` + `salesIndex !== 'none'` → `'restock'` (vende e está acabando)
+- Manter lógica de redistribute inalterada
+- Atualizar `getProductActionStatus` (slot-level) para aceitar `salesIndex` opcional, garantindo consistência
+
+**Etapa 2 — `src/hooks/useProductStock.ts`**: Corrigir filtro de status para slots
+
+- Linha 126: ao filtrar slots por status, usar o status do **produto agregado** em vez do cálculo individual do slot, garantindo consistência entre tabela e grid
+
+**Etapa 3 — Verificação dos demais filtros**
+
+- **Filtro de marca**: Correto — compara `p.brand === brandFilter` ✓
+- **Filtro de índice de vendas**: Correto — compara `p.salesIndex === salesIndexFilter` ✓
+- **Filtro de busca**: Correto — usa `matchesSearchFilter` com exact match ✓
+- **Filtro de status de venda**: Correto — muda os status no query SQL ✓
+
+### Impacto esperado
+
+| Cenário | Antes | Depois |
+|---------|-------|--------|
+| Galaxy A53 (0/7, 0 vendas) | ❌ Repor | ✅ Ok |
+| iPhone 14 Pro Max (1/7, 6 vendas média) | Repor | Repor (correto, vende) |
+| Produto com 0/7 + 20 vendas | Repor | Repor (correto, vende muito) |
+| KPI "Produtos Críticos" | 25 | Reduz para apenas os que vendem |
+
+### Arquivos alterados
+
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/lib/stockUtils.ts` | `getProductStatus`: adicionar parâmetro `salesIndex`, ajustar lógica. `getProductActionStatus`: aceitar `salesIndex` opcional |
+| `src/hooks/useProductStock.ts` | Filtro de slots por status: usar status do produto agregado |
+
+Sem migrations necessárias.
 
