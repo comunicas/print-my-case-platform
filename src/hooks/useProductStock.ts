@@ -142,7 +142,7 @@ export function useProductStock() {
     
     return {
       products: filtered,
-      kpis: calculateStockKPIs(allProducts, totalSlots),
+      kpis: calculateStockKPIs(filtered, totalSlots),
       brands: uniqueBrands,
       suggestions: productSuggestions,
       filteredSlots: slotsFiltered,
