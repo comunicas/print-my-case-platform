@@ -1,38 +1,67 @@
 
 
-## Análise da Página de Estoque — Problemas Encontrados e Correções
+# Correção do autocomplete de descrição no formulário de despesas
 
-### Problema Principal: KPIs não refletem filtros ativos
+## Problema identificado
 
-Em `useProductStock.ts` linha 145, os KPIs são calculados a partir de `allProducts` (dados completos), **ignorando os filtros aplicados**. Quando o usuário filtra por status "Repor" (como na screenshot), os KPIs continuam mostrando os totais gerais em vez dos valores filtrados.
+O campo de autocomplete de descrição **não funciona corretamente** porque o `PopoverTrigger` com `asChild` envolve o `<Input>`, transformando-o em um elemento do tipo "button" internamente. Isso causa:
 
-**Correção**: Calcular KPIs a partir de `filtered` (produtos já filtrados) em vez de `allProducts`. Manter um segundo conjunto de KPIs "globais" apenas para contexto se necessário, ou simplesmente refletir os filtros ativos.
+1. O popover com sugestões não aparece ao focar/digitar
+2. O campo pode perder foco ou não aceitar digitação em alguns cenários
+3. O Radix Popover dentro de um Dialog tem conflitos de foco conhecidos
 
-### Detalhes Técnicos
+A query de dados funciona corretamente -- retorna 6 descrições únicas para a categoria "fixas" (Aluguel, Internet, Licenciamento, Limpeza, Marketing).
 
-**Arquivo: `src/hooks/useProductStock.ts`**
+## Solução
 
-1. **Linha 145** — Trocar `calculateStockKPIs(allProducts, totalSlots)` por `calculateStockKPIs(filtered, totalSlots)` para que os KPIs reflitam os filtros de marca, status, busca e índice de vendas.
+Substituir a abordagem `Popover + PopoverTrigger` por um padrão de **dropdown controlado manualmente** usando posicionamento absoluto, sem depender do Radix Popover. Isso elimina os conflitos de foco com o Dialog.
 
-2. **Adicionar KPIs globais (opcional)** — Expor um `globalKpis` calculado com `allProducts` para que a página possa mostrar contexto (ex: "11 de 72 produtos" quando filtrado), mas o destaque principal deve ser dos filtrados.
+### Alteracao em `src/components/financeiro/FinancialEntryForm.tsx`
 
-### Comportamento Esperado
+1. Remover imports de `Popover`, `PopoverContent`, `PopoverTrigger`
+2. Manter o `Input` como elemento normal (sem wrapper de trigger)
+3. Renderizar a lista de sugestoes como um `div` com posicao absoluta abaixo do input, controlado pelo estado `popoverOpen`
+4. Usar `Command` / `CommandList` / `CommandGroup` / `CommandItem` dentro desse div para manter o mesmo visual
+5. Adicionar handler `onBlur` com `setTimeout` para fechar ao perder foco (permitindo clique nos itens antes)
 
-| Cenário | Antes | Depois |
-|---------|-------|--------|
-| Filtro "Repor" ativo | KPIs mostram 72 produtos, 669 unidades | KPIs mostram apenas os 11 produtos críticos com suas unidades |
-| Filtro marca "Apple" | KPIs inalterados | KPIs refletem apenas produtos Apple |
-| Sem filtros | Normal | Igual (sem mudança) |
+### Estrutura do campo corrigido
 
-### Sem dados mockados encontrados
+```text
+<FormItem className="relative">
+  <FormLabel>Descricao</FormLabel>
+  <FormControl>
+    <Input
+      ref={inputRef}
+      value={field.value}
+      onChange={...}  // atualiza valor + abre lista
+      onFocus={...}   // abre lista
+      onBlur={...}    // fecha lista com delay
+    />
+  </FormControl>
+  {popoverOpen && filteredSuggestions.length > 0 && (
+    <div className="absolute z-50 top-full mt-1 w-full ...">
+      <Command>
+        <CommandList>
+          <CommandGroup>
+            <CommandItem onMouseDown={...} />
+          </CommandGroup>
+        </CommandList>
+      </Command>
+    </div>
+  )}
+</FormItem>
+```
 
-Todos os dados vêm de queries reais ao banco (`stock_records` e `sales_records`). Não há mock data hardcoded.
+Pontos importantes:
+- Usar `onMouseDown` (nao `onSelect`) nos itens para evitar que o `onBlur` do input feche a lista antes do clique
+- `z-50` garante que a lista fique acima dos outros campos do formulario
+- Sem conflito com o Dialog pai pois nao usa Radix Popover
 
-### Resumo de impacto
+### Impacto
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/hooks/useProductStock.ts` | 1 linha: `allProducts` → `filtered` no cálculo de KPIs |
+| Arquivo | Tipo | Descricao |
+|---------|------|-----------|
+| `src/components/financeiro/FinancialEntryForm.tsx` | Alterado | Trocar Popover por dropdown absoluto |
 
-Nenhuma migration necessária.
+Nenhuma migration necessaria. O hook `useFinancialDescriptions` permanece inalterado.
 
