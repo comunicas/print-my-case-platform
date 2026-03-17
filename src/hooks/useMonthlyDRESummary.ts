@@ -110,22 +110,27 @@ export function useMonthlyDRESummary({ pdvId, months = 6 }: UseMonthlyDRESummary
         const cmv = sales.sales_count * unitCost;
         const taxasStone = sales.card_revenue * stoneRate;
         const lucroBruto = receitaLiquida - cmv - taxasStone;
-        const despesasFixas = totalFixas + totalImplantacao;
-        const resultado = lucroBruto - despesasFixas;
+        const despesasFixas = totalFixas;
+        const resultadoOperacional = lucroBruto - despesasFixas;
+        const implantacao = totalImplantacao;
+        const resultado = resultadoOperacional - implantacao;
         const custos = impostos + reembolsos + cmv + taxasStone + totalFixas + totalImplantacao;
-        const margem = receitaLiquida > 0 ? (resultado / receitaLiquida) * 100 : 0;
+        const margem = receitaLiquida > 0 ? (resultadoOperacional / receitaLiquida) * 100 : 0;
         const transacoes = sales.sales_count;
 
         return {
           month,
           label: format(month, "MMM/yy", { locale: ptBR }),
           receita,
+          reembolsos,
           receitaLiquida,
           impostos,
           cmv,
           taxasStone,
           lucroBruto,
           despesasFixas,
+          resultadoOperacional,
+          implantacao,
           custos,
           resultado,
           margem,

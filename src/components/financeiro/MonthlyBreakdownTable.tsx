@@ -98,7 +98,7 @@ export function MonthlyBreakdownTable({ data, isLoading }: MonthlyBreakdownTable
                   key={row.key}
                   className={cn(
                     row.bold && "bg-muted/30",
-                    row.key === "resultado" && "border-t-2 border-border"
+                    (row.key === "resultado" || row.key === "resultadoOperacional") && "border-t-2 border-border"
                   )}
                 >
                   <TableCell
