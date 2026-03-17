@@ -1,23 +1,67 @@
 
 
-## Adicionar tooltips com detalhamento de cálculo na tabela Evolução Mensal
+# Correção do autocomplete de descrição no formulário de despesas
 
-### Alteração
+## Problema identificado
 
-**`src/components/financeiro/MonthlyBreakdownTable.tsx`**
+O campo de autocomplete de descrição **não funciona corretamente** porque o `PopoverTrigger` com `asChild` envolve o `<Input>`, transformando-o em um elemento do tipo "button" internamente. Isso causa:
 
-Adicionar um tooltip em cada label da primeira coluna com a fórmula e os valores componentes daquele mês. Como cada célula de valor corresponde a um mês diferente, o tooltip ficará no **label da linha** (coluna fixa), mostrando a fórmula geral. Para os valores numéricos de cada mês, ao passar o mouse na célula mostrará o breakdown com os valores reais daquele mês.
+1. O popover com sugestões não aparece ao focar/digitar
+2. O campo pode perder foco ou não aceitar digitação em alguns cenários
+3. O Radix Popover dentro de um Dialog tem conflitos de foco conhecidos
 
-Tooltips por linha:
-- **Receita Bruta**: "Total de vendas brutas no período"
-- **(-) Custos Totais**: Mostra breakdown: `Impostos + Reembolsos + CMV + Taxas Stone + Desp. Fixas + Implantação` com cada valor formatado
-- **Resultado do Mês**: `Receita Bruta − Custos Totais` com valores
-- **Margem Operacional**: `Resultado Operacional ÷ Receita Líquida × 100` com valores
-- **Transações**: "Quantidade de vendas realizadas"
+A query de dados funciona corretamente -- retorna 6 descrições únicas para a categoria "fixas" (Aluguel, Internet, Licenciamento, Limpeza, Marketing).
 
-Implementação:
-- Importar `Tooltip, TooltipTrigger, TooltipContent, TooltipProvider` do componente existente
-- Adicionar uma função `getTooltip(row, monthData)` que retorna o texto do tooltip com os valores componentes formatados para aquele mês
-- Envolver cada célula de valor num `Tooltip` que mostra o breakdown numérico
-- Envolver o label da linha num `Tooltip` que mostra a fórmula geral
+## Solução
+
+Substituir a abordagem `Popover + PopoverTrigger` por um padrão de **dropdown controlado manualmente** usando posicionamento absoluto, sem depender do Radix Popover. Isso elimina os conflitos de foco com o Dialog.
+
+### Alteracao em `src/components/financeiro/FinancialEntryForm.tsx`
+
+1. Remover imports de `Popover`, `PopoverContent`, `PopoverTrigger`
+2. Manter o `Input` como elemento normal (sem wrapper de trigger)
+3. Renderizar a lista de sugestoes como um `div` com posicao absoluta abaixo do input, controlado pelo estado `popoverOpen`
+4. Usar `Command` / `CommandList` / `CommandGroup` / `CommandItem` dentro desse div para manter o mesmo visual
+5. Adicionar handler `onBlur` com `setTimeout` para fechar ao perder foco (permitindo clique nos itens antes)
+
+### Estrutura do campo corrigido
+
+```text
+<FormItem className="relative">
+  <FormLabel>Descricao</FormLabel>
+  <FormControl>
+    <Input
+      ref={inputRef}
+      value={field.value}
+      onChange={...}  // atualiza valor + abre lista
+      onFocus={...}   // abre lista
+      onBlur={...}    // fecha lista com delay
+    />
+  </FormControl>
+  {popoverOpen && filteredSuggestions.length > 0 && (
+    <div className="absolute z-50 top-full mt-1 w-full ...">
+      <Command>
+        <CommandList>
+          <CommandGroup>
+            <CommandItem onMouseDown={...} />
+          </CommandGroup>
+        </CommandList>
+      </Command>
+    </div>
+  )}
+</FormItem>
+```
+
+Pontos importantes:
+- Usar `onMouseDown` (nao `onSelect`) nos itens para evitar que o `onBlur` do input feche a lista antes do clique
+- `z-50` garante que a lista fique acima dos outros campos do formulario
+- Sem conflito com o Dialog pai pois nao usa Radix Popover
+
+### Impacto
+
+| Arquivo | Tipo | Descricao |
+|---------|------|-----------|
+| `src/components/financeiro/FinancialEntryForm.tsx` | Alterado | Trocar Popover por dropdown absoluto |
+
+Nenhuma migration necessaria. O hook `useFinancialDescriptions` permanece inalterado.
 
