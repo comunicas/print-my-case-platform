@@ -10,12 +10,15 @@ export interface MonthSummary {
   month: Date;
   label: string;
   receita: number;
+  reembolsos: number;
   receitaLiquida: number;
   impostos: number;
   cmv: number;
   taxasStone: number;
   lucroBruto: number;
   despesasFixas: number;
+  resultadoOperacional: number;
+  implantacao: number;
   custos: number;
   resultado: number;
   margem: number;
