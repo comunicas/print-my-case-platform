@@ -22,6 +22,29 @@ function getResultColor(value: number) {
   return value >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive";
 }
 
+interface RowDef {
+  label: string;
+  key: keyof MonthSummary;
+  format: (v: number) => string;
+  colorFn?: (v: number) => string;
+  isSeparator?: boolean;
+  indent?: boolean;
+  bold?: boolean;
+}
+
+const rows: RowDef[] = [
+  { label: "Receita Bruta", key: "receita", format: formatCurrency, bold: true },
+  { label: "(-) Impostos", key: "impostos", format: formatCurrency, indent: true },
+  { label: "Receita Líquida", key: "receitaLiquida", format: formatCurrency, bold: true, colorFn: getResultColor },
+  { label: "(-) CMV", key: "cmv", format: formatCurrency, indent: true },
+  { label: "(-) Taxas Stone", key: "taxasStone", format: formatCurrency, indent: true },
+  { label: "Lucro Bruto", key: "lucroBruto", format: formatCurrency, bold: true, colorFn: getResultColor },
+  { label: "(-) Despesas Fixas", key: "despesasFixas", format: formatCurrency, indent: true },
+  { label: "Resultado", key: "resultado", format: formatCurrency, bold: true, colorFn: getResultColor },
+  { label: "Margem", key: "margem", format: (v: number) => `${v.toFixed(1)}%`, colorFn: getMarginColor, bold: true },
+  { label: "Transações", key: "transacoes", format: (v: number) => v.toLocaleString("pt-BR") },
+];
+
 export function MonthlyBreakdownTable({ data, isLoading }: MonthlyBreakdownTableProps) {
   if (isLoading) {
     return (
@@ -34,7 +57,7 @@ export function MonthlyBreakdownTable({ data, isLoading }: MonthlyBreakdownTable
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {[1, 2, 3, 4].map((i) => (
+            {[1, 2, 3, 4, 5, 6].map((i) => (
               <Skeleton key={i} className="h-8 w-full" />
             ))}
           </div>
@@ -44,13 +67,6 @@ export function MonthlyBreakdownTable({ data, isLoading }: MonthlyBreakdownTable
   }
 
   if (data.length === 0) return null;
-
-  const rows = [
-    { label: "Receita", key: "receita" as const, format: formatCurrency },
-    { label: "Custos", key: "custos" as const, format: formatCurrency },
-    { label: "Resultado", key: "resultado" as const, format: formatCurrency, colorFn: getResultColor },
-    { label: "Margem", key: "margem" as const, format: (v: number) => `${v.toFixed(1)}%`, colorFn: getMarginColor },
-  ];
 
   return (
     <Card>
@@ -65,7 +81,7 @@ export function MonthlyBreakdownTable({ data, isLoading }: MonthlyBreakdownTable
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="sticky left-0 bg-card z-10 min-w-[100px]" />
+                <TableHead className="sticky left-0 bg-card z-10 min-w-[140px]" />
                 {data.map((m) => (
                   <TableHead key={m.label} className="text-center min-w-[100px] capitalize">
                     {m.label}
@@ -75,17 +91,34 @@ export function MonthlyBreakdownTable({ data, isLoading }: MonthlyBreakdownTable
             </TableHeader>
             <TableBody>
               {rows.map((row) => (
-                <TableRow key={row.key}>
-                  <TableCell className="sticky left-0 bg-card z-10 font-medium text-sm">
+                <TableRow
+                  key={row.key}
+                  className={cn(
+                    row.bold && "bg-muted/30",
+                    row.key === "resultado" && "border-t-2 border-border"
+                  )}
+                >
+                  <TableCell
+                    className={cn(
+                      "sticky left-0 bg-card z-10 text-sm whitespace-nowrap",
+                      row.indent && "pl-6 text-muted-foreground",
+                      row.bold && "font-semibold bg-muted/30"
+                    )}
+                  >
                     {row.label}
                   </TableCell>
                   {data.map((m) => {
-                    const value = m[row.key];
+                    const value = m[row.key] as number;
                     const colorClass = row.colorFn ? row.colorFn(value) : undefined;
                     return (
                       <TableCell
                         key={m.label}
-                        className={cn("text-center text-sm tabular-nums", colorClass)}
+                        className={cn(
+                          "text-center text-sm tabular-nums",
+                          colorClass,
+                          row.bold && "font-semibold",
+                          row.indent && "text-muted-foreground"
+                        )}
                       >
                         {row.format(value)}
                       </TableCell>

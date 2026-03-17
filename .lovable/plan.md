@@ -1,54 +1,67 @@
 
 
-## Revisão de Cálculos e Detalhamento da Aba Resumo
+# Correção do autocomplete de descrição no formulário de despesas
 
-### Problemas Identificados
+## Problema identificado
 
-**1. Bug de duplicação no Comparativo PDV**
-Em `usePDVComparison.ts`, a query de entries usa `pdv_id.eq.${pdv.id},pdv_id.is.null` para cada PDV. Despesas com `pdv_id=null` (despesas gerais da org) são contadas **integralmente para cada PDV**, inflando os custos. Se há 3 PDVs e R$3.000 em despesas fixas gerais, cada PDV mostra R$3.000 ao invés de R$1.000.
+O campo de autocomplete de descrição **não funciona corretamente** porque o `PopoverTrigger` com `asChild` envolve o `<Input>`, transformando-o em um elemento do tipo "button" internamente. Isso causa:
 
-**Correção**: Dividir despesas com `pdv_id=null` pelo número de PDVs ativos.
+1. O popover com sugestões não aparece ao focar/digitar
+2. O campo pode perder foco ou não aceitar digitação em alguns cenários
+3. O Radix Popover dentro de um Dialog tem conflitos de foco conhecidos
 
-**2. Tabela Resumo muito simplificada**
-Hoje a `MonthlyBreakdownTable` mostra apenas 4 linhas (Receita, Custos, Resultado, Margem). Faltam linhas intermediárias do DRE para dar visibilidade sobre onde os custos estão concentrados.
+A query de dados funciona corretamente -- retorna 6 descrições únicas para a categoria "fixas" (Aluguel, Internet, Licenciamento, Limpeza, Marketing).
 
-**3. Falta de KPIs resumidos no topo**
-A aba Resumo não tem cards de destaque com os números do mês atual.
+## Solução
 
-### Validação das Fórmulas (3 abas)
+Substituir a abordagem `Popover + PopoverTrigger` por um padrão de **dropdown controlado manualmente** usando posicionamento absoluto, sem depender do Radix Popover. Isso elimina os conflitos de foco com o Dialog.
 
-As fórmulas são consistentes entre `useDRE`, `useMonthlyDRESummary` e `usePDVComparison`:
-- Receita Líquida = Receita Bruta − Impostos − Reembolsos ✓
-- Lucro Bruto = Receita Líquida − CMV − Taxas Stone ✓
-- EBITDA = Lucro Bruto − Despesas Fixas ✓
-- Resultado = EBITDA − Implantação ✓
-- Margem = Resultado ÷ Receita Líquida × 100 ✓
+### Alteracao em `src/components/financeiro/FinancialEntryForm.tsx`
 
-Único problema real é o item 1 (double-counting no comparativo).
+1. Remover imports de `Popover`, `PopoverContent`, `PopoverTrigger`
+2. Manter o `Input` como elemento normal (sem wrapper de trigger)
+3. Renderizar a lista de sugestoes como um `div` com posicao absoluta abaixo do input, controlado pelo estado `popoverOpen`
+4. Usar `Command` / `CommandList` / `CommandGroup` / `CommandItem` dentro desse div para manter o mesmo visual
+5. Adicionar handler `onBlur` com `setTimeout` para fechar ao perder foco (permitindo clique nos itens antes)
 
-### Alterações
+### Estrutura do campo corrigido
 
-**1. `src/hooks/usePDVComparison.ts`** — Corrigir double-counting
-- Separar query de entries com `pdv_id=null` da query com `pdv_id.eq.${pdv.id}`
-- Dividir total das entries gerais (`pdv_id=null`) pelo número de PDVs ativos antes de somar aos custos individuais
+```text
+<FormItem className="relative">
+  <FormLabel>Descricao</FormLabel>
+  <FormControl>
+    <Input
+      ref={inputRef}
+      value={field.value}
+      onChange={...}  // atualiza valor + abre lista
+      onFocus={...}   // abre lista
+      onBlur={...}    // fecha lista com delay
+    />
+  </FormControl>
+  {popoverOpen && filteredSuggestions.length > 0 && (
+    <div className="absolute z-50 top-full mt-1 w-full ...">
+      <Command>
+        <CommandList>
+          <CommandGroup>
+            <CommandItem onMouseDown={...} />
+          </CommandGroup>
+        </CommandList>
+      </Command>
+    </div>
+  )}
+</FormItem>
+```
 
-**2. `src/hooks/useMonthlyDRESummary.ts`** — Expandir interface `MonthSummary`
-- Adicionar campos: `receitaLiquida`, `lucroBruto`, `despesasFixas`, `cmv`, `impostos`, `transacoes`
-- Manter cálculos existentes, apenas expor os valores intermediários já calculados
+Pontos importantes:
+- Usar `onMouseDown` (nao `onSelect`) nos itens para evitar que o `onBlur` do input feche a lista antes do clique
+- `z-50` garante que a lista fique acima dos outros campos do formulario
+- Sem conflito com o Dialog pai pois nao usa Radix Popover
 
-**3. `src/components/financeiro/MonthlyBreakdownTable.tsx`** — Enriquecer tabela
-- Adicionar linhas: Receita Líquida, CMV, Lucro Bruto, Despesas Fixas, EBITDA
-- Agrupar visualmente com separadores entre seções (Receita / Custos / Resultado)
-- Adicionar linha de Transações no final
-- Aplicar cores condicionais nos valores negativos
+### Impacto
 
-**4. `src/components/financeiro/ResumoKPICards.tsx`** (novo) — Cards de destaque do mês atual
-- 4 mini-cards no topo da aba Resumo: Receita do Mês, Resultado, Margem Operacional, Total Transações
-- Dados extraídos do primeiro item do array `monthlyData` (mês corrente)
-- Cores condicionais (verde/amarelo/vermelho) para margem e resultado
+| Arquivo | Tipo | Descricao |
+|---------|------|-----------|
+| `src/components/financeiro/FinancialEntryForm.tsx` | Alterado | Trocar Popover por dropdown absoluto |
 
-**5. `src/pages/Financeiro.tsx`** — Integrar novo componente
-- Adicionar `ResumoKPICards` acima da `MonthlyBreakdownTable` na aba Resumo
-
-**6. `src/components/financeiro/index.ts`** — Exportar `ResumoKPICards`
+Nenhuma migration necessaria. O hook `useFinancialDescriptions` permanece inalterado.
 

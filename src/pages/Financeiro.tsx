@@ -14,6 +14,7 @@ import {
   FinancialEntriesList,
   MonthlyBreakdownTable,
   PDVComparisonCards,
+  ResumoKPICards,
 } from "@/components/financeiro";
 import { useFinancialEntries, type FinancialEntry } from "@/hooks/useFinancialEntries";
 import { useDRE } from "@/hooks/useDRE";
@@ -130,6 +131,7 @@ export default function Financeiro() {
 
           {/* === Aba Resumo === */}
           <TabsContent value="resumo" className="space-y-6">
+            <ResumoKPICards data={monthlyData} isLoading={monthlyLoading} />
             <MonthlyBreakdownTable data={monthlyData} isLoading={monthlyLoading} />
             {showAllPdvs && showComparison && (
               <PDVComparisonCards data={pdvComparison} isLoading={comparisonLoading} />

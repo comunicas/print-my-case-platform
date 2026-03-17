@@ -10,9 +10,16 @@ export interface MonthSummary {
   month: Date;
   label: string;
   receita: number;
+  receitaLiquida: number;
+  impostos: number;
+  cmv: number;
+  taxasStone: number;
+  lucroBruto: number;
+  despesasFixas: number;
   custos: number;
   resultado: number;
   margem: number;
+  transacoes: number;
 }
 
 interface UseMonthlyDRESummaryOptions {
@@ -28,7 +35,6 @@ export function useMonthlyDRESummary({ pdvId, months = 6 }: UseMonthlyDRESummary
 
   const { unitCost, stoneRate, taxRate } = useDREConfig({ pdvId });
 
-  // Generate the last N months
   const now = new Date();
   const monthList = Array.from({ length: months }, (_, i) => startOfMonth(subMonths(now, i)));
   const currentYear = now.getFullYear();
@@ -37,7 +43,6 @@ export function useMonthlyDRESummary({ pdvId, months = 6 }: UseMonthlyDRESummary
   const query = useQuery({
     queryKey: ["monthly-dre-summary", orgId, pdvId, months, unitCost, stoneRate, taxRate],
     queryFn: async () => {
-      // Get PDV IDs
       let pdvQuery = supabase.from("pdvs").select("id");
       if (orgId) pdvQuery = pdvQuery.eq("organization_id", orgId);
       const { data: pdvs, error: pdvError } = await pdvQuery;
@@ -46,7 +51,6 @@ export function useMonthlyDRESummary({ pdvId, months = 6 }: UseMonthlyDRESummary
       const pdvIds = pdvId ? [pdvId] : pdvs.map((p) => p.id);
       if (pdvIds.length === 0) return [];
 
-      // Fetch sales data for current and previous year using RPC
       const yearsToFetch = currentYear === prevYear ? [currentYear] : [prevYear, currentYear];
       const salesByMonth = new Map<string, { faturamento: number; deducoes: number; sales_count: number; card_revenue: number }>();
 
@@ -68,7 +72,6 @@ export function useMonthlyDRESummary({ pdvId, months = 6 }: UseMonthlyDRESummary
         })
       );
 
-      // Fetch financial entries for all relevant months
       const monthStrs = monthList.map((m) => format(m, "yyyy-MM-dd"));
       let entriesQuery = supabase
         .from("financial_entries")
@@ -81,7 +84,6 @@ export function useMonthlyDRESummary({ pdvId, months = 6 }: UseMonthlyDRESummary
       const { data: entries, error: entriesError } = await entriesQuery;
       if (entriesError) throw entriesError;
 
-      // Group entries by month
       const entriesByMonth = new Map<string, typeof entries>();
       for (const entry of entries ?? []) {
         const key = entry.reference_month;
@@ -89,7 +91,6 @@ export function useMonthlyDRESummary({ pdvId, months = 6 }: UseMonthlyDRESummary
         entriesByMonth.get(key)!.push(entry);
       }
 
-      // Build summary for each month
       return monthList.map((month) => {
         const monthStr = format(month, "yyyy-MM-dd");
         const sales = salesByMonth.get(monthStr) ?? { faturamento: 0, deducoes: 0, sales_count: 0, card_revenue: 0 };
@@ -106,17 +107,26 @@ export function useMonthlyDRESummary({ pdvId, months = 6 }: UseMonthlyDRESummary
         const cmv = sales.sales_count * unitCost;
         const taxasStone = sales.card_revenue * stoneRate;
         const lucroBruto = receitaLiquida - cmv - taxasStone;
-        const resultado = lucroBruto - totalFixas - totalImplantacao;
+        const despesasFixas = totalFixas + totalImplantacao;
+        const resultado = lucroBruto - despesasFixas;
         const custos = impostos + reembolsos + cmv + taxasStone + totalFixas + totalImplantacao;
         const margem = receitaLiquida > 0 ? (resultado / receitaLiquida) * 100 : 0;
+        const transacoes = sales.sales_count;
 
         return {
           month,
           label: format(month, "MMM/yy", { locale: ptBR }),
           receita,
+          receitaLiquida,
+          impostos,
+          cmv,
+          taxasStone,
+          lucroBruto,
+          despesasFixas,
           custos,
           resultado,
           margem,
+          transacoes,
         } satisfies MonthSummary;
       });
     },
