@@ -14,6 +14,7 @@ import {
   FinancialEntriesList,
   MonthlyBreakdownTable,
   PDVComparisonCards,
+  ResumoKPICards,
 } from "@/components/financeiro";
 import { useFinancialEntries, type FinancialEntry } from "@/hooks/useFinancialEntries";
 import { useDRE } from "@/hooks/useDRE";
