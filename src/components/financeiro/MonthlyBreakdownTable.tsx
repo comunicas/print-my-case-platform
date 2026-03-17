@@ -35,13 +35,16 @@ interface RowDef {
 const rows: RowDef[] = [
   { label: "Receita Bruta", key: "receita", format: formatCurrency, bold: true },
   { label: "(-) Impostos", key: "impostos", format: formatCurrency, indent: true },
+  { label: "(-) Reembolsos / Deduções", key: "reembolsos", format: formatCurrency, indent: true },
   { label: "Receita Líquida", key: "receitaLiquida", format: formatCurrency, bold: true, colorFn: getResultColor },
   { label: "(-) CMV", key: "cmv", format: formatCurrency, indent: true },
   { label: "(-) Taxas Stone", key: "taxasStone", format: formatCurrency, indent: true },
   { label: "Lucro Bruto", key: "lucroBruto", format: formatCurrency, bold: true, colorFn: getResultColor },
   { label: "(-) Despesas Fixas", key: "despesasFixas", format: formatCurrency, indent: true },
-  { label: "Resultado", key: "resultado", format: formatCurrency, bold: true, colorFn: getResultColor },
-  { label: "Margem", key: "margem", format: (v: number) => `${v.toFixed(1)}%`, colorFn: getMarginColor, bold: true },
+  { label: "Resultado Operacional", key: "resultadoOperacional", format: formatCurrency, bold: true, colorFn: getResultColor },
+  { label: "(-) Implantação", key: "implantacao", format: formatCurrency, indent: true },
+  { label: "Resultado do Mês", key: "resultado", format: formatCurrency, bold: true, colorFn: getResultColor },
+  { label: "Margem Operacional", key: "margem", format: (v: number) => `${v.toFixed(1)}%`, colorFn: getMarginColor, bold: true },
   { label: "Transações", key: "transacoes", format: (v: number) => v.toLocaleString("pt-BR") },
 ];
 
