@@ -1,67 +1,46 @@
 
 
-# Correção do autocomplete de descrição no formulário de despesas
+## Inconsistências Encontradas entre Resumo e DRE
 
-## Problema identificado
+### Problemas
 
-O campo de autocomplete de descrição **não funciona corretamente** porque o `PopoverTrigger` com `asChild` envolve o `<Input>`, transformando-o em um elemento do tipo "button" internamente. Isso causa:
+**1. "Despesas Fixas" tem significados diferentes nas duas abas**
+- DRE: `despesasFixas = totalFixas` (apenas fixas, implantação é separada)
+- Resumo: `despesasFixas = totalFixas + totalImplantacao` (bundled)
+- Se existem custos de implantação, a linha "Despesas Fixas" no Resumo mostra valor maior que no DRE
 
-1. O popover com sugestões não aparece ao focar/digitar
-2. O campo pode perder foco ou não aceitar digitação em alguns cenários
-3. O Radix Popover dentro de um Dialog tem conflitos de foco conhecidos
+**2. Falta linha de Reembolsos/Deduções na tabela Resumo**
+- A tabela mostra Receita Bruta → Impostos → Receita Líquida, mas omite Reembolsos/Deduções
+- A Receita Líquida já desconta reembolsos, mas o usuário não vê de onde vem a diferença
 
-A query de dados funciona corretamente -- retorna 6 descrições únicas para a categoria "fixas" (Aluguel, Internet, Licenciamento, Limpeza, Marketing).
+**3. Margem calculada sobre bases diferentes**
+- DRE: Margem Operacional = `resultadoOperacional / receitaLiquida` (antes da implantação)
+- Resumo: Margem = `resultado / receitaLiquida` (depois da implantação)
+- Com implantação > 0, as margens divergem
 
-## Solução
+**4. Falta separação de Implantação no Resumo**
+- DRE mostra implantação como linha separada (condicional)
+- Resumo esconde dentro de "Despesas Fixas"
 
-Substituir a abordagem `Popover + PopoverTrigger` por um padrão de **dropdown controlado manualmente** usando posicionamento absoluto, sem depender do Radix Popover. Isso elimina os conflitos de foco com o Dialog.
+### Alterações
 
-### Alteracao em `src/components/financeiro/FinancialEntryForm.tsx`
+**1. `src/hooks/useMonthlyDRESummary.ts`** — Separar campos e alinhar com DRE
+- Adicionar `reembolsos` (sales.deducoes + totalDeducoes) ao `MonthSummary`
+- Adicionar `implantacao` separado
+- Mudar `despesasFixas` para conter apenas `totalFixas` (igual ao DRE)
+- Adicionar `resultadoOperacional` = lucroBruto - despesasFixas
+- Manter `resultado` = resultadoOperacional - implantacao (= resultadoMes do DRE)
+- Recalcular `margem` usando `resultadoOperacional` (consistente com DRE)
 
-1. Remover imports de `Popover`, `PopoverContent`, `PopoverTrigger`
-2. Manter o `Input` como elemento normal (sem wrapper de trigger)
-3. Renderizar a lista de sugestoes como um `div` com posicao absoluta abaixo do input, controlado pelo estado `popoverOpen`
-4. Usar `Command` / `CommandList` / `CommandGroup` / `CommandItem` dentro desse div para manter o mesmo visual
-5. Adicionar handler `onBlur` com `setTimeout` para fechar ao perder foco (permitindo clique nos itens antes)
+**2. `src/components/financeiro/MonthlyBreakdownTable.tsx`** — Espelhar estrutura do DRE
+- Adicionar linha `(-) Reembolsos / Deduções` entre Impostos e Receita Líquida
+- Separar `(-) Despesas Fixas` e `(-) Implantação` em linhas distintas
+- Adicionar linha `Resultado Operacional` entre Despesas Fixas e Resultado do Mês
+- Renomear "Resultado" → "Resultado do Mês"
+- Margem usar resultadoOperacional como numerador
 
-### Estrutura do campo corrigido
+**3. `src/components/financeiro/ResumoKPICards.tsx`** — Usar margem operacional correta
+- Trocar `current.margem` por cálculo baseado em `resultadoOperacional / receitaLiquida`
 
-```text
-<FormItem className="relative">
-  <FormLabel>Descricao</FormLabel>
-  <FormControl>
-    <Input
-      ref={inputRef}
-      value={field.value}
-      onChange={...}  // atualiza valor + abre lista
-      onFocus={...}   // abre lista
-      onBlur={...}    // fecha lista com delay
-    />
-  </FormControl>
-  {popoverOpen && filteredSuggestions.length > 0 && (
-    <div className="absolute z-50 top-full mt-1 w-full ...">
-      <Command>
-        <CommandList>
-          <CommandGroup>
-            <CommandItem onMouseDown={...} />
-          </CommandGroup>
-        </CommandList>
-      </Command>
-    </div>
-  )}
-</FormItem>
-```
-
-Pontos importantes:
-- Usar `onMouseDown` (nao `onSelect`) nos itens para evitar que o `onBlur` do input feche a lista antes do clique
-- `z-50` garante que a lista fique acima dos outros campos do formulario
-- Sem conflito com o Dialog pai pois nao usa Radix Popover
-
-### Impacto
-
-| Arquivo | Tipo | Descricao |
-|---------|------|-----------|
-| `src/components/financeiro/FinancialEntryForm.tsx` | Alterado | Trocar Popover por dropdown absoluto |
-
-Nenhuma migration necessaria. O hook `useFinancialDescriptions` permanece inalterado.
+Resultado: as duas abas passarão a exibir exatamente os mesmos valores para cada linha equivalente.
 
