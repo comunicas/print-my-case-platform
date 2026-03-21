@@ -55,6 +55,7 @@ import { PDVFilter } from "@/components/ui/PDVFilter";
 import { DataPagination } from "@/components/ui/data-pagination";
 
 export default function Uploads() {
+  const [activeTab, setActiveTab] = useState("uploads");
   const navigate = useNavigate();
   const { pdvs, isLoading: pdvsLoading } = usePDVs();
   const { isAdmin, role } = useProfile();
