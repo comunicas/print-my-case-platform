@@ -1,0 +1,1 @@
+ALTER TABLE stock_records ALTER COLUMN upload_id DROP NOT NULL;
