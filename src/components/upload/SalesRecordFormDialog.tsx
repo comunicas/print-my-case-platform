@@ -100,7 +100,11 @@ export function SalesRecordFormDialog({
 
   const handleSubmit = (values: FormValues) => {
     onSubmit({
-      ...values,
+      pdv_id: values.pdv_id,
+      device_id: values.device_id,
+      order_number: values.order_number,
+      product_name: values.product_name,
+      amount: values.amount,
       payment_date: values.payment_date || undefined,
       payment_method: values.payment_method || undefined,
       status: values.status || undefined,
