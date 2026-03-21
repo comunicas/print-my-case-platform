@@ -1,67 +1,79 @@
 
 
-# Correção do autocomplete de descrição no formulário de despesas
+## Nova Aba "Vendas" na Página de Uploads — CRUD de sales_records
 
-## Problema identificado
+### Resumo
 
-O campo de autocomplete de descrição **não funciona corretamente** porque o `PopoverTrigger` com `asChild` envolve o `<Input>`, transformando-o em um elemento do tipo "button" internamente. Isso causa:
+Adicionar uma aba de navegação na página de Uploads com duas abas: **Uploads** (conteúdo atual) e **Vendas** (tabela CRUD completa de `sales_records`).
 
-1. O popover com sugestões não aparece ao focar/digitar
-2. O campo pode perder foco ou não aceitar digitação em alguns cenários
-3. O Radix Popover dentro de um Dialog tem conflitos de foco conhecidos
-
-A query de dados funciona corretamente -- retorna 6 descrições únicas para a categoria "fixas" (Aluguel, Internet, Licenciamento, Limpeza, Marketing).
-
-## Solução
-
-Substituir a abordagem `Popover + PopoverTrigger` por um padrão de **dropdown controlado manualmente** usando posicionamento absoluto, sem depender do Radix Popover. Isso elimina os conflitos de foco com o Dialog.
-
-### Alteracao em `src/components/financeiro/FinancialEntryForm.tsx`
-
-1. Remover imports de `Popover`, `PopoverContent`, `PopoverTrigger`
-2. Manter o `Input` como elemento normal (sem wrapper de trigger)
-3. Renderizar a lista de sugestoes como um `div` com posicao absoluta abaixo do input, controlado pelo estado `popoverOpen`
-4. Usar `Command` / `CommandList` / `CommandGroup` / `CommandItem` dentro desse div para manter o mesmo visual
-5. Adicionar handler `onBlur` com `setTimeout` para fechar ao perder foco (permitindo clique nos itens antes)
-
-### Estrutura do campo corrigido
+### Layout
 
 ```text
-<FormItem className="relative">
-  <FormLabel>Descricao</FormLabel>
-  <FormControl>
-    <Input
-      ref={inputRef}
-      value={field.value}
-      onChange={...}  // atualiza valor + abre lista
-      onFocus={...}   // abre lista
-      onBlur={...}    // fecha lista com delay
-    />
-  </FormControl>
-  {popoverOpen && filteredSuggestions.length > 0 && (
-    <div className="absolute z-50 top-full mt-1 w-full ...">
-      <Command>
-        <CommandList>
-          <CommandGroup>
-            <CommandItem onMouseDown={...} />
-          </CommandGroup>
-        </CommandList>
-      </Command>
-    </div>
-  )}
-</FormItem>
+┌─────────────────────────────────────────────┐
+│ Uploads                                     │
+├─────────────────────────────────────────────┤
+│  [Uploads]  [Vendas]                        │
+├─────────────────────────────────────────────┤
+│ Aba Vendas:                                 │
+│ ┌─ Filtros ─────────────────────────────┐   │
+│ │ [Busca] [PDV ▾] [Status ▾] [Período]  │   │
+│ └───────────────────────────────────────┘   │
+│ ┌─ Tabela ──────────────────────────────┐   │
+│ │ Pedido | Produto | Valor | Data | ... │   │
+│ │  [Editar] [Excluir]                   │   │
+│ └───────────────────────────────────────┘   │
+│ [+ Nova Venda]     Paginação                │
+└─────────────────────────────────────────────┘
 ```
 
-Pontos importantes:
-- Usar `onMouseDown` (nao `onSelect`) nos itens para evitar que o `onBlur` do input feche a lista antes do clique
-- `z-50` garante que a lista fique acima dos outros campos do formulario
-- Sem conflito com o Dialog pai pois nao usa Radix Popover
+### Alterações por arquivo
 
-### Impacto
+1. **`src/hooks/useSalesRecords.ts`** (novo) — Hook com:
+   - Query paginada de `sales_records` com joins em `pdvs(name)` 
+   - Filtros server-side: PDV, status, busca por product_name/order_number
+   - Mutation `create` — insere registro com `source = 'manual'`
+   - Mutation `update` — atualiza campos editáveis
+   - Mutation `delete` — remove registro individual
+   - Respeita RLS existente (admin pode CRUD, users podem visualizar)
 
-| Arquivo | Tipo | Descricao |
-|---------|------|-----------|
-| `src/components/financeiro/FinancialEntryForm.tsx` | Alterado | Trocar Popover por dropdown absoluto |
+2. **`src/components/upload/SalesRecordsTab.tsx`** (novo) — Componente com:
+   - Tabela com colunas: Pedido, Produto, Valor, Data Pagamento, Método, Status, Reembolso, PDV
+   - Filtros: busca, PDV, status
+   - Botão "+ Nova Venda" (apenas admin)
+   - Ações por linha: Editar (abre dialog), Excluir (confirmação)
+   - Paginação server-side
 
-Nenhuma migration necessaria. O hook `useFinancialDescriptions` permanece inalterado.
+3. **`src/components/upload/SalesRecordFormDialog.tsx`** (novo) — Dialog para criar/editar:
+   - Campos: PDV (select), device_id, order_number, product_name, amount, payment_date, payment_method, status, refund_amount
+   - Validação com zod
+   - Modo criação e edição (preenchido com dados existentes)
+
+4. **`src/pages/Uploads.tsx`** — Envolver conteúdo existente em `Tabs`:
+   - Tab "Uploads" com todo o conteúdo atual
+   - Tab "Vendas" com `<SalesRecordsTab />`
+   - Controle de aba via state (ou query param `?tab=`)
+
+### Colunas exibidas na tabela
+
+| Coluna | Campo | Formato |
+|--------|-------|---------|
+| Pedido | `order_number` | texto |
+| Produto | `product_name` | texto |
+| Valor | `amount` | R$ formatado |
+| Data | `payment_date` | dd/MM/yyyy HH:mm |
+| Método | `payment_method` | texto |
+| Status | `status` | badge |
+| Reembolso | `refund_amount` | R$ (se > 0) |
+| PDV | `pdv.name` | texto |
+| Ações | — | editar/excluir |
+
+### Permissões
+
+- Visualização: todos com acesso ao PDV (RLS `user_can_access_pdv`)
+- Criar/Editar/Excluir: apenas admins (RLS existente cobre isso)
+- Botões de ação escondidos para não-admins via `useProfile().isAdmin`
+
+### Sem alteração de banco
+
+As RLS policies de `sales_records` já permitem SELECT, INSERT, UPDATE e DELETE para admins. Nenhuma migration necessária.
 
