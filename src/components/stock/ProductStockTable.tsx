@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { ChevronDown, ChevronUp, Eye, ShoppingCart, Plus, Pencil, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Eye, ShoppingCart } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -8,7 +8,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { SlotData } from '@/lib/stockUtils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -16,35 +15,20 @@ import { ProductDisplay } from '@/components/ui/ProductDisplay';
 import { ProductStock } from '@/lib/stockUtils';
 import { productActionLabels, productActionColors, salesIndexLabels, salesIndexColors } from '@/lib/stockLabels';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { useProductModal } from '@/contexts/ProductModalContext';
 import { useStockFilters } from '@/contexts/StockFiltersContext';
-import { useProfile } from '@/hooks/useProfile';
-import { usePDVs } from '@/hooks/usePDVs';
-import { useStockCRUD } from '@/hooks/useStockCRUD';
-import { StockCRUDDialog, StockRecordFormData } from './StockCRUDDialog';
 import { DataPagination } from '@/components/ui/data-pagination';
 import { cn } from '@/lib/utils';
 
 interface ProductStockTableProps {
   products: ProductStock[];
-  allSlots?: SlotData[];
   isLoading?: boolean;
 }
 
 type SortField = 'model' | 'quantity' | 'sales' | 'slots' | 'status';
 type SortDirection = 'asc' | 'desc';
 
-export function ProductStockTable({ products, allSlots = [], isLoading }: ProductStockTableProps) {
+export function ProductStockTable({ products, isLoading }: ProductStockTableProps) {
   const [sortField, setSortField] = useState<SortField>('quantity');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [page, setPage] = useState(0);
@@ -52,83 +36,7 @@ export function ProductStockTable({ products, allSlots = [], isLoading }: Produc
   const pageSize = 10;
   const { openProductModal } = useProductModal();
   const { selectedPdv } = useStockFilters();
-  const { isAdmin } = useProfile();
-  const { pdvs } = usePDVs();
-  const { createRecord, updateRecord, deleteRecord, isLoading: isCRUDLoading } = useStockCRUD();
   const rowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
-
-  // CRUD dialog state
-  const [crudDialogOpen, setCrudDialogOpen] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<StockRecordFormData | null>(null);
-
-  // Delete confirmation state
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
-
-  const selectedPdvData = useMemo(() => {
-    if (!selectedPdv || selectedPdv === 'all') return null;
-    return pdvs.find(p => p.id === selectedPdv) || null;
-  }, [selectedPdv, pdvs]);
-
-  const handleAddRecord = () => {
-    setEditingRecord(null);
-    setCrudDialogOpen(true);
-  };
-
-  const handleEditSlot = (product: ProductStock) => {
-    const firstSlot = product.slots[0];
-    if (!firstSlot) return;
-    // Find the full SlotData with ID
-    const slotData = allSlots.find(s => s.slot === firstSlot.slotNumber && s.pdvId === firstSlot.pdvId);
-    if (!slotData) return;
-    setEditingRecord({
-      id: slotData.id,
-      slot_number: firstSlot.slotNumber,
-      product_name: product.productName,
-      quantity: firstSlot.quantity,
-      is_active: slotData.isActive,
-    });
-    setCrudDialogOpen(true);
-  };
-
-  const handleCRUDSubmit = (data: StockRecordFormData) => {
-    if (data.id) {
-      updateRecord.mutate({
-        id: data.id,
-        product_name: data.product_name,
-        quantity: data.quantity,
-        is_active: data.is_active,
-      }, {
-        onSuccess: () => setCrudDialogOpen(false),
-      });
-    } else {
-      if (!selectedPdvData) return;
-      createRecord.mutate({
-        pdv_id: selectedPdvData.id,
-        device_id: selectedPdvData.machine_id,
-        slot_number: data.slot_number,
-        product_name: data.product_name,
-        quantity: data.quantity,
-        is_active: data.is_active,
-      }, {
-        onSuccess: () => setCrudDialogOpen(false),
-      });
-    }
-  };
-
-  const handleDeleteProduct = (product: ProductStock) => {
-    const firstSlot = product.slots[0];
-    if (!firstSlot) return;
-    const slotData = allSlots.find(s => s.slot === firstSlot.slotNumber && s.pdvId === firstSlot.pdvId);
-    if (!slotData) return;
-    setDeleteTarget({ id: slotData.id, name: product.model });
-  };
-
-  const confirmDelete = () => {
-    if (!deleteTarget) return;
-    deleteRecord.mutate(deleteTarget.id, {
-      onSuccess: () => setDeleteTarget(null),
-    });
-  };
 
   const sortedProducts = useMemo(() => {
     const sorted = [...products].sort((a, b) => {
@@ -182,6 +90,7 @@ export function ProductStockTable({ products, allSlots = [], isLoading }: Produc
       <ChevronDown className="h-4 w-4" />;
   };
 
+  // Navegação por teclado
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     const maxIndex = paginatedProducts.length - 1;
     
@@ -214,12 +123,14 @@ export function ProductStockTable({ products, allSlots = [], isLoading }: Produc
     }
   }, [focusedIndex, paginatedProducts, openProductModal, selectedPdv]);
 
+  // Mover foco para linha quando índice muda
   useEffect(() => {
     if (focusedIndex >= 0 && rowRefs.current[focusedIndex]) {
       rowRefs.current[focusedIndex]?.focus();
     }
   }, [focusedIndex]);
 
+  // Resetar foco quando muda de página
   useEffect(() => {
     setFocusedIndex(-1);
   }, [page]);
@@ -232,21 +143,9 @@ export function ProductStockTable({ products, allSlots = [], isLoading }: Produc
     return <div className="flex items-center justify-center h-64 text-muted-foreground">Nenhum produto encontrado</div>;
   }
 
-  const canAddRecord = isAdmin && selectedPdvData;
-
   return (
     <TooltipProvider>
     <div className="space-y-4">
-      {/* Header com botão de adicionar */}
-      {canAddRecord && (
-        <div className="flex justify-end">
-          <Button size="sm" onClick={handleAddRecord}>
-            <Plus className="h-4 w-4 mr-1" />
-            Novo Registro
-          </Button>
-        </div>
-      )}
-
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -291,7 +190,7 @@ export function ProductStockTable({ products, allSlots = [], isLoading }: Produc
                   Status <SortIcon field="status" />
                 </div>
               </TableHead>
-              <TableHead className="w-[100px]"></TableHead>
+              <TableHead className="w-[60px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody onKeyDown={handleKeyDown} role="grid">
@@ -372,55 +271,21 @@ export function ProductStockTable({ products, allSlots = [], isLoading }: Produc
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-1">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={() => openProductModal(product.productKey, selectedPdv !== 'all' ? selectedPdv : undefined)}
-                          data-testid="product-detail-button"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Ver detalhes</p>
-                      </TooltipContent>
-                    </Tooltip>
-                    {isAdmin && selectedPdvData && (
-                      <>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEditSlot(product)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Editar</p>
-                          </TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteProduct(product)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Excluir</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </>
-                    )}
-                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => openProductModal(product.productKey, selectedPdv !== 'all' ? selectedPdv : undefined)}
+                        data-testid="product-detail-button"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Ver detalhes</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </TableCell>
               </TableRow>
             ))}
@@ -428,6 +293,7 @@ export function ProductStockTable({ products, allSlots = [], isLoading }: Produc
         </Table>
       </div>
 
+      {/* Pagination */}
       {totalPages > 1 && (
         <DataPagination
           page={page + 1}
@@ -440,33 +306,6 @@ export function ProductStockTable({ products, allSlots = [], isLoading }: Produc
           showPageSizeSelector={false}
         />
       )}
-
-      {/* CRUD Dialog */}
-      <StockCRUDDialog
-        open={crudDialogOpen}
-        onOpenChange={setCrudDialogOpen}
-        onSubmit={handleCRUDSubmit}
-        initialData={editingRecord}
-        isLoading={isCRUDLoading}
-      />
-
-      {/* Delete Confirmation */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja excluir o registro de "{deleteTarget?.name}"? Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
     </TooltipProvider>
   );

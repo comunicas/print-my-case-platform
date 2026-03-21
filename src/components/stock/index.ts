@@ -17,5 +17,3 @@ export { StockFilters } from './StockFilters';
 export { StockGridView } from './StockGridView';
 export { StockKPICards } from './StockKPICards';
 export { StockLegend } from './StockLegend';
-export { StockCRUDDialog } from './StockCRUDDialog';
-export { PDVDataTab } from './PDVDataTab';

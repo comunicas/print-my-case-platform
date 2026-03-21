@@ -1,55 +1,67 @@
 
 
-## Nova aba "Dados" na página de Estoque — Tabelas de Vendas e Estoque por PDV
+# Correção do autocomplete de descrição no formulário de despesas
 
-### Objetivo
+## Problema identificado
 
-Adicionar uma terceira aba na página de Estoque chamada **"Dados"** que exibe as tabelas brutas de vendas (`sales_records`) e estoque (`stock_records`) filtradas pelo PDV selecionado, com paginação.
+O campo de autocomplete de descrição **não funciona corretamente** porque o `PopoverTrigger` com `asChild` envolve o `<Input>`, transformando-o em um elemento do tipo "button" internamente. Isso causa:
 
-### Layout
+1. O popover com sugestões não aparece ao focar/digitar
+2. O campo pode perder foco ou não aceitar digitação em alguns cenários
+3. O Radix Popover dentro de um Dialog tem conflitos de foco conhecidos
+
+A query de dados funciona corretamente -- retorna 6 descrições únicas para a categoria "fixas" (Aluguel, Internet, Licenciamento, Limpeza, Marketing).
+
+## Solução
+
+Substituir a abordagem `Popover + PopoverTrigger` por um padrão de **dropdown controlado manualmente** usando posicionamento absoluto, sem depender do Radix Popover. Isso elimina os conflitos de foco com o Dialog.
+
+### Alteracao em `src/components/financeiro/FinancialEntryForm.tsx`
+
+1. Remover imports de `Popover`, `PopoverContent`, `PopoverTrigger`
+2. Manter o `Input` como elemento normal (sem wrapper de trigger)
+3. Renderizar a lista de sugestoes como um `div` com posicao absoluta abaixo do input, controlado pelo estado `popoverOpen`
+4. Usar `Command` / `CommandList` / `CommandGroup` / `CommandItem` dentro desse div para manter o mesmo visual
+5. Adicionar handler `onBlur` com `setTimeout` para fechar ao perder foco (permitindo clique nos itens antes)
+
+### Estrutura do campo corrigido
 
 ```text
-[Tabela] [Mapa] [Dados]
-
-Aba Dados:
-┌─ Vendas ──────────────────────────────────────────┐
-│ Data       │ Produto     │ Valor  │ Status │ Pgto  │
-│ 21/03/2026 │ SAMSUNG X   │ R$299  │ Pago   │ Cartão│
-│ ...        │ ...         │ ...    │ ...    │ ...   │
-└───────────────────────────── Paginação ───────────┘
-
-┌─ Estoque ─────────────────────────────────────────┐
-│ Slot │ Produto       │ Qtd │ Ativo │ PDV          │
-│ 01   │ SAMSUNG X     │ 5   │ ✓     │ PDV Tietê   │
-│ ...  │ ...           │ ... │ ...   │ ...          │
-└───────────────────────────── Paginação ───────────┘
+<FormItem className="relative">
+  <FormLabel>Descricao</FormLabel>
+  <FormControl>
+    <Input
+      ref={inputRef}
+      value={field.value}
+      onChange={...}  // atualiza valor + abre lista
+      onFocus={...}   // abre lista
+      onBlur={...}    // fecha lista com delay
+    />
+  </FormControl>
+  {popoverOpen && filteredSuggestions.length > 0 && (
+    <div className="absolute z-50 top-full mt-1 w-full ...">
+      <Command>
+        <CommandList>
+          <CommandGroup>
+            <CommandItem onMouseDown={...} />
+          </CommandGroup>
+        </CommandList>
+      </Command>
+    </div>
+  )}
+</FormItem>
 ```
 
-### Alterações
+Pontos importantes:
+- Usar `onMouseDown` (nao `onSelect`) nos itens para evitar que o `onBlur` do input feche a lista antes do clique
+- `z-50` garante que a lista fique acima dos outros campos do formulario
+- Sem conflito com o Dialog pai pois nao usa Radix Popover
 
-**1. `src/hooks/usePDVSalesData.ts`** (novo)
-- Hook que busca `sales_records` com filtro por PDV e `allowedPdvIds`
-- Campos: `payment_date`, `product_name`, `amount`, `status`, `payment_method`, `order_number`
-- Paginação server-side com `range()`
-- Ordenação por `payment_date` desc
+### Impacto
 
-**2. `src/components/stock/PDVDataTab.tsx`** (novo)
-- Componente com duas seções: "Vendas" e "Estoque"
-- Tabela de vendas usa o hook `usePDVSalesData`
-- Tabela de estoque reutiliza os `slots` já carregados (via props)
-- Ambas com `DataPagination`
-- Formatação: datas em pt-BR, valores em R$, status com badges coloridos
+| Arquivo | Tipo | Descricao |
+|---------|------|-----------|
+| `src/components/financeiro/FinancialEntryForm.tsx` | Alterado | Trocar Popover por dropdown absoluto |
 
-**3. `src/pages/Stock.tsx`** — Adicionar aba "Dados"
-- Adicionar "dados" ao `VALID_TABS`
-- Novo `TabsTrigger` e `TabsContent` renderizando `PDVDataTab`
-- Passar `slots` e `selectedPdv` como props
-
-**4. `src/components/stock/index.ts`** — Exportar `PDVDataTab`
-
-### Dados
-
-- Vendas: query direta em `sales_records` com filtro por `pdv_id`
-- Estoque: reutiliza os `slots` já carregados pelo `useProductStock`
-- Sem necessidade de alteração no banco
+Nenhuma migration necessaria. O hook `useFinancialDescriptions` permanece inalterado.
 

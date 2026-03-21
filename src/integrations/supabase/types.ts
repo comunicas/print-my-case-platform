@@ -942,7 +942,7 @@ export type Database = {
           quantity: number
           record_number: string | null
           slot_number: string
-          upload_id: string | null
+          upload_id: string
         }
         Insert: {
           device_id: string
@@ -953,7 +953,7 @@ export type Database = {
           quantity: number
           record_number?: string | null
           slot_number: string
-          upload_id?: string | null
+          upload_id: string
         }
         Update: {
           device_id?: string
@@ -964,7 +964,7 @@ export type Database = {
           quantity?: number
           record_number?: string | null
           slot_number?: string
-          upload_id?: string | null
+          upload_id?: string
         }
         Relationships: [
           {
