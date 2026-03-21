@@ -1,54 +1,55 @@
 
 
-## CRUD de Estoque por PDV — Gerenciamento Direto
+## Nova aba "Dados" na página de Estoque — Tabelas de Vendas e Estoque por PDV
 
-### Contexto
+### Objetivo
 
-Hoje os `stock_records` só entram via upload de planilha. O campo `upload_id` é NOT NULL, impedindo inserções manuais. O usuário quer adicionar, editar e excluir linhas de estoque diretamente por PDV.
+Adicionar uma terceira aba na página de Estoque chamada **"Dados"** que exibe as tabelas brutas de vendas (`sales_records`) e estoque (`stock_records`) filtradas pelo PDV selecionado, com paginação.
 
-### Abordagem
+### Layout
 
-Tornar `upload_id` nullable em `stock_records` para permitir registros manuais (sem upload associado), e criar uma interface CRUD na página de Estoque.
+```text
+[Tabela] [Mapa] [Dados]
+
+Aba Dados:
+┌─ Vendas ──────────────────────────────────────────┐
+│ Data       │ Produto     │ Valor  │ Status │ Pgto  │
+│ 21/03/2026 │ SAMSUNG X   │ R$299  │ Pago   │ Cartão│
+│ ...        │ ...         │ ...    │ ...    │ ...   │
+└───────────────────────────── Paginação ───────────┘
+
+┌─ Estoque ─────────────────────────────────────────┐
+│ Slot │ Produto       │ Qtd │ Ativo │ PDV          │
+│ 01   │ SAMSUNG X     │ 5   │ ✓     │ PDV Tietê   │
+│ ...  │ ...           │ ... │ ...   │ ...          │
+└───────────────────────────── Paginação ───────────┘
+```
 
 ### Alterações
 
-**1. Migração — `stock_records.upload_id` nullable**
-```sql
-ALTER TABLE stock_records ALTER COLUMN upload_id DROP NOT NULL;
-```
+**1. `src/hooks/usePDVSalesData.ts`** (novo)
+- Hook que busca `sales_records` com filtro por PDV e `allowedPdvIds`
+- Campos: `payment_date`, `product_name`, `amount`, `status`, `payment_method`, `order_number`
+- Paginação server-side com `range()`
+- Ordenação por `payment_date` desc
 
-**2. `src/hooks/useStockCRUD.ts`** (novo)
-- Hook com mutations para INSERT, UPDATE e DELETE em `stock_records`
-- INSERT: cria registro com `upload_id = null`, `pdv_id`, `device_id` (do PDV), `slot_number`, `product_name`, `quantity`, `is_active`
-- UPDATE: atualiza `product_name`, `quantity`, `is_active`
-- DELETE: remove registro por ID
-- Invalida queries `['slots-data']` e `['product-stock']` no sucesso
+**2. `src/components/stock/PDVDataTab.tsx`** (novo)
+- Componente com duas seções: "Vendas" e "Estoque"
+- Tabela de vendas usa o hook `usePDVSalesData`
+- Tabela de estoque reutiliza os `slots` já carregados (via props)
+- Ambas com `DataPagination`
+- Formatação: datas em pt-BR, valores em R$, status com badges coloridos
 
-**3. `src/components/stock/StockCRUDDialog.tsx`** (novo)
-- Dialog para adicionar/editar registro de estoque
-- Campos: Slot, Produto, Quantidade, Ativo (switch)
-- Modo edição pré-preenche dados existentes
-- Validação: slot obrigatório, produto obrigatório, quantidade ≥ 0
+**3. `src/pages/Stock.tsx`** — Adicionar aba "Dados"
+- Adicionar "dados" ao `VALID_TABS`
+- Novo `TabsTrigger` e `TabsContent` renderizando `PDVDataTab`
+- Passar `slots` e `selectedPdv` como props
 
-**4. `src/components/stock/ProductStockTable.tsx`** — Adicionar ações
-- Botão "+" no header para adicionar novo registro
-- Botões de editar/excluir em cada linha (visíveis apenas para admins)
-- Confirmação de exclusão com AlertDialog
+**4. `src/components/stock/index.ts`** — Exportar `PDVDataTab`
 
-**5. `src/components/stock/StockGridView.tsx`** — Adicionar ação de edição
-- Menu de contexto ou botão no card do slot para editar/excluir
+### Dados
 
-### Fluxo
-
-1. Admin seleciona PDV no filtro
-2. Clica "+" → abre dialog com campos vazios → salva → registro aparece na tabela
-3. Clica editar em linha existente → dialog pré-preenchido → salva
-4. Clica excluir → confirmação → remove registro
-
-### Considerações
-
-- RLS existente já cobre INSERT/UPDATE/DELETE para admins na mesma org
-- `device_id` será obtido do PDV selecionado (campo `machine_id` da tabela `pdvs`)
-- Registros manuais coexistem com registros importados por planilha
-- Queries existentes (`useSlotsData`) já funcionam sem filtrar por `upload_id`
+- Vendas: query direta em `sales_records` com filtro por `pdv_id`
+- Estoque: reutiliza os `slots` já carregados pelo `useProductStock`
+- Sem necessidade de alteração no banco
 
