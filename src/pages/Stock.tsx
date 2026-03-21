@@ -72,6 +72,7 @@ function StockContent() {
             <TabsList>
               <TabsTrigger value="tabela">Tabela</TabsTrigger>
               <TabsTrigger value="mapa">Mapa</TabsTrigger>
+              <TabsTrigger value="dados">Dados</TabsTrigger>
             </TabsList>
 
             <TabsContent value="tabela" className="mt-4">
@@ -80,6 +81,10 @@ function StockContent() {
 
             <TabsContent value="mapa" className="mt-4">
               <StockGridView slots={slots} filteredSlots={filteredSlots} brands={brands} isLoading={isLoading} />
+            </TabsContent>
+
+            <TabsContent value="dados" className="mt-4">
+              <PDVDataTab slots={slots} />
             </TabsContent>
           </Tabs>
         </div>
