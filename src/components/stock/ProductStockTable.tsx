@@ -118,7 +118,9 @@ export function ProductStockTable({ products, allSlots = [], isLoading }: Produc
   const handleDeleteProduct = (product: ProductStock) => {
     const firstSlot = product.slots[0];
     if (!firstSlot) return;
-    setDeleteTarget({ id: firstSlot.id, name: product.model });
+    const slotData = allSlots.find(s => s.slot === firstSlot.slotNumber && s.pdvId === firstSlot.pdvId);
+    if (!slotData) return;
+    setDeleteTarget({ id: slotData.id, name: product.model });
   };
 
   const confirmDelete = () => {
