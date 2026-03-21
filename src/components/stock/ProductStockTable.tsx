@@ -37,6 +37,7 @@ import { cn } from '@/lib/utils';
 
 interface ProductStockTableProps {
   products: ProductStock[];
+  allSlots?: SlotData[];
   isLoading?: boolean;
 }
 
