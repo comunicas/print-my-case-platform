@@ -75,15 +75,17 @@ export function ProductStockTable({ products, allSlots = [], isLoading }: Produc
   };
 
   const handleEditSlot = (product: ProductStock) => {
-    // Edit the first slot of this product
     const firstSlot = product.slots[0];
     if (!firstSlot) return;
+    // Find the full SlotData with ID
+    const slotData = allSlots.find(s => s.slot === firstSlot.slotNumber && s.pdvId === firstSlot.pdvId);
+    if (!slotData) return;
     setEditingRecord({
-      id: firstSlot.id,
+      id: slotData.id,
       slot_number: firstSlot.slotNumber,
       product_name: product.productName,
       quantity: firstSlot.quantity,
-      is_active: true,
+      is_active: slotData.isActive,
     });
     setCrudDialogOpen(true);
   };
