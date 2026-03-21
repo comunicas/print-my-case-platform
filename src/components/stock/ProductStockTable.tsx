@@ -44,7 +44,7 @@ interface ProductStockTableProps {
 type SortField = 'model' | 'quantity' | 'sales' | 'slots' | 'status';
 type SortDirection = 'asc' | 'desc';
 
-export function ProductStockTable({ products, isLoading }: ProductStockTableProps) {
+export function ProductStockTable({ products, allSlots = [], isLoading }: ProductStockTableProps) {
   const [sortField, setSortField] = useState<SortField>('quantity');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [page, setPage] = useState(0);
