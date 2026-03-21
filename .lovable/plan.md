@@ -1,67 +1,54 @@
 
 
-# Correção do autocomplete de descrição no formulário de despesas
+## CRUD de Estoque por PDV — Gerenciamento Direto
 
-## Problema identificado
+### Contexto
 
-O campo de autocomplete de descrição **não funciona corretamente** porque o `PopoverTrigger` com `asChild` envolve o `<Input>`, transformando-o em um elemento do tipo "button" internamente. Isso causa:
+Hoje os `stock_records` só entram via upload de planilha. O campo `upload_id` é NOT NULL, impedindo inserções manuais. O usuário quer adicionar, editar e excluir linhas de estoque diretamente por PDV.
 
-1. O popover com sugestões não aparece ao focar/digitar
-2. O campo pode perder foco ou não aceitar digitação em alguns cenários
-3. O Radix Popover dentro de um Dialog tem conflitos de foco conhecidos
+### Abordagem
 
-A query de dados funciona corretamente -- retorna 6 descrições únicas para a categoria "fixas" (Aluguel, Internet, Licenciamento, Limpeza, Marketing).
+Tornar `upload_id` nullable em `stock_records` para permitir registros manuais (sem upload associado), e criar uma interface CRUD na página de Estoque.
 
-## Solução
+### Alterações
 
-Substituir a abordagem `Popover + PopoverTrigger` por um padrão de **dropdown controlado manualmente** usando posicionamento absoluto, sem depender do Radix Popover. Isso elimina os conflitos de foco com o Dialog.
-
-### Alteracao em `src/components/financeiro/FinancialEntryForm.tsx`
-
-1. Remover imports de `Popover`, `PopoverContent`, `PopoverTrigger`
-2. Manter o `Input` como elemento normal (sem wrapper de trigger)
-3. Renderizar a lista de sugestoes como um `div` com posicao absoluta abaixo do input, controlado pelo estado `popoverOpen`
-4. Usar `Command` / `CommandList` / `CommandGroup` / `CommandItem` dentro desse div para manter o mesmo visual
-5. Adicionar handler `onBlur` com `setTimeout` para fechar ao perder foco (permitindo clique nos itens antes)
-
-### Estrutura do campo corrigido
-
-```text
-<FormItem className="relative">
-  <FormLabel>Descricao</FormLabel>
-  <FormControl>
-    <Input
-      ref={inputRef}
-      value={field.value}
-      onChange={...}  // atualiza valor + abre lista
-      onFocus={...}   // abre lista
-      onBlur={...}    // fecha lista com delay
-    />
-  </FormControl>
-  {popoverOpen && filteredSuggestions.length > 0 && (
-    <div className="absolute z-50 top-full mt-1 w-full ...">
-      <Command>
-        <CommandList>
-          <CommandGroup>
-            <CommandItem onMouseDown={...} />
-          </CommandGroup>
-        </CommandList>
-      </Command>
-    </div>
-  )}
-</FormItem>
+**1. Migração — `stock_records.upload_id` nullable**
+```sql
+ALTER TABLE stock_records ALTER COLUMN upload_id DROP NOT NULL;
 ```
 
-Pontos importantes:
-- Usar `onMouseDown` (nao `onSelect`) nos itens para evitar que o `onBlur` do input feche a lista antes do clique
-- `z-50` garante que a lista fique acima dos outros campos do formulario
-- Sem conflito com o Dialog pai pois nao usa Radix Popover
+**2. `src/hooks/useStockCRUD.ts`** (novo)
+- Hook com mutations para INSERT, UPDATE e DELETE em `stock_records`
+- INSERT: cria registro com `upload_id = null`, `pdv_id`, `device_id` (do PDV), `slot_number`, `product_name`, `quantity`, `is_active`
+- UPDATE: atualiza `product_name`, `quantity`, `is_active`
+- DELETE: remove registro por ID
+- Invalida queries `['slots-data']` e `['product-stock']` no sucesso
 
-### Impacto
+**3. `src/components/stock/StockCRUDDialog.tsx`** (novo)
+- Dialog para adicionar/editar registro de estoque
+- Campos: Slot, Produto, Quantidade, Ativo (switch)
+- Modo edição pré-preenche dados existentes
+- Validação: slot obrigatório, produto obrigatório, quantidade ≥ 0
 
-| Arquivo | Tipo | Descricao |
-|---------|------|-----------|
-| `src/components/financeiro/FinancialEntryForm.tsx` | Alterado | Trocar Popover por dropdown absoluto |
+**4. `src/components/stock/ProductStockTable.tsx`** — Adicionar ações
+- Botão "+" no header para adicionar novo registro
+- Botões de editar/excluir em cada linha (visíveis apenas para admins)
+- Confirmação de exclusão com AlertDialog
 
-Nenhuma migration necessaria. O hook `useFinancialDescriptions` permanece inalterado.
+**5. `src/components/stock/StockGridView.tsx`** — Adicionar ação de edição
+- Menu de contexto ou botão no card do slot para editar/excluir
+
+### Fluxo
+
+1. Admin seleciona PDV no filtro
+2. Clica "+" → abre dialog com campos vazios → salva → registro aparece na tabela
+3. Clica editar em linha existente → dialog pré-preenchido → salva
+4. Clica excluir → confirmação → remove registro
+
+### Considerações
+
+- RLS existente já cobre INSERT/UPDATE/DELETE para admins na mesma org
+- `device_id` será obtido do PDV selecionado (campo `machine_id` da tabela `pdvs`)
+- Registros manuais coexistem com registros importados por planilha
+- Queries existentes (`useSlotsData`) já funcionam sem filtrar por `upload_id`
 
