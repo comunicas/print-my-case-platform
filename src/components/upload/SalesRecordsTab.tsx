@@ -36,15 +36,21 @@ interface Props {
 }
 
 const statusLabels: Record<string, string> = {
-  Completed: "Concluído",
-  Cancelled: "Cancelado",
-  Refunded: "Reembolsado",
+  completed: "Concluído",
+  cancelled: "Cancelado",
+  refunded: "Reembolsado",
+  concluído: "Concluído",
+  cancelado: "Cancelado",
+  reembolsado: "Reembolsado",
 };
 
 const statusColors: Record<string, string> = {
-  Completed: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  Cancelled: "bg-destructive/10 text-destructive",
-  Refunded: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  completed: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800",
+  concluído: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800",
+  cancelled: "bg-destructive/10 text-destructive border-destructive/20",
+  cancelado: "bg-destructive/10 text-destructive border-destructive/20",
+  refunded: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800",
+  reembolsado: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800",
 };
 
 const formatCurrency = (v: number) =>
