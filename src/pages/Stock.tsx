@@ -8,6 +8,7 @@ import { StockFilters } from "@/components/stock/StockFilters";
 import { ProductStockTable } from "@/components/stock/ProductStockTable";
 import { StockGridView } from "@/components/stock/StockGridView";
 import { StockEmptyState } from "@/components/stock/StockEmptyState";
+import { PDVDataTab } from "@/components/stock/PDVDataTab";
 import { useProductStock } from "@/hooks/useProductStock";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { useIsMobile } from "@/hooks/use-mobile";
