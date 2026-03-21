@@ -14,7 +14,7 @@ import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 
-const VALID_TABS = ["tabela", "mapa"] as const;
+const VALID_TABS = ["tabela", "mapa", "dados"] as const;
 
 function StockContent() {
   const [searchParams, setSearchParams] = useSearchParams();
