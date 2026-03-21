@@ -74,7 +74,7 @@ function StockContent() {
             </TabsList>
 
             <TabsContent value="tabela" className="mt-4">
-              <ProductStockTable products={products} isLoading={isLoading} />
+              <ProductStockTable products={products} allSlots={slots} isLoading={isLoading} />
             </TabsContent>
 
             <TabsContent value="mapa" className="mt-4">
