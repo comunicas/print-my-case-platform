@@ -646,45 +646,6 @@ Deno.serve(async (req) => {
     let anomalySkipped = 0;
 
     if (upload.type === "sales") {
-      // === DELETE PREVIOUS RECORDS FOR THIS PDV ===
-      // First, get all previous uploads for this PDV and type (excluding current)
-      const { data: previousUploads } = await supabase
-        .from("uploads")
-        .select("id")
-        .eq("pdv_id", pdvId)
-        .eq("type", "sales")
-        .neq("id", uploadId);
-      
-      if (previousUploads && previousUploads.length > 0) {
-        const previousUploadIds = previousUploads.map(u => u.id);
-        
-        // Delete sales records from previous uploads
-        const { count: deletedCount, error: deleteRecordsError } = await supabase
-          .from("sales_records")
-          .delete({ count: 'exact' })
-          .in("upload_id", previousUploadIds);
-        
-        if (deleteRecordsError) {
-          console.error(`Upload ${uploadId}: Error deleting previous sales records`, deleteRecordsError.message);
-        } else {
-          deletedPreviousRecords = deletedCount || 0;
-          console.log(`Upload ${uploadId}: Deleted ${deletedPreviousRecords} previous sales records from ${previousUploads.length} uploads`);
-        }
-        
-        // Delete previous upload records
-        const { error: deleteUploadsError } = await supabase
-          .from("uploads")
-          .delete()
-          .in("id", previousUploadIds);
-        
-        if (deleteUploadsError) {
-          console.error(`Upload ${uploadId}: Error deleting previous uploads`, deleteUploadsError.message);
-        } else {
-          console.log(`Upload ${uploadId}: Deleted ${previousUploads.length} previous upload records`);
-        }
-      }
-      // === END DELETE PREVIOUS RECORDS ===
-      
       // Map rows to sales records with validation
       const salesRecords = rows.map(row => mapSalesRow(row, pdvId, uploadId)).filter(Boolean);
       
