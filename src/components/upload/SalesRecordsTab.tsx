@@ -58,7 +58,7 @@ const statusColors: Record<string, string> = {
 const formatCurrency = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-export function SalesRecordsTab({ pdvs }: Props) {
+export function SalesRecordsTab({ pdvs, onUploadClick, canUpload }: Props) {
   const { isAdmin } = useProfile();
   const [search, setSearch] = useState("");
   const [filterPdv, setFilterPdv] = useState("all");
