@@ -26,13 +26,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, FileSpreadsheet } from "lucide-react";
 import { useProfile } from "@/hooks/useProfile";
 import { useSalesRecords, type SalesRecordItem, type CreateSalesRecordData } from "@/hooks/useSalesRecords";
 import { SalesRecordFormDialog } from "./SalesRecordFormDialog";
 
 interface Props {
   pdvs: { id: string; name: string; machine_id: string; status: string | null }[];
+  onUploadClick?: () => void;
+  canUpload?: boolean;
 }
 
 const statusLabels: Record<string, string> = {
@@ -56,7 +58,7 @@ const statusColors: Record<string, string> = {
 const formatCurrency = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-export function SalesRecordsTab({ pdvs }: Props) {
+export function SalesRecordsTab({ pdvs, onUploadClick, canUpload }: Props) {
   const { isAdmin } = useProfile();
   const [search, setSearch] = useState("");
   const [filterPdv, setFilterPdv] = useState("all");
@@ -144,12 +146,20 @@ export function SalesRecordsTab({ pdvs }: Props) {
           />
         </FilterBar>
 
-        {isAdmin && (
-          <Button className="w-full sm:w-auto" onClick={() => { setEditingRecord(null); setFormOpen(true); }}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Venda
-          </Button>
-        )}
+        <div className="flex gap-2 w-full sm:w-auto">
+          {canUpload && onUploadClick && (
+            <Button variant="outline" className="w-full sm:w-auto" onClick={onUploadClick}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Importar Planilha
+            </Button>
+          )}
+          {isAdmin && (
+            <Button className="w-full sm:w-auto" onClick={() => { setEditingRecord(null); setFormOpen(true); }}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Venda
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Table */}
