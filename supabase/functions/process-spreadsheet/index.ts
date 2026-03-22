@@ -698,14 +698,14 @@ Deno.serve(async (req) => {
         }
       }
 
-      // === DEDUPLICATION: remove records that already exist via API ===
+      // === DEDUPLICATION: remove records that already exist (any source) ===
       const uniqueOrderNumbers = [...new Set(
         cleanRecords
           .map(r => r?.order_number as string)
           .filter(Boolean)
       )];
 
-      const existingApiOrderNumbers = new Set<string>();
+      const existingOrderNumbers = new Set<string>();
 
       if (uniqueOrderNumbers.length > 0) {
         const dedupChunkSize = 500;
@@ -715,7 +715,6 @@ Deno.serve(async (req) => {
             .from("sales_records")
             .select("order_number")
             .eq("pdv_id", pdvId)
-            .eq("source", "api")
             .in("order_number", chunk);
 
           if (dedupError) {
