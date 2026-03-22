@@ -426,7 +426,7 @@ export default function Uploads() {
           </TabsContent>
 
           <TabsContent value="vendas">
-            <SalesRecordsTab pdvs={pdvs} />
+            <SalesRecordsTab pdvs={pdvs} onUploadClick={() => setIsUploadDialogOpen(true)} canUpload={canUpload} />
           </TabsContent>
         </Tabs>
       </div>

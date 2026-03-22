@@ -146,12 +146,20 @@ export function SalesRecordsTab({ pdvs, onUploadClick, canUpload }: Props) {
           />
         </FilterBar>
 
-        {isAdmin && (
-          <Button className="w-full sm:w-auto" onClick={() => { setEditingRecord(null); setFormOpen(true); }}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Venda
-          </Button>
-        )}
+        <div className="flex gap-2 w-full sm:w-auto">
+          {canUpload && onUploadClick && (
+            <Button variant="outline" className="w-full sm:w-auto" onClick={onUploadClick}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Importar Planilha
+            </Button>
+          )}
+          {isAdmin && (
+            <Button className="w-full sm:w-auto" onClick={() => { setEditingRecord(null); setFormOpen(true); }}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Venda
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Table */}
