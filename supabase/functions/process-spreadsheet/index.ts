@@ -759,44 +759,21 @@ Deno.serve(async (req) => {
         recordsInserted += chunk.length;
       }
     } else if (upload.type === "stock") {
-      // === DELETE PREVIOUS RECORDS FOR THIS PDV ===
-      // First, get all previous uploads for this PDV and type (excluding current)
-      const { data: previousUploads } = await supabase
-        .from("uploads")
-        .select("id")
-        .eq("pdv_id", pdvId)
-        .eq("type", "stock")
-        .neq("id", uploadId);
+      // === REPLACE STOCK RECORDS FOR THIS PDV (snapshot) ===
+      // Stock is a snapshot of current machine state, so we replace existing stock_records
+      // for this PDV, but PRESERVE previous upload records for history
+      const { count: deletedCount, error: deleteRecordsError } = await supabase
+        .from("stock_records")
+        .delete({ count: 'exact' })
+        .eq("pdv_id", pdvId);
       
-      if (previousUploads && previousUploads.length > 0) {
-        const previousUploadIds = previousUploads.map(u => u.id);
-        
-        // Delete stock records from previous uploads
-        const { count: deletedCount, error: deleteRecordsError } = await supabase
-          .from("stock_records")
-          .delete({ count: 'exact' })
-          .in("upload_id", previousUploadIds);
-        
-        if (deleteRecordsError) {
-          console.error(`Upload ${uploadId}: Error deleting previous stock records`, deleteRecordsError.message);
-        } else {
-          deletedPreviousRecords = deletedCount || 0;
-          console.log(`Upload ${uploadId}: Deleted ${deletedPreviousRecords} previous stock records from ${previousUploads.length} uploads`);
-        }
-        
-        // Delete previous upload records
-        const { error: deleteUploadsError } = await supabase
-          .from("uploads")
-          .delete()
-          .in("id", previousUploadIds);
-        
-        if (deleteUploadsError) {
-          console.error(`Upload ${uploadId}: Error deleting previous uploads`, deleteUploadsError.message);
-        } else {
-          console.log(`Upload ${uploadId}: Deleted ${previousUploads.length} previous upload records`);
-        }
+      if (deleteRecordsError) {
+        console.error(`Upload ${uploadId}: Error deleting previous stock records`, deleteRecordsError.message);
+      } else {
+        deletedPreviousRecords = deletedCount || 0;
+        console.log(`Upload ${uploadId}: Replaced ${deletedPreviousRecords} previous stock records for PDV ${pdvId}`);
       }
-      // === END DELETE PREVIOUS RECORDS ===
+      // === END REPLACE STOCK RECORDS ===
       
       // Map rows to stock records with validation
       const stockRecords = rows.map(row => mapStockRow(row, pdvId, uploadId)).filter(Boolean);
