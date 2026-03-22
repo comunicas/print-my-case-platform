@@ -1,25 +1,50 @@
 
 
-## Adicionar Upload de Planilha na Aba Vendas
+## Corrigir Edge Function: Parar de Apagar Histórico ao Subir Planilha
 
-### Resumo
+### Problema
 
-Adicionar um botão "Importar Planilha" na aba Vendas que abre o `UploadDialog` pré-configurado para tipo "sales", permitindo enviar planilhas de vendas diretamente sem sair da aba.
+A edge function `process-spreadsheet` apaga **todos** os uploads e registros anteriores do mesmo PDV/tipo antes de inserir os novos dados (linhas 649-686 para vendas, 802-838 para estoque). Isso destrói o histórico ao invés de apenas adicionar os dados faltantes.
 
-### Alterações
+### Causa Raiz
 
-**1. `src/components/upload/SalesRecordsTab.tsx`**
-- Adicionar props: `onUploadClick` (callback para abrir o dialog)
-- Adicionar botão "Importar Planilha" ao lado do botão "Nova Venda" (visível para quem pode fazer upload — `canUpload`)
-- Ícone `FileSpreadsheet` + texto
+Blocos `DELETE PREVIOUS RECORDS` nas linhas 649-686 (sales) e 802-838 (stock):
+- Busca todos os uploads anteriores do mesmo PDV/tipo
+- Deleta todos os `sales_records` / `stock_records` vinculados
+- Deleta os uploads anteriores
 
-**2. `src/pages/Uploads.tsx`**
-- Criar estado `uploadFromVendas` para controlar abertura do dialog a partir da aba Vendas
-- Passar `onUploadClick` para `SalesRecordsTab` que seta `isUploadDialogOpen(true)` 
-- O `UploadDialog` já existente será reutilizado (mesmo que está na aba Uploads)
-- Passar prop `canUpload` para o SalesRecordsTab controlar visibilidade do botão
+A deduplicação existente (linhas 740-784) só verifica `source = 'api'`, ignorando registros já importados via planilha.
 
-### Resultado
+### Correção
 
-Na aba Vendas, ao lado de "Nova Venda", aparece o botão "Importar Planilha". Ao clicar, abre o mesmo dialog de upload já existente. Após o upload ser processado, os novos registros aparecem na tabela de vendas.
+**`supabase/functions/process-spreadsheet/index.ts`**
+
+1. **Remover os blocos de DELETE de uploads e records anteriores** (tanto para sales quanto stock)
+
+2. **Expandir deduplicação para incluir `source = 'spreadsheet'`**: Ao invés de filtrar apenas `source = 'api'`, verificar TODOS os `order_number` existentes para o PDV (sem filtro de source). Isso garante que registros já importados por planilhas anteriores não sejam duplicados.
+
+3. **Para estoque**: Estoque é snapshot (estado atual), então o comportamento correto é **substituir os records do mesmo upload_id** (que não existe pois é novo) — na prática, só inserir. Mas como pode haver uploads anteriores com os mesmos slots, usar upsert ou deduplicar por `device_id + slot_number` para o PDV.
+
+### Lógica Revisada
+
+**Sales**:
+```
+// Antes: deletava tudo e inseria
+// Depois: busca order_numbers existentes (qualquer source) e só insere os novos
+```
+
+**Stock**:
+```
+// Antes: deletava records e uploads anteriores
+// Depois: deleta apenas stock_records anteriores do mesmo PDV (para refletir snapshot atual)
+// Mantém uploads anteriores intactos para histórico
+```
+
+O estoque é diferente de vendas — estoque é um snapshot do estado atual da máquina, então faz sentido substituir os records antigos. Mas os **uploads** anteriores devem ser mantidos como histórico. Apenas os `stock_records` são substituídos (não os uploads).
+
+### Resumo das mudanças
+
+- Remover deleção de uploads anteriores (ambos os tipos)
+- Sales: expandir dedup para checar todos os order_numbers existentes (não só API)
+- Stock: manter deleção apenas de stock_records anteriores do PDV (snapshot), mas preservar uploads
 
