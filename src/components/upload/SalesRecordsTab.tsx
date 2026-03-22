@@ -26,13 +26,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, FileSpreadsheet } from "lucide-react";
 import { useProfile } from "@/hooks/useProfile";
 import { useSalesRecords, type SalesRecordItem, type CreateSalesRecordData } from "@/hooks/useSalesRecords";
 import { SalesRecordFormDialog } from "./SalesRecordFormDialog";
 
 interface Props {
   pdvs: { id: string; name: string; machine_id: string; status: string | null }[];
+  onUploadClick?: () => void;
+  canUpload?: boolean;
 }
 
 const statusLabels: Record<string, string> = {
