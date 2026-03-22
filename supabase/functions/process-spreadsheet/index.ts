@@ -721,7 +721,7 @@ Deno.serve(async (req) => {
             console.warn(`[process-spreadsheet] Upload ${uploadId}: Dedup query error (non-fatal):`, dedupError.message);
           } else if (existingRecords) {
             for (const rec of existingRecords) {
-              existingApiOrderNumbers.add(rec.order_number);
+              existingOrderNumbers.add(rec.order_number);
             }
           }
         }
@@ -730,13 +730,13 @@ Deno.serve(async (req) => {
       let dedupSkipped = 0;
       let finalRecords = cleanRecords;
 
-      if (existingApiOrderNumbers.size > 0) {
+      if (existingOrderNumbers.size > 0) {
         finalRecords = cleanRecords.filter(r => 
-          !existingApiOrderNumbers.has(r?.order_number as string)
+          !existingOrderNumbers.has(r?.order_number as string)
         );
         dedupSkipped = cleanRecords.length - finalRecords.length;
         skippedRecords += dedupSkipped;
-        console.log(`[process-spreadsheet] Upload ${uploadId}: DEDUP - Ignored ${dedupSkipped} records already ingested via API`);
+        console.log(`[process-spreadsheet] Upload ${uploadId}: DEDUP - Ignored ${dedupSkipped} records already existing`);
       }
 
       // Add explicit source field to each record
