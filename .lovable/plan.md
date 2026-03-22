@@ -1,20 +1,25 @@
 
 
-## Corrigir cores inconsistentes no badge de Status
+## Adicionar Upload de Planilha na Aba Vendas
 
-### Causa raiz
+### Resumo
 
-Dois problemas:
+Adicionar um botão "Importar Planilha" na aba Vendas que abre o `UploadDialog` pré-configurado para tipo "sales", permitindo enviar planilhas de vendas diretamente sem sair da aba.
 
-1. **Conflito de classes CSS**: O `Badge` usa `variant="default"` implicitamente, que aplica `bg-primary text-primary-foreground`. A `className` customizada (ex: `bg-emerald-100`) compete com essas classes base. O Tailwind não garante ordem de precedência quando duas classes de background coexistem.
+### Alterações
 
-2. **Case sensitivity**: Se o campo `status` no banco vier com casing diferente de `"Completed"` (ex: `"completed"`, `"COMPLETED"`), o lookup no `statusColors` falha e aplica o fallback cinza.
+**1. `src/components/upload/SalesRecordsTab.tsx`**
+- Adicionar props: `onUploadClick` (callback para abrir o dialog)
+- Adicionar botão "Importar Planilha" ao lado do botão "Nova Venda" (visível para quem pode fazer upload — `canUpload`)
+- Ícone `FileSpreadsheet` + texto
 
-### Alteração
+**2. `src/pages/Uploads.tsx`**
+- Criar estado `uploadFromVendas` para controlar abertura do dialog a partir da aba Vendas
+- Passar `onUploadClick` para `SalesRecordsTab` que seta `isUploadDialogOpen(true)` 
+- O `UploadDialog` já existente será reutilizado (mesmo que está na aba Uploads)
+- Passar prop `canUpload` para o SalesRecordsTab controlar visibilidade do botão
 
-**`src/components/upload/SalesRecordsTab.tsx`**
+### Resultado
 
-- Usar `variant="outline"` ou `variant="secondary"` no `Badge` para remover o `bg-primary` conflitante, e deixar a `className` customizada ter precedência
-- Normalizar o status com `.toLowerCase()` ou lookup case-insensitive antes de buscar no mapa de cores
-- Adicionar mais variações possíveis no mapa (ex: `"completed"`, `"Concluído"`)
+Na aba Vendas, ao lado de "Nova Venda", aparece o botão "Importar Planilha". Ao clicar, abre o mesmo dialog de upload já existente. Após o upload ser processado, os novos registros aparecem na tabela de vendas.
 
