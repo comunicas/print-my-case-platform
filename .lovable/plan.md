@@ -1,28 +1,27 @@
 
 
-## Problema: Edge Function não foi redeployada
+## Validação de device_id vs machine_id do PDV na Edge Function
 
-Os logs da edge function `process-spreadsheet` mostram apenas "booted" e "shutdown" — nenhuma mensagem de deduplicação aparece, confirmando que a versão em produção **não contém** o código de deduplicação cross-PDV que foi adicionado ao arquivo `supabase/functions/process-spreadsheet/index.ts`.
+### Ideia
 
-### Ação necessária
-
-**1. Forçar redeploy da edge function `process-spreadsheet`**
-- Adicionar um comentário trivial no arquivo (ex: `// force redeploy v2`) para garantir que o sistema detecte a mudança e faça o deploy
-
-**2. Verificar dados atuais**
-- Confirmar via query que Tietê não tem registros com `device_id = '1001013'` (limpeza anterior foi executada)
-
-**3. Após deploy, testar**
-- Subir a planilha do Boulevard selecionando Tietê como PDV
-- Verificar nos logs que mensagens de deduplicação cross-PDV aparecem
-- Confirmar que 0 registros são inseridos (todos duplicados)
+Cada PDV tem um `machine_id` fixo (ex: `1001013` para Boulevard). As planilhas de vendas contêm um campo `device_id` (ID do Dispositivo) em cada linha. Se o `device_id` da planilha **não bater** com o `machine_id` do PDV selecionado, o upload deve ser **rejeitado** antes de inserir qualquer registro — prevenindo 100% das duplicatas cross-PDV na origem.
 
 ### Alteração
 
-**`supabase/functions/process-spreadsheet/index.ts`** — Adicionar comentário para forçar redeploy:
-```typescript
-// Cross-PDV dedup v2 - force redeploy
-```
+**`supabase/functions/process-spreadsheet/index.ts`** — Adicionar validação pós-parse, antes da inserção:
 
-Isso é suficiente para triggerar um novo deploy automático da edge function com o código correto de deduplicação.
+1. Após parsear as linhas da planilha, extrair todos os `device_id` únicos encontrados
+2. Buscar o `machine_id` do PDV selecionado na tabela `pdvs`
+3. Comparar:
+   - Se **todos** os `device_id` da planilha batem com o `machine_id` do PDV → prosseguir normalmente
+   - Se **nenhum** bate → rejeitar o upload com erro claro: _"O ID do dispositivo na planilha (X) não corresponde ao PDV selecionado (Y). Selecione o PDV correto."_
+   - Se **alguns** batem e outros não → filtrar apenas os registros com device_id correto, logar warning sobre os descartados
+
+4. Posição no fluxo: após a etapa de parse XLSX (linha ~596) e antes da deduplicação (linha ~702)
+
+### Resultado
+
+- Upload da planilha do Boulevard selecionando Tietê → **erro imediato**, nenhum registro inserido
+- Upload da planilha do Boulevard selecionando Boulevard → funciona normalmente
+- A deduplicação cross-PDV existente continua como segunda camada de proteção
 
