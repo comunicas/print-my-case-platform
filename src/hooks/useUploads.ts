@@ -224,15 +224,19 @@ export function useUploads(filters: UploadsFilters = {}) {
           }
         }).catch(async (err) => {
           console.error("Spreadsheet processing error:", err);
-          // Marcar upload como erro para não ficar travado em "processing"
+          const errorMsg = err?.message || "Erro ao processar planilha";
           await supabase
             .from("uploads")
             .update({ 
               status: "error", 
-              error_message: err?.message || "Erro ao processar planilha" 
+              error_message: errorMsg 
             })
             .eq("id", insertedUpload.id);
           queryClient.invalidateQueries({ queryKey: ["uploads"] });
+          toast.error("Erro no upload", {
+            description: errorMsg,
+            duration: 8000,
+          });
         });
       }
 
