@@ -194,14 +194,19 @@ export function useUploads(filters: UploadsFilters = {}) {
           // Verificar erro da edge function (status 4xx/5xx retorna em response.error, não lança exceção)
           if (response.error) {
             console.error("Spreadsheet processing error:", response.error);
+            const errorMsg = response.error.message || "Erro ao processar planilha";
             await supabase
               .from("uploads")
               .update({ 
                 status: "error", 
-                error_message: response.error.message || "Erro ao processar planilha" 
+                error_message: errorMsg 
               })
               .eq("id", insertedUpload.id);
             queryClient.invalidateQueries({ queryKey: ["uploads"] });
+            toast.error("Erro no upload", {
+              description: errorMsg,
+              duration: 8000,
+            });
             return;
           }
 
