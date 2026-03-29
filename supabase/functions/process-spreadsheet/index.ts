@@ -698,7 +698,8 @@ Deno.serve(async (req) => {
         }
       }
 
-      // === DEDUPLICATION: remove records that already exist (any source) ===
+      // === DEDUPLICATION: remove records that already exist in ANY PDV of the org ===
+      // This prevents cross-PDV duplicates (e.g. uploading Boulevard's spreadsheet to Tietê)
       const uniqueOrderNumbers = [...new Set(
         cleanRecords
           .map(r => r?.order_number as string)
@@ -707,6 +708,27 @@ Deno.serve(async (req) => {
 
       const existingOrderNumbers = new Set<string>();
 
+      // Get all PDV IDs in the same organization for cross-PDV dedup
+      let orgPdvIds: string[] = [pdvId];
+      {
+        const { data: pdvData } = await supabase
+          .from("pdvs")
+          .select("id, organization_id")
+          .eq("id", pdvId)
+          .single();
+        
+        if (pdvData?.organization_id) {
+          const { data: allPdvs } = await supabase
+            .from("pdvs")
+            .select("id")
+            .eq("organization_id", pdvData.organization_id);
+          
+          if (allPdvs && allPdvs.length > 0) {
+            orgPdvIds = allPdvs.map(p => p.id);
+          }
+        }
+      }
+
       if (uniqueOrderNumbers.length > 0) {
         const dedupChunkSize = 500;
         for (let i = 0; i < uniqueOrderNumbers.length; i += dedupChunkSize) {
@@ -714,7 +736,7 @@ Deno.serve(async (req) => {
           const { data: existingRecords, error: dedupError } = await supabase
             .from("sales_records")
             .select("order_number")
-            .eq("pdv_id", pdvId)
+            .in("pdv_id", orgPdvIds)
             .in("order_number", chunk);
 
           if (dedupError) {
@@ -725,6 +747,10 @@ Deno.serve(async (req) => {
             }
           }
         }
+      }
+
+      if (existingOrderNumbers.size > 0 && orgPdvIds.length > 1) {
+        console.warn(`[process-spreadsheet] Upload ${uploadId}: Cross-PDV dedup active across ${orgPdvIds.length} PDVs - found ${existingOrderNumbers.size} existing order_numbers`);
       }
 
       let dedupSkipped = 0;
