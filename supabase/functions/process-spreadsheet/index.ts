@@ -657,6 +657,50 @@ Deno.serve(async (req) => {
       
       skippedRecords = rows.length - validRecords.length;
 
+      // === DEVICE ID vs MACHINE ID VALIDATION ===
+      // Prevent uploading a spreadsheet to the wrong PDV by checking device_id matches machine_id
+      {
+        const { data: pdvInfo } = await supabase
+          .from("pdvs")
+          .select("machine_id, name")
+          .eq("id", pdvId)
+          .single();
+
+        if (pdvInfo?.machine_id) {
+          const uniqueDeviceIds = [...new Set(
+            validRecords.map(r => r?.device_id as string).filter(Boolean)
+          )];
+
+          const matchingRecords = validRecords.filter(r => r?.device_id === pdvInfo.machine_id);
+          const mismatchedRecords = validRecords.filter(r => r?.device_id && r.device_id !== pdvInfo.machine_id);
+
+          if (matchingRecords.length === 0 && mismatchedRecords.length > 0) {
+            // ALL records have wrong device_id — reject entirely
+            const wrongIds = uniqueDeviceIds.filter(id => id !== pdvInfo.machine_id).join(', ');
+            const errorMsg = `O ID do dispositivo na planilha (${wrongIds}) não corresponde ao PDV selecionado "${pdvInfo.name}" (${pdvInfo.machine_id}). Selecione o PDV correto.`;
+            console.error(`[process-spreadsheet] Upload ${uploadId}: REJECTED — device_id mismatch. Sheet: [${wrongIds}], PDV machine_id: ${pdvInfo.machine_id}`);
+
+            await supabase
+              .from("uploads")
+              .update({ status: "error", error_message: errorMsg, processed_at: new Date().toISOString() })
+              .eq("id", uploadId);
+
+            return new Response(
+              JSON.stringify({ success: false, error: errorMsg }),
+              { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          } else if (mismatchedRecords.length > 0) {
+            // Some records match, some don't — filter out mismatched and warn
+            const wrongIds = [...new Set(mismatchedRecords.map(r => r?.device_id as string))].join(', ');
+            console.warn(`[process-spreadsheet] Upload ${uploadId}: Filtered out ${mismatchedRecords.length} records with wrong device_id [${wrongIds}], keeping ${matchingRecords.length} with correct device_id ${pdvInfo.machine_id}`);
+            // Replace validRecords with only matching ones
+            validRecords.length = 0;
+            validRecords.push(...matchingRecords);
+            skippedRecords = rows.length - validRecords.length;
+          }
+        }
+      }
+
       // Detect amount anomalies before insertion — atribui à variável do escopo externo para reutilização
       detectedAnomalies = detectAmountAnomalies(validRecords as Record<string, unknown>[]);
       if (detectedAnomalies.length > 0) {
