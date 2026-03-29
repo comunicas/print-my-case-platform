@@ -1,34 +1,28 @@
 
 
-## Fix: Cross-PDV Deduplication Not Working
+## Problema: Edge Function não foi redeployada
 
-### Root Cause
+Os logs da edge function `process-spreadsheet` mostram apenas "booted" e "shutdown" — nenhuma mensagem de deduplicação aparece, confirmando que a versão em produção **não contém** o código de deduplicação cross-PDV que foi adicionado ao arquivo `supabase/functions/process-spreadsheet/index.ts`.
 
-The edge function `process-spreadsheet` was **not redeployed** after the deduplication code was added. Evidence:
-- Re-processing the Boulevard spreadsheet targeting Tietê inserted 84 duplicate records
-- Edge function logs show NO dedup-related console.log messages, confirming the deployed version lacks the dedup code
-- The code in `supabase/functions/process-spreadsheet/index.ts` is correct — it just wasn't deployed
+### Ação necessária
 
-### Fix Steps
+**1. Forçar redeploy da edge function `process-spreadsheet`**
+- Adicionar um comentário trivial no arquivo (ex: `// force redeploy v2`) para garantir que o sistema detecte a mudança e faça o deploy
 
-**1. Clean up the 84 duplicate records (SQL migration)**
-Delete the records that were just re-inserted into Tietê with `device_id = '1001013'`:
-```sql
-DELETE FROM sales_records
-WHERE pdv_id = 'b2c3d4e5-f6a7-8901-bcde-f23456789012'
-  AND device_id = '1001013'
-  AND source = 'spreadsheet';
+**2. Verificar dados atuais**
+- Confirmar via query que Tietê não tem registros com `device_id = '1001013'` (limpeza anterior foi executada)
+
+**3. Após deploy, testar**
+- Subir a planilha do Boulevard selecionando Tietê como PDV
+- Verificar nos logs que mensagens de deduplicação cross-PDV aparecem
+- Confirmar que 0 registros são inseridos (todos duplicados)
+
+### Alteração
+
+**`supabase/functions/process-spreadsheet/index.ts`** — Adicionar comentário para forçar redeploy:
+```typescript
+// Cross-PDV dedup v2 - force redeploy
 ```
 
-**2. Redeploy the edge function**
-Force redeploy `process-spreadsheet` to ensure the cross-PDV dedup code is live.
-
-**3. Retest**
-Call the edge function again with the same Boulevard upload targeting Tietê and verify:
-- 0 records inserted (all 84 should be skipped as duplicates)
-- Logs show dedup messages
-- Total records in Tietê remain at 987 (only device `1001543`)
-
-### No code changes needed
-The code is already correct. This is a deployment + data cleanup issue only.
+Isso é suficiente para triggerar um novo deploy automático da edge function com o código correto de deduplicação.
 
