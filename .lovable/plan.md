@@ -1,45 +1,34 @@
 
 
-## Análise de Duplicatas: 284 transações NÃO estão corretas
+## Fix: Cross-PDV Deduplication Not Working
 
-### Diagnóstico
+### Root Cause
 
-O número real de transações únicas no período 01/03 - 29/03 é **203**, não 284.
+The edge function `process-spreadsheet` was **not redeployed** after the deduplication code was added. Evidence:
+- Re-processing the Boulevard spreadsheet targeting Tietê inserted 84 duplicate records
+- Edge function logs show NO dedup-related console.log messages, confirming the deployed version lacks the dedup code
+- The code in `supabase/functions/process-spreadsheet/index.ts` is correct — it just wasn't deployed
 
-Existem **81 order_numbers duplicados** que aparecem em dois PDVs diferentes:
+### Fix Steps
 
-| PDV | device_id | source | registros |
-|-----|-----------|--------|-----------|
-| BOULEVARD TATUAPE | 1001013 | api | 63 |
-| BOULEVARD TATUAPE | 1001013 | spreadsheet | 19 |
-| Tietê Plaza Shopping | 1001543 | spreadsheet | 120 |
-| **Tietê Plaza Shopping** | **1001013** ← errado | spreadsheet | **82** |
-
-**Causa raiz**: Uma planilha contendo vendas da máquina `1001013` (Boulevard) foi enviada selecionando "Tietê Plaza Shopping" como PDV. O sistema salvou os 82 registros como se fossem do Tietê. A deduplicação não detectou porque verifica `order_number` apenas dentro do mesmo `pdv_id`.
-
-### Correção proposta
-
-**1. Limpeza dos dados duplicados (migration SQL)**
-- Deletar os 82 registros em Tietê que têm `device_id = '1001013'` (máquina do Boulevard)
-- Isso corrige a contagem para 203 transações
-
-**2. Prevenir futuras duplicatas cross-PDV (`process-spreadsheet/index.ts`)**
-- Na deduplicação, verificar `order_number` em TODOS os PDVs da organização, não apenas no PDV selecionado
-- Se um order_number já existe em outro PDV da mesma org, ignorar o registro (é duplicata cross-PDV)
-- Adicionar log/warning quando isso acontece para alertar o operador
-
-### Detalhamento técnico
-
-**Migration**:
+**1. Clean up the 84 duplicate records (SQL migration)**
+Delete the records that were just re-inserted into Tietê with `device_id = '1001013'`:
 ```sql
 DELETE FROM sales_records
-WHERE pdv_id = 'b2c3d4e5-f6a7-8901-bcde-f23456789012'  -- Tietê
-  AND device_id = '1001013'                              -- máquina do Boulevard
+WHERE pdv_id = 'b2c3d4e5-f6a7-8901-bcde-f23456789012'
+  AND device_id = '1001013'
   AND source = 'spreadsheet';
 ```
 
-**Edge function** — expandir deduplicação (linhas 710-728):
-- Buscar todos os PDVs da mesma organização
-- Verificar order_numbers existentes em qualquer PDV da org (não só no pdvId do upload)
-- Filtrar registros duplicados antes da inserção
+**2. Redeploy the edge function**
+Force redeploy `process-spreadsheet` to ensure the cross-PDV dedup code is live.
+
+**3. Retest**
+Call the edge function again with the same Boulevard upload targeting Tietê and verify:
+- 0 records inserted (all 84 should be skipped as duplicates)
+- Logs show dedup messages
+- Total records in Tietê remain at 987 (only device `1001543`)
+
+### No code changes needed
+The code is already correct. This is a deployment + data cleanup issue only.
 
