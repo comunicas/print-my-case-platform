@@ -1,50 +1,45 @@
 
 
-## Corrigir Edge Function: Parar de Apagar Histórico ao Subir Planilha
+## Análise de Duplicatas: 284 transações NÃO estão corretas
 
-### Problema
+### Diagnóstico
 
-A edge function `process-spreadsheet` apaga **todos** os uploads e registros anteriores do mesmo PDV/tipo antes de inserir os novos dados (linhas 649-686 para vendas, 802-838 para estoque). Isso destrói o histórico ao invés de apenas adicionar os dados faltantes.
+O número real de transações únicas no período 01/03 - 29/03 é **203**, não 284.
 
-### Causa Raiz
+Existem **81 order_numbers duplicados** que aparecem em dois PDVs diferentes:
 
-Blocos `DELETE PREVIOUS RECORDS` nas linhas 649-686 (sales) e 802-838 (stock):
-- Busca todos os uploads anteriores do mesmo PDV/tipo
-- Deleta todos os `sales_records` / `stock_records` vinculados
-- Deleta os uploads anteriores
+| PDV | device_id | source | registros |
+|-----|-----------|--------|-----------|
+| BOULEVARD TATUAPE | 1001013 | api | 63 |
+| BOULEVARD TATUAPE | 1001013 | spreadsheet | 19 |
+| Tietê Plaza Shopping | 1001543 | spreadsheet | 120 |
+| **Tietê Plaza Shopping** | **1001013** ← errado | spreadsheet | **82** |
 
-A deduplicação existente (linhas 740-784) só verifica `source = 'api'`, ignorando registros já importados via planilha.
+**Causa raiz**: Uma planilha contendo vendas da máquina `1001013` (Boulevard) foi enviada selecionando "Tietê Plaza Shopping" como PDV. O sistema salvou os 82 registros como se fossem do Tietê. A deduplicação não detectou porque verifica `order_number` apenas dentro do mesmo `pdv_id`.
 
-### Correção
+### Correção proposta
 
-**`supabase/functions/process-spreadsheet/index.ts`**
+**1. Limpeza dos dados duplicados (migration SQL)**
+- Deletar os 82 registros em Tietê que têm `device_id = '1001013'` (máquina do Boulevard)
+- Isso corrige a contagem para 203 transações
 
-1. **Remover os blocos de DELETE de uploads e records anteriores** (tanto para sales quanto stock)
+**2. Prevenir futuras duplicatas cross-PDV (`process-spreadsheet/index.ts`)**
+- Na deduplicação, verificar `order_number` em TODOS os PDVs da organização, não apenas no PDV selecionado
+- Se um order_number já existe em outro PDV da mesma org, ignorar o registro (é duplicata cross-PDV)
+- Adicionar log/warning quando isso acontece para alertar o operador
 
-2. **Expandir deduplicação para incluir `source = 'spreadsheet'`**: Ao invés de filtrar apenas `source = 'api'`, verificar TODOS os `order_number` existentes para o PDV (sem filtro de source). Isso garante que registros já importados por planilhas anteriores não sejam duplicados.
+### Detalhamento técnico
 
-3. **Para estoque**: Estoque é snapshot (estado atual), então o comportamento correto é **substituir os records do mesmo upload_id** (que não existe pois é novo) — na prática, só inserir. Mas como pode haver uploads anteriores com os mesmos slots, usar upsert ou deduplicar por `device_id + slot_number` para o PDV.
-
-### Lógica Revisada
-
-**Sales**:
-```
-// Antes: deletava tudo e inseria
-// Depois: busca order_numbers existentes (qualquer source) e só insere os novos
-```
-
-**Stock**:
-```
-// Antes: deletava records e uploads anteriores
-// Depois: deleta apenas stock_records anteriores do mesmo PDV (para refletir snapshot atual)
-// Mantém uploads anteriores intactos para histórico
+**Migration**:
+```sql
+DELETE FROM sales_records
+WHERE pdv_id = 'b2c3d4e5-f6a7-8901-bcde-f23456789012'  -- Tietê
+  AND device_id = '1001013'                              -- máquina do Boulevard
+  AND source = 'spreadsheet';
 ```
 
-O estoque é diferente de vendas — estoque é um snapshot do estado atual da máquina, então faz sentido substituir os records antigos. Mas os **uploads** anteriores devem ser mantidos como histórico. Apenas os `stock_records` são substituídos (não os uploads).
-
-### Resumo das mudanças
-
-- Remover deleção de uploads anteriores (ambos os tipos)
-- Sales: expandir dedup para checar todos os order_numbers existentes (não só API)
-- Stock: manter deleção apenas de stock_records anteriores do PDV (snapshot), mas preservar uploads
+**Edge function** — expandir deduplicação (linhas 710-728):
+- Buscar todos os PDVs da mesma organização
+- Verificar order_numbers existentes em qualquer PDV da org (não só no pdvId do upload)
+- Filtrar registros duplicados antes da inserção
 
