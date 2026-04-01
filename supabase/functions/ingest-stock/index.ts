@@ -106,6 +106,7 @@ Deno.serve(async (req) => {
     }
 
     const organizationId = apiKeyRecord.organization_id;
+    console.log(`[ingest-stock] auth OK | org=${organizationId}`);
 
     // 3. Parse body — single record
     const body = await req.json();
@@ -140,6 +141,8 @@ Deno.serve(async (req) => {
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    console.log(`[ingest-stock] PDV resolved | pdv=${pdv.id} device=${deviceId}`);
 
     // 5. Validate single record fields
     const slotNumber = sanitizeString(body.slot_number, FIELD_LIMITS.slot_number);
@@ -244,6 +247,8 @@ Deno.serve(async (req) => {
       );
     }
 
+    console.log(`[ingest-stock] OK | pdv=${pdv.id} slot=${slotNumber} product=${productName} qty=${quantity} deleted=${deletedCount ?? 0}`);
+
     // 9. Atualizar stock_history com totais AGREGADOS do brand (não valor de um único slot)
     const brand = extractBrand(productName);
 
@@ -297,6 +302,8 @@ Deno.serve(async (req) => {
           });
       }
     }
+
+    console.log(`[ingest-stock] history | brand=${brand} totalQty=${brandRecords.reduce((s, r) => s + ((r as { quantity: number }).quantity ?? 0), 0)} activeSlots=${brandRecords.filter(r => (r as { is_active: boolean }).is_active).length}`);
 
     // 10. Update last_used_at
     await supabase
