@@ -80,8 +80,7 @@ export function StockFiltersProvider({ children }: { children: ReactNode }) {
     state.searchTerm !== '' ||
     state.brandFilter !== 'all' ||
     state.statusFilter !== 'all' ||
-    state.salesIndexFilter !== 'all' ||
-    state.saleStatusFilter !== 'completed';
+    state.salesIndexFilter !== 'all';
 
   return (
     <StockFiltersContext.Provider value={{
