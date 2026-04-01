@@ -55,5 +55,6 @@ export function getQuantityBadgeColor(quantity: number, isActive: boolean = true
   if (quantity === 0) return 'bg-red-500';
   if (quantity <= STOCK_THRESHOLDS.CRITICAL) return 'bg-orange-500';
   if (quantity <= STOCK_THRESHOLDS.LOW) return 'bg-yellow-500';
+  if (quantity < MAX_CAPACITY) return 'bg-lime-500';
   return 'bg-green-500';
 }

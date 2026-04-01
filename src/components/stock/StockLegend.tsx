@@ -7,7 +7,7 @@ interface StockLegendProps {
   brands?: string[];
 }
 
-const LEGEND_STATUSES: SlotVisualStatus[] = ['full', 'medium', 'critical', 'empty', 'inactive'];
+const LEGEND_STATUSES: SlotVisualStatus[] = ['full', 'medium', 'low', 'critical', 'empty', 'inactive'];
 
 export const StockLegend = React.memo(function StockLegend({ brands = [] }: StockLegendProps) {
   return (
