@@ -332,7 +332,8 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
                       }
                       
                       // Verifica se o slot está nos slots filtrados
-                      const isInFilteredSlots = !filteredSlotNumbers || filteredSlotNumbers.has(slotNumber);
+                      const slotKey = isMultiPdv ? `${slotData.pdvId}-${slotNumber}` : slotNumber;
+                      const isInFilteredSlots = !filteredSlotKeys || filteredSlotKeys.has(slotKey);
                       const isHighlighted = hasFilter && isInFilteredSlots;
                       const isFiltered = hasFilter && !isInFilteredSlots;
                       const isFocused = focusedSlot === slotNumber;
