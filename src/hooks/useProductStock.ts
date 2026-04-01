@@ -132,7 +132,7 @@ export function useProductStock() {
     if (filters.salesIndexFilter && filters.salesIndexFilter !== 'all') {
       filtered = filtered.filter(p => p.salesIndex === filters.salesIndexFilter);
       slotsFiltered = slotsFiltered.filter(s => {
-        const productSold = salesByProduct.get(s.productName) || 0;
+        const productSold = countSalesForProduct(s.productName, salesByProduct);
         return getSalesIndex(productSold) === filters.salesIndexFilter;
       });
     }
