@@ -1,35 +1,43 @@
 
 
-## Exibir toast de erro ao detectar PDV incorreto no upload
+## Limpar Uploads Duplicados de Estoque
 
-### Problema
-Quando a edge function rejeita o upload por `device_id` incorreto, o erro é salvo no banco e logado no console, mas **nenhum toast** é exibido ao usuário. A tela fica sem feedback visual.
+### Dados
 
-### Alteração
+| PDV | Dia | Registros | Deveria ter |
+|-----|-----|-----------|-------------|
+| Boulevard | 2026-02-22 | 8,910 | 1 |
+| Tietê | 2026-02-21 | 3,424 | 1 |
+| Boulevard | 2026-03-06 | 1,698 | 1 |
+| Boulevard | 2026-03-20 | 704 | 1 |
+| (outros) | ... | ~48 | 1 cada |
 
-**`src/hooks/useUploads.ts`** — Adicionar `toast.error()` nos dois blocos de tratamento de erro (linhas 195-205 e 220-230):
+**Total**: 14,784 → manter 52, deletar 14,732
 
-- No bloco `if (response.error)` (linha 195): extrair a mensagem de erro do response e exibir um `toast.error` com título "Erro no upload" e a descrição retornada pela edge function
-- No bloco `.catch()` (linha 220): mesma lógica de toast
+### Ação
 
-A mensagem da edge function já vem formatada em português (ex: _"O ID do dispositivo na planilha (1001018) não corresponde ao PDV selecionado..."_), então basta exibi-la diretamente no toast.
+Executar uma query DELETE que mantém apenas o upload mais recente (por `uploaded_at`) de cada par PDV/dia:
 
-### Código esperado
-
-```typescript
-// Dentro do bloco if (response.error) — após o console.error
-toast.error("Erro no upload", {
-  description: response.error.message || "Erro ao processar planilha",
-  duration: 8000,
-});
-
-// Dentro do .catch — após o console.error
-toast.error("Erro no upload", {
-  description: err?.message || "Erro ao processar planilha",
-  duration: 8000,
-});
+```sql
+DELETE FROM uploads
+WHERE type = 'stock'
+  AND id NOT IN (
+    SELECT DISTINCT ON (pdv_id, uploaded_at::date) id
+    FROM uploads
+    WHERE type = 'stock'
+    ORDER BY pdv_id, uploaded_at::date, uploaded_at DESC
+  );
 ```
 
-### Resultado
-Ao subir planilha com device_id errado, o usuário verá imediatamente um toast vermelho com a mensagem explicando qual device_id foi encontrado e qual era esperado.
+Isso usa `DISTINCT ON` para selecionar o registro mais recente de cada PDV/dia e deleta todos os outros.
+
+### Sem risco
+
+- Os `stock_records` referenciam `upload_id` mas não têm foreign key com CASCADE, então a deleção dos uploads duplicados **não** apaga stock_records
+- Os uploads mantidos são os mais recentes de cada dia (que correspondem aos stock_records atuais)
+
+### Resultado esperado
+
+- Tabela `uploads` (tipo stock): de 14,784 → 52 registros
+- Nenhum impacto nos dados de estoque ou vendas
 
