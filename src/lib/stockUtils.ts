@@ -125,17 +125,10 @@ export function aggregateProductStock(
 }
 
 /**
- * Determina o status do produto baseado em slots
+ * Determina o status do produto baseado na quantidade total
  */
 export function getProductStatus(product: ProductStock): ProductActionStatus {
-  // Estoque total <= 2: repor se vende, ok se não vende
-  if (product.totalQuantity <= 2) {
-    if (product.salesIndex === 'none') return 'ok';
-    return 'restock';
-  }
-  // Tem slot vazio mas estoque total > 2: redistribuir
-  if (product.hasOutOfStock) return 'redistribute';
-  return 'ok';
+  return getProductActionStatus(product.totalQuantity);
 }
 
 /**
