@@ -31,18 +31,18 @@ export const StockKPICards = React.memo(function StockKPICards({ kpis, globalKpi
       description: isFiltered ? 'Filtrado' : 'Itens em estoque',
     },
     {
-      title: 'Produtos Críticos',
+      title: 'Repor',
       value: String(kpis.criticalProducts),
       icon: AlertTriangle,
-      description: 'Precisam reposição',
+      description: '0 unidades',
       highlight: kpis.criticalProducts > 0 ? 'destructive' : undefined,
     },
     {
-      title: 'Redistribuir',
-      value: String(kpis.redistributeProducts),
+      title: 'Atenção',
+      value: String(kpis.warningProducts),
       icon: RefreshCw,
-      description: 'Rebalancear slots',
-      highlight: kpis.redistributeProducts > 0 ? 'warning' : undefined,
+      description: '1-2 unidades',
+      highlight: kpis.warningProducts > 0 ? 'warning' : undefined,
     },
   ];
 

@@ -8,12 +8,11 @@ export type { ProductActionStatus, SalesIndex };
  * Determina o status de ação de um slot individual baseado na quantidade
  * Indica o que deve ser feito: ok, redistribuir ou repor
  */
-export function getProductActionStatus(quantity: number, salesIndex?: SalesIndex): ProductActionStatus {
-  if (quantity <= 2) {
-    if (salesIndex && salesIndex === 'none') return 'ok';
-    return 'restock';
-  }
-  return 'ok';
+export function getProductActionStatus(quantity: number): ProductActionStatus {
+  if (quantity === 0) return 'restock';
+  if (quantity <= 2) return 'warning';
+  if (quantity <= 4) return 'monitor';
+  return 'perfect';
 }
 
 /**
@@ -65,7 +64,8 @@ export interface StockKPIs {
   totalProducts: number;
   totalUnits: number;
   criticalProducts: number;
-  redistributeProducts: number;
+  warningProducts: number;
+  monitorProducts: number;
   occupiedSlots: number;
   emptySlots: number;
 }
@@ -98,7 +98,7 @@ export function aggregateProductStock(
         totalSold,
         hasOutOfStock: false,
         hasLowStock: false,
-        status: 'ok',
+        status: 'perfect',
         salesIndex: getSalesIndex(totalSold),
       });
     }
@@ -125,17 +125,10 @@ export function aggregateProductStock(
 }
 
 /**
- * Determina o status do produto baseado em slots
+ * Determina o status do produto baseado na quantidade total
  */
 export function getProductStatus(product: ProductStock): ProductActionStatus {
-  // Estoque total <= 2: repor se vende, ok se não vende
-  if (product.totalQuantity <= 2) {
-    if (product.salesIndex === 'none') return 'ok';
-    return 'restock';
-  }
-  // Tem slot vazio mas estoque total > 2: redistribuir
-  if (product.hasOutOfStock) return 'redistribute';
-  return 'ok';
+  return getProductActionStatus(product.totalQuantity);
 }
 
 /**
@@ -158,7 +151,8 @@ export function calculateStockKPIs(products: ProductStock[], totalSlots: number)
     totalProducts: products.length,
     totalUnits: products.reduce((acc, p) => acc + p.totalQuantity, 0),
     criticalProducts: products.filter(p => p.status === 'restock').length,
-    redistributeProducts: products.filter(p => p.status === 'redistribute').length,
+    warningProducts: products.filter(p => p.status === 'warning').length,
+    monitorProducts: products.filter(p => p.status === 'monitor').length,
     occupiedSlots,
     emptySlots: totalSlots - occupiedSlots,
   };

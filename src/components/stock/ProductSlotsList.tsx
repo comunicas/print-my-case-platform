@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 
 interface ProductSlotsListProps {
   slots: SlotData[];
-  status: 'ok' | 'redistribute' | 'restock';
+  status: 'perfect' | 'monitor' | 'warning' | 'restock';
   isLoading?: boolean;
 }
 

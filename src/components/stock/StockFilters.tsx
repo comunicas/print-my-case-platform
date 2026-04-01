@@ -10,8 +10,9 @@ import { useMemo } from 'react';
 
 const STATUS_OPTIONS: SelectFilterOption[] = [
   { value: 'all', label: 'Todos os status' },
-  { value: 'ok', label: 'Ok', icon: <span className="w-2 h-2 rounded-full bg-green-500" /> },
-  { value: 'redistribute', label: 'Redistribuir', icon: <span className="w-2 h-2 rounded-full bg-orange-500" /> },
+  { value: 'perfect', label: 'Perfeito', icon: <span className="w-2 h-2 rounded-full bg-green-500" /> },
+  { value: 'monitor', label: 'Acompanhar', icon: <span className="w-2 h-2 rounded-full bg-blue-500" /> },
+  { value: 'warning', label: 'Atenção', icon: <span className="w-2 h-2 rounded-full bg-orange-500" /> },
   { value: 'restock', label: 'Repor', icon: <span className="w-2 h-2 rounded-full bg-destructive" /> },
 ];
 

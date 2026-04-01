@@ -4,14 +4,16 @@ import type { ProductActionStatus, SlotVisualStatus, SalesIndex } from './stockT
  * Labels e cores para status de ação de produto
  */
 export const productActionLabels: Record<ProductActionStatus, string> = {
-  ok: 'Ok',
-  redistribute: 'Redistribuir',
+  perfect: 'Perfeito',
+  monitor: 'Acompanhar',
+  warning: 'Atenção',
   restock: 'Repor',
 };
 
 export const productActionColors: Record<ProductActionStatus, string> = {
-  ok: 'bg-green-500/10 text-green-600 border-green-500/20',
-  redistribute: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
+  perfect: 'bg-green-500/10 text-green-600 border-green-500/20',
+  monitor: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+  warning: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
   restock: 'bg-destructive/10 text-destructive border-destructive/20',
 };
 
