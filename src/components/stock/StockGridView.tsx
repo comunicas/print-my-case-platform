@@ -85,11 +85,26 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
   
   const dimensions = SLOT_DIMENSIONS[viewMode];
 
-  // Mapeia slots por número para acesso rápido
+  // Agrupa slots por PDV para renderização separada
+  const pdvGroups = useMemo(() => groupSlotsByPdv(slots), [slots]);
+  const isMultiPdv = pdvGroups.length > 1;
+
+  // Mapeia slots por pdvId+slot para acesso rápido (evita colisão entre PDVs)
   const slotMap = useMemo(() => {
     const map = new Map<string, SlotData>();
     for (const slot of slots) {
-      map.set(slot.slot, slot);
+      // Usa chave composta quando multi-PDV, simples quando único
+      const key = isMultiPdv ? `${slot.pdvId}-${slot.slot}` : slot.slot;
+      map.set(key, slot);
+    }
+    return map;
+  }, [slots, isMultiPdv]);
+
+  // Mapa simples por slot number (para navegação por teclado - usa primeiro PDV como fallback)
+  const slotMapByNumber = useMemo(() => {
+    const map = new Map<string, SlotData>();
+    for (const slot of slots) {
+      if (!map.has(slot.slot)) map.set(slot.slot, slot);
     }
     return map;
   }, [slots]);
@@ -109,11 +124,11 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
     return totals;
   }, [slots]);
 
-  // Set de slots filtrados para verificação rápida
-  const filteredSlotNumbers = useMemo(() => {
+  // Set de slots filtrados para verificação rápida (chave composta para multi-PDV)
+  const filteredSlotKeys = useMemo(() => {
     if (!filteredSlots) return null;
-    return new Set(filteredSlots.map(s => s.slot));
-  }, [filteredSlots]);
+    return new Set(filteredSlots.map(s => isMultiPdv ? `${s.pdvId}-${s.slot}` : s.slot));
+  }, [filteredSlots, isMultiPdv]);
 
   const hasFilter = searchTerm !== '' || brandFilter !== 'all' || statusFilter !== 'all' || salesIndexFilter !== 'all';
 
