@@ -17,7 +17,6 @@ interface StockFiltersContextType extends StockFiltersState {
   setBrandFilter: (brand: string) => void;
   setStatusFilter: (status: string) => void;
   setSalesIndexFilter: (index: string) => void;
-  setSaleStatusFilter: (status: SaleStatusFilter) => void;
   clearFilters: () => void;
   hasActiveFilters: boolean;
   pdvWasAutoApplied: boolean;
