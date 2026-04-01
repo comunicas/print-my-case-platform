@@ -142,6 +142,38 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
     setIsModalOpen(true);
   }, []);
 
+  const handleExport = useCallback(() => {
+    const dataToExport = hasFilter && filteredSlots ? filteredSlots : slots;
+    const sorted = [...dataToExport].sort((a, b) =>
+      (a.pdvName || '').localeCompare(b.pdvName || '') || a.slot.localeCompare(b.slot)
+    );
+
+    const headers = ['PDV', 'Slot', 'Marca', 'Modelo', 'Quantidade', 'Capacidade', 'Status'];
+    const rows = sorted.map(s => [
+      s.pdvName || '',
+      s.slot,
+      s.brand,
+      s.model || '',
+      String(s.quantity),
+      String(MAX_CAPACITY),
+      productActionLabels[getProductActionStatus(s.quantity)],
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const date = new Date().toISOString().slice(0, 10);
+    link.download = `estoque-mapa-${date}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [slots, filteredSlots, hasFilter]);
+
   const handleCloseModal = useCallback(() => {
     setIsModalOpen(false);
     // Não limpa selectedSlot para manter consistência com navegação
