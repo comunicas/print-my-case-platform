@@ -38,16 +38,9 @@ export function useProductStock() {
     isFetching: salesFetching,
     refetch: refetchSales,
   } = useQuery({
-    queryKey: ['sales-summary', filters.selectedPdv, filters.saleStatusFilter, allowedPdvIds],
+    queryKey: ['sales-summary', filters.selectedPdv, allowedPdvIds],
     queryFn: async () => {
-      // Map filter value to database status values
-      const statusMap: Record<string, string[]> = {
-        completed: ['Completed', 'Pago', 'Concluído'],
-        cancelled: ['Cancelado', 'Cancelled'],
-        refunded: ['Refunded'],
-        all: ['Completed', 'Pago', 'Concluído', 'Cancelado', 'Cancelled', 'Refunded'],
-      };
-      const statuses = statusMap[filters.saleStatusFilter] || statusMap.completed;
+      const statuses = ['Completed', 'Pago', 'Concluído'];
       
       let query = supabase
         .from('sales_records')

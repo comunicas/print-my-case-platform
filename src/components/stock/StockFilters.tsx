@@ -107,30 +107,6 @@ export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockF
         testId="sales-index-filter"
       />
 
-      {/* Sale Status Filter */}
-      <div className="flex items-center gap-1">
-        <SelectFilter
-          value={saleStatusFilter}
-          onChange={(v) => setSaleStatusFilter(v as SaleStatusFilter)}
-          placeholder="Status venda"
-          options={SALE_STATUS_OPTIONS}
-          triggerClassName="w-full sm:w-[160px]"
-          testId="sale-status-filter"
-        />
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Info className="h-4 w-4 text-muted-foreground cursor-help flex-shrink-0" />
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-xs">
-              <p className="text-xs">
-                <strong>Padrão: Concluídas.</strong> Filtra quais vendas são usadas para calcular o índice de vendas de cada produto. 
-                Cancelamentos e reembolsos são excluídos do cálculo por padrão.
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
     </FilterBar>
   );
 }
