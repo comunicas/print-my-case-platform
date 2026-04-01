@@ -33,7 +33,7 @@ export const slotVisualLabels: Record<SlotVisualStatus, { label: string; variant
  */
 export const slotBlockColors: Record<SlotVisualStatus, string> = {
   full: 'bg-green-500',
-  medium: 'bg-yellow-500',
+  medium: 'bg-lime-500',
   low: 'bg-yellow-500',
   critical: 'bg-orange-500',
   empty: 'bg-destructive',
