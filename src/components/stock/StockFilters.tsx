@@ -23,12 +23,6 @@ const SALES_INDEX_OPTIONS: SelectFilterOption[] = [
   { value: 'none', label: 'Nenhuma' },
 ];
 
-const SALE_STATUS_OPTIONS: SelectFilterOption[] = [
-  { value: 'completed', label: 'Concluídas', icon: <span className="w-2 h-2 rounded-full bg-green-500" /> },
-  { value: 'cancelled', label: 'Canceladas', icon: <span className="w-2 h-2 rounded-full bg-destructive" /> },
-  { value: 'refunded', label: 'Reembolsadas', icon: <span className="w-2 h-2 rounded-full bg-orange-500" /> },
-  { value: 'all', label: 'Todas', icon: <span className="w-2 h-2 rounded-full bg-muted-foreground" /> },
-];
 
 interface StockFiltersProps {
   brands?: string[];
