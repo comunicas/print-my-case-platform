@@ -35,6 +35,7 @@ export function extractBrandFromProductName(fullName: string): string {
     'MI ': 'XIAOMI',
     'MOTO ': 'MOTOROLA',
     'MOTOROLA': 'MOTOROLA',
+    'REALME': 'REALME',
   };
   
   for (const [line, brand] of Object.entries(productLines)) {
