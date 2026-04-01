@@ -1,42 +1,35 @@
 
 
-## Exportar Mapa de Estoque como Tabela Simples (CSV/XLSX)
+## Exportar Mapa de Estoque em XLSX com Formatação e Cores
 
-### Funcionalidade
+### Contexto
 
-Adicionar um botão "Exportar" no header do grid (ao lado dos botões Compacto/Expandido/Fullscreen) que gera uma tabela simples com os dados dos slots visíveis, respeitando os filtros aplicados.
-
-### Formato da tabela exportada
-
-| PDV | Slot | Marca | Modelo | Quantidade | Capacidade | Status |
-|-----|------|-------|--------|------------|------------|--------|
+O projeto já tem `exceljs` instalado. O botão "Exportar" atual gera CSV. Vamos substituir o dropdown por um menu com duas opções (CSV e XLSX).
 
 ### Alterações
 
 **1. `src/components/stock/StockGridView.tsx`**
-- Importar `Download` icon do lucide-react
-- Adicionar botão "Exportar" no header (junto aos toggles)
-- Implementar função `handleExport()` que:
-  - Usa `filteredSlots` se filtros ativos, senão `slots`
-  - Ordena por PDV → Slot
-  - Gera CSV com headers em português
-  - Faz download via `Blob` + link temporário
-  - Nomeia arquivo: `estoque-mapa-YYYY-MM-DD.csv`
-- Mapeia o status de cada slot usando `getProductActionStatus` e `productActionLabels`
 
-### Lógica de exportação
+- Substituir o botão simples "Exportar" por um `DropdownMenu` com duas opções: "Exportar CSV" e "Exportar XLSX"
+- Extrair a lógica de preparação dos dados (sort, map) para uma função compartilhada `getExportData()`
+- Adicionar `handleExportXlsx()` que usa `exceljs` para gerar um arquivo `.xlsx` formatado
 
-```typescript
-const handleExport = () => {
-  const dataToExport = hasFilter && filteredSlots ? filteredSlots : slots;
-  const sorted = [...dataToExport].sort((a, b) => 
-    a.pdvName.localeCompare(b.pdvName) || a.slot.localeCompare(b.slot)
-  );
-  // Gera CSV com BOM para Excel, download automático
-};
-```
+**2. Lógica do XLSX (`handleExportXlsx`)**
+
+- Criar workbook com uma sheet "Estoque"
+- Header com fundo escuro (azul marinho), texto branco e fonte bold
+- Colunas com largura ajustada automaticamente
+- Cada linha colorida conforme o status do slot:
+  - **Perfeito** (5+): fundo verde claro
+  - **Acompanhar** (3-4): fundo azul claro
+  - **Atenção** (1-2): fundo laranja claro
+  - **Repor** (0): fundo vermelho claro
+- Coluna "Status" com texto na cor correspondente (verde/azul/laranja/vermelho)
+- Bordas finas em todas as células
+- Auto-filter no header
+- Download via `Blob` com nome `estoque-mapa-YYYY-MM-DD.xlsx`
 
 ### Resultado
 
-Botão discreto no header do grid que exporta CSV com os dados filtrados, pronto para abrir no Excel.
+O botão "Exportar" abre um dropdown com CSV (atual) e XLSX (novo, com cores e formatação profissional).
 
