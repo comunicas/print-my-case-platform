@@ -90,7 +90,6 @@ export function StockFiltersProvider({ children }: { children: ReactNode }) {
       setBrandFilter,
       setStatusFilter,
       setSalesIndexFilter,
-      setSaleStatusFilter,
       clearFilters,
       hasActiveFilters,
       pdvWasAutoApplied,
