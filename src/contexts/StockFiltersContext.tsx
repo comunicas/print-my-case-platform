@@ -73,7 +73,6 @@ export function StockFiltersProvider({ children }: { children: ReactNode }) {
   const setBrandFilter = (brand: string) => setState(s => ({ ...s, brandFilter: brand }));
   const setStatusFilter = (status: string) => setState(s => ({ ...s, statusFilter: status }));
   const setSalesIndexFilter = (index: string) => setState(s => ({ ...s, salesIndexFilter: index }));
-  const setSaleStatusFilter = (status: SaleStatusFilter) => setState(s => ({ ...s, saleStatusFilter: status }));
   
   const clearFilters = () => setState(defaultState);
   
