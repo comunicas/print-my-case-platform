@@ -281,6 +281,17 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
           </Button>
         </div>
         
+        {/* Botão exportar */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExport}
+          title="Exportar CSV"
+        >
+          <Download className="h-4 w-4" />
+          <span className="hidden sm:inline ml-1.5">Exportar</span>
+        </Button>
+
         {/* Botão fullscreen */}
         <Button 
           variant="outline" 
