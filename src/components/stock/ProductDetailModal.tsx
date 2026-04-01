@@ -92,16 +92,9 @@ export function ProductDetailModal({ productName, isOpen, onClose, pdvId }: Prod
     const model = firstSlot.model || extractModelFromProductName(firstSlot.productName);
     const totalQuantity = productSlots.reduce((sum, s) => sum + s.quantity, 0);
     const maxCapacity = productSlots.length * MAX_CAPACITY;
-    const hasLowSlot = productSlots.some(s => s.quantity <= 2);
-    const hasEmptySlot = productSlots.some(s => s.quantity === 0);
-    
-    // Determinar status
-    let status: 'ok' | 'redistribute' | 'restock' = 'ok';
-    if (hasEmptySlot || totalQuantity === 0) {
-      status = 'restock';
-    } else if (hasLowSlot) {
-      status = 'redistribute';
-    }
+    // Importar lógica centralizada
+    const { getProductActionStatus } = await import('@/lib/stockUtils');
+    const status = getProductActionStatus(totalQuantity);
     
     return {
       brand,

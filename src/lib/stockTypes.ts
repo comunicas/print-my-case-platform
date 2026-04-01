@@ -14,12 +14,13 @@ export const STOCK_THRESHOLDS = {
 } as const;
 
 /**
- * Status de ação do produto - indica o que fazer com o produto
- * ok: estoque adequado
- * redistribute: redistribuir entre slots
- * restock: repor estoque urgentemente
+ * Status de ação do produto - baseado na quantidade total
+ * perfect: 5+ unidades
+ * monitor: 3-4 unidades
+ * warning: 1-2 unidades
+ * restock: 0 unidades
  */
-export type ProductActionStatus = 'ok' | 'redistribute' | 'restock';
+export type ProductActionStatus = 'perfect' | 'monitor' | 'warning' | 'restock';
 
 /**
  * Status visual do slot - como exibir visualmente o slot

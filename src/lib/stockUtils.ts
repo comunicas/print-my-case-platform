@@ -151,7 +151,8 @@ export function calculateStockKPIs(products: ProductStock[], totalSlots: number)
     totalProducts: products.length,
     totalUnits: products.reduce((acc, p) => acc + p.totalQuantity, 0),
     criticalProducts: products.filter(p => p.status === 'restock').length,
-    redistributeProducts: products.filter(p => p.status === 'redistribute').length,
+    warningProducts: products.filter(p => p.status === 'warning').length,
+    monitorProducts: products.filter(p => p.status === 'monitor').length,
     occupiedSlots,
     emptySlots: totalSlots - occupiedSlots,
   };
