@@ -142,6 +142,8 @@ Deno.serve(async (req) => {
       );
     }
 
+    console.log(`[ingest-stock] PDV resolved | pdv=${pdv.id} device=${deviceId}`);
+
     // 5. Validate single record fields
     const slotNumber = sanitizeString(body.slot_number, FIELD_LIMITS.slot_number);
     const productName = sanitizeString(body.product_name, FIELD_LIMITS.product_name);
