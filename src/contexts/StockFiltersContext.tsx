@@ -3,15 +3,12 @@ import { usePreferences } from '@/hooks/usePreferences';
 import { usePDVs } from '@/hooks/usePDVs';
 import { toast } from 'sonner';
 
-export type SaleStatusFilter = 'completed' | 'cancelled' | 'refunded' | 'all';
-
 interface StockFiltersState {
   selectedPdv: string;
   searchTerm: string;
   brandFilter: string;
   statusFilter: string;
   salesIndexFilter: string;
-  saleStatusFilter: SaleStatusFilter;
 }
 
 interface StockFiltersContextType extends StockFiltersState {
