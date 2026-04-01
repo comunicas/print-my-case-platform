@@ -342,16 +342,26 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
           </Button>
         </div>
         
-        {/* Botão exportar */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleExport}
-          title="Exportar CSV"
-        >
-          <Download className="h-4 w-4" />
-          <span className="hidden sm:inline ml-1.5">Exportar</span>
-        </Button>
+        {/* Dropdown exportar */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" title="Exportar">
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline ml-1.5">Exportar</span>
+              <ChevronDown className="h-3 w-3 ml-1 opacity-50" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleExportCsv}>
+              <FileText className="h-4 w-4 mr-2" />
+              Exportar CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExportXlsx}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Exportar XLSX
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Botão fullscreen */}
         <Button 
