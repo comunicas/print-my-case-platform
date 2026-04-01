@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback, RefObject } from 'react';
-import { Maximize2, X, Minimize2, Expand, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Maximize2, X, Minimize2, Expand, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SlotStack } from './SlotStack';
 import { StockLegend } from './StockLegend';
