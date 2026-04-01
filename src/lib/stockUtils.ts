@@ -64,7 +64,8 @@ export interface StockKPIs {
   totalProducts: number;
   totalUnits: number;
   criticalProducts: number;
-  redistributeProducts: number;
+  warningProducts: number;
+  monitorProducts: number;
   occupiedSlots: number;
   emptySlots: number;
 }
