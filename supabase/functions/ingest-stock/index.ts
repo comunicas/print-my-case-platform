@@ -43,11 +43,19 @@ async function hashApiKey(key: string): Promise<string> {
 }
 
 function extractBrand(productName: string): string {
-  const name = productName.toUpperCase();
-  const brands = ["APPLE", "SAMSUNG", "MOTOROLA", "XIAOMI", "LG", "HUAWEI", "SONY", "NOKIA", "REALME", "POCO"];
-  for (const brand of brands) {
-    if (name.startsWith(brand + " ") || name.includes(" " + brand + " ") || name === brand) return brand;
+  const upper = (productName || "").toUpperCase().trim();
+
+  const knownBrands = ["APPLE", "SAMSUNG", "XIAOMI", "MOTOROLA", "REALME"];
+  for (const brand of knownBrands) {
+    if (upper.startsWith(brand + " ") || upper === brand) return brand;
   }
+
+  // Detect by product line
+  if (upper.includes("IPHONE") || upper.includes("MACBOOK") || upper.includes("IPAD") || upper.includes("AIRPODS")) return "APPLE";
+  if (upper.includes("GALAXY")) return "SAMSUNG";
+  if (upper.includes("REDMI") || upper.includes("POCO") || upper.includes("MI ")) return "XIAOMI";
+  if (upper.includes("MOTO ") || upper.includes("MOTOROLA")) return "MOTOROLA";
+
   return "OUTROS";
 }
 
