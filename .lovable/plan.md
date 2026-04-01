@@ -1,30 +1,40 @@
 
 
-## Remover filtro "Status da Venda" da página de Estoque
+## Correção de Cores e Legenda do Mapa de Estoque
 
-### Contexto
+### Verificação dos filtros
 
-- O **filtro de índice de vendas** (Alta/Média/Baixa/Nenhuma) **já está no plano anterior** de correção de cores/legenda — não precisa de alteração adicional aqui.
-- O **filtro "Status da Venda"** (Concluídas/Canceladas/Reembolsadas/Todas) será removido conforme solicitado.
+O filtro "Status da Venda" foi removido com sucesso. Os filtros restantes (PDV, Busca, Marca, Status de ação, Índice de vendas) estão presentes e corretamente conectados ao contexto.
+
+### Problemas visuais a corrigir
+
+| Problema | Onde |
+|----------|------|
+| `medium` e `low` usam mesma cor (`bg-yellow-500`) | `stockLabels.ts` linha 36-37 |
+| `low` ausente da legenda | `StockLegend.tsx` linha 10 |
+| Badge de quantidade não diferencia `medium` vs `low` | `stockGridUtils.ts` linha 57 |
 
 ### Alterações
 
-**1. `src/components/stock/StockFilters.tsx`**
-- Remover o bloco do "Sale Status Filter" (linhas 125-151): o `<SelectFilter>` + `<Tooltip>` + `<Info>` icon
-- Remover imports não utilizados (`Info`, `Tooltip*`)
-- Remover `SALE_STATUS_OPTIONS` (linhas 36-41)
-- Remover `saleStatusFilter` e `setSaleStatusFilter` do destructuring
+**1. `src/lib/stockLabels.ts`** — Diferenciar cores
+- `medium`: mudar de `bg-yellow-500` para `bg-lime-500`
+- `low`: manter `bg-yellow-500`
 
-**2. `src/contexts/StockFiltersContext.tsx`**
-- Remover `saleStatusFilter` do state, type, setters e `hasActiveFilters`
-- Remover `SaleStatusFilter` type export
-- Remover `setSaleStatusFilter` do contexto e do fallback
+Gradação: verde (cheio) → lima (médio) → amarelo (baixo) → laranja (crítico) → vermelho (vazio)
 
-**3. `src/hooks/useProductStock.ts`**
-- Hardcode o filtro de vendas para usar apenas status "completed" (`['Completed', 'Pago', 'Concluído']`) em vez de ler do filtro
-- Remover `saleStatusFilter` da query key
+**2. `src/components/stock/StockLegend.tsx`** — Adicionar `low` à legenda
+- Mudar `LEGEND_STATUSES` de `['full', 'medium', 'critical', 'empty', 'inactive']` para `['full', 'medium', 'low', 'critical', 'empty', 'inactive']`
+
+**3. `src/lib/stockGridUtils.ts`** — Sincronizar badge de quantidade
+- Adicionar faixa intermediária: qty 3-5 → `bg-yellow-500` (low), qty 6 → `bg-lime-500` (medium)
+```typescript
+if (quantity <= STOCK_THRESHOLDS.CRITICAL) return 'bg-orange-500';
+if (quantity <= STOCK_THRESHOLDS.LOW) return 'bg-yellow-500';
+if (quantity < MAX_CAPACITY) return 'bg-lime-500';
+return 'bg-green-500';
+```
 
 ### Resultado
 
-O filtro de status de venda desaparece da UI. As métricas de vendas passam a considerar apenas vendas concluídas (comportamento padrão anterior). O filtro de índice de vendas (Alta/Média/Baixa) permanece inalterado.
+6 níveis visuais distintos na legenda e no mapa, cada um com cor única.
 
