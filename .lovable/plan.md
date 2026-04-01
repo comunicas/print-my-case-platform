@@ -1,40 +1,48 @@
 
 
-## Correção de Cores e Legenda do Mapa de Estoque
+## Refatorar Status de Ação para 4 Estados por Quantidade
 
-### Verificação dos filtros
+### Novos estados
 
-O filtro "Status da Venda" foi removido com sucesso. Os filtros restantes (PDV, Busca, Marca, Status de ação, Índice de vendas) estão presentes e corretamente conectados ao contexto.
+| Status | Key | Quantidade | Cor |
+|--------|-----|-----------|-----|
+| Perfeito | `perfect` | 5+ | Verde |
+| Acompanhar | `monitor` | 3-4 | Azul |
+| Atenção | `warning` | 1-2 | Laranja |
+| Repor | `restock` | 0 | Vermelho |
 
-### Problemas visuais a corrigir
+A lógica antiga considerava vendas e redistribuição. A nova é **puramente baseada na quantidade total** do produto.
 
-| Problema | Onde |
-|----------|------|
-| `medium` e `low` usam mesma cor (`bg-yellow-500`) | `stockLabels.ts` linha 36-37 |
-| `low` ausente da legenda | `StockLegend.tsx` linha 10 |
-| Badge de quantidade não diferencia `medium` vs `low` | `stockGridUtils.ts` linha 57 |
+### Arquivos a alterar
 
-### Alterações
+**1. `src/lib/stockTypes.ts`**
+- Mudar `ProductActionStatus` de `'ok' | 'redistribute' | 'restock'` para `'perfect' | 'monitor' | 'warning' | 'restock'`
 
-**1. `src/lib/stockLabels.ts`** — Diferenciar cores
-- `medium`: mudar de `bg-yellow-500` para `bg-lime-500`
-- `low`: manter `bg-yellow-500`
+**2. `src/lib/stockLabels.ts`**
+- Atualizar `productActionLabels`: `{ perfect: 'Perfeito', monitor: 'Acompanhar', warning: 'Atenção', restock: 'Repor' }`
+- Atualizar `productActionColors` com cores correspondentes (verde, azul, laranja, vermelho)
 
-Gradação: verde (cheio) → lima (médio) → amarelo (baixo) → laranja (crítico) → vermelho (vazio)
+**3. `src/lib/stockUtils.ts`**
+- `getProductActionStatus()`: retornar status baseado em qty (0→restock, 1-2→warning, 3-4→monitor, 5+→perfect)
+- `getProductStatus()`: mesma lógica usando `totalQuantity` do produto
+- `StockKPIs`: renomear `redistributeProducts` → `warningProducts` ou ajustar campos
+- `calculateStockKPIs()`: atualizar filtros de contagem
 
-**2. `src/components/stock/StockLegend.tsx`** — Adicionar `low` à legenda
-- Mudar `LEGEND_STATUSES` de `['full', 'medium', 'critical', 'empty', 'inactive']` para `['full', 'medium', 'low', 'critical', 'empty', 'inactive']`
+**4. `src/components/stock/StockFilters.tsx`**
+- Atualizar `STATUS_OPTIONS` com os 4 novos valores e cores
 
-**3. `src/lib/stockGridUtils.ts`** — Sincronizar badge de quantidade
-- Adicionar faixa intermediária: qty 3-5 → `bg-yellow-500` (low), qty 6 → `bg-lime-500` (medium)
-```typescript
-if (quantity <= STOCK_THRESHOLDS.CRITICAL) return 'bg-orange-500';
-if (quantity <= STOCK_THRESHOLDS.LOW) return 'bg-yellow-500';
-if (quantity < MAX_CAPACITY) return 'bg-lime-500';
-return 'bg-green-500';
-```
+**5. `src/components/stock/StockKPICards.tsx`**
+- Atualizar KPI de "Redistribuir" para "Atenção" (ou ajustar cards)
 
-### Resultado
+**6. `src/components/stock/ProductStockTable.tsx`**
+- Atualizar `statusOrder` de ordenação
 
-6 níveis visuais distintos na legenda e no mapa, cada um com cor única.
+**7. `src/components/stock/ProductDetailModal.tsx`**
+- Atualizar lógica local de status para usar os novos estados
+
+**8. `src/components/stock/ProductSlotsList.tsx`**
+- Atualizar tipo de `status` prop
+
+### Sem impacto no banco
+Alteração é 100% frontend — os status são calculados em tempo real a partir da quantidade.
 
