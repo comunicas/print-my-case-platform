@@ -1,11 +1,4 @@
-import { Info } from 'lucide-react';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import { useStockFilters, SaleStatusFilter } from '@/contexts/StockFiltersContext';
+import { useStockFilters } from '@/contexts/StockFiltersContext';
 import { usePDVs } from '@/hooks/usePDVs';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { KNOWN_BRANDS } from '@/lib/brandAssets';
