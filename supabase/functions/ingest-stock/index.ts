@@ -247,6 +247,8 @@ Deno.serve(async (req) => {
       );
     }
 
+    console.log(`[ingest-stock] OK | pdv=${pdv.id} slot=${slotNumber} product=${productName} qty=${quantity} deleted=${deletedCount ?? 0}`);
+
     // 9. Atualizar stock_history com totais AGREGADOS do brand (não valor de um único slot)
     const brand = extractBrand(productName);
 
