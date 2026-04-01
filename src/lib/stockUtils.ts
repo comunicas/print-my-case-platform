@@ -98,7 +98,7 @@ export function aggregateProductStock(
         totalSold,
         hasOutOfStock: false,
         hasLowStock: false,
-        status: 'ok',
+        status: 'perfect',
         salesIndex: getSalesIndex(totalSold),
       });
     }
