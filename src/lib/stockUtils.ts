@@ -8,12 +8,11 @@ export type { ProductActionStatus, SalesIndex };
  * Determina o status de ação de um slot individual baseado na quantidade
  * Indica o que deve ser feito: ok, redistribuir ou repor
  */
-export function getProductActionStatus(quantity: number, salesIndex?: SalesIndex): ProductActionStatus {
-  if (quantity <= 2) {
-    if (salesIndex && salesIndex === 'none') return 'ok';
-    return 'restock';
-  }
-  return 'ok';
+export function getProductActionStatus(quantity: number): ProductActionStatus {
+  if (quantity === 0) return 'restock';
+  if (quantity <= 2) return 'warning';
+  if (quantity <= 4) return 'monitor';
+  return 'perfect';
 }
 
 /**
