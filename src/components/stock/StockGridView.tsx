@@ -144,37 +144,96 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
     setIsModalOpen(true);
   }, []);
 
-  const handleExport = useCallback(() => {
+  const getExportData = useCallback(() => {
     const dataToExport = hasFilter && filteredSlots ? filteredSlots : slots;
     const sorted = [...dataToExport].sort((a, b) =>
       (a.pdvName || '').localeCompare(b.pdvName || '') || a.slot.localeCompare(b.slot)
     );
-
     const headers = ['PDV', 'Slot', 'Marca', 'Modelo', 'Quantidade', 'Capacidade', 'Status'];
     const rows = sorted.map(s => [
       s.pdvName || '',
       s.slot,
       s.brand,
       s.model || '',
-      String(s.quantity),
-      String(MAX_CAPACITY),
+      s.quantity,
+      MAX_CAPACITY,
       productActionLabels[getProductActionStatus(s.quantity)],
     ]);
+    return { headers, rows };
+  }, [slots, filteredSlots, hasFilter]);
 
-    const csvContent = [headers, ...rows]
+  const handleExportCsv = useCallback(() => {
+    const { headers, rows } = getExportData();
+    const csvContent = [headers, ...rows.map(r => r.map(String))]
       .map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(','))
       .join('\n');
-
-    const bom = '\uFEFF';
-    const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    const date = new Date().toISOString().slice(0, 10);
-    link.download = `estoque-mapa-${date}.csv`;
+    link.download = `estoque-mapa-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-  }, [slots, filteredSlots, hasFilter]);
+  }, [getExportData]);
+
+  const handleExportXlsx = useCallback(async () => {
+    const { headers, rows } = getExportData();
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Estoque');
+
+    // Header row
+    const headerRow = ws.addRow(headers);
+    headerRow.eachCell(cell => {
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A5F' } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      cell.border = { bottom: { style: 'thin', color: { argb: 'FF000000' } } };
+    });
+
+    const statusColors: Record<string, { bg: string; fg: string }> = {
+      'Perfeito': { bg: 'FFD5F5E3', fg: 'FF1B7A3D' },
+      'Acompanhar': { bg: 'FFD6EAF8', fg: 'FF1A5276' },
+      'Atenção': { bg: 'FFFDEBD0', fg: 'FF935116' },
+      'Repor': { bg: 'FFFADBD8', fg: 'FF922B21' },
+    };
+
+    for (const row of rows) {
+      const status = String(row[6]);
+      const colors = statusColors[status];
+      const dataRow = ws.addRow(row);
+      dataRow.eachCell((cell, colNumber) => {
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFD5D8DC' } },
+          bottom: { style: 'thin', color: { argb: 'FFD5D8DC' } },
+          left: { style: 'thin', color: { argb: 'FFD5D8DC' } },
+          right: { style: 'thin', color: { argb: 'FFD5D8DC' } },
+        };
+        if (colors) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colors.bg } };
+        }
+        if (colNumber === 7 && colors) {
+          cell.font = { bold: true, color: { argb: colors.fg } };
+        }
+        if (colNumber === 5 || colNumber === 6) {
+          cell.alignment = { horizontal: 'center' };
+        }
+      });
+    }
+
+    ws.columns = [
+      { width: 25 }, { width: 8 }, { width: 15 }, { width: 25 }, { width: 12 }, { width: 12 }, { width: 14 },
+    ];
+    ws.autoFilter = { from: 'A1', to: `G${rows.length + 1}` };
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `estoque-mapa-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [getExportData]);
 
   const handleCloseModal = useCallback(() => {
     setIsModalOpen(false);
