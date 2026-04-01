@@ -27,6 +27,18 @@ interface StockGridViewProps {
   isLoading?: boolean;
 }
 
+/** Groups slots by pdvId, returns sorted array of { pdvId, pdvName, slots } */
+function groupSlotsByPdv(slots: SlotData[]) {
+  const map = new Map<string, { pdvId: string; pdvName: string; slots: SlotData[] }>();
+  for (const slot of slots) {
+    if (!map.has(slot.pdvId)) {
+      map.set(slot.pdvId, { pdvId: slot.pdvId, pdvName: slot.pdvName || slot.pdvId, slots: [] });
+    }
+    map.get(slot.pdvId)!.slots.push(slot);
+  }
+  return Array.from(map.values()).sort((a, b) => a.pdvName.localeCompare(b.pdvName));
+}
+
 const STORAGE_KEY = 'stock-view-mode';
 
 const isValidViewMode = (v: unknown): v is StockViewMode => v === 'compact' || v === 'expanded';
@@ -73,14 +85,21 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
   
   const dimensions = SLOT_DIMENSIONS[viewMode];
 
-  // Mapeia slots por número para acesso rápido
+  // Agrupa slots por PDV para renderização separada
+  const pdvGroups = useMemo(() => groupSlotsByPdv(slots), [slots]);
+  const isMultiPdv = pdvGroups.length > 1;
+
+  // Mapeia slots por pdvId+slot para acesso rápido (evita colisão entre PDVs)
   const slotMap = useMemo(() => {
     const map = new Map<string, SlotData>();
     for (const slot of slots) {
-      map.set(slot.slot, slot);
+      // Usa chave composta quando multi-PDV, simples quando único
+      const key = isMultiPdv ? `${slot.pdvId}-${slot.slot}` : slot.slot;
+      map.set(key, slot);
     }
     return map;
-  }, [slots]);
+  }, [slots, isMultiPdv]);
+
 
   // Calcula totais agregados por modelo (para indicador multi-slot)
   const productTotals = useMemo(() => {
@@ -97,11 +116,11 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
     return totals;
   }, [slots]);
 
-  // Set de slots filtrados para verificação rápida
-  const filteredSlotNumbers = useMemo(() => {
+  // Set de slots filtrados para verificação rápida (chave composta para multi-PDV)
+  const filteredSlotKeys = useMemo(() => {
     if (!filteredSlots) return null;
-    return new Set(filteredSlots.map(s => s.slot));
-  }, [filteredSlots]);
+    return new Set(filteredSlots.map(s => isMultiPdv ? `${s.pdvId}-${s.slot}` : s.slot));
+  }, [filteredSlots, isMultiPdv]);
 
   const hasFilter = searchTerm !== '' || brandFilter !== 'all' || statusFilter !== 'all' || salesIndexFilter !== 'all';
 
@@ -264,84 +283,104 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
           </div>
         )}
         
-        <div className="flex justify-center min-w-fit">
-          <div className="inline-block">
-            {/* Cabeçalho de colunas */}
-            <div className="flex items-center mb-2 sm:mb-3 pl-6 sm:pl-8 md:pl-10">
-              {COLUMN_HEADERS.map((col) => (
-                <div key={col} className={cn(dimensions.container, "text-center text-xs sm:text-sm text-muted-foreground font-semibold")}>
-                  {col}
-                </div>
-              ))}
-            </div>
+        {pdvGroups.map((group) => {
+          // Cria slotMap local para este PDV
+          const pdvSlotMap = new Map<string, SlotData>();
+          for (const slot of group.slots) {
+            pdvSlotMap.set(slot.slot, slot);
+          }
 
-            {/* Linhas (andares) */}
-            <div className="space-y-1.5 sm:space-y-2 md:space-y-3">
-              {GRID_LAYOUT.map((floor) => (
-                <div key={floor.floor} className="flex items-start">
-                  {/* Label do andar */}
-                  <div className="w-6 sm:w-8 md:w-10 text-xs sm:text-sm text-muted-foreground font-semibold text-right pr-1.5 sm:pr-2 md:pr-3 pt-4 sm:pt-5 md:pt-6">
-                    {floor.label}
+          return (
+            <div key={group.pdvId} className="mb-6 last:mb-0">
+              {/* Título do PDV quando multi-PDV */}
+              {isMultiPdv && (
+                <h3 className="text-sm font-semibold text-foreground mb-3 pl-6 sm:pl-8 md:pl-10">
+                  {group.pdvName}
+                </h3>
+              )}
+
+              <div className="flex justify-center min-w-fit">
+                <div className="inline-block">
+                  {/* Cabeçalho de colunas */}
+                  <div className="flex items-center mb-2 sm:mb-3 pl-6 sm:pl-8 md:pl-10">
+                    {COLUMN_HEADERS.map((col) => (
+                      <div key={col} className={cn(dimensions.container, "text-center text-xs sm:text-sm text-muted-foreground font-semibold")}>
+                        {col}
+                      </div>
+                    ))}
                   </div>
-                  
-                  {/* Slots do andar */}
-                  <div className="flex">
-                    {floor.slots.map((slotNumber, colIndex) => {
-                      if (slotNumber === null) {
-                        return <div key={`empty-${colIndex}`} className={cn(dimensions.container, dimensions.height)} />;
-                      }
-                      
-                      const slotData = slotMap.get(slotNumber);
-                      
-                      if (!slotData) {
-                        return (
-                          <div key={slotNumber} className={cn(dimensions.container, "flex items-center justify-center")}>
-                            <div className={cn(dimensions.slot, dimensions.height, "bg-muted/30 rounded-lg flex flex-col items-center justify-center gap-1")}>
-                              <div className="w-7 sm:w-8 md:w-10 h-10 sm:h-12 md:h-14 bg-muted/20 rounded" />
-                              <span className="text-[8px] sm:text-[10px] text-muted-foreground font-medium">{slotNumber}</span>
-                            </div>
-                          </div>
-                        );
-                      }
-                      
-                      // Verifica se o slot está nos slots filtrados
-                      const isInFilteredSlots = !filteredSlotNumbers || filteredSlotNumbers.has(slotNumber);
-                      const isHighlighted = hasFilter && isInFilteredSlots;
-                      const isFiltered = hasFilter && !isInFilteredSlots;
-                      const isFocused = focusedSlot === slotNumber;
-                      
-                          const productKey = getExactProductKey(slotData.model ? `${slotData.brand} ${slotData.model}` : slotData.brand);
-                          const aggInfo = productTotals.get(productKey);
-                          
-                          return (
-                        <div 
-                          key={slotNumber} 
-                          ref={(el) => registerSlotRef(slotNumber, el)}
-                          className={cn(dimensions.container, "flex items-center justify-center")}
-                        >
-                          <SlotStack
-                            slot={slotData.slot}
-                            brand={slotData.brand}
-                            model={slotData.model}
-                            quantity={slotData.quantity}
-                            isActive={slotData.isActive}
-                            isHighlighted={isHighlighted}
-                            isFiltered={isFiltered}
-                            isFocused={isFocused}
-                            viewMode={viewMode}
-                            aggregateInfo={aggInfo && aggInfo.slotCount > 1 ? aggInfo : undefined}
-                            slotData={slotData}
-                            onSlotClick={handleSlotClick}
-                          />
+
+                  {/* Linhas (andares) */}
+                  <div className="space-y-1.5 sm:space-y-2 md:space-y-3">
+                    {GRID_LAYOUT.map((floor) => (
+                      <div key={floor.floor} className="flex items-start">
+                        {/* Label do andar */}
+                        <div className="w-6 sm:w-8 md:w-10 text-xs sm:text-sm text-muted-foreground font-semibold text-right pr-1.5 sm:pr-2 md:pr-3 pt-4 sm:pt-5 md:pt-6">
+                          {floor.label}
                         </div>
-                      );
-                    })}
+                        
+                        {/* Slots do andar */}
+                        <div className="flex">
+                          {floor.slots.map((slotNumber, colIndex) => {
+                            if (slotNumber === null) {
+                              return <div key={`empty-${colIndex}`} className={cn(dimensions.container, dimensions.height)} />;
+                            }
+                            
+                            const slotData = pdvSlotMap.get(slotNumber);
+                            
+                            if (!slotData) {
+                              return (
+                                <div key={slotNumber} className={cn(dimensions.container, "flex items-center justify-center")}>
+                                  <div className={cn(dimensions.slot, dimensions.height, "bg-muted/30 rounded-lg flex flex-col items-center justify-center gap-1")}>
+                                    <div className="w-7 sm:w-8 md:w-10 h-10 sm:h-12 md:h-14 bg-muted/20 rounded" />
+                                    <span className="text-[8px] sm:text-[10px] text-muted-foreground font-medium">{slotNumber}</span>
+                                  </div>
+                                </div>
+                              );
+                            }
+                            
+                            // Verifica se o slot está nos slots filtrados
+                            const slotKey = isMultiPdv ? `${slotData.pdvId}-${slotNumber}` : slotNumber;
+                            const isInFilteredSlots = !filteredSlotKeys || filteredSlotKeys.has(slotKey);
+                            const isHighlighted = hasFilter && isInFilteredSlots;
+                            const isFiltered = hasFilter && !isInFilteredSlots;
+                            const isFocused = focusedSlot === slotNumber;
+                            
+                            const productKey = getExactProductKey(slotData.model ? `${slotData.brand} ${slotData.model}` : slotData.brand);
+                            const aggInfo = productTotals.get(productKey);
+                            
+                            return (
+                              <div 
+                                key={slotNumber} 
+                                ref={(el) => registerSlotRef(isMultiPdv ? `${group.pdvId}-${slotNumber}` : slotNumber, el)}
+                                className={cn(dimensions.container, "flex items-center justify-center")}
+                              >
+                                <SlotStack
+                                  slot={slotData.slot}
+                                  brand={slotData.brand}
+                                  model={slotData.model}
+                                  quantity={slotData.quantity}
+                                  isActive={slotData.isActive}
+                                  isHighlighted={isHighlighted}
+                                  isFiltered={isFiltered}
+                                  isFocused={isFocused}
+                                  viewMode={viewMode}
+                                  aggregateInfo={aggInfo && aggInfo.slotCount > 1 ? aggInfo : undefined}
+                                  slotData={slotData}
+                                  onSlotClick={handleSlotClick}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
-        </div>
+          );
+        })}
       </div>
 
       {/* Legenda */}
