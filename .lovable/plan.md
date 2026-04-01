@@ -1,48 +1,42 @@
 
 
-## Refatorar Status de Ação para 4 Estados por Quantidade
+## Exportar Mapa de Estoque como Tabela Simples (CSV/XLSX)
 
-### Novos estados
+### Funcionalidade
 
-| Status | Key | Quantidade | Cor |
-|--------|-----|-----------|-----|
-| Perfeito | `perfect` | 5+ | Verde |
-| Acompanhar | `monitor` | 3-4 | Azul |
-| Atenção | `warning` | 1-2 | Laranja |
-| Repor | `restock` | 0 | Vermelho |
+Adicionar um botão "Exportar" no header do grid (ao lado dos botões Compacto/Expandido/Fullscreen) que gera uma tabela simples com os dados dos slots visíveis, respeitando os filtros aplicados.
 
-A lógica antiga considerava vendas e redistribuição. A nova é **puramente baseada na quantidade total** do produto.
+### Formato da tabela exportada
 
-### Arquivos a alterar
+| PDV | Slot | Marca | Modelo | Quantidade | Capacidade | Status |
+|-----|------|-------|--------|------------|------------|--------|
 
-**1. `src/lib/stockTypes.ts`**
-- Mudar `ProductActionStatus` de `'ok' | 'redistribute' | 'restock'` para `'perfect' | 'monitor' | 'warning' | 'restock'`
+### Alterações
 
-**2. `src/lib/stockLabels.ts`**
-- Atualizar `productActionLabels`: `{ perfect: 'Perfeito', monitor: 'Acompanhar', warning: 'Atenção', restock: 'Repor' }`
-- Atualizar `productActionColors` com cores correspondentes (verde, azul, laranja, vermelho)
+**1. `src/components/stock/StockGridView.tsx`**
+- Importar `Download` icon do lucide-react
+- Adicionar botão "Exportar" no header (junto aos toggles)
+- Implementar função `handleExport()` que:
+  - Usa `filteredSlots` se filtros ativos, senão `slots`
+  - Ordena por PDV → Slot
+  - Gera CSV com headers em português
+  - Faz download via `Blob` + link temporário
+  - Nomeia arquivo: `estoque-mapa-YYYY-MM-DD.csv`
+- Mapeia o status de cada slot usando `getProductActionStatus` e `productActionLabels`
 
-**3. `src/lib/stockUtils.ts`**
-- `getProductActionStatus()`: retornar status baseado em qty (0→restock, 1-2→warning, 3-4→monitor, 5+→perfect)
-- `getProductStatus()`: mesma lógica usando `totalQuantity` do produto
-- `StockKPIs`: renomear `redistributeProducts` → `warningProducts` ou ajustar campos
-- `calculateStockKPIs()`: atualizar filtros de contagem
+### Lógica de exportação
 
-**4. `src/components/stock/StockFilters.tsx`**
-- Atualizar `STATUS_OPTIONS` com os 4 novos valores e cores
+```typescript
+const handleExport = () => {
+  const dataToExport = hasFilter && filteredSlots ? filteredSlots : slots;
+  const sorted = [...dataToExport].sort((a, b) => 
+    a.pdvName.localeCompare(b.pdvName) || a.slot.localeCompare(b.slot)
+  );
+  // Gera CSV com BOM para Excel, download automático
+};
+```
 
-**5. `src/components/stock/StockKPICards.tsx`**
-- Atualizar KPI de "Redistribuir" para "Atenção" (ou ajustar cards)
+### Resultado
 
-**6. `src/components/stock/ProductStockTable.tsx`**
-- Atualizar `statusOrder` de ordenação
-
-**7. `src/components/stock/ProductDetailModal.tsx`**
-- Atualizar lógica local de status para usar os novos estados
-
-**8. `src/components/stock/ProductSlotsList.tsx`**
-- Atualizar tipo de `status` prop
-
-### Sem impacto no banco
-Alteração é 100% frontend — os status são calculados em tempo real a partir da quantidade.
+Botão discreto no header do grid que exporta CSV com os dados filtrados, pronto para abrir no Excel.
 
