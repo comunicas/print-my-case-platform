@@ -1,33 +1,63 @@
 
 
-## Diagnóstico: Cache do React Query mostrando dados antigos
+## Debug dos Filtros de Estoque — Análise e Plano
 
-### Problema
+### Problema Identificado
 
-O banco está limpo (0 registros), mas o frontend ainda mostra 1 produto (iPhone 15 Plus, slot 34) porque o **React Query mantém dados em cache** por até 30 minutos.
+Quando o filtro de PDV está em "Todos os PDVs", os dados ficam **incorretos** em duas áreas:
 
-### Configurações que causam isso
+**1. Mapa (Grid View) — dados corrompidos**
+O `StockGridView` cria um `Map<string, SlotData>` indexado por número do slot (ex: "34"). Com dois PDVs selecionados, slots com o mesmo número se sobrescrevem — só o último PDV "ganha". O mapa mostra dados de apenas um PDV, misturados.
 
-| Config | Valor | Efeito |
-|--------|-------|--------|
-| `staleTime` (global) | 5 min | Não refaz query por 5 min |
-| `gcTime` (global) | 30 min | Mantém cache mesmo sem uso por 30 min |
-| `placeholderData` em `useSlotsData` | `previousData` | Mostra dados anteriores enquanto recarrega |
-| `refetchOnWindowFocus` | `false` | Trocar de aba não atualiza |
+**2. KPIs — capacidade total errada**
+O cálculo de KPIs usa `GRID_LAYOUT` (85 slots fixos de uma máquina). Com "Todos os PDVs", deveria ser 85 × N máquinas, mas calcula como 85.
 
-### Não há dados mockados
+**3. Tabela — funciona parcialmente**
+A tabela agrupa por `productKey` (modelo), então produtos iguais de PDVs diferentes são somados. Isso funciona para visão agregada mas pode confundir.
 
-Não existe nenhum dado hardcoded ou mock no código. O problema é puramente cache do React Query.
+### Diagnóstico do filtro atual
 
-### Possível causa adicional
+O `PDVFilter` já auto-seleciona quando há apenas 1 PDV e esconde o dropdown. Porém, para usuários com acesso a múltiplos PDVs, o padrão é "Todos os PDVs" — o que causa os problemas acima.
 
-A API `ingest-stock` do Boulevard pode ter **re-ingerido** o registro do slot 34 após a limpeza (ela roda automaticamente). Isso explicaria por que aparece exatamente 1 produto.
+O filtro de PDV atualmente está mostrando apenas "Tietê Plaza Shopping" como texto estático, o que indica que o usuário logado só tem acesso a 1 PDV via `user_pdvs`. O Boulevard pode não estar aparecendo por restrição de acesso.
 
-### Solução imediata
+### Plano de Correção
 
-Um **hard refresh** (Ctrl+F5) no navegador limpa o cache do React Query e mostra o estado real do banco.
+**Alteração 1 — `src/components/stock/StockGridView.tsx`**
+- Quando `selectedPdv === 'all'` e há dados de múltiplos PDVs, exibir um aviso pedindo para selecionar um PDV específico para o mapa
+- Agrupar slots por `pdvId` e renderizar grids separados por PDV (com título do PDV acima de cada grid), OU bloquear o mapa sem PDV selecionado
 
-### Melhoria opcional no código
+**Alteração 2 — `src/hooks/useProductStock.ts`**
+- Calcular `totalSlots` dinamicamente: `85 × quantidade de PDVs distintos nos dados` em vez de fixo em 85
+- Isso corrige os KPIs de capacidade quando "Todos os PDVs" está selecionado
 
-Nenhuma alteração de código é necessária. O cache de 5 minutos é adequado para produção. Se quiser, posso reduzir o `staleTime` dos hooks de estoque para tornar as atualizações mais rápidas após uploads.
+**Alteração 3 — `src/components/stock/StockGridView.tsx` (slotMap)**
+- Mudar a chave do `slotMap` de `slot.slot` para `${slot.pdvId}-${slot.slot}` quando múltiplos PDVs estão presentes
+- Renderizar um grid por PDV com o nome do PDV como título
+
+### Abordagem Recomendada
+
+Renderizar **grids separados por PDV** quando "Todos os PDVs" está selecionado:
+
+```text
+┌─────────────────────────┐
+│ Boulevard Tatuapé       │
+│ ┌───┬───┬───┬───┬───┐   │
+│ │99 │98 │97 │...│91 │   │
+│ └───┴───┴───┴───┴───┘   │
+└─────────────────────────┘
+┌─────────────────────────┐
+│ Tietê Plaza Shopping    │
+│ ┌───┬───┬───┬───┬───┐   │
+│ │99 │98 │97 │...│91 │   │
+│ └───┴───┴───┴───┴───┘   │
+└─────────────────────────┘
+```
+
+### Resumo de arquivos alterados
+
+| Arquivo | Mudança |
+|---------|---------|
+| `StockGridView.tsx` | Agrupar slots por PDV, renderizar grid separado por PDV |
+| `useProductStock.ts` | Calcular `totalSlots` dinamicamente (85 × N PDVs) |
 
