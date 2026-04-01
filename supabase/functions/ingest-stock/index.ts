@@ -106,6 +106,7 @@ Deno.serve(async (req) => {
     }
 
     const organizationId = apiKeyRecord.organization_id;
+    console.log(`[ingest-stock] auth OK | org=${organizationId}`);
 
     // 3. Parse body — single record
     const body = await req.json();
