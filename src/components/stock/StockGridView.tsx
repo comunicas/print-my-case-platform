@@ -12,6 +12,8 @@ import { SLOT_DIMENSIONS, StockViewMode } from '@/lib/stockViewModes';
 import { useLocalStorageState } from '@/hooks/useLocalStorageState';
 import { KNOWN_BRANDS } from '@/lib/brandAssets';
 import { getExactProductKey } from '@/lib/productNormalization';
+import { getProductActionStatus } from '@/lib/stockUtils';
+import { productActionLabels } from '@/lib/stockLabels';
 import { MAX_CAPACITY } from '@/lib/stockGridUtils';
 import { useStockFilters } from '@/contexts/StockFiltersContext';
 import { useGridKeyboardNavigation, findNextSlot, getFirstSlot } from '@/hooks/useGridKeyboardNavigation';
