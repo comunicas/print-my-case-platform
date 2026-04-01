@@ -100,14 +100,6 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
     return map;
   }, [slots, isMultiPdv]);
 
-  // Mapa simples por slot number (para navegação por teclado - usa primeiro PDV como fallback)
-  const slotMapByNumber = useMemo(() => {
-    const map = new Map<string, SlotData>();
-    for (const slot of slots) {
-      if (!map.has(slot.slot)) map.set(slot.slot, slot);
-    }
-    return map;
-  }, [slots]);
 
   // Calcula totais agregados por modelo (para indicador multi-slot)
   const productTotals = useMemo(() => {
