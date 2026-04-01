@@ -12,6 +12,7 @@ import {
   getSalesIndex,
   matchesSearchFilter,
 } from '@/lib/stockUtils';
+import { countSalesForProduct } from '@/lib/productNormalization';
 import type { ProductActionStatus } from '@/lib/stockTypes';
 import { GRID_LAYOUT } from '@/lib/stockGridUtils';
 import type { ProductSuggestion } from '@/components/stock/ProductSearchAutocomplete';
