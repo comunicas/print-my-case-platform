@@ -28,7 +28,6 @@ const defaultState: StockFiltersState = {
   brandFilter: 'all',
   statusFilter: 'all',
   salesIndexFilter: 'all',
-  saleStatusFilter: 'completed',
 };
 
 const StockFiltersContext = createContext<StockFiltersContextType | undefined>(undefined);
