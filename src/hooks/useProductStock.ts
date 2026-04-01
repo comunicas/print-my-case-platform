@@ -143,10 +143,12 @@ export function useProductStock() {
       });
     }
     
-    // Calcula total de slots disponíveis na máquina
-    const totalSlots = GRID_LAYOUT.reduce((acc, floor) => 
+    // Calcula total de slots disponíveis (85 por máquina × N PDVs distintos)
+    const slotsPerMachine = GRID_LAYOUT.reduce((acc, floor) => 
       acc + floor.slots.filter(s => s !== null).length, 0
     );
+    const uniquePdvCount = new Set(slots.map(s => s.pdvId)).size || 1;
+    const totalSlots = slotsPerMachine * uniquePdvCount;
     
     const hasActiveFilters = !!(filters.searchTerm || filters.brandFilter !== 'all' || filters.statusFilter !== 'all' || filters.salesIndexFilter !== 'all');
     

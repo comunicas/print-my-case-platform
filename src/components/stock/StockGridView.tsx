@@ -27,6 +27,18 @@ interface StockGridViewProps {
   isLoading?: boolean;
 }
 
+/** Groups slots by pdvId, returns sorted array of { pdvId, pdvName, slots } */
+function groupSlotsByPdv(slots: SlotData[]) {
+  const map = new Map<string, { pdvId: string; pdvName: string; slots: SlotData[] }>();
+  for (const slot of slots) {
+    if (!map.has(slot.pdvId)) {
+      map.set(slot.pdvId, { pdvId: slot.pdvId, pdvName: slot.pdvName || slot.pdvId, slots: [] });
+    }
+    map.get(slot.pdvId)!.slots.push(slot);
+  }
+  return Array.from(map.values()).sort((a, b) => a.pdvName.localeCompare(b.pdvName));
+}
+
 const STORAGE_KEY = 'stock-view-mode';
 
 const isValidViewMode = (v: unknown): v is StockViewMode => v === 'compact' || v === 'expanded';
