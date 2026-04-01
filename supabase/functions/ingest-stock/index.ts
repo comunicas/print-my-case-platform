@@ -303,6 +303,8 @@ Deno.serve(async (req) => {
       }
     }
 
+    console.log(`[ingest-stock] history | brand=${brand} totalQty=${brandRecords.reduce((s, r) => s + ((r as { quantity: number }).quantity ?? 0), 0)} activeSlots=${brandRecords.filter(r => (r as { is_active: boolean }).is_active).length}`);
+
     // 10. Update last_used_at
     await supabase
       .from("api_keys")
