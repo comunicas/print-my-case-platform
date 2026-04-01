@@ -1,11 +1,4 @@
-import { Info } from 'lucide-react';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import { useStockFilters, SaleStatusFilter } from '@/contexts/StockFiltersContext';
+import { useStockFilters } from '@/contexts/StockFiltersContext';
 import { usePDVs } from '@/hooks/usePDVs';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { KNOWN_BRANDS } from '@/lib/brandAssets';
@@ -30,12 +23,6 @@ const SALES_INDEX_OPTIONS: SelectFilterOption[] = [
   { value: 'none', label: 'Nenhuma' },
 ];
 
-const SALE_STATUS_OPTIONS: SelectFilterOption[] = [
-  { value: 'completed', label: 'Concluídas', icon: <span className="w-2 h-2 rounded-full bg-green-500" /> },
-  { value: 'cancelled', label: 'Canceladas', icon: <span className="w-2 h-2 rounded-full bg-destructive" /> },
-  { value: 'refunded', label: 'Reembolsadas', icon: <span className="w-2 h-2 rounded-full bg-orange-500" /> },
-  { value: 'all', label: 'Todas', icon: <span className="w-2 h-2 rounded-full bg-muted-foreground" /> },
-];
 
 interface StockFiltersProps {
   brands?: string[];
@@ -49,13 +36,11 @@ export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockF
     brandFilter,
     statusFilter,
     salesIndexFilter,
-    saleStatusFilter,
     setSelectedPdv,
     setSearchTerm,
     setBrandFilter,
     setStatusFilter,
     setSalesIndexFilter,
-    setSaleStatusFilter,
     clearFilters,
     hasActiveFilters,
     pdvWasAutoApplied,
@@ -122,30 +107,6 @@ export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockF
         testId="sales-index-filter"
       />
 
-      {/* Sale Status Filter */}
-      <div className="flex items-center gap-1">
-        <SelectFilter
-          value={saleStatusFilter}
-          onChange={(v) => setSaleStatusFilter(v as SaleStatusFilter)}
-          placeholder="Status venda"
-          options={SALE_STATUS_OPTIONS}
-          triggerClassName="w-full sm:w-[160px]"
-          testId="sale-status-filter"
-        />
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Info className="h-4 w-4 text-muted-foreground cursor-help flex-shrink-0" />
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-xs">
-              <p className="text-xs">
-                <strong>Padrão: Concluídas.</strong> Filtra quais vendas são usadas para calcular o índice de vendas de cada produto. 
-                Cancelamentos e reembolsos são excluídos do cálculo por padrão.
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
     </FilterBar>
   );
 }
