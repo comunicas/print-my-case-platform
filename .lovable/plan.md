@@ -1,34 +1,33 @@
 
 
-## Limpar Dados Residuais de Estoque
+## Diagnóstico: Cache do React Query mostrando dados antigos
 
-### O que resta
+### Problema
 
-- **1 upload** automático da API (Boulevard, hoje) — será substituído ao subir a planilha
-- **31 stock_records** do Boulevard (API de hoje) — serão substituídos pela planilha
-- **198 stock_history** — histórico acumulado que precisa ser limpo se você quer começar do zero
+O banco está limpo (0 registros), mas o frontend ainda mostra 1 produto (iPhone 15 Plus, slot 34) porque o **React Query mantém dados em cache** por até 30 minutos.
 
-### Plano
+### Configurações que causam isso
 
-**Opção A — Limpar tudo (recomendado para normalização completa):**
+| Config | Valor | Efeito |
+|--------|-------|--------|
+| `staleTime` (global) | 5 min | Não refaz query por 5 min |
+| `gcTime` (global) | 30 min | Mantém cache mesmo sem uso por 30 min |
+| `placeholderData` em `useSlotsData` | `previousData` | Mostra dados anteriores enquanto recarrega |
+| `refetchOnWindowFocus` | `false` | Trocar de aba não atualiza |
 
-1. Deletar todos os `stock_history` existentes (dados históricos antigos podem estar inflados/incorretos)
-2. Deletar os `stock_records` restantes (31 do Boulevard)
-3. Deletar o upload automático da API de hoje
-4. Após isso, subir as planilhas novas dos dois PDVs
+### Não há dados mockados
 
-Execução via queries de limpeza (não migration — são dados, não schema):
-```sql
-DELETE FROM stock_history;
-DELETE FROM stock_records;
-DELETE FROM uploads WHERE type = 'stock';
-```
+Não existe nenhum dado hardcoded ou mock no código. O problema é puramente cache do React Query.
 
-**Opção B — Manter histórico, só limpar records:**
+### Possível causa adicional
 
-Deletar apenas `stock_records` e o upload de hoje, mantendo o `stock_history` para ter histórico nos gráficos. Subir as planilhas novas depois.
+A API `ingest-stock` do Boulevard pode ter **re-ingerido** o registro do slot 34 após a limpeza (ela roda automaticamente). Isso explicaria por que aparece exatamente 1 produto.
 
-### Resultado esperado (Opção A)
+### Solução imediata
 
-Todas as 3 tabelas zeradas → subir planilhas gera dados limpos e consistentes desde o dia 1.
+Um **hard refresh** (Ctrl+F5) no navegador limpa o cache do React Query e mostra o estado real do banco.
+
+### Melhoria opcional no código
+
+Nenhuma alteração de código é necessária. O cache de 5 minutos é adequado para produção. Se quiser, posso reduzir o `staleTime` dos hooks de estoque para tornar as atualizações mais rápidas após uploads.
 
