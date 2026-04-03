@@ -28,6 +28,25 @@ function sanitizeString(value: unknown, maxLength: number): string | null {
   return str || null;
 }
 
+function normalizePaymentMethod(value: unknown): string | null {
+  const str = String(value ?? "").trim();
+  const methodMap: Record<string, string> = {
+    "0": "creditCard",
+    "4": "debitCard",
+    "5": "pix",
+    "7": "creditCard",
+  };
+  return methodMap[str] || sanitizeString(value, FIELD_LIMITS.payment_method);
+}
+
+function normalizeStatus(value: unknown): string | null {
+  const str = String(value ?? "").trim();
+  const statusMap: Record<string, string> = {
+    "6": "Pendente",
+  };
+  return statusMap[str] || sanitizeString(value, FIELD_LIMITS.status);
+}
+
 function sanitizeOrderNumber(value: unknown): string | null {
   const str = sanitizeString(value, FIELD_LIMITS.order_number);
   if (!str) return null;
