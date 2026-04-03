@@ -1,82 +1,39 @@
 
 
-## Correção da Ingestão de Vendas via API (`ingest-revenue`)
+## Correção: Datas Falsas nos Registros da API
 
-### Problemas Encontrados
+### Problema
 
-Os dados vindos da **API** (source = `api`, 135 registros) estão com problemas graves. As planilhas (source = `spreadsheet`, 1209 registros) estão corretas.
+A migration anterior corrigiu os `payment_method` e `status` numéricos corretamente, mas usou `UPDATE SET payment_date = now()` para os 69 registros com data NULL. Isso colocou a **mesma data falsa** (03/04/26 00:34) em todos eles — a data da execução da migration, não a data real da venda.
 
-| Problema | Dados no banco | Esperado |
-|----------|---------------|----------|
-| `payment_method` numérico | `0`, `5`, `7`, `4` | `creditCard`, `pix`, etc. |
-| `status` numérico | `6` | `Concluído`, `Cancelado`, etc. |
-| `payment_date` NULL | 69 registros sem data | Data válida |
+### Dados encontrados
 
-A máquina está enviando **códigos numéricos** para `payment_method` e `status`, e a edge function `ingest-revenue` aceita sem mapear.
+- 69 registros com `payment_date = 2026-04-03 03:34:22` (data falsa)
+- **Todos os 69** têm `order_time` com a data real da transação (ex: 2026-03-03, 2026-03-20, etc.)
 
-**Distribuição dos códigos API:**
+### Correção
 
-| payment_method | status | Qtd | Provável significado |
-|---|---|---|---|
-| `0` | Concluído | 62 | 0 = creditCard (padrão) |
-| `7` | Cancelado | 57 | 7 = código de cancelamento |
-| `5` | Concluído | 10 | 5 = outro método (pix?) |
-| `0` | `6` | 1 | status 6 = desconhecido |
-
-### Plano de Correção
-
-**1. `supabase/functions/ingest-revenue/index.ts`** — Adicionar mapeamento de códigos numéricos
-
-```typescript
-// Mapear payment_method numérico para texto
-function normalizePaymentMethod(value: unknown): string | null {
-  const str = String(value ?? '').trim();
-  const methodMap: Record<string, string> = {
-    '0': 'creditCard',
-    '4': 'debitCard',
-    '5': 'pix',
-    '7': 'creditCard', // cancelados também vêm com 7
-  };
-  return methodMap[str] || sanitizeString(value, 50);
-}
-
-// Mapear status numérico para texto
-function normalizeStatus(value: unknown): string | null {
-  const str = String(value ?? '').trim();
-  const statusMap: Record<string, string> = {
-    '6': 'Pendente',
-  };
-  return statusMap[str] || sanitizeString(value, 50);
-}
-```
-
-- Usar `normalizePaymentMethod()` e `normalizeStatus()` ao construir o record (linhas 211-212)
-- Validar que `payment_date` usa fallback para `new Date().toISOString()` quando NULL (já faz, mas o campo está sendo setado como `null` explicitamente na linha 209 — remover a condição que permite null)
-
-**2. Migration SQL** — Corrigir dados existentes no banco
+**1. Data fix (usando insert tool)** — Copiar `order_time` para `payment_date`
 
 ```sql
--- Corrigir payment_method numéricos
-UPDATE sales_records SET payment_method = 'creditCard' WHERE payment_method = '0' AND source = 'api';
-UPDATE sales_records SET payment_method = 'pix' WHERE payment_method = '5' AND source = 'api';
-UPDATE sales_records SET payment_method = 'creditCard' WHERE payment_method = '7' AND source = 'api';
-UPDATE sales_records SET payment_method = 'debitCard' WHERE payment_method = '4' AND source = 'api';
-
--- Corrigir status numérico
-UPDATE sales_records SET status = 'Pendente' WHERE status = '6' AND source = 'api';
-
--- Corrigir payment_date NULL (usar now() como fallback)
-UPDATE sales_records SET payment_date = now() WHERE payment_date IS NULL;
+UPDATE sales_records 
+SET payment_date = order_time 
+WHERE source = 'api' 
+  AND payment_date = '2026-04-03 03:34:22.409348+00'
+  AND order_time IS NOT NULL;
 ```
 
-### Questão importante
+**2. `supabase/functions/ingest-revenue/index.ts`** — Melhorar fallback de `payment_date`
 
-Os mapeamentos numéricos (0=creditCard, 5=pix, 7=creditCard) são **suposições** baseadas na correlação com status. Se você tiver documentação da máquina com os códigos reais, os mapeamentos podem ser ajustados.
+Na construção do record, adicionar fallback em cascata: `payment_date` → `order_time` → `now()`:
 
-### Arquivos alterados
+```typescript
+payment_date: parsePaymentDate(body.payment_date || body.order_time),
+```
 
-| Arquivo | Mudança |
-|---------|---------|
-| `supabase/functions/ingest-revenue/index.ts` | Normalizar `payment_method` e `status` numéricos, forçar `payment_date` não-null |
-| Migration SQL | Corrigir 135 registros existentes com dados numéricos/null |
+Assim, se a máquina não enviar `payment_date` mas enviar `order_time`, usamos o `order_time` como data de pagamento.
+
+### Resultado
+
+Os 69 registros passam a ter a data real da transação em vez da data da migration. Futuros registros sem `payment_date` usam `order_time` como fallback antes de cair em `now()`.
 
