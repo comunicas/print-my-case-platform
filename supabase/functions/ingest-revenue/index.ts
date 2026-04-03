@@ -28,6 +28,25 @@ function sanitizeString(value: unknown, maxLength: number): string | null {
   return str || null;
 }
 
+function normalizePaymentMethod(value: unknown): string | null {
+  const str = String(value ?? "").trim();
+  const methodMap: Record<string, string> = {
+    "0": "creditCard",
+    "4": "debitCard",
+    "5": "pix",
+    "7": "creditCard",
+  };
+  return methodMap[str] || sanitizeString(value, FIELD_LIMITS.payment_method);
+}
+
+function normalizeStatus(value: unknown): string | null {
+  const str = String(value ?? "").trim();
+  const statusMap: Record<string, string> = {
+    "6": "Pendente",
+  };
+  return statusMap[str] || sanitizeString(value, FIELD_LIMITS.status);
+}
+
 function sanitizeOrderNumber(value: unknown): string | null {
   const str = sanitizeString(value, FIELD_LIMITS.order_number);
   if (!str) return null;
@@ -206,10 +225,10 @@ Deno.serve(async (req) => {
       device_id: deviceId,
       order_number: sanitizeOrderNumber(body.order_number),
       product_name: sanitizeString(body.product_name, FIELD_LIMITS.product_name),
-      payment_date: body.payment_date ? parsePaymentDate(body.payment_date) : null,
+      payment_date: parsePaymentDate(body.payment_date),
       amount: parseAmount(body.amount),
-      payment_method: sanitizeString(body.payment_method, FIELD_LIMITS.payment_method),
-      status: sanitizeString(body.status, FIELD_LIMITS.status),
+      payment_method: normalizePaymentMethod(body.payment_method),
+      status: normalizeStatus(body.status),
       refund_amount: body.refund_amount != null ? parseAmount(body.refund_amount) : 0,
       transaction_number: sanitizeString(body.transaction_number, FIELD_LIMITS.transaction_number),
       merchant_id: sanitizeString(body.merchant_id, FIELD_LIMITS.merchant_id),
