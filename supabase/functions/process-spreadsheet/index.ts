@@ -971,6 +971,55 @@ Deno.serve(async (req) => {
           }
         }
       }
+
+      // === CLEANUP OLD STOCK UPLOADS FOR THIS PDV ===
+      // Keep only the current upload; delete all previous stock uploads
+      try {
+        const { data: oldUploads } = await supabase
+          .from("uploads")
+          .select("id, file_url")
+          .eq("pdv_id", pdvId)
+          .eq("type", "stock")
+          .neq("id", uploadId);
+
+        if (oldUploads && oldUploads.length > 0) {
+          const oldIds = oldUploads.map(u => u.id);
+          
+          // Delete associated stock_records (should already be gone from snapshot replace, but ensure)
+          await supabase
+            .from("stock_records")
+            .delete()
+            .in("upload_id", oldIds);
+
+          // Delete associated stock_history
+          await supabase
+            .from("stock_history")
+            .delete()
+            .in("upload_id", oldIds);
+
+          // Delete files from storage
+          for (const old of oldUploads) {
+            if (old.file_url) {
+              const parts = old.file_url.split("/uploads/");
+              if (parts.length >= 2) {
+                await supabase.storage.from("uploads").remove([parts[1]]);
+              }
+            }
+          }
+
+          // Delete upload records
+          await supabase
+            .from("uploads")
+            .delete()
+            .in("id", oldIds);
+
+          console.log(`[process-spreadsheet] Upload ${uploadId}: Cleaned up ${oldUploads.length} old stock uploads for PDV ${pdvId}`);
+        }
+      } catch (cleanupError) {
+        console.error(`[process-spreadsheet] Upload ${uploadId}: Cleanup error (non-fatal)`, cleanupError);
+        // Don't fail the upload because of cleanup issues
+      }
+      // === END CLEANUP ===
     }
 
     // Reutiliza anomalias e contagem já calculadas no bloco de vendas acima
