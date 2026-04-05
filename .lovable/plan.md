@@ -1,60 +1,88 @@
-# Roadmap de Normalização de Dados — Status
 
-## Visão Geral
 
-| Etapa | Descrição | Status |
-|-------|-----------|--------|
-| 1 | Corrigir RPCs financeiras (`get_dre_sales_summary`) | ✅ Concluída |
-| 2 | Desabilitar API, limpar banco e importar dados normalizados | ✅ Concluída |
-| 3 | Normalizar Edge Function `process-spreadsheet` para PT-BR | ✅ Concluída |
-| 4 | Simplificar RPCs e frontend (remover mapeamentos EN→PT) | ✅ Concluída |
-| 5 | Rotina de limpeza de uploads de estoque antigos | ✅ Concluída |
-| 6 | Reativar `ingest-revenue` com normalização PT-BR | ⏳ Pendente |
+## Checklist de Saúde da Aplicação + Plano de Refatoração
 
----
+### Checklist de Saúde — Estado Atual
 
-## Etapa 1 — Corrigir RPCs Financeiras ✅
-
-- Recriada `get_dre_sales_summary` com allowlist `IN ('Completed','Pago','Concluído')` em vez de blocklist `!= 'Cancelled'`.
-- Adicionadas variantes de `payment_method` para capturar cartão de crédito/débito em EN e PT.
-
-## Etapa 2 — Reset e Importação Normalizada ✅
-
-- `ingest-revenue` desabilitada (retorna 503).
-- Todos os `sales_records` antigos deletados.
-- 934 registros importados da planilha `REVENUE-FULL-PDVS.xlsx` com valores canônicos PT-BR.
-- Mapeamento por `device_id` → `pdv_id` para os 3 PDVs (Boulevard, Extra Ricardo Jafet, Tietê).
-
-## Etapa 3 — Normalizar `process-spreadsheet` ✅
-
-- Funções `normalizePaymentMethod()` e `normalizeStatus()` adicionadas à Edge Function.
-- Qualquer planilha processada agora grava valores PT-BR canônicos diretamente.
-
-## Etapa 4 — Simplificar RPCs e Frontend ✅
-
-- RPCs `get_dre_sales_summary` e `get_annual_dre_summary` recriadas filtrando apenas `'Concluído'` e `'Cartão de Crédito'`.
-- Mapeamentos no frontend (`SalesRecordsTab.tsx`) reduzidos para 4 entradas canônicas.
-
-## Etapa 5 — Limpeza de Uploads de Estoque ✅
-
-- 5 uploads antigos do Boulevard deletados (com `stock_records` e `stock_history` associados).
-- Lógica automática adicionada em `process-spreadsheet`: após processar estoque, deleta uploads anteriores do mesmo PDV.
-- Resultado: exatamente 1 upload de estoque por PDV.
-
-## Etapa 6 — Reativar `ingest-revenue` ⏳
-
-**Pendente.** A Edge Function `ingest-revenue` está desabilitada (503). Ao reativar:
-
-1. Adicionar `normalizePaymentMethod()` e `normalizeStatus()` (mesmas funções da Etapa 3).
-2. Aplicar normalização antes de inserir em `sales_records`.
-3. Remover o bloqueio 503.
-4. Testar com payload real de cada PDV.
+| Area | Item | Status | Detalhe |
+|------|------|--------|---------|
+| **Dados** | sales_records normalizados PT-BR | ✅ OK | 934 registros, 1 status (`Concluído`), 4 payment_methods canônicos |
+| **Dados** | stock_records limpos (1 por PDV) | ✅ OK | 3 uploads, 255 registros |
+| **Dados** | RPCs financeiras (allowlist PT-BR) | ✅ OK | `get_dre_sales_summary` e `get_annual_dre_summary` já simplificadas |
+| **Edge Functions** | `process-spreadsheet` normaliza PT-BR | ✅ OK | |
+| **Edge Functions** | `process-spreadsheet` cleanup automático | ✅ OK | |
+| **Edge Functions** | `ingest-revenue` desabilitada (503) | ⚠️ Pendente | Etapa 6 do roadmap |
+| **Edge Functions** | `reprocess-refunds` — legado | ❌ Morta | 447 linhas, não referenciada no frontend, usa lógica EN antiga |
+| **Edge Functions** | `ingest-stock` — ativa | ✅ OK | Usada via API keys |
+| **Frontend** | `useDashboard.ts` — filtros legado EN | ❌ Legado | Ainda filtra por `["Completed", "Pago", "Concluído"]` e `ilike %cancelled%` |
+| **Frontend** | `useProductAnalytics.ts` — filtros legado EN | ❌ Legado | Mesmo padrão |
+| **Frontend** | `useProductSalesHistory.ts` — filtros legado EN | ❌ Legado | Mesmo padrão |
+| **Frontend** | `useProductStock.ts` — filtros legado EN | ❌ Legado | Mesmo padrão |
+| **Frontend** | `SalesRecordsTab.tsx` — labels | ✅ OK | Já simplificado na Etapa 4 |
+| **Testes** | Testes unitários existentes passam | ✅ OK | PDVFilter, TopProductsChart, usePagination, etc. |
+| **Páginas** | Dashboard (`/`) | ✅ Funcional | KPIs, charts, filters funcionando |
+| **Páginas** | Estoque (`/estoque`) | ✅ Funcional | Tabela + Mapa funcionando |
+| **Páginas** | Uploads (`/uploads`) | ✅ Funcional | Tabs uploads + vendas |
+| **Páginas** | Financeiro (`/financeiro`) | ✅ Funcional | DRE, Resumo, Despesas |
+| **Páginas** | Marketing (`/marketing`) | ✅ Funcional | Cupons, Mídias, Catálogos, Leads, Analytics |
+| **Páginas** | Settings (`/settings`) | ✅ Funcional | 6 tabs |
+| **Páginas** | Organizations (`/organizations`) | ✅ Funcional | Super admin only |
+| **Páginas** | Auth (`/auth`) | ✅ Funcional | Login + Reset password |
+| **Páginas** | Catálogo Público (`/catalogo/:slug`) | ✅ Funcional | |
+| **Páginas** | Short Links (`/s/:code`) | ✅ Funcional | |
+| **Segurança** | RLS em todas as tabelas | ✅ OK | |
+| **Segurança** | Roles via `user_roles` (não no profile) | ✅ OK | |
+| **Arquitetura** | Lazy loading de páginas e charts | ✅ OK | |
+| **Arquitetura** | Code splitting (vendor chunks) | ✅ OK | |
 
 ---
 
-## Valores Canônicos PT-BR
+### Problemas Encontrados e Plano de Refatoração
 
-| Campo | Valores aceitos |
-|-------|----------------|
-| `status` | `Concluído`, `Cancelado`, `Pendente`, `Reembolsado` |
-| `payment_method` | `Cartão de Crédito`, `Cartão de Débito`, `PIX`, `Cortesia`, `Cupom`, `Não informado` |
+#### 1. Filtros legado EN nos hooks do frontend (4 arquivos)
+
+Os hooks `useDashboard`, `useProductAnalytics`, `useProductSalesHistory` e `useProductStock` ainda filtram por variantes inglesas que **não existem mais no banco**. Isso funciona apenas porque `Concluído` está na lista, mas o código carrega bagagem desnecessária.
+
+**Mudança**: Em cada arquivo, substituir:
+- `["Completed", "Pago", "Concluído"]` → `["Concluído"]`
+- `ilike %cancelled%,ilike %canceled%,ilike %cancelado%` → `eq status Cancelado`
+- Remover comentários sobre variantes EN
+
+**Arquivos**: `src/hooks/useDashboard.ts`, `src/hooks/useProductAnalytics.ts`, `src/hooks/useProductSalesHistory.ts`, `src/hooks/useProductStock.ts`
+
+#### 2. Edge Function `reprocess-refunds` — código morto
+
+447 linhas de código que não são referenciadas em nenhum lugar do frontend. Usa lógica EN antiga incompatível com a normalização atual.
+
+**Mudança**: Deletar `supabase/functions/reprocess-refunds/index.ts`
+
+#### 3. Edge Function `ingest-revenue` — 503 placeholder
+
+Já endereçado no roadmap (Etapa 6). Não será tratado agora conforme acordado.
+
+#### 4. Testes com referências EN (`dashboardUtils.test.ts`)
+
+Comentários de teste mencionam `"Cancelled" (EN)` — devem ser atualizados para refletir os valores canônicos.
+
+**Mudança**: Atualizar labels nos testes para usar termos PT-BR.
+
+---
+
+### Resumo das Mudanças
+
+| Arquivo | Ação |
+|---------|------|
+| `src/hooks/useDashboard.ts` | Simplificar filtros de status para canônicos PT-BR |
+| `src/hooks/useProductAnalytics.ts` | Simplificar filtros de status |
+| `src/hooks/useProductSalesHistory.ts` | Simplificar filtros de status |
+| `src/hooks/useProductStock.ts` | Simplificar filtros de status |
+| `src/lib/__tests__/dashboardUtils.test.ts` | Atualizar comentários/labels para PT-BR |
+| `supabase/functions/reprocess-refunds/index.ts` | Deletar (código morto) |
+
+### O que NÃO será alterado
+
+- `ingest-revenue` — permanece desabilitada (Etapa 6 pendente)
+- `ingest-stock` — funcional, usada via API
+- Hooks utilitários (`usePrefetchRoutes`, `useDebounce`, `useHapticFeedback`, etc.) — todos em uso ativo
+- Componentes e páginas — todos funcionais, sem código morto identificado
+
