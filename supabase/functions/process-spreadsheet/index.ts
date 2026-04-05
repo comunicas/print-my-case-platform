@@ -1,4 +1,4 @@
-// Cross-PDV dedup v2 - force redeploy
+// Cross-PDV dedup v3 - PT-BR normalization
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import * as XLSX from "https://esm.sh/xlsx@0.18.5";
 
