@@ -1,44 +1,39 @@
 
 
-## Plano de Correção Completa — Atualizado
-
-### Mudança no Plano
-
-A API de ingestão (`ingest-revenue`) será **desabilitada temporariamente** para evitar que novos dados entrem com formato inconsistente enquanto organizamos o banco. Após a normalização completa, a API será reativada com os mapeamentos corretos.
-
----
+## Plano de Correção Completa — Dividido em Etapas
 
 ### Estado Atual
 
 | Item | Status |
 |------|--------|
-| RPC `get_dre_sales_summary` | ✅ Corrigida (Etapa 1 executada) |
-| RPC `get_annual_dre_summary` | ✅ Já corrigida com allowlist |
-| Dados no banco (`payment_method`) | ❌ Valores crus: `creditCard`, `debitCard`, `pix` |
-| Dados no banco (`status`) | ⚠️ Parcial |
-| Edge Function `ingest-revenue` | 🔒 Será desabilitada temporariamente |
-| Edge Function `process-spreadsheet` | Precisa verificar normalização |
+| RPC `get_dre_sales_summary` | ✅ Corrigida com allowlist |
+| RPC `get_annual_dre_summary` | ✅ Corrigida com allowlist |
+| Dados no banco (`payment_method`) | ✅ Normalizados PT-BR (940 registros) |
+| Dados no banco (`status`) | ✅ Normalizados PT-BR (940 registros) |
+| Edge Function `ingest-revenue` | 🔒 Desabilitada (503) — aguardando Etapa 6 |
+| Edge Function `process-spreadsheet` | ⏳ Etapa 3 |
 | Frontend `SalesRecordsTab` | ✅ Labels já mapeados |
 
+### Distribuição por PDV
+
+| PDV | Registros |
+|-----|-----------|
+| Boulevard Tatuapé | 220 |
+| Extra Ricardo Jafet | 10 |
+| Tietê Plaza Shopping | 710 |
+| **Total** | **940** |
+
 ---
 
-### Etapa 1 — Corrigir RPC `get_dre_sales_summary` ✅ CONCLUÍDA
+### Etapa 1 — Corrigir RPCs ✅ CONCLUÍDA
 
-Migration executada com allowlist de status e payment_methods expandida.
+### Etapa 2 — Desabilitar API + Importar planilha ✅ CONCLUÍDA
 
----
-
-### Etapa 2 — Desabilitar API `ingest-revenue` + Importar planilha completa
-
-**2a.** Desabilitar a Edge Function `ingest-revenue` (retornar 503 com mensagem "API temporariamente desabilitada para manutenção").
-
-**2b.** Limpar todos os registros existentes em `sales_records` (151 registros inconsistentes da API).
-
-**2c.** Importar a planilha `REVENUE-FULL-PDVS.xlsx` com normalização PT-BR:
-- Mapear `device_id` → `pdv_id` (1001013→Boulevard, 1000838→Extra RJ, 1001543→Tietê)
-- `payment_method`: `creditCard`→`Cartão de Crédito`, `debitCard`→`Cartão de Débito`, `pix`→`PIX`, `machineFree`→`Cortesia`
-- `status`: `Completed`→`Concluído`, `Cancelled`→`Cancelado`
-- Filtrar até 04/04/2026 (excluir hoje)
+- API `ingest-revenue` retorna 503
+- 151 registros antigos deletados
+- 940 registros importados da planilha com normalização PT-BR
+- `payment_method`: Cartão de Crédito (896), Cortesia (35), Cupom (6), Não informado (3)
+- `status`: Concluído (940)
 
 ---
 
@@ -62,19 +57,4 @@ Manter apenas uploads de estoque mais recentes por PDV.
 
 ### Etapa 6 — Reativar API `ingest-revenue` com normalização
 
-Somente após dados organizados: atualizar os mapeamentos da API para gravar valores PT-BR canônicos e remover o bloqueio 503.
-
----
-
-### Próximo Passo: Etapa 2
-
-**Escopo**: Desabilitar `ingest-revenue`, limpar `sales_records` e importar ~900+ registros da planilha com normalização PT-BR para os 3 PDVs.
-
-### Arquivos alterados
-
-| Arquivo | Mudança |
-|---------|---------|
-| `supabase/functions/ingest-revenue/index.ts` | Retornar 503 (desabilitado) |
-| Script Python (temporário) | Importar XLSX → banco com normalização |
-| Migration SQL | DELETE dos registros antigos |
-
+Atualizar mapeamentos para PT-BR canônico e remover bloqueio 503.
