@@ -1,63 +1,44 @@
 
 
-## Etapa 4 — Simplificar RPCs e Frontend
+## Etapa 5 — Rotina de Limpeza de Uploads de Estoque Antigos
 
-### Situação Atual
+### Estado Atual
 
-O banco agora contém **apenas valores canônicos PT-BR**:
-- **status**: `Concluído` (único valor presente)
-- **payment_method**: `Cartão de Crédito`, `Cortesia`, `Cupom`, `Não informado`
+| PDV | Uploads de Estoque | Mais Recente | Antigos para Remover |
+|-----|--------------------|--------------|---------------------|
+| Boulevard Tatuapé | 6 | `api-stock-2026-04-05` | 5 (api-stock 01-04, ESTOQUE-TATUAPE.xlsx) |
+| Extra Ricardo Jafet | 1 | `ESTOQUE-EXTRARICARDOJAFET.xlsx` | 0 |
+| Tietê Plaza Shopping | 1 | `ESTOQUE-TIETE.xlsx` | 0 |
 
-Porém as RPCs ainda filtram por variantes inglês+português (`'Completed', 'Pago', 'Concluído'`, `'creditCard', 'debitCard', ...`), e o frontend mantém mapeamentos redundantes para variantes que não existem mais.
+Uploads de vendas (1 registro) são **preservados integralmente** — a limpeza aplica-se apenas a estoque.
 
----
+### Solução
+
+**1. Limpeza imediata** — Script SQL para remover os 5 uploads antigos de estoque do Boulevard e seus `stock_records` + `stock_history` associados.
+
+**2. Lógica automática na Edge Function `process-spreadsheet`** — Após processar um upload de estoque com sucesso, deletar automaticamente uploads de estoque anteriores do mesmo PDV (mantendo apenas o recém-processado).
 
 ### Alterações
 
-**1. Migration SQL — Simplificar as 2 RPCs**
+**Arquivo: `supabase/functions/process-spreadsheet/index.ts`**
 
-Recriar `get_dre_sales_summary` e `get_annual_dre_summary` com filtros apenas nos valores canônicos:
+Após o bloco de processamento de estoque (após inserir `stock_records` e `stock_history`), adicionar lógica de cleanup:
 
-- `status IN ('Concluído')` (remover `Completed`, `Pago`)
-- `payment_method IN ('Cartão de Crédito', 'Cartão de Débito')` (remover `creditCard`, `debitCard`, `credit_card`, `debit_card`)
-
-**2. Frontend — Simplificar `SalesRecordsTab.tsx`**
-
-Reduzir os mapeamentos de labels e cores:
-
-| Mapa atual | Entradas | Simplificado |
-|------------|----------|-------------|
-| `statusLabels` | 7 entradas (EN+PT) | 4 entradas (só PT) |
-| `statusColors` | 7 entradas (EN+PT) | 4 entradas (só PT) |
-| `paymentMethodLabels` | 7 entradas (EN+PT) | 4 entradas (só PT canônico → label curto) |
-
-Novos mapeamentos simplificados:
 ```text
-statusLabels:
-  Concluído → Concluído
-  Cancelado → Cancelado
-  Pendente  → Pendente
-  Reembolsado → Reembolsado
-
-paymentMethodLabels:
-  Cartão de Crédito → Crédito
-  Cartão de Débito  → Débito
-  PIX → PIX
-  Cortesia → Cortesia
-  Cupom → Cupom
-  Não informado → N/I
+1. Buscar uploads de estoque do mesmo pdv_id com status 'ready', excluindo o upload atual
+2. Para cada upload antigo:
+   - DELETE stock_records WHERE upload_id = antigo
+   - DELETE stock_history WHERE upload_id = antigo  
+   - DELETE arquivo do storage (se existir)
+   - DELETE upload record
+3. Log quantidade de uploads removidos
 ```
 
-### Arquivos alterados
-
-| Arquivo | Mudança |
-|---------|---------|
-| Migration SQL | Recriar 2 RPCs com filtros canônicos |
-| `src/components/upload/SalesRecordsTab.tsx` | Reduzir mapeamentos de 7→4 entradas |
+**Limpeza imediata** — Usar insert tool para deletar os 5 uploads antigos do Boulevard agora.
 
 ### Resultado
 
-- RPCs mais simples e fáceis de manter
-- Frontend sem mapeamentos de tradução EN→PT desnecessários
-- Código preparado para a Etapa 5 (rotina de limpeza de uploads)
+- Apenas 1 upload de estoque por PDV (o mais recente)
+- Limpeza automática a cada novo upload de estoque
+- Redução de ~16.000 registros órfãos em `stock_records`
 
