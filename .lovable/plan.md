@@ -1,26 +1,52 @@
 
 
-## Corrigir 5 Testes Falhando em `getLowStockItems`
+## Adicionar Exportação JPG — Checklist de Conferência de Estoque
 
-### Causa Raiz
+### O que será feito
 
-A função `getLowStockItems` filtra itens com `salesIndex === 'none'` (linha 336 de `dashboardUtils.ts`). Isso é intencional: alertas de estoque só são relevantes para produtos que vendem. Porém, 5 testes passam `new Map()` vazio como vendas, fazendo todos os itens serem filtrados.
+Adicionar uma terceira opção no dropdown "Exportar" do Mapa de Estoque: **"Checklist JPG"**. Ao clicar, gera uma imagem JPG simples com formato de lista para conferência física, contendo slot, produto e quantidade — respeitando os filtros ativos.
 
-### Correções
+### Como funciona
 
-**Arquivo**: `src/lib/__tests__/dashboardUtils.test.ts`
+Usa a API Canvas do navegador (nativa, sem dependências extras) para desenhar a lista e exportar como `.jpg`. A imagem terá:
 
-1. **Teste "deve filtrar apenas itens com estoque <= threshold"** (linha 696): Adicionar vendas para os 2 produtos que devem aparecer no resultado.
+```text
+┌─────────────────────────────────────┐
+│  CHECKLIST DE ESTOQUE               │
+│  Boulevard Tatuapé — 05/04/2026     │
+│─────────────────────────────────────│
+│  SLOT   PRODUTO              QTD   │
+│  01     Redmi note14 Pro     3/7   │
+│  02     Redmi note14         2/7   │
+│  03     Redmi note13 Pro+    5/7   │
+│  ...                                │
+│─────────────────────────────────────│
+│  EXTRA RICARDO JAFET                │
+│  SLOT   PRODUTO              QTD   │
+│  01     ...                         │
+│  ...                                │
+└─────────────────────────────────────┘
+```
 
-2. **Teste "deve respeitar threshold customizado"** (linha 709): Adicionar vendas para o produto.
+- Agrupado por PDV (quando multi-PDV)
+- Ordenado por slot dentro de cada PDV
+- Cores: vermelho para qty 0, laranja para 1-2, preto para o resto
+- Fonte monoespaçada para alinhamento limpo
 
-3. **Teste "deve calcular salesIndex corretamente"** (linha 719): Remover a expectativa de `salesIndex: 'none'` do resultado (esse item é filtrado intencionalmente). Ajustar `toHaveLength` de 4 para 3.
+### Arquivo alterado
 
-4. **Teste "deve ordenar por quantidade crescente"** (linha 742): Adicionar vendas para os 2 produtos.
+| Arquivo | Mudança |
+|---------|---------|
+| `src/components/stock/StockGridView.tsx` | Adicionar `handleExportJpg` + item no dropdown menu |
 
-5. **Teste "deve incluir pdvName quando disponível"** (linha 754): Adicionar vendas para o produto.
+### Detalhes técnicos
 
-### Resultado
+1. Nova função `handleExportJpg` que:
+   - Reutiliza `getExportData()` já existente (respeita filtros)
+   - Cria um `<canvas>` offscreen
+   - Desenha cabeçalho com título, PDV e data
+   - Desenha linhas: `Slot | Produto | Qtd/7`
+   - Exporta via `canvas.toBlob('image/jpeg')` → download automático
 
-Todos os 76 testes passarão, incluindo os 5 corrigidos. Zero mudanças na lógica de negócio.
+2. Novo `<DropdownMenuItem>` no menu Exportar com ícone `Image` do lucide-react
 
