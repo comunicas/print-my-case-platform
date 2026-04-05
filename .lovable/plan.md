@@ -1,60 +1,36 @@
 
 
-## Limpeza de Uploads Duplicados e Teste de Upload
+## Correção: RPCs do DRE Não Excluem Status "Cancelado"
 
-### Problemas Encontrados
+### Problema Raiz
 
-| Problema | Detalhes |
-|----------|---------|
-| ESTOQUE classificado como vendas | 5 uploads de ESTOQUE-TIETE.xlsx + 1 ESTOQUE-TATUAPE.xlsx foram salvos como `type=sales`, gerando 969 registros falsos em `sales_records` |
-| Uploads com 0 registros | 10 uploads de REVENUE que processaram 0 registros (deduplicação removeu tudo) — são lixo histórico |
-| Uploads de estoque duplicados | ESTOQUE-TATUAPE e ESTOQUE-TIETE têm 2 uploads cada (stock) — o mais antigo é redundante |
-| Uploads de vendas duplicados | REVENUE-TATUAPE tem 12 uploads, REVENUE-TIETE tem 11 — os com 0 registros são redundantes |
-| REVENUE-EXTRARICARDOJAFET duplicado | 2 uploads (8 + 2 registros) — o mais antigo pode ser redundante |
-| Erro Stock.tsx | Erro transiente de import dinâmico — não requer correção de código |
+As duas RPCs financeiras (`get_dre_sales_summary` e `get_annual_dre_summary`) filtram apenas `status != 'Cancelled'` (inglês), mas o banco tem **61 registros com status `'Cancelado'`** (português) que estão sendo **contados como receita**.
 
-### Plano de Limpeza (via insert tool)
+| Status no banco | Registros | Tratamento atual | Correto |
+|-----------------|-----------|-----------------|---------|
+| Cancelled | 69 | Excluído ✅ | Excluído |
+| Cancelado | 61 | **Incluído ❌** | Excluído |
+| Completed | 189 | Incluído ✅ | Incluído |
+| Concluído | 78 | Incluído ✅ | Incluído |
+| Pendente | 4 | Incluído ⚠️ | Excluído |
+| Refunded | 3 | Incluído ⚠️ | Excluído |
 
-**1. Deletar sales_records dos uploads ESTOQUE classificados como vendas**
+Exemplo em Abril/26: a receita mostra R$ 2.856,20 (38 transações) quando deveria ser R$ 2.177,10 (29 transações) — os 9 registros "Cancelado" estão inflando R$ 679,10.
 
-Remover os 969 registros falsos criados por uploads ESTOQUE processados como vendas:
-```sql
-DELETE FROM sales_records WHERE upload_id IN (
-  'ae30073c...', '38095325...', '7582e837...', 
-  '89d6b982...', '92bff7ff...', '69ff2424...'
-);
-```
+### Correção
 
-**2. Deletar os uploads ESTOQUE com type=sales**
+**Migration SQL** — alterar as duas RPCs para usar allowlist em vez de blocklist:
 
 ```sql
-DELETE FROM uploads WHERE file_name LIKE 'ESTOQUE%' AND type = 'sales';
+-- Substituir: AND status != 'Cancelled'
+-- Por: AND status IN ('Completed', 'Pago', 'Concluído')
 ```
 
-**3. Deletar uploads de vendas com 0 registros**
+Ambas as funções (`get_dre_sales_summary` e `get_annual_dre_summary`) receberão a mesma correção, garantindo que apenas vendas efetivamente pagas sejam contabilizadas.
 
-10 uploads que não importaram nada — são tentativas falhadas/deduplicadas:
-```sql
-DELETE FROM uploads WHERE records_count = 0 AND type = 'sales';
-```
+### Impacto
 
-**4. Deletar uploads de estoque antigos duplicados**
-
-Para ESTOQUE-TATUAPE e ESTOQUE-TIETE, manter apenas o mais recente:
-```sql
-DELETE FROM stock_records WHERE upload_id IN ('0da369ed...', 'b2f1de95...');
-DELETE FROM stock_history WHERE upload_id IN ('0da369ed...', 'b2f1de95...');
-DELETE FROM uploads WHERE id IN ('0da369ed...', 'b2f1de95...');
-```
-
-**5. Testar upload ponta a ponta**
-
-Usar a Edge Function `process-spreadsheet` via curl para testar o reprocessamento do upload mais recente do Extra Ricardo Jafet, confirmando que o machine_id `1000838` está correto.
-
-### Resultado Esperado
-
-- ~969 registros falsos de vendas removidos (ESTOQUE processado como sales)
-- ~12 uploads vazios/duplicados removidos
-- Dados de estoque sem duplicação
-- Upload do Extra Ricardo Jafet confirmado funcional
+- Receitas e margens corrigidas em todos os meses e PDVs
+- Registros "Cancelado", "Pendente" e "Refunded" deixam de inflar o faturamento
+- Sem alteração no frontend — a correção é 100% nas RPCs do banco
 
