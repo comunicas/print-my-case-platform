@@ -1,39 +1,41 @@
 
 
-## Correção: Datas Falsas nos Registros da API
+## Corrigir machine_id do PDV Extra Ricardo Jafet e Reprocessar Upload
 
 ### Problema
 
-A migration anterior corrigiu os `payment_method` e `status` numéricos corretamente, mas usou `UPDATE SET payment_date = now()` para os 69 registros com data NULL. Isso colocou a **mesma data falsa** (03/04/26 00:34) em todos eles — a data da execução da migration, não a data real da venda.
+O PDV "Extra Ricardo Jafet" está cadastrado com `machine_id = 1001838`, mas a planilha contém `device_id = 1000838`. A Edge Function `process-spreadsheet` rejeita o upload por incompatibilidade de identidade. Há 4 uploads de vendas falhados por este motivo.
 
-### Dados encontrados
+### Alterações
 
-- 69 registros com `payment_date = 2026-04-03 03:34:22` (data falsa)
-- **Todos os 69** têm `order_time` com a data real da transação (ex: 2026-03-03, 2026-03-20, etc.)
-
-### Correção
-
-**1. Data fix (usando insert tool)** — Copiar `order_time` para `payment_date`
+**1. Corrigir machine_id no banco (via insert tool)**
 
 ```sql
-UPDATE sales_records 
-SET payment_date = order_time 
-WHERE source = 'api' 
-  AND payment_date = '2026-04-03 03:34:22.409348+00'
-  AND order_time IS NOT NULL;
+UPDATE pdvs 
+SET machine_id = '1000838' 
+WHERE id = '4602f639-8917-4ba3-ac48-20ca0b87b5fb';
 ```
 
-**2. `supabase/functions/ingest-revenue/index.ts`** — Melhorar fallback de `payment_date`
+**2. Reprocessar o upload mais recente**
 
-Na construção do record, adicionar fallback em cascata: `payment_date` → `order_time` → `now()`:
+- Resetar o status do upload `09a5f9d4-9090-4f29-942b-405f8374a906` para `processing`
+- Chamar a Edge Function `process-spreadsheet` com os dados do upload (file_url, pdv_id, type, upload_id)
+- Verificar se o processamento completou com sucesso
 
-```typescript
-payment_date: parsePaymentDate(body.payment_date || body.order_time),
-```
+**3. Limpar uploads duplicados com erro**
 
-Assim, se a máquina não enviar `payment_date` mas enviar `order_time`, usamos o `order_time` como data de pagamento.
+Os outros 3 uploads falhados (`b379fc4a`, `b8e61641`, `3a79eb03`) são tentativas duplicadas do mesmo arquivo. Serão removidos para manter o histórico limpo.
 
-### Resultado
+### Detalhes técnicos
 
-Os 69 registros passam a ter a data real da transação em vez da data da migration. Futuros registros sem `payment_date` usam `order_time` como fallback antes de cair em `now()`.
+| Item | Valor |
+|------|-------|
+| PDV ID | `4602f639-8917-4ba3-ac48-20ca0b87b5fb` |
+| machine_id atual | `1001838` |
+| machine_id correto | `1000838` |
+| Upload a reprocessar | `09a5f9d4-9090-4f29-942b-405f8374a906` |
+
+### Nota sobre restrição de machine_id
+
+O sistema tem uma regra de que `machine_id` é somente-leitura após criação. Esta é uma correção de dados cadastrais incorretos, então a alteração será feita diretamente no banco.
 
