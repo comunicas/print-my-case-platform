@@ -1,60 +1,63 @@
 
 
-## Plano de Correção Completa — Dividido em Etapas
+## Etapa 4 — Simplificar RPCs e Frontend
 
-### Estado Atual
+### Situação Atual
 
-| Item | Status |
-|------|--------|
-| RPC `get_dre_sales_summary` | ✅ Corrigida com allowlist |
-| RPC `get_annual_dre_summary` | ✅ Corrigida com allowlist |
-| Dados no banco (`payment_method`) | ✅ Normalizados PT-BR (940 registros) |
-| Dados no banco (`status`) | ✅ Normalizados PT-BR (940 registros) |
-| Edge Function `ingest-revenue` | 🔒 Desabilitada (503) — aguardando Etapa 6 |
-| Edge Function `process-spreadsheet` | ⏳ Etapa 3 |
-| Frontend `SalesRecordsTab` | ✅ Labels já mapeados |
+O banco agora contém **apenas valores canônicos PT-BR**:
+- **status**: `Concluído` (único valor presente)
+- **payment_method**: `Cartão de Crédito`, `Cortesia`, `Cupom`, `Não informado`
 
-### Distribuição por PDV
-
-| PDV | Registros |
-|-----|-----------|
-| Boulevard Tatuapé | 220 |
-| Extra Ricardo Jafet | 10 |
-| Tietê Plaza Shopping | 710 |
-| **Total** | **940** |
+Porém as RPCs ainda filtram por variantes inglês+português (`'Completed', 'Pago', 'Concluído'`, `'creditCard', 'debitCard', ...`), e o frontend mantém mapeamentos redundantes para variantes que não existem mais.
 
 ---
 
-### Etapa 1 — Corrigir RPCs ✅ CONCLUÍDA
+### Alterações
 
-### Etapa 2 — Desabilitar API + Importar planilha ✅ CONCLUÍDA
+**1. Migration SQL — Simplificar as 2 RPCs**
 
-- API `ingest-revenue` retorna 503
-- 151 registros antigos deletados
-- 940 registros importados da planilha com normalização PT-BR
-- `payment_method`: Cartão de Crédito (896), Cortesia (35), Cupom (6), Não informado (3)
-- `status`: Concluído (940)
+Recriar `get_dre_sales_summary` e `get_annual_dre_summary` com filtros apenas nos valores canônicos:
 
----
+- `status IN ('Concluído')` (remover `Completed`, `Pago`)
+- `payment_method IN ('Cartão de Crédito', 'Cartão de Débito')` (remover `creditCard`, `debitCard`, `credit_card`, `debit_card`)
 
-### Etapa 3 — Normalizar `process-spreadsheet` ✅ CONCLUÍDA
+**2. Frontend — Simplificar `SalesRecordsTab.tsx`**
 
-Edge Function atualizada com `normalizePaymentMethod()` e `normalizeStatus()` para gravar valores PT-BR canônicos automaticamente.
+Reduzir os mapeamentos de labels e cores:
 
----
+| Mapa atual | Entradas | Simplificado |
+|------------|----------|-------------|
+| `statusLabels` | 7 entradas (EN+PT) | 4 entradas (só PT) |
+| `statusColors` | 7 entradas (EN+PT) | 4 entradas (só PT) |
+| `paymentMethodLabels` | 7 entradas (EN+PT) | 4 entradas (só PT canônico → label curto) |
 
-### Etapa 4 — Simplificar RPCs e frontend
+Novos mapeamentos simplificados:
+```text
+statusLabels:
+  Concluído → Concluído
+  Cancelado → Cancelado
+  Pendente  → Pendente
+  Reembolsado → Reembolsado
 
-Após normalização completa, simplificar RPCs para filtrar apenas valores canônicos e reduzir mapeamentos no frontend.
+paymentMethodLabels:
+  Cartão de Crédito → Crédito
+  Cartão de Débito  → Débito
+  PIX → PIX
+  Cortesia → Cortesia
+  Cupom → Cupom
+  Não informado → N/I
+```
 
----
+### Arquivos alterados
 
-### Etapa 5 — Rotina de limpeza de uploads antigos (opcional)
+| Arquivo | Mudança |
+|---------|---------|
+| Migration SQL | Recriar 2 RPCs com filtros canônicos |
+| `src/components/upload/SalesRecordsTab.tsx` | Reduzir mapeamentos de 7→4 entradas |
 
-Manter apenas uploads de estoque mais recentes por PDV.
+### Resultado
 
----
+- RPCs mais simples e fáceis de manter
+- Frontend sem mapeamentos de tradução EN→PT desnecessários
+- Código preparado para a Etapa 5 (rotina de limpeza de uploads)
 
-### Etapa 6 — Reativar API `ingest-revenue` com normalização
-
-Atualizar mapeamentos para PT-BR canônico e remover bloqueio 503.
