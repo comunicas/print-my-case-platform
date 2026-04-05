@@ -439,10 +439,10 @@ function mapSalesRow(row: Record<string, unknown>, pdvId: string, uploadId: stri
         mapped[dbCol] = sanitizeString(value, FIELD_LIMITS.transaction_number);
         break;
       case "payment_method":
-        mapped[dbCol] = sanitizeString(value, FIELD_LIMITS.payment_method);
+        mapped[dbCol] = normalizePaymentMethod(value);
         break;
       case "status":
-        mapped[dbCol] = sanitizeString(value, FIELD_LIMITS.status);
+        mapped[dbCol] = normalizeStatus(value);
         break;
       case "print_code":
         mapped[dbCol] = sanitizeString(value, FIELD_LIMITS.print_code);
