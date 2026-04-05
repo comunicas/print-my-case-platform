@@ -1,50 +1,93 @@
 
 
-## Correção: Tabela de Vendas com Filtros e Labels Incorretos
+## Plano de Correção Completa — Dividido em Etapas
 
-### Problemas Encontrados
+### Estado Atual
 
-| Problema | Detalhe |
-|----------|---------|
-| **Filtro de status não funciona** | O dropdown usa valores em inglês (`Completed`, `Cancelled`, `Refunded`) mas o banco só tem `Concluído`, `Cancelado`, `Pendente`. Filtrar por "Concluído" envia `status=Completed` → 0 resultados. |
-| **Método de pagamento cru** | Mostra `creditCard`, `debitCard`, `pix` sem tradução. Deveria exibir "Cartão de Crédito", "Débito", "PIX". |
-| **Status "Pendente" ausente no filtro** | Existem 4 registros com status `Pendente` que não aparecem nas opções do filtro. |
+| Item | Status |
+|------|--------|
+| RPC `get_dre_sales_summary` | ❌ Ainda usa `!= 'Cancelled'` e `= 'creditCard'` |
+| RPC `get_annual_dre_summary` | ✅ Já corrigida com allowlist |
+| Dados no banco (`payment_method`) | ❌ Valores crus: `creditCard`, `debitCard`, `pix` |
+| Dados no banco (`status`) | ⚠️ Parcial: `Concluído`/`Cancelado`/`Pendente` (ok), mas RPC não filtra corretamente |
+| Edge Function `ingest-revenue` | ❌ Ainda grava `creditCard` em vez de `Cartão de Crédito` |
+| Edge Function `process-spreadsheet` | Precisa verificar normalização |
+| Frontend `SalesRecordsTab` | ✅ Labels já mapeados |
+| Vendas existem apenas para Boulevard Tatuapé | ⚠️ 143 registros (API). Outros PDVs: 0 vendas |
 
-### Correção
+---
 
-**Arquivo: `src/components/upload/SalesRecordsTab.tsx`**
+### Etapa 1 — Corrigir RPC `get_dre_sales_summary`
 
-1. **Corrigir valores do filtro de status** — usar os valores reais do banco:
-```tsx
-options={[
-  { value: "all", label: "Todos os status" },
-  { value: "Concluído", label: "Concluído" },
-  { value: "Cancelado", label: "Cancelado" },
-  { value: "Pendente", label: "Pendente" },
-]}
+**Objetivo**: Financeiro (DRE mensal) e dashboard mostram receitas corretas.
+
+**Migration SQL**: Recriar a função com allowlist de status e lista ampliada de payment_methods para `card_revenue`:
+
+```sql
+CREATE OR REPLACE FUNCTION public.get_dre_sales_summary(
+  p_pdv_ids uuid[], p_start_date timestamptz, p_end_date timestamptz
+)
+RETURNS TABLE(faturamento numeric, deducoes numeric, sales_count bigint, card_revenue numeric)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT
+    COALESCE(SUM(amount), 0),
+    COALESCE(SUM(COALESCE(refund_amount, 0)), 0),
+    COUNT(*),
+    COALESCE(SUM(CASE WHEN payment_method IN (
+      'creditCard','debitCard','credit_card','debit_card',
+      'Cartão de Crédito','Cartão de Débito'
+    ) THEN amount ELSE 0 END), 0)
+  FROM sales_records
+  WHERE pdv_id = ANY(p_pdv_ids)
+    AND payment_date >= p_start_date
+    AND payment_date <= p_end_date
+    AND status IN ('Completed', 'Pago', 'Concluído')
+$$;
 ```
 
-2. **Adicionar mapa de tradução de payment_method**:
-```tsx
-const paymentMethodLabels: Record<string, string> = {
-  creditCard: "Crédito",
-  debitCard: "Débito",
-  credit_card: "Crédito",
-  debit_card: "Débito",
-  pix: "PIX",
-  "Cartão de Crédito": "Crédito",
-  "Cartão de Débito": "Débito",
-};
+**Impacto**: 65 registros "Cancelado"/"Pendente" (R$ ~4.600) deixam de inflar receita. Sem alteração no frontend.
+
+---
+
+### Etapa 2 — Normalizar dados existentes no banco
+
+Padronizar `payment_method` e `status` dos 143 registros para valores PT-BR canônicos:
+
+```sql
+UPDATE sales_records SET payment_method = 'Cartão de Crédito' WHERE payment_method IN ('creditCard', 'credit_card');
+UPDATE sales_records SET payment_method = 'Cartão de Débito' WHERE payment_method IN ('debitCard', 'debit_card');
+UPDATE sales_records SET payment_method = 'PIX' WHERE payment_method = 'pix';
+UPDATE sales_records SET status = 'Concluído' WHERE status IN ('Completed', 'Pago');
 ```
 
-3. **Usar o mapa na coluna Método**:
-```tsx
-<TableCell>{paymentMethodLabels[r.payment_method ?? ""] ?? r.payment_method ?? "—"}</TableCell>
-```
+---
 
-### Resultado
+### Etapa 3 — Normalizar Edge Function `ingest-revenue`
 
-- Filtro de status funciona corretamente com os valores reais do banco
-- Métodos de pagamento exibidos em português legível
-- Status "Pendente" incluído no filtro
+Atualizar os mapeamentos para gravar diretamente os valores PT-BR canônicos, eliminando a necessidade de mapear variantes no futuro.
+
+---
+
+### Etapa 4 — Verificar e normalizar `process-spreadsheet`
+
+Garantir que planilhas de vendas também gravem os valores PT-BR canônicos.
+
+---
+
+### Etapa 5 — Simplificar RPCs e frontend
+
+Após normalização completa, simplificar as RPCs para filtrar apenas valores canônicos e reduzir os mapeamentos no frontend.
+
+---
+
+### Etapa 6 — Rotina de limpeza de uploads antigos (opcional)
+
+Criar mecanismo para manter apenas uploads de estoque mais recentes por PDV.
+
+---
+
+## Etapa 1 — Pronta para Aprovação
+
+**Escopo**: Apenas a migration SQL para recriar `get_dre_sales_summary` com allowlist. Zero mudanças no frontend ou edge functions.
 
