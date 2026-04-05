@@ -1,44 +1,60 @@
+# Roadmap de Normalização de Dados — Status
 
+## Visão Geral
 
-## Etapa 5 — Rotina de Limpeza de Uploads de Estoque Antigos
+| Etapa | Descrição | Status |
+|-------|-----------|--------|
+| 1 | Corrigir RPCs financeiras (`get_dre_sales_summary`) | ✅ Concluída |
+| 2 | Desabilitar API, limpar banco e importar dados normalizados | ✅ Concluída |
+| 3 | Normalizar Edge Function `process-spreadsheet` para PT-BR | ✅ Concluída |
+| 4 | Simplificar RPCs e frontend (remover mapeamentos EN→PT) | ✅ Concluída |
+| 5 | Rotina de limpeza de uploads de estoque antigos | ✅ Concluída |
+| 6 | Reativar `ingest-revenue` com normalização PT-BR | ⏳ Pendente |
 
-### Estado Atual
+---
 
-| PDV | Uploads de Estoque | Mais Recente | Antigos para Remover |
-|-----|--------------------|--------------|---------------------|
-| Boulevard Tatuapé | 6 | `api-stock-2026-04-05` | 5 (api-stock 01-04, ESTOQUE-TATUAPE.xlsx) |
-| Extra Ricardo Jafet | 1 | `ESTOQUE-EXTRARICARDOJAFET.xlsx` | 0 |
-| Tietê Plaza Shopping | 1 | `ESTOQUE-TIETE.xlsx` | 0 |
+## Etapa 1 — Corrigir RPCs Financeiras ✅
 
-Uploads de vendas (1 registro) são **preservados integralmente** — a limpeza aplica-se apenas a estoque.
+- Recriada `get_dre_sales_summary` com allowlist `IN ('Completed','Pago','Concluído')` em vez de blocklist `!= 'Cancelled'`.
+- Adicionadas variantes de `payment_method` para capturar cartão de crédito/débito em EN e PT.
 
-### Solução
+## Etapa 2 — Reset e Importação Normalizada ✅
 
-**1. Limpeza imediata** — Script SQL para remover os 5 uploads antigos de estoque do Boulevard e seus `stock_records` + `stock_history` associados.
+- `ingest-revenue` desabilitada (retorna 503).
+- Todos os `sales_records` antigos deletados.
+- 934 registros importados da planilha `REVENUE-FULL-PDVS.xlsx` com valores canônicos PT-BR.
+- Mapeamento por `device_id` → `pdv_id` para os 3 PDVs (Boulevard, Extra Ricardo Jafet, Tietê).
 
-**2. Lógica automática na Edge Function `process-spreadsheet`** — Após processar um upload de estoque com sucesso, deletar automaticamente uploads de estoque anteriores do mesmo PDV (mantendo apenas o recém-processado).
+## Etapa 3 — Normalizar `process-spreadsheet` ✅
 
-### Alterações
+- Funções `normalizePaymentMethod()` e `normalizeStatus()` adicionadas à Edge Function.
+- Qualquer planilha processada agora grava valores PT-BR canônicos diretamente.
 
-**Arquivo: `supabase/functions/process-spreadsheet/index.ts`**
+## Etapa 4 — Simplificar RPCs e Frontend ✅
 
-Após o bloco de processamento de estoque (após inserir `stock_records` e `stock_history`), adicionar lógica de cleanup:
+- RPCs `get_dre_sales_summary` e `get_annual_dre_summary` recriadas filtrando apenas `'Concluído'` e `'Cartão de Crédito'`.
+- Mapeamentos no frontend (`SalesRecordsTab.tsx`) reduzidos para 4 entradas canônicas.
 
-```text
-1. Buscar uploads de estoque do mesmo pdv_id com status 'ready', excluindo o upload atual
-2. Para cada upload antigo:
-   - DELETE stock_records WHERE upload_id = antigo
-   - DELETE stock_history WHERE upload_id = antigo  
-   - DELETE arquivo do storage (se existir)
-   - DELETE upload record
-3. Log quantidade de uploads removidos
-```
+## Etapa 5 — Limpeza de Uploads de Estoque ✅
 
-**Limpeza imediata** — Usar insert tool para deletar os 5 uploads antigos do Boulevard agora.
+- 5 uploads antigos do Boulevard deletados (com `stock_records` e `stock_history` associados).
+- Lógica automática adicionada em `process-spreadsheet`: após processar estoque, deleta uploads anteriores do mesmo PDV.
+- Resultado: exatamente 1 upload de estoque por PDV.
 
-### Resultado
+## Etapa 6 — Reativar `ingest-revenue` ⏳
 
-- Apenas 1 upload de estoque por PDV (o mais recente)
-- Limpeza automática a cada novo upload de estoque
-- Redução de ~16.000 registros órfãos em `stock_records`
+**Pendente.** A Edge Function `ingest-revenue` está desabilitada (503). Ao reativar:
 
+1. Adicionar `normalizePaymentMethod()` e `normalizeStatus()` (mesmas funções da Etapa 3).
+2. Aplicar normalização antes de inserir em `sales_records`.
+3. Remover o bloqueio 503.
+4. Testar com payload real de cada PDV.
+
+---
+
+## Valores Canônicos PT-BR
+
+| Campo | Valores aceitos |
+|-------|----------------|
+| `status` | `Concluído`, `Cancelado`, `Pendente`, `Reembolsado` |
+| `payment_method` | `Cartão de Crédito`, `Cartão de Débito`, `PIX`, `Cortesia`, `Cupom`, `Não informado` |
