@@ -699,8 +699,13 @@ describe('getLowStockItems', () => {
       { slotNumber: 'A2', productName: 'Produto 2', brand: 'SAMSUNG', quantity: 1 },
       { slotNumber: 'A3', productName: 'Produto 3', brand: 'MOTOROLA', quantity: 5 },
     ];
+    const salesByProduct = new Map([
+      ['Produto 1', 10],
+      ['Produto 2', 5],
+      ['Produto 3', 3],
+    ]);
     
-    const result = getLowStockItems(slots, new Map());
+    const result = getLowStockItems(slots, salesByProduct);
     
     expect(result).toHaveLength(2);
     expect(result.map(r => r.slotNumber)).toEqual(['A1', 'A2']);
@@ -710,8 +715,9 @@ describe('getLowStockItems', () => {
     const slots = [
       { slotNumber: 'A1', productName: 'Produto 1', brand: 'APPLE', quantity: 3 },
     ];
+    const salesByProduct = new Map([['Produto 1', 8]]);
     
-    const result = getLowStockItems(slots, new Map(), 5);
+    const result = getLowStockItems(slots, salesByProduct, 5);
     
     expect(result).toHaveLength(1);
   });
@@ -728,15 +734,14 @@ describe('getLowStockItems', () => {
       ['Produto Alta', 25],    // high >= 20
       ['Produto Média', 10],   // medium >= 5
       ['Produto Baixa', 2],    // low < 5
-      ['Produto Zero', 0],     // none = 0
     ]);
     
     const result = getLowStockItems(slots, salesByProduct);
     
+    expect(result).toHaveLength(3);
     expect(result.find(r => r.productName === 'Produto Alta')?.salesIndex).toBe('high');
     expect(result.find(r => r.productName === 'Produto Média')?.salesIndex).toBe('medium');
     expect(result.find(r => r.productName === 'Produto Baixa')?.salesIndex).toBe('low');
-    expect(result.find(r => r.productName === 'Produto Zero')?.salesIndex).toBe('none');
   });
 
   it('deve ordenar por quantidade crescente', () => {
@@ -744,8 +749,12 @@ describe('getLowStockItems', () => {
       { slotNumber: 'A1', productName: 'Produto 1', brand: 'APPLE', quantity: 1 },
       { slotNumber: 'A2', productName: 'Produto 2', brand: 'SAMSUNG', quantity: 0 },
     ];
+    const salesByProduct = new Map([
+      ['Produto 1', 5],
+      ['Produto 2', 10],
+    ]);
     
-    const result = getLowStockItems(slots, new Map());
+    const result = getLowStockItems(slots, salesByProduct);
     
     expect(result[0].quantity).toBe(0);
     expect(result[1].quantity).toBe(1);
@@ -755,8 +764,9 @@ describe('getLowStockItems', () => {
     const slots = [
       { slotNumber: 'A1', productName: 'Produto 1', brand: 'APPLE', quantity: 0, pdvName: 'Loja Centro' },
     ];
+    const salesByProduct = new Map([['Produto 1', 15]]);
     
-    const result = getLowStockItems(slots, new Map());
+    const result = getLowStockItems(slots, salesByProduct);
     
     expect(result[0].pdvName).toBe('Loja Centro');
   });
