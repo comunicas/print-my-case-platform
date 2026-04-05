@@ -41,6 +41,7 @@ const statusLabels: Record<string, string> = {
   completed: "Concluído",
   cancelled: "Cancelado",
   refunded: "Reembolsado",
+  pendente: "Pendente",
   concluído: "Concluído",
   cancelado: "Cancelado",
   reembolsado: "Reembolsado",
@@ -53,6 +54,17 @@ const statusColors: Record<string, string> = {
   cancelado: "bg-destructive/10 text-destructive border-destructive/20",
   refunded: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800",
   reembolsado: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800",
+  pendente: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800",
+};
+
+const paymentMethodLabels: Record<string, string> = {
+  creditCard: "Crédito",
+  debitCard: "Débito",
+  credit_card: "Crédito",
+  debit_card: "Débito",
+  pix: "PIX",
+  "Cartão de Crédito": "Crédito",
+  "Cartão de Débito": "Débito",
 };
 
 const formatCurrency = (v: number) =>
@@ -139,9 +151,9 @@ export function SalesRecordsTab({ pdvs, onUploadClick, canUpload }: Props) {
             triggerClassName="w-[140px]"
             options={[
               { value: "all", label: "Todos os status" },
-              { value: "Completed", label: "Concluído" },
-              { value: "Cancelled", label: "Cancelado" },
-              { value: "Refunded", label: "Reembolsado" },
+              { value: "Concluído", label: "Concluído" },
+              { value: "Cancelado", label: "Cancelado" },
+              { value: "Pendente", label: "Pendente" },
             ]}
           />
         </FilterBar>
@@ -196,7 +208,7 @@ export function SalesRecordsTab({ pdvs, onUploadClick, canUpload }: Props) {
                     ? format(new Date(r.payment_date), "dd/MM/yy HH:mm", { locale: ptBR })
                     : "—"}
                 </TableCell>
-                <TableCell className="text-sm">{r.payment_method ?? "—"}</TableCell>
+                <TableCell className="text-sm">{paymentMethodLabels[r.payment_method ?? ""] ?? r.payment_method ?? "—"}</TableCell>
                 <TableCell>
                   <Badge variant="outline" className={statusColors[r.status?.toLowerCase() ?? ""] ?? "bg-muted text-muted-foreground"}>
                     {statusLabels[r.status?.toLowerCase() ?? ""] ?? r.status ?? "—"}
