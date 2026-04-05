@@ -48,7 +48,7 @@ export function useProductAnalytics(productName: string | null, pdvId?: string) 
       let query = supabase
         .from('sales_records')
         .select('*, order_time')
-        .in('status', ['Completed', 'Pago', 'Concluído'])
+        .eq('status', 'Concluído')
         .not('payment_date', 'is', null)
         .ilike('product_name', `%${productName}%`)
         .order('payment_date', { ascending: false })

@@ -762,10 +762,10 @@ describe('getLowStockItems', () => {
   });
 });
 
-// ===== getLossesByDay — cancelamentos PT/EN =====
+// ===== getLossesByDay — cancelamentos PT-BR canônico =====
 
-describe('getLossesByDay — cancelamentos em português e inglês', () => {
-  describe('cancelamentos em português ("Cancelado")', () => {
+describe('getLossesByDay — cancelamentos em português canônico', () => {
+  describe('cancelamentos ("Cancelado")', () => {
     it('deve acumular amount de cancelamentos no dia correto', () => {
       const sales: SaleRecord[] = [];
       const cancellations = [
@@ -842,14 +842,14 @@ describe('getLossesByDay — cancelamentos em português e inglês', () => {
   });
 
   describe('mix de cancelamentos e reembolsos no mesmo período', () => {
-    it('deve agrupar cancelamentos EN e PT no mesmo dia com totais corretos', () => {
+    it('deve agrupar cancelamentos no mesmo dia com totais corretos', () => {
       const sales: SaleRecord[] = [
         createSaleRecord({ payment_date: '2024-03-10T09:00:00', refund_amount: 30 }),
         createSaleRecord({ payment_date: '2024-03-10T11:00:00', refund_amount: 20 }),
       ];
       const cancellations = [
-        { payment_date: '2024-03-10T10:00:00', amount: 500 },  // "Cancelado" (PT)
-        { payment_date: '2024-03-10T15:00:00', amount: 300 },  // "Cancelled" (EN)
+        { payment_date: '2024-03-10T10:00:00', amount: 500 },
+        { payment_date: '2024-03-10T15:00:00', amount: 300 },
       ];
 
       const result = getLossesByDay(sales, cancellations);
