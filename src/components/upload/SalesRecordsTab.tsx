@@ -38,33 +38,26 @@ interface Props {
 }
 
 const statusLabels: Record<string, string> = {
-  completed: "Concluído",
-  cancelled: "Cancelado",
-  refunded: "Reembolsado",
-  pendente: "Pendente",
-  concluído: "Concluído",
-  cancelado: "Cancelado",
-  reembolsado: "Reembolsado",
+  "Concluído": "Concluído",
+  "Cancelado": "Cancelado",
+  "Pendente": "Pendente",
+  "Reembolsado": "Reembolsado",
 };
 
 const statusColors: Record<string, string> = {
-  completed: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800",
-  concluído: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800",
-  cancelled: "bg-destructive/10 text-destructive border-destructive/20",
-  cancelado: "bg-destructive/10 text-destructive border-destructive/20",
-  refunded: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800",
-  reembolsado: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800",
-  pendente: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800",
+  "Concluído": "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800",
+  "Cancelado": "bg-destructive/10 text-destructive border-destructive/20",
+  "Reembolsado": "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800",
+  "Pendente": "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800",
 };
 
 const paymentMethodLabels: Record<string, string> = {
-  creditCard: "Crédito",
-  debitCard: "Débito",
-  credit_card: "Crédito",
-  debit_card: "Débito",
-  pix: "PIX",
   "Cartão de Crédito": "Crédito",
   "Cartão de Débito": "Débito",
+  "PIX": "PIX",
+  "Cortesia": "Cortesia",
+  "Cupom": "Cupom",
+  "Não informado": "N/I",
 };
 
 const formatCurrency = (v: number) =>
