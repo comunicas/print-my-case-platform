@@ -203,8 +203,8 @@ export function SalesRecordsTab({ pdvs, onUploadClick, canUpload }: Props) {
                 </TableCell>
                 <TableCell className="text-sm">{paymentMethodLabels[r.payment_method ?? ""] ?? r.payment_method ?? "—"}</TableCell>
                 <TableCell>
-                  <Badge variant="outline" className={statusColors[r.status?.toLowerCase() ?? ""] ?? "bg-muted text-muted-foreground"}>
-                    {statusLabels[r.status?.toLowerCase() ?? ""] ?? r.status ?? "—"}
+                  <Badge variant="outline" className={statusColors[r.status ?? ""] ?? "bg-muted text-muted-foreground"}>
+                    {statusLabels[r.status ?? ""] ?? r.status ?? "—"}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right text-sm">
