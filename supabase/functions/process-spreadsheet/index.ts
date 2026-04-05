@@ -1,4 +1,4 @@
-// Cross-PDV dedup v2 - force redeploy
+// Cross-PDV dedup v3 - PT-BR normalization
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import * as XLSX from "https://esm.sh/xlsx@0.18.5";
 
@@ -148,6 +148,54 @@ function extractBrandFromProduct(productName: string): string {
   if (upper.includes("MOTO ") || upper.includes("MOTOROLA")) return "MOTOROLA";
   
   return "OUTROS";
+}
+
+// --- PT-BR Canonical Normalization ---
+const PAYMENT_METHOD_MAP: Record<string, string> = {
+  "creditcard": "Cartão de Crédito",
+  "credit_card": "Cartão de Crédito",
+  "cartão de crédito": "Cartão de Crédito",
+  "cartao de credito": "Cartão de Crédito",
+  "crédito": "Cartão de Crédito",
+  "credito": "Cartão de Crédito",
+  "debitcard": "Cartão de Débito",
+  "debit_card": "Cartão de Débito",
+  "cartão de débito": "Cartão de Débito",
+  "cartao de debito": "Cartão de Débito",
+  "débito": "Cartão de Débito",
+  "debito": "Cartão de Débito",
+  "pix": "PIX",
+  "machinefree": "Cortesia",
+  "cortesia": "Cortesia",
+  "couponfree": "Cupom",
+  "cupom": "Cupom",
+  "coupon": "Cupom",
+};
+
+function normalizePaymentMethod(value: unknown): string {
+  if (value === null || value === undefined || String(value).trim() === "") return "Não informado";
+  const key = String(value).trim().toLowerCase();
+  return PAYMENT_METHOD_MAP[key] ?? sanitizeString(value, FIELD_LIMITS.payment_method) ?? "Não informado";
+}
+
+const STATUS_MAP: Record<string, string> = {
+  "completed": "Concluído",
+  "concluído": "Concluído",
+  "concluido": "Concluído",
+  "pago": "Concluído",
+  "cancelled": "Cancelado",
+  "canceled": "Cancelado",
+  "cancelado": "Cancelado",
+  "pending": "Pendente",
+  "pendente": "Pendente",
+  "refunded": "Reembolsado",
+  "reembolsado": "Reembolsado",
+};
+
+function normalizeStatus(value: unknown): string {
+  if (value === null || value === undefined || String(value).trim() === "") return "Concluído";
+  const key = String(value).trim().toLowerCase();
+  return STATUS_MAP[key] ?? sanitizeString(value, FIELD_LIMITS.status) ?? "Concluído";
 }
 
 /**
@@ -391,10 +439,10 @@ function mapSalesRow(row: Record<string, unknown>, pdvId: string, uploadId: stri
         mapped[dbCol] = sanitizeString(value, FIELD_LIMITS.transaction_number);
         break;
       case "payment_method":
-        mapped[dbCol] = sanitizeString(value, FIELD_LIMITS.payment_method);
+        mapped[dbCol] = normalizePaymentMethod(value);
         break;
       case "status":
-        mapped[dbCol] = sanitizeString(value, FIELD_LIMITS.status);
+        mapped[dbCol] = normalizeStatus(value);
         break;
       case "print_code":
         mapped[dbCol] = sanitizeString(value, FIELD_LIMITS.print_code);
