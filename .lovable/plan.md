@@ -1,51 +1,50 @@
 
 
-## Correção: RPC `get_dre_sales_summary` Ainda Usa Blocklist
+## Correção: Tabela de Vendas com Filtros e Labels Incorretos
 
-### Problema
+### Problemas Encontrados
 
-A migration anterior corrigiu apenas `get_annual_dre_summary` (aba Resumo). A RPC `get_dre_sales_summary` (usada na aba DRE e no dashboard) **não foi alterada** e continua com `status != 'Cancelled'`.
-
-| RPC | Status | Filtro atual |
-|-----|--------|-------------|
-| `get_annual_dre_summary` | Corrigida ✅ | `IN ('Completed','Pago','Concluído')` |
-| `get_dre_sales_summary` | **Errada ❌** | `!= 'Cancelled'` |
-
-Impacto no Boulevard Tatuapé: 137 registros inválidos (R$ 9.856) estão inflando a receita — 61 "Cancelado", 4 "Pendente", 3 "Refunded".
+| Problema | Detalhe |
+|----------|---------|
+| **Filtro de status não funciona** | O dropdown usa valores em inglês (`Completed`, `Cancelled`, `Refunded`) mas o banco só tem `Concluído`, `Cancelado`, `Pendente`. Filtrar por "Concluído" envia `status=Completed` → 0 resultados. |
+| **Método de pagamento cru** | Mostra `creditCard`, `debitCard`, `pix` sem tradução. Deveria exibir "Cartão de Crédito", "Débito", "PIX". |
+| **Status "Pendente" ausente no filtro** | Existem 4 registros com status `Pendente` que não aparecem nas opções do filtro. |
 
 ### Correção
 
-**Migration SQL** — recriar `get_dre_sales_summary` com allowlist e incluir todos os payment_methods de cartão (igual ao `get_annual_dre_summary`):
+**Arquivo: `src/components/upload/SalesRecordsTab.tsx`**
 
-```sql
-CREATE OR REPLACE FUNCTION public.get_dre_sales_summary(
-  p_pdv_ids uuid[], p_start_date timestamptz, p_end_date timestamptz
-)
-RETURNS TABLE(faturamento numeric, deducoes numeric, sales_count bigint, card_revenue numeric)
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
-AS $$
-  SELECT
-    COALESCE(SUM(amount), 0),
-    COALESCE(SUM(COALESCE(refund_amount, 0)), 0),
-    COUNT(*),
-    COALESCE(SUM(CASE WHEN payment_method IN (
-      'creditCard','debitCard','credit_card','debit_card',
-      'Cartão de Crédito','Cartão de Débito'
-    ) THEN amount ELSE 0 END), 0)
-  FROM sales_records
-  WHERE pdv_id = ANY(p_pdv_ids)
-    AND payment_date >= p_start_date
-    AND payment_date <= p_end_date
-    AND status IN ('Completed', 'Pago', 'Concluído')
-$$;
+1. **Corrigir valores do filtro de status** — usar os valores reais do banco:
+```tsx
+options={[
+  { value: "all", label: "Todos os status" },
+  { value: "Concluído", label: "Concluído" },
+  { value: "Cancelado", label: "Cancelado" },
+  { value: "Pendente", label: "Pendente" },
+]}
 ```
 
-### Mudanças
+2. **Adicionar mapa de tradução de payment_method**:
+```tsx
+const paymentMethodLabels: Record<string, string> = {
+  creditCard: "Crédito",
+  debitCard: "Débito",
+  credit_card: "Crédito",
+  debit_card: "Débito",
+  pix: "PIX",
+  "Cartão de Crédito": "Crédito",
+  "Cartão de Débito": "Débito",
+};
+```
 
-- `status != 'Cancelled'` → `status IN ('Completed', 'Pago', 'Concluído')`
-- `payment_method = 'creditCard'` → lista completa com variantes PT-BR (alinhado com `get_annual_dre_summary`)
+3. **Usar o mapa na coluna Método**:
+```tsx
+<TableCell>{paymentMethodLabels[r.payment_method ?? ""] ?? r.payment_method ?? "—"}</TableCell>
+```
 
 ### Resultado
 
-Receita do DRE mensal e dashboard corrigida para os 3 PDVs. Sem alteração no frontend.
+- Filtro de status funciona corretamente com os valores reais do banco
+- Métodos de pagamento exibidos em português legível
+- Status "Pendente" incluído no filtro
 
