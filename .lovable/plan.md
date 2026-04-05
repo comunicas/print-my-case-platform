@@ -37,9 +37,9 @@
 
 ---
 
-### Etapa 3 — Normalizar `process-spreadsheet`
+### Etapa 3 — Normalizar `process-spreadsheet` ✅ CONCLUÍDA
 
-Garantir que planilhas de vendas gravem valores PT-BR canônicos na ingestão.
+Edge Function atualizada com `normalizePaymentMethod()` e `normalizeStatus()` para gravar valores PT-BR canônicos automaticamente.
 
 ---
 
