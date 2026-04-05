@@ -107,21 +107,20 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
         }
       }
 
-      // Build base queries - exclude cancelled transactions (pre-payment cancellations)
-      // Only include successful payment statuses (excludes Cancelado, Cancelled, etc.)
+      // Build base queries - only include successful sales (canonical PT-BR status)
       let currentSalesQuery = supabase
         .from("sales_records")
         .select("amount, refund_amount")
         .gte("payment_date", startDate.toISOString())
         .lte("payment_date", endDate.toISOString())
-        .in("status", ["Completed", "Pago", "Concluído"]);
+        .eq("status", "Concluído");
 
       let previousSalesQuery = supabase
         .from("sales_records")
         .select("amount, refund_amount")
         .gte("payment_date", previousStartDate.toISOString())
         .lte("payment_date", previousEndDate.toISOString())
-        .in("status", ["Completed", "Pago", "Concluído"]);
+        .eq("status", "Concluído");
 
       // Query for full sales records (for charts) - limit to prevent performance issues
       let fullSalesRecordsQuery = supabase
@@ -129,7 +128,7 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
         .select("id, payment_date, amount, refund_amount, product_name, payment_method, pdv_id")
         .gte("payment_date", startDate.toISOString())
         .lte("payment_date", endDate.toISOString())
-        .in("status", ["Completed", "Pago", "Concluído"])
+        .eq("status", "Concluído")
         .order("payment_date", { ascending: true })
         .limit(DASHBOARD_SALES_LIMIT);
 
@@ -138,22 +137,20 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
         .select("id")
         .eq("status", "active");
 
-      // Queries for cancelled transactions (pre-payment cancellations)
-      // Filtro de cancelamentos cobre inglês e português:
-      // "Cancelled" (EN planilha Tietê), "Canceled" (variação EN), "Cancelado" (PT futuro)
+      // Queries for cancelled transactions (canonical PT-BR status)
       let currentCancellationsQuery = supabase
         .from("sales_records")
         .select("amount, payment_date")
         .gte("payment_date", startDate.toISOString())
         .lte("payment_date", endDate.toISOString())
-        .or("status.ilike.%cancelled%,status.ilike.%canceled%,status.ilike.%cancelado%");
+        .eq("status", "Cancelado");
 
       let previousCancellationsQuery = supabase
         .from("sales_records")
         .select("amount")
         .gte("payment_date", previousStartDate.toISOString())
         .lte("payment_date", previousEndDate.toISOString())
-        .or("status.ilike.%cancelled%,status.ilike.%canceled%,status.ilike.%cancelado%");
+        .eq("status", "Cancelado");
 
       // Apply PDV filter if needed
       if (pdvIds !== null) {
@@ -199,7 +196,7 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
           const [orgsResult, globalPdvsResult, globalSalesResult] = await Promise.all([
             supabase.from("organizations").select("id", { count: "exact", head: true }),
             supabase.from("pdvs").select("id", { count: "exact", head: true }).eq("status", "active"),
-            supabase.from("sales_records").select("amount, refund_amount").gte("payment_date", startDate.toISOString()).lte("payment_date", endDate.toISOString()).in("status", ["Completed", "Pago", "Concluído"]),
+            supabase.from("sales_records").select("amount, refund_amount").gte("payment_date", startDate.toISOString()).lte("payment_date", endDate.toISOString()).eq("status", "Concluído"),
           ]);
           
           // Only set global metrics if all queries succeeded

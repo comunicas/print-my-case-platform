@@ -45,13 +45,12 @@ export function useProductSalesHistory({
       const endDate = new Date();
       const startDate = subDays(endDate, days * 2); // Fetch double for trend comparison
 
-      // Only include successful payment statuses
       let query = supabase
         .from('sales_records')
         .select('payment_date, amount, product_name')
         .gte('payment_date', startDate.toISOString())
         .lte('payment_date', endDate.toISOString())
-        .in('status', ['Completed', 'Pago', 'Concluído']);
+        .eq('status', 'Concluído');
 
       if (pdvId && pdvId !== 'all') {
         query = query.eq('pdv_id', pdvId);
