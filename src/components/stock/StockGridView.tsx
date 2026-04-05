@@ -477,6 +477,10 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
               <FileSpreadsheet className="h-4 w-4 mr-2" />
               Exportar XLSX
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExportJpg}>
+              <Image className="h-4 w-4 mr-2" />
+              Checklist JPG
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
