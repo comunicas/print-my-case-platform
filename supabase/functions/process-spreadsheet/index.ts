@@ -150,6 +150,54 @@ function extractBrandFromProduct(productName: string): string {
   return "OUTROS";
 }
 
+// --- PT-BR Canonical Normalization ---
+const PAYMENT_METHOD_MAP: Record<string, string> = {
+  "creditcard": "Cartão de Crédito",
+  "credit_card": "Cartão de Crédito",
+  "cartão de crédito": "Cartão de Crédito",
+  "cartao de credito": "Cartão de Crédito",
+  "crédito": "Cartão de Crédito",
+  "credito": "Cartão de Crédito",
+  "debitcard": "Cartão de Débito",
+  "debit_card": "Cartão de Débito",
+  "cartão de débito": "Cartão de Débito",
+  "cartao de debito": "Cartão de Débito",
+  "débito": "Cartão de Débito",
+  "debito": "Cartão de Débito",
+  "pix": "PIX",
+  "machinefree": "Cortesia",
+  "cortesia": "Cortesia",
+  "couponfree": "Cupom",
+  "cupom": "Cupom",
+  "coupon": "Cupom",
+};
+
+function normalizePaymentMethod(value: unknown): string {
+  if (value === null || value === undefined || String(value).trim() === "") return "Não informado";
+  const key = String(value).trim().toLowerCase();
+  return PAYMENT_METHOD_MAP[key] ?? sanitizeString(value, FIELD_LIMITS.payment_method) ?? "Não informado";
+}
+
+const STATUS_MAP: Record<string, string> = {
+  "completed": "Concluído",
+  "concluído": "Concluído",
+  "concluido": "Concluído",
+  "pago": "Concluído",
+  "cancelled": "Cancelado",
+  "canceled": "Cancelado",
+  "cancelado": "Cancelado",
+  "pending": "Pendente",
+  "pendente": "Pendente",
+  "refunded": "Reembolsado",
+  "reembolsado": "Reembolsado",
+};
+
+function normalizeStatus(value: unknown): string {
+  if (value === null || value === undefined || String(value).trim() === "") return "Concluído";
+  const key = String(value).trim().toLowerCase();
+  return STATUS_MAP[key] ?? sanitizeString(value, FIELD_LIMITS.status) ?? "Concluído";
+}
+
 /**
  * Sanitize and truncate string value to max length
  * Removes potentially dangerous characters and ensures length limits
