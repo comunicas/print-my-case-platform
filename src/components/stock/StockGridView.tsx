@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback, RefObject } from 'react';
-import { Maximize2, X, Minimize2, Expand, ChevronLeft, ChevronRight, Download, FileSpreadsheet, FileText, ChevronDown } from 'lucide-react';
+import { Maximize2, X, Minimize2, Expand, ChevronLeft, ChevronRight, Download, FileSpreadsheet, FileText, Image, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import ExcelJS from 'exceljs';
@@ -235,6 +235,123 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
     URL.revokeObjectURL(url);
   }, [getExportData]);
 
+  const handleExportJpg = useCallback(() => {
+    const { rows } = getExportData();
+    
+    // Group by PDV
+    const grouped = new Map<string, { slot: string; product: string; qty: number }[]>();
+    for (const row of rows) {
+      const pdv = String(row[0]);
+      if (!grouped.has(pdv)) grouped.set(pdv, []);
+      grouped.get(pdv)!.push({
+        slot: String(row[1]),
+        product: `${row[2]} ${row[3]}`.trim(),
+        qty: Number(row[4]),
+      });
+    }
+
+    const font = '14px monospace';
+    const headerFont = 'bold 16px monospace';
+    const titleFont = 'bold 20px monospace';
+    const lineHeight = 24;
+    const padding = 24;
+    const colSlot = 60;
+    const colProduct = 320;
+    const colQty = 70;
+    const totalWidth = padding * 2 + colSlot + colProduct + colQty;
+    
+    // Calculate total height
+    let totalLines = 3; // title + date + blank
+    for (const [, items] of grouped) {
+      totalLines += 2 + items.length + 1; // pdv header + col header + items + spacing
+    }
+    const totalHeight = padding * 2 + totalLines * lineHeight;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = totalWidth;
+    canvas.height = totalHeight;
+    const ctx = canvas.getContext('2d')!;
+
+    // Background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, totalWidth, totalHeight);
+
+    let y = padding;
+
+    // Title
+    ctx.fillStyle = '#111827';
+    ctx.font = titleFont;
+    ctx.fillText('CHECKLIST DE ESTOQUE', padding, y + 18);
+    y += lineHeight;
+
+    // Date
+    ctx.font = font;
+    ctx.fillStyle = '#6b7280';
+    const dateStr = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    ctx.fillText(dateStr, padding, y + 14);
+    y += lineHeight * 2;
+
+    for (const [pdvName, items] of grouped) {
+      // PDV header
+      ctx.fillStyle = '#1e3a5f';
+      ctx.font = headerFont;
+      ctx.fillText(pdvName.toUpperCase(), padding, y + 14);
+      y += lineHeight;
+
+      // Separator line
+      ctx.strokeStyle = '#d1d5db';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(padding, y);
+      ctx.lineTo(totalWidth - padding, y);
+      ctx.stroke();
+      y += 4;
+
+      // Column headers
+      ctx.fillStyle = '#6b7280';
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText('SLOT', padding, y + 12);
+      ctx.fillText('PRODUTO', padding + colSlot, y + 12);
+      ctx.fillText('QTD', padding + colSlot + colProduct, y + 12);
+      y += lineHeight;
+
+      // Items
+      ctx.font = font;
+      for (const item of items) {
+        // Color based on quantity
+        if (item.qty === 0) {
+          ctx.fillStyle = '#dc2626'; // red
+        } else if (item.qty <= 2) {
+          ctx.fillStyle = '#ea580c'; // orange
+        } else {
+          ctx.fillStyle = '#111827'; // dark
+        }
+
+        ctx.fillText(item.slot.padStart(2, '0'), padding, y + 14);
+        // Truncate product name if too long
+        const maxProductChars = 32;
+        const productDisplay = item.product.length > maxProductChars 
+          ? item.product.slice(0, maxProductChars - 1) + '…' 
+          : item.product;
+        ctx.fillText(productDisplay, padding + colSlot, y + 14);
+        ctx.fillText(`${item.qty}/${MAX_CAPACITY}`, padding + colSlot + colProduct, y + 14);
+        y += lineHeight;
+      }
+
+      y += lineHeight; // spacing between PDVs
+    }
+
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `checklist-estoque-${new Date().toISOString().slice(0, 10)}.jpg`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }, 'image/jpeg', 0.92);
+  }, [getExportData]);
+
   const handleCloseModal = useCallback(() => {
     setIsModalOpen(false);
     // Não limpa selectedSlot para manter consistência com navegação
@@ -359,6 +476,10 @@ export function StockGridView({ slots, filteredSlots, brands = KNOWN_BRANDS, isL
             <DropdownMenuItem onClick={handleExportXlsx}>
               <FileSpreadsheet className="h-4 w-4 mr-2" />
               Exportar XLSX
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExportJpg}>
+              <Image className="h-4 w-4 mr-2" />
+              Checklist JPG
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
