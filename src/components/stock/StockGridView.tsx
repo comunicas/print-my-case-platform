@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback, RefObject } from 'react';
-import { Maximize2, X, Minimize2, Expand, ChevronLeft, ChevronRight, Download, FileSpreadsheet, FileText, ChevronDown } from 'lucide-react';
+import { Maximize2, X, Minimize2, Expand, ChevronLeft, ChevronRight, Download, FileSpreadsheet, FileText, Image, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import ExcelJS from 'exceljs';
