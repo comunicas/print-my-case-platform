@@ -257,6 +257,38 @@ Deno.serve(async (req) => {
 
     console.log(`[ingest-stock] OK | pdv=${pdv.id} slot=${slotNumber} product=${productName} qty=${quantity} deleted=${deletedCount ?? 0}`);
 
+    // 8b. Deduzir pré-estoque se houve aumento de quantidade
+    const qtyIncrease = quantity - (deletedCount === 1 ? 0 : 0); // Para ingest-stock, cada chamada é um upsert de 1 slot
+    if (quantity > 0) {
+      const { data: preStockItems } = await supabase
+        .from("pre_stock")
+        .select("id, remaining_quantity")
+        .eq("organization_id", organizationId)
+        .eq("product_name", productName)
+        .eq("status", "pending")
+        .gt("remaining_quantity", 0)
+        .or(`pdv_id.eq.${pdv.id},pdv_id.is.null`)
+        .order("created_at", { ascending: true });
+
+      let toDeduct = quantity;
+      for (const ps of preStockItems ?? []) {
+        if (toDeduct <= 0) break;
+        const deducted = Math.min(toDeduct, ps.remaining_quantity);
+        const newRemaining = ps.remaining_quantity - deducted;
+        await supabase
+          .from("pre_stock")
+          .update({
+            remaining_quantity: newRemaining,
+            status: newRemaining <= 0 ? "allocated" : "pending",
+          })
+          .eq("id", ps.id);
+        toDeduct -= deducted;
+      }
+      if ((preStockItems ?? []).length > 0) {
+        console.log(`[ingest-stock] pre_stock deducted | product=${productName} qty=${quantity}`);
+      }
+    }
+
     // 9. Atualizar stock_history com totais AGREGADOS do brand (não valor de um único slot)
     const brand = extractBrand(productName);
 
