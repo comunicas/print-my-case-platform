@@ -13,10 +13,11 @@ interface ProductSalesHistoryChartProps {
   pdvId?: string;
 }
 
-const periodOptions = [
+const periodOptions: { label: string; days: number | null }[] = [
   { label: '7d', days: 7 },
   { label: '15d', days: 15 },
   { label: '30d', days: 30 },
+  { label: 'Total', days: null },
 ];
 
 const chartConfig = {
@@ -59,7 +60,7 @@ function TrendBadge({ trend }: { trend: SalesHistoryResult['trend'] }) {
 }
 
 export function ProductSalesHistoryChart({ productName, pdvId }: ProductSalesHistoryChartProps) {
-  const [selectedDays, setSelectedDays] = useState(15);
+  const [selectedDays, setSelectedDays] = useState<number | null>(15);
   
   const { data: historyData, isLoading } = useProductSalesHistory({
     productName,
@@ -97,7 +98,9 @@ export function ProductSalesHistoryChart({ productName, pdvId }: ProductSalesHis
   const totalRevenue = historyData.data.reduce((sum, d) => sum + d.revenue, 0);
 
   // Show fewer X-axis labels based on period
-  const tickInterval = selectedDays <= 7 ? 0 : selectedDays <= 15 ? 2 : 4;
+  const tickInterval = selectedDays === null
+    ? Math.max(1, Math.ceil(historyData.data.length / 8))
+    : selectedDays <= 7 ? 0 : selectedDays <= 15 ? 2 : 4;
 
   return (
     <div className="space-y-3" data-testid="sales-history-chart">

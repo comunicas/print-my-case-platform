@@ -23,7 +23,7 @@ export interface SalesHistoryResult {
 
 interface UseProductSalesHistoryOptions {
   productName: string | null;
-  days?: number;
+  days?: number | null;
   pdvId?: string;
 }
 
@@ -43,14 +43,18 @@ export function useProductSalesHistory({
       }
 
       const endDate = new Date();
-      const startDate = subDays(endDate, days * 2); // Fetch double for trend comparison
 
       let query = supabase
         .from('sales_records')
         .select('payment_date, amount, product_name')
-        .gte('payment_date', startDate.toISOString())
-        .lte('payment_date', endDate.toISOString())
         .eq('status', 'Concluído');
+
+      if (days !== null) {
+        const startDate = subDays(endDate, days * 2);
+        query = query
+          .gte('payment_date', startDate.toISOString())
+          .lte('payment_date', endDate.toISOString());
+      }
 
       if (pdvId && pdvId !== 'all') {
         query = query.eq('pdv_id', pdvId);
@@ -60,12 +64,27 @@ export function useProductSalesHistory({
 
       if (error) throw error;
 
-      // Filter by exact product model match
       const filteredSales = filterSalesByProduct(salesData || [], productName);
 
-      // Create date range for the requested period
-      const periodStart = subDays(endDate, days - 1);
-      const dateRange = eachDayOfInterval({ start: periodStart, end: endDate });
+      // Determine date range
+      let dateRange: Date[];
+
+      if (days === null) {
+        // Total: use first and last sale dates
+        if (filteredSales.length === 0) {
+          return {
+            data: [],
+            trend: { percentage: null, direction: 'neutral', currentPeriodTotal: 0, previousPeriodTotal: 0 }
+          };
+        }
+        const dates = filteredSales.map(s => new Date(s.payment_date));
+        const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
+        const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
+        dateRange = eachDayOfInterval({ start: minDate, end: maxDate });
+      } else {
+        const periodStart = subDays(endDate, days - 1);
+        dateRange = eachDayOfInterval({ start: periodStart, end: endDate });
+      }
 
       // Group sales by date
       const salesByDate = new Map<string, { count: number; revenue: number }>();
@@ -79,7 +98,6 @@ export function useProductSalesHistory({
         });
       });
 
-      // Build chart data with all dates (including zero sales days)
       const chartData: SalesHistoryData[] = dateRange.map(date => {
         const dateKey = format(date, 'yyyy-MM-dd');
         const dayData = salesByDate.get(dateKey) || { count: 0, revenue: 0 };
@@ -92,8 +110,8 @@ export function useProductSalesHistory({
         };
       });
 
-      // Calculate trend (current period vs previous period)
-      const halfPoint = Math.floor(days / 2);
+      // Calculate trend
+      const halfPoint = Math.floor(chartData.length / 2);
       const currentPeriodData = chartData.slice(-halfPoint);
       const previousPeriodData = chartData.slice(0, halfPoint);
 
@@ -122,6 +140,6 @@ export function useProductSalesHistory({
       };
     },
     enabled: !!productName,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 }
