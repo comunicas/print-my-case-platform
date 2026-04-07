@@ -73,7 +73,7 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
     }, []);
 
     useEffect(() => {
-      if (!isOpen || !hcaptchaSiteKey) return;
+      if (!isOpen || !hcaptchaSiteKey || step !== "phone") return;
 
       const ensureScript = () =>
         new Promise<void>((resolve, reject) => {
@@ -113,7 +113,7 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
       };
 
       renderCaptcha();
-    }, [isOpen, hcaptchaSiteKey, captchaWidgetId]);
+    }, [isOpen, hcaptchaSiteKey, captchaWidgetId, step]);
 
     const handleSendOtp = async () => {
       if (!isPhoneValid) return;
@@ -193,6 +193,7 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
         setCountdown(0);
         setOtpExpired(false);
         setCaptchaToken(null);
+        setCaptchaWidgetId(null);
       }, 300);
     };
 
@@ -347,6 +348,8 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
                     setOtpCode("");
                     setCountdown(0);
                     setOtpExpired(false);
+                    setCaptchaToken(null);
+                    setCaptchaWidgetId(null);
                   }}
                 >
                   Alterar número
