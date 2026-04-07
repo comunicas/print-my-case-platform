@@ -43,6 +43,9 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
       let comparison = 0;
       
       switch (sortField) {
+        case 'slot':
+          comparison = (a.slots[0]?.slotNumber || '').localeCompare(b.slots[0]?.slotNumber || '', undefined, { numeric: true });
+          break;
         case 'model':
           comparison = a.model.localeCompare(b.model);
           break;
