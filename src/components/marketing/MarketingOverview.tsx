@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Ticket, Image, ArrowRight, UserPlus, BarChart3, MessageSquare, Globe } from "lucide-react";
+import { Ticket, Image, ArrowRight, UserPlus, BarChart3, MessageSquare, Globe, ShoppingCart } from "lucide-react";
 
 interface MarketingOverviewProps {
   onNavigate: (tab: string) => void;
