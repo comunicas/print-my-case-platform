@@ -13,10 +13,11 @@ interface ProductSalesHistoryChartProps {
   pdvId?: string;
 }
 
-const periodOptions = [
+const periodOptions: { label: string; days: number | null }[] = [
   { label: '7d', days: 7 },
   { label: '15d', days: 15 },
   { label: '30d', days: 30 },
+  { label: 'Total', days: null },
 ];
 
 const chartConfig = {
