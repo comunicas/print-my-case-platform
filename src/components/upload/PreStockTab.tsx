@@ -48,6 +48,16 @@ export function PreStockTab() {
     search,
   });
 
+  const pendingItems = useMemo(() => items.filter((i) => i.status === "pending"), [items]);
+  const allocatedItems = useMemo(() => items.filter((i) => i.status === "allocated"), [items]);
+
+  const totalPending = useMemo(() => pendingItems.reduce((s, i) => s + i.remaining_quantity, 0), [pendingItems]);
+  const totalPendingValue = useMemo(
+    () => pendingItems.reduce((s, i) => s + i.remaining_quantity * (i.unit_cost ?? 15), 0),
+    [pendingItems]
+  );
+  const totalAllocated = useMemo(() => allocatedItems.reduce((s, i) => s + i.quantity, 0), [allocatedItems]);
+
   const handleDelete = () => {
     if (!deletingId) return;
     deleteItem.mutate(deletingId, {
@@ -63,11 +73,6 @@ export function PreStockTab() {
     );
   }
 
-  const pendingItems = useMemo(() => items.filter((i) => i.status === "pending"), [items]);
-  const allocatedItems = useMemo(() => items.filter((i) => i.status === "allocated"), [items]);
-
-  const totalPending = useMemo(() => pendingItems.reduce((s, i) => s + i.remaining_quantity, 0), [pendingItems]);
-  const totalPendingValue = useMemo(
     () => pendingItems.reduce((s, i) => s + i.remaining_quantity * (i.unit_cost ?? 15), 0),
     [pendingItems]
   );
