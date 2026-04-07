@@ -87,31 +87,55 @@ Deno.serve(async (req) => {
       );
     }
 
+    const logDeletionAudit = async ({
+      eventType,
+      success,
+      metadata,
+    }: {
+      eventType: 'user_deletion_success' | 'user_deletion_failed';
+      success: boolean;
+      metadata?: Record<string, unknown>;
+    }) => {
+      try {
+        await supabaseAdmin.from('audit_logs').insert({
+          event_type: eventType,
+          actor_id: callingUser.id,
+          actor_email: callingUser.email,
+          actor_role: 'super_admin',
+          target_email: targetProfile.email,
+          organization_id: targetProfile.organization_id,
+          success,
+          metadata: {
+            action: 'user_deleted',
+            deleted_user_name: targetProfile.name,
+            ...metadata,
+          },
+        });
+      } catch {
+        // Silent fail for audit
+      }
+    };
+
     // Delete user from auth (CASCADE will clean up profiles, user_roles, preferences, user_pdvs)
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
 
     if (deleteError) {
+      await logDeletionAudit({
+        eventType: 'user_deletion_failed',
+        success: false,
+        metadata: { error: deleteError.message },
+      });
+
       return new Response(
         JSON.stringify({ error: `Erro ao excluir usuário: ${deleteError.message}` }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Log audit event
-    try {
-      await supabaseAdmin.from('audit_logs').insert({
-        event_type: 'user_creation_failed', // reusing existing enum for deletion audit
-        actor_id: callingUser.id,
-        actor_email: callingUser.email,
-        actor_role: 'super_admin',
-        target_email: targetProfile.email,
-        organization_id: targetProfile.organization_id,
-        success: true,
-        metadata: { action: 'user_deleted', deleted_user_name: targetProfile.name },
-      });
-    } catch {
-      // Silent fail for audit
-    }
+    await logDeletionAudit({
+      eventType: 'user_deletion_success',
+      success: true,
+    });
 
     return new Response(
       JSON.stringify({ success: true, message: `Usuário ${targetProfile.name} excluído com sucesso` }),
