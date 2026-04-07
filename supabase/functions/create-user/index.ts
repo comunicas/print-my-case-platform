@@ -5,15 +5,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Tipos de eventos de auditoria
-type AuditEventType = 
-  | 'user_creation_attempt'
-  | 'user_creation_success'
-  | 'user_creation_failed'
-  | 'permission_violation'
-  | 'organization_creation'
-  | 'role_assignment'
-  | 'user_creation_rollback';
+// Tipos de eventos de auditoria (espelha o enum SQL public.audit_event_type)
+const AUDIT_EVENT_TYPES = [
+  'user_creation_attempt',
+  'user_creation_success',
+  'user_creation_failed',
+  'permission_violation',
+  'organization_creation',
+  'role_assignment',
+  'user_creation_rollback',
+] as const;
+
+type AuditEventType = (typeof AUDIT_EVENT_TYPES)[number];
 
 // Interface para evento de auditoria
 interface AuditEvent {
@@ -38,6 +41,10 @@ async function logAuditEvent(
   supabaseAdmin: any,
   event: AuditEvent
 ) {
+  if (!AUDIT_EVENT_TYPES.includes(event.event_type)) {
+    return;
+  }
+
   try {
     await supabaseAdmin
       .from('audit_logs')
