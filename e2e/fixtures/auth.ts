@@ -1,7 +1,7 @@
 import { test as base, Page } from '@playwright/test';
 
 export const test = base.extend<{ authenticatedPage: Page }>({
-  authenticatedPage: async ({ page }, use) => {
+  authenticatedPage: async ({ page }, runAuthenticatedPage) => {
     // Navigate to login page
     await page.goto('/auth');
     
@@ -16,7 +16,7 @@ export const test = base.extend<{ authenticatedPage: Page }>({
     // Wait for redirect to home/dashboard
     await page.waitForURL('/', { timeout: 10000 });
     
-    await use(page);
+    await runAuthenticatedPage(page);
   },
 });
 

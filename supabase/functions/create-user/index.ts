@@ -1,19 +1,22 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Tipos de eventos de auditoria
-type AuditEventType = 
-  | 'user_creation_attempt'
-  | 'user_creation_success'
-  | 'user_creation_failed'
-  | 'permission_violation'
-  | 'organization_creation'
-  | 'role_assignment'
-  | 'user_creation_rollback';
+// Tipos de eventos de auditoria (espelha o enum SQL public.audit_event_type)
+const AUDIT_EVENT_TYPES = [
+  'user_creation_attempt',
+  'user_creation_success',
+  'user_creation_failed',
+  'permission_violation',
+  'organization_creation',
+  'role_assignment',
+  'user_creation_rollback',
+] as const;
+
+type AuditEventType = (typeof AUDIT_EVENT_TYPES)[number];
 
 // Interface para evento de auditoria
 interface AuditEvent {
@@ -33,11 +36,14 @@ interface AuditEvent {
 }
 
 // Função helper para registrar audit log
-// deno-lint-ignore no-explicit-any
 async function logAuditEvent(
-  supabaseAdmin: any,
+  supabaseAdmin: SupabaseClient,
   event: AuditEvent
 ) {
+  if (!AUDIT_EVENT_TYPES.includes(event.event_type)) {
+    return;
+  }
+
   try {
     await supabaseAdmin
       .from('audit_logs')
@@ -61,9 +67,8 @@ async function logAuditEvent(
   }
 }
 
-// deno-lint-ignore no-explicit-any
 async function waitForRecordWithTimeout(
-  supabaseAdmin: any,
+  supabaseAdmin: SupabaseClient,
   table: 'profiles' | 'user_roles',
   identifierField: 'id' | 'user_id',
   identifierValue: string,
@@ -199,7 +204,7 @@ Deno.serve(async (req) => {
     const callerOrgId = callerProfile?.organization_id;
 
     // Parse request body
-    let { 
+    const { 
       name, 
       email, 
       password, 
@@ -531,8 +536,7 @@ Deno.serve(async (req) => {
 
     const newUser = newUserData.user;
 
-    // deno-lint-ignore no-explicit-any
-    const rollbackUserCreation = async (technicalReason: string, metadata: Record<string, any> = {}) => {
+    const rollbackUserCreation = async (technicalReason: string, metadata: Record<string, unknown> = {}) => {
       const { error: rollbackError } = await supabaseAdmin.auth.admin.deleteUser(newUser.id);
 
       await logAuditEvent(supabaseAdmin, {

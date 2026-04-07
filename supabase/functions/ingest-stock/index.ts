@@ -15,7 +15,10 @@ const FIELD_LIMITS = {
 function sanitizeString(value: unknown, maxLength: number): string | null {
   if (value === null || value === undefined || value === "") return null;
   let str = String(value).trim();
-  str = str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+  str = [...str].filter((char) => {
+    const code = char.charCodeAt(0);
+    return !(code <= 8 || code === 11 || code === 12 || (code >= 14 && code <= 31) || code === 127);
+  }).join("");
   if (str.length > maxLength) str = str.substring(0, maxLength);
   return str || null;
 }
@@ -23,7 +26,7 @@ function sanitizeString(value: unknown, maxLength: number): string | null {
 function sanitizeDeviceId(value: unknown): string | null {
   const str = sanitizeString(value, FIELD_LIMITS.device_id);
   if (!str) return null;
-  return str.replace(/[^a-zA-Z0-9\-]/g, "") || null;
+  return str.replace(/[^a-zA-Z0-9-]/g, "") || null;
 }
 
 function parseQuantity(value: unknown): number {

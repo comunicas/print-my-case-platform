@@ -8,7 +8,8 @@ describe('cn', () => {
   });
 
   it('deve lidar com classes condicionais', () => {
-    expect(cn('foo', false && 'bar', 'baz')).toBe('foo baz');
+    const flags = { includeBar: false };
+    expect(cn('foo', flags.includeBar && 'bar', 'baz')).toBe('foo baz');
   });
 
   it('deve fazer merge de classes Tailwind conflitantes', () => {

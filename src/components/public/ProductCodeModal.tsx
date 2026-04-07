@@ -9,6 +9,18 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { unformatPhoneNumber } from "@/lib/utils/phone-mask";
 
+type HCaptchaApi = {
+  render: (
+    container: HTMLElement,
+    params: {
+      sitekey: string;
+      callback: (token: string) => void;
+      "expired-callback": () => void;
+      "error-callback": () => void;
+    },
+  ) => string | number;
+};
+
 interface ProductCodeModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -30,6 +42,10 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [countdown, setCountdown] = useState(0);
     const [otpExpired, setOtpExpired] = useState(false);
+    const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+    const [captchaWidgetId, setCaptchaWidgetId] = useState<string | null>(null);
+
+    const hcaptchaSiteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY as string | undefined;
 
     const displayText = modalText || "🎁 Presente para você: R$ 10 OFF na sua próxima compra!";
     const rawDigits = unformatPhoneNumber(phone);
@@ -55,6 +71,49 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
       setOtpExpired(false);
       setOtpCode("");
     }, []);
+
+    useEffect(() => {
+      if (!isOpen || !hcaptchaSiteKey) return;
+
+      const ensureScript = () =>
+        new Promise<void>((resolve, reject) => {
+          const existing = document.getElementById("hcaptcha-script") as HTMLScriptElement | null;
+          if (existing) {
+            resolve();
+            return;
+          }
+
+          const script = document.createElement("script");
+          script.id = "hcaptcha-script";
+          script.src = "https://js.hcaptcha.com/1/api.js?render=explicit";
+          script.async = true;
+          script.defer = true;
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error("Falha ao carregar hCaptcha"));
+          document.body.appendChild(script);
+        });
+
+      const renderCaptcha = async () => {
+        try {
+          await ensureScript();
+          const container = document.getElementById("hcaptcha-container");
+          const hcaptcha = (window as Window & { hcaptcha?: HCaptchaApi }).hcaptcha;
+          if (!container || !hcaptcha || captchaWidgetId) return;
+
+          const widgetId = String(hcaptcha.render(container, {
+            sitekey: hcaptchaSiteKey,
+            callback: (token: string) => setCaptchaToken(token),
+            "expired-callback": () => setCaptchaToken(null),
+            "error-callback": () => setCaptchaToken(null),
+          }));
+          setCaptchaWidgetId(widgetId);
+        } catch {
+          toast.error("Não foi possível carregar o captcha.");
+        }
+      };
+
+      renderCaptcha();
+    }, [isOpen, hcaptchaSiteKey, captchaWidgetId]);
 
     const handleSendOtp = async () => {
       if (!isPhoneValid) return;
@@ -91,15 +150,21 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
           return;
         }
 
-        // OTP verified — save lead
-        const { error: leadError } = await supabase.from("catalog_leads").insert({
-          organization_id: organizationId,
-          pdv_id: pdvId,
-          phone: rawDigits,
-          product_name: productName,
-          catalog_slug: catalogSlug,
+        const fingerprint = `${navigator.userAgent}|${Intl.DateTimeFormat().resolvedOptions().timeZone}|${window.screen.width}x${window.screen.height}`;
+
+        const { data: leadResponse, error: leadError } = await supabase.functions.invoke("submit-catalog-lead", {
+          body: {
+            organization_id: organizationId,
+            pdv_id: pdvId,
+            phone: rawDigits,
+            product_name: productName,
+            catalog_slug: catalogSlug,
+            fingerprint,
+            captcha_token: captchaToken,
+          },
         });
         if (leadError) throw leadError;
+        if (leadResponse?.error) throw new Error(leadResponse.error);
 
         setStep("revealed");
       } catch {
@@ -127,6 +192,7 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
         setCopied(false);
         setCountdown(0);
         setOtpExpired(false);
+        setCaptchaToken(null);
       }, 300);
     };
 
@@ -189,6 +255,16 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
                 <p className="text-xs text-muted-foreground text-center">
                   🔒 Enviaremos um código SMS para confirmar seu número
                 </p>
+
+                {hcaptchaSiteKey ? (
+                  <div className="flex justify-center">
+                    <div id="hcaptcha-container" />
+                  </div>
+                ) : (
+                  <p className="text-xs text-amber-600 text-center">
+                    Captcha não configurado neste ambiente.
+                  </p>
+                )}
               </div>
             )}
 
@@ -252,7 +328,7 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
                   <Button
                     className="w-full"
                     onClick={handleVerifyOtp}
-                    disabled={otpCode.length !== 6 || isSubmitting}
+                    disabled={otpCode.length !== 6 || isSubmitting || (Boolean(hcaptchaSiteKey) && !captchaToken)}
                   >
                     {isSubmitting ? (
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />

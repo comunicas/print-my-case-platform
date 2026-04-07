@@ -28,6 +28,14 @@ export interface DREData {
 
 export type { FinancialEntry } from "./useFinancialEntries";
 
+
+interface DRESalesSummaryRow {
+  faturamento: number | string | null;
+  deducoes: number | string | null;
+  sales_count: number | string | null;
+  card_revenue: number | string | null;
+}
+
 interface UseDREOptions {
   referenceMonth: Date;
   pdvId?: string | null;
@@ -60,7 +68,7 @@ export function useDRE({ referenceMonth, pdvId }: UseDREOptions) {
       const pdvIds = pdvId ? [pdvId] : pdvs.map((p) => p.id);
       if (pdvIds.length === 0) return { faturamento: 0, deducoes: 0, sales_count: 0, card_revenue: 0 };
 
-      const { data, error } = await (supabase as unknown as any).rpc("get_dre_sales_summary", {
+      const { data, error } = await supabase.rpc("get_dre_sales_summary", {
         p_pdv_ids: pdvIds,
         p_start_date: startStr,
         p_end_date: endStr,
@@ -68,7 +76,7 @@ export function useDRE({ referenceMonth, pdvId }: UseDREOptions) {
 
       if (error) throw error;
 
-      const row = data?.[0];
+      const row = (data?.[0] ?? null) as DRESalesSummaryRow | null;
       return {
         faturamento: Number(row?.faturamento) || 0,
         deducoes: Number(row?.deducoes) || 0,

@@ -113,7 +113,7 @@ export function useUploads(filters: UploadsFilters = {}) {
 
       const profilesMap = new Map((profilesData || []).map((p) => [p.id, p]));
 
-      let uploads = uploadsData.map((upload) => ({
+      const uploads = uploadsData.map((upload) => ({
         ...upload,
         pdv: upload.pdv || { name: "PDV removido", machine_id: "-" },
         uploader: profilesMap.get(upload.uploaded_by) || { name: "Usuário" },

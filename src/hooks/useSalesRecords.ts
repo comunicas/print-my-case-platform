@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { usePagination } from "@/hooks/usePaginatedQuery";
+import { sanitizePostgrestSearchTerm } from "@/hooks/useOrgCrossAccess";
 
 export interface SalesRecordItem {
   id: string;
@@ -21,6 +22,11 @@ export interface SalesRecordItem {
   upload_id: string | null;
 }
 
+
+type SalesRecordQueryRow = Omit<SalesRecordItem, "pdv"> & {
+  pdvs: { name: string } | null;
+};
+
 interface SalesRecordsFilters {
   pdvId: string;
   status: string;
@@ -37,6 +43,13 @@ export interface CreateSalesRecordData {
   payment_method?: string;
   status?: string;
   refund_amount?: number;
+}
+
+export function buildSalesRecordsSearchOrFilter(search: string): string | null {
+  const sanitizedSearch = sanitizePostgrestSearchTerm(search);
+  if (!sanitizedSearch) return null;
+
+  return `product_name.ilike.%${sanitizedSearch}%,order_number.ilike.%${sanitizedSearch}%`;
 }
 
 export function useSalesRecords(filters: SalesRecordsFilters) {
@@ -65,7 +78,10 @@ export function useSalesRecords(filters: SalesRecordsFilters) {
         query = query.eq("status", filters.status);
       }
       if (filters.search) {
-        query = query.or(`product_name.ilike.%${filters.search}%,order_number.ilike.%${filters.search}%`);
+        const searchOrFilter = buildSalesRecordsSearchOrFilter(filters.search);
+        if (searchOrFilter) {
+          query = query.or(searchOrFilter);
+        }
       }
 
       const { from, to } = pagination.getRange();
@@ -85,7 +101,7 @@ export function useSalesRecords(filters: SalesRecordsFilters) {
     }
   }, [data?.totalCount]);
 
-  const records: SalesRecordItem[] = (data?.records ?? []).map((r: any) => ({
+  const records: SalesRecordItem[] = ((data?.records ?? []) as SalesRecordQueryRow[]).map((r) => ({
     ...r,
     pdv: r.pdvs ?? { name: "—" },
   }));

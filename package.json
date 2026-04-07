@@ -9,7 +9,11 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
+ codex/confirm-official-decision-recorded-in-adr
     "check:lockfiles": "node scripts/check-official-lockfile.mjs"
+=======
+    "lint:changed": "bash ./scripts/lint-changed.sh"
+ main
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

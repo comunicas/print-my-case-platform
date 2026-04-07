@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-interface SkeletonShimmerProps extends React.HTMLAttributes<HTMLDivElement> {}
+type SkeletonShimmerProps = React.HTMLAttributes<HTMLDivElement>;
 
 function SkeletonShimmer({ className, ...props }: SkeletonShimmerProps) {
   return (
