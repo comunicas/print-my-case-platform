@@ -40,6 +40,7 @@ export function IntegrationsSettings() {
   const [copied, setCopied] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [keyDialogOpen, setKeyDialogOpen] = useState(false);
+  const ingestRevenueEnabled = import.meta.env.VITE_FEATURE_INGEST_REVENUE_ENABLED === "true";
 
   const handleCreateKey = async () => {
     if (!newKeyName.trim()) {
@@ -233,18 +234,27 @@ export function IntegrationsSettings() {
 
           {/* API Docs inline */}
           <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
-            <h4 className="text-sm font-medium">Endpoint de Ingestão</h4>
-            <code className="block text-xs bg-muted p-2 rounded break-all">
-              POST {import.meta.env.VITE_SUPABASE_URL}/functions/v1/ingest-revenue
-            </code>
-            <p className="text-xs text-muted-foreground">
-              Envie registros individuais de venda via JSON. Header: <code className="bg-muted px-1 rounded">Authorization: Bearer &lt;api_key&gt;</code>
-            </p>
-            <details className="text-xs">
-              <summary className="cursor-pointer font-medium text-muted-foreground hover:text-foreground">
-                Ver exemplo de body
-              </summary>
-              <pre className="mt-2 bg-muted p-2 rounded overflow-x-auto text-xs">
+            <h4 className="text-sm font-medium">Endpoint de Ingestão de Receita</h4>
+            {!ingestRevenueEnabled ? (
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  Endpoint desativado por feature flag (<code className="bg-muted px-1 rounded">VITE_FEATURE_INGEST_REVENUE_ENABLED=false</code>).
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <>
+                <code className="block text-xs bg-muted p-2 rounded break-all">
+                  POST {import.meta.env.VITE_SUPABASE_URL}/functions/v1/ingest-revenue
+                </code>
+                <p className="text-xs text-muted-foreground">
+                  Envie registros individuais de venda via JSON. Header: <code className="bg-muted px-1 rounded">Authorization: Bearer &lt;api_key&gt;</code>
+                </p>
+                <details className="text-xs">
+                  <summary className="cursor-pointer font-medium text-muted-foreground hover:text-foreground">
+                    Ver exemplo de body
+                  </summary>
+                  <pre className="mt-2 bg-muted p-2 rounded overflow-x-auto text-xs">
 {`{
   "device_id": "ABC123",
   "order_number": "ORD-001",
@@ -254,11 +264,13 @@ export function IntegrationsSettings() {
   "payment_method": "PIX",
   "status": "Aprovado"
 }`}
-              </pre>
-              <p className="mt-1 text-muted-foreground">
-                <strong>Obrigatórios:</strong> device_id, order_number, product_name, payment_date, amount
-              </p>
-            </details>
+                  </pre>
+                  <p className="mt-1 text-muted-foreground">
+                    <strong>Obrigatórios:</strong> device_id, order_number, product_name, payment_date, amount
+                  </p>
+                </details>
+              </>
+            )}
           </div>
         </CardContent>
         </>
