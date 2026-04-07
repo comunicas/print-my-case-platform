@@ -1,30 +1,29 @@
 
 
-## Mostrar Lista de Produtos ao Abrir o Popover
+## Fix: Lista de Compras Vazia (Erro 400)
 
-### Problema
+### Causa Raiz
 
-Ao clicar em "Buscar produto...", a lista não aparece até digitar algo. O usuário quer ver todos os produtos imediatamente ao abrir, e ir filtrando conforme digita. Além disso, os produtos devem vir de todos os PDVs da organização (já funciona assim).
+A query `select("*, pdv:pdvs(id, name)")` retorna erro 400 porque a tabela `pre_stock` não tem foreign key para `pdvs`. O PostgREST não consegue inferir a relação, e a query falha silenciosamente — a lista fica vazia apesar do insert funcionar.
+
+### Solução
+
+Adicionar a foreign key `pre_stock.pdv_id → pdvs.id` via migration. Isso permite que o join funcione corretamente.
 
 ### Mudanças
 
-**`src/components/upload/PreStockForm.tsx`**:
+1. **Migration SQL**: Adicionar foreign key constraint
+   ```sql
+   ALTER TABLE public.pre_stock
+   ADD CONSTRAINT pre_stock_pdv_id_fkey
+   FOREIGN KEY (pdv_id) REFERENCES public.pdvs(id) ON DELETE SET NULL;
+   ```
 
-1. Quando `searchTerm` está vazio (`tokens.length === 0`), já retorna `productNames.slice(0, 30)` — isso está correto. O problema é que o `CommandEmpty` mostra "Digite o nome do produto" quando `searchTerm` está vazio, dando a impressão de que precisa digitar. Remover essa condição — sempre mostrar "Nenhum produto encontrado" apenas quando realmente não há resultados.
-
-2. Aumentar o limite inicial de 30 para 50 produtos visíveis (são 90 no total, cabe bem).
-
-3. Ajustar o `CommandEmpty` para só mostrar mensagem quando `filteredProducts.length === 0` de fato, removendo a distinção `searchTerm.trim() ? ... : "Digite o nome do produto"`.
-
-### Arquivo alterado
-
-| Arquivo | Mudança |
-|---------|---------|
-| `src/components/upload/PreStockForm.tsx` | Remover mensagem "Digite o nome do produto", aumentar limite para 50, sempre mostrar lista ao abrir |
+2. **Nenhuma mudança no código** — o hook `usePreStock.ts` já tem a query correta, só precisa da FK no banco.
 
 ### Resultado
 
-- Ao clicar no campo, todos os produtos aparecem imediatamente (até 50)
-- Ao digitar, a lista filtra em tempo real por tokens
-- UX fluida: abrir → ver lista → digitar para refinar
+- A query deixa de retornar 400
+- Os registros de compra aparecem na lista com o nome do PDV
+- O registro de teste (APPLE iPhone 15 Pro, qtd 5, Extra Ricardo Jafet) ficará visível
 
