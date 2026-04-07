@@ -62,6 +62,9 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const hcaptchaSecret = Deno.env.get("HCAPTCHA_SECRET");
+    const isCaptchaVerificationEnabled = Boolean(hcaptchaSecret);
+
     const {
       organization_id,
       pdv_id,
@@ -115,7 +118,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!captcha_token) {
+    if (isCaptchaVerificationEnabled && !captcha_token) {
       await logAbuseEvent(supabase, {
         reason: "missing_captcha",
         organization_id,
@@ -132,21 +135,35 @@ Deno.serve(async (req) => {
       });
     }
 
-    const captchaOk = await verifyHCaptcha(captcha_token);
-    if (!captchaOk) {
+    if (isCaptchaVerificationEnabled) {
+      const captchaOk = await verifyHCaptcha(captcha_token);
+      if (!captchaOk) {
+        await logAbuseEvent(supabase, {
+          reason: "captcha_failed",
+          organization_id,
+          pdv_id,
+          catalog_slug,
+          phone: normalizedPhone,
+          ip_address: ipAddress,
+          fingerprint: normalizedFingerprint,
+        });
+
+        return new Response(JSON.stringify({ error: "Falha ao validar captcha." }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    if (!isCaptchaVerificationEnabled && !captcha_token) {
       await logAbuseEvent(supabase, {
-        reason: "captcha_failed",
+        reason: "captcha_not_configured",
         organization_id,
         pdv_id,
         catalog_slug,
         phone: normalizedPhone,
         ip_address: ipAddress,
         fingerprint: normalizedFingerprint,
-      });
-
-      return new Response(JSON.stringify({ error: "Falha ao validar captcha." }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
