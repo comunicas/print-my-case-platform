@@ -60,7 +60,7 @@ function TrendBadge({ trend }: { trend: SalesHistoryResult['trend'] }) {
 }
 
 export function ProductSalesHistoryChart({ productName, pdvId }: ProductSalesHistoryChartProps) {
-  const [selectedDays, setSelectedDays] = useState(15);
+  const [selectedDays, setSelectedDays] = useState<number | null>(15);
   
   const { data: historyData, isLoading } = useProductSalesHistory({
     productName,
