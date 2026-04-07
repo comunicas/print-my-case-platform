@@ -41,6 +41,8 @@ export function usePreStock(options: UsePreStockOptions = {}) {
 
   const queryKey = ["pre_stock", activeOrgId, options.pdvId, options.status, options.search];
 
+  const hasFilters = !!(options.pdvId && options.pdvId !== "all") || !!(options.status && options.status !== "all") || !!options.search;
+
   const { data: items = [], isLoading } = useQuery({
     queryKey,
     queryFn: async () => {
@@ -68,6 +70,36 @@ export function usePreStock(options: UsePreStockOptions = {}) {
       const { data, error } = await query;
       if (error) throw error;
       return (data ?? []) as unknown as PreStockItem[];
+    },
+    enabled: !!activeOrgId,
+  });
+
+  // Unfiltered summary for KPI cards
+  const { data: summary } = useQuery({
+    queryKey: ["pre_stock_summary", activeOrgId],
+    queryFn: async () => {
+      if (!activeOrgId) return { pendingUnits: 0, pendingValue: 0, allocatedUnits: 0 };
+
+      let query = supabase
+        .from("pre_stock")
+        .select("status, remaining_quantity, quantity, unit_cost");
+
+      if (orgId) {
+        query = query.eq("organization_id", orgId);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const rows = (data ?? []) as { status: string; remaining_quantity: number; quantity: number; unit_cost: number }[];
+      const pending = rows.filter((r) => r.status === "pending");
+      const allocated = rows.filter((r) => r.status === "allocated");
+
+      return {
+        pendingUnits: pending.reduce((s, r) => s + r.remaining_quantity, 0),
+        pendingValue: pending.reduce((s, r) => s + r.remaining_quantity * (r.unit_cost ?? 15), 0),
+        allocatedUnits: allocated.reduce((s, r) => s + r.quantity, 0),
+      };
     },
     enabled: !!activeOrgId,
   });
@@ -153,5 +185,6 @@ export function usePreStock(options: UsePreStockOptions = {}) {
     createItem,
     deleteItem,
     productNames,
+    summary: summary ?? { pendingUnits: 0, pendingValue: 0, allocatedUnits: 0 },
   };
 }

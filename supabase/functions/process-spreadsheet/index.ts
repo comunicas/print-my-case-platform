@@ -989,52 +989,52 @@ Deno.serve(async (req) => {
       if (recordsInserted > 0 && pdvData?.organization_id) {
         try {
           const orgId = pdvData.organization_id;
-            // Group quantities by product_name
-            const productQtys: Record<string, number> = {};
-            for (const record of validRecords) {
-              if (!record) continue;
-              const name = record.product_name as string;
-              productQtys[name] = (productQtys[name] || 0) + ((record.quantity as number) || 0);
-            }
+          // Group quantities by product_name
+          const productQtys: Record<string, number> = {};
+          for (const record of validRecords) {
+            if (!record) continue;
+            const name = record.product_name as string;
+            productQtys[name] = (productQtys[name] || 0) + ((record.quantity as number) || 0);
+          }
 
-            for (const [productName, newQty] of Object.entries(productQtys)) {
-              const oldQty = oldStockByProduct[productName] || 0;
-              const increase = Math.max(0, newQty - oldQty);
-              if (increase <= 0) continue;
+          for (const [productName, newQty] of Object.entries(productQtys)) {
+            const oldQty = oldStockByProduct[productName] || 0;
+            const increase = Math.max(0, newQty - oldQty);
+            if (increase <= 0) continue;
 
-              const { data: preStockItems } = await supabase
+            const { data: preStockItems } = await supabase
+              .from("pre_stock")
+              .select("id, remaining_quantity")
+              .eq("organization_id", orgId)
+              .eq("product_name", productName)
+              .eq("status", "pending")
+              .gt("remaining_quantity", 0)
+              .or(`pdv_id.eq.${pdvId},pdv_id.is.null`)
+              .order("created_at", { ascending: true });
+
+            let toDeduct = increase;
+            for (const ps of preStockItems ?? []) {
+              if (toDeduct <= 0) break;
+              const deducted = Math.min(toDeduct, ps.remaining_quantity);
+              const newRemaining = ps.remaining_quantity - deducted;
+              const updateData: Record<string, unknown> = {
+                remaining_quantity: newRemaining,
+                status: newRemaining <= 0 ? "allocated" : "pending",
+              };
+              if (newRemaining <= 0) {
+                updateData.allocated_pdv_id = pdvId;
+              }
+              await supabase
                 .from("pre_stock")
-                .select("id, remaining_quantity")
-                .eq("organization_id", orgId)
-                .eq("product_name", productName)
-                .eq("status", "pending")
-                .gt("remaining_quantity", 0)
-                .or(`pdv_id.eq.${pdvId},pdv_id.is.null`)
-                .order("created_at", { ascending: true });
-
-              let toDeduct = increase;
-              for (const ps of preStockItems ?? []) {
-                if (toDeduct <= 0) break;
-                const deducted = Math.min(toDeduct, ps.remaining_quantity);
-                const newRemaining = ps.remaining_quantity - deducted;
-                const updateData: Record<string, unknown> = {
-                  remaining_quantity: newRemaining,
-                  status: newRemaining <= 0 ? "allocated" : "pending",
-                };
-                if (newRemaining <= 0) {
-                  updateData.allocated_pdv_id = pdvId;
-                }
-                await supabase
-                  .from("pre_stock")
-                  .update(updateData)
-                  .eq("id", ps.id);
-                toDeduct -= deducted;
-              }
-              if ((preStockItems ?? []).length > 0) {
-                console.log(`[process-spreadsheet] Upload ${uploadId}: Pre-stock deducted for ${productName}: increase=${increase}, old=${oldQty}, new=${newQty}`);
-              }
+                .update(updateData)
+                .eq("id", ps.id);
+              toDeduct -= deducted;
             }
-            console.log(`[process-spreadsheet] Upload ${uploadId}: Pre-stock deduction completed`);
+            if ((preStockItems ?? []).length > 0) {
+              console.log(`[process-spreadsheet] Upload ${uploadId}: Pre-stock deducted for ${productName}: increase=${increase}, old=${oldQty}, new=${newQty}`);
+            }
+          }
+          console.log(`[process-spreadsheet] Upload ${uploadId}: Pre-stock deduction completed`);
         } catch (preStockErr) {
           console.error(`Upload ${uploadId}: Pre-stock deduction error`, preStockErr);
           // Don't fail the upload
