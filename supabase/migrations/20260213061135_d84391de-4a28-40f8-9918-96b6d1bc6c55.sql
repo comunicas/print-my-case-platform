@@ -10,14 +10,9 @@ WITH CHECK (
   short_link_id IN (SELECT id FROM public.catalog_short_links)
 );
 
--- Fix 2: Add INSERT policy for audit_logs
--- Audit logs are inserted by SECURITY DEFINER triggers, but a permissive policy
--- ensures authenticated users can also write audit entries if needed.
-CREATE POLICY "Authenticated users can insert audit logs"
-ON public.audit_logs
-FOR INSERT
-TO authenticated
-WITH CHECK (true);
+-- Fix 2: audit_logs write access is intentionally restricted.
+-- Direct INSERT by authenticated users is denied; controlled paths
+-- (SECURITY DEFINER triggers / service_role) are enforced in later migrations.
 
 -- Fix 3: Add UPDATE policy for uploads
 -- Allows users to update uploads they own within their organization.
