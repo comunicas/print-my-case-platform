@@ -73,10 +73,7 @@ export function PreStockTab() {
     );
   }
 
-    () => pendingItems.reduce((s, i) => s + i.remaining_quantity * (i.unit_cost ?? 15), 0),
-    [pendingItems]
-  );
-  const totalAllocated = useMemo(() => allocatedItems.reduce((s, i) => s + i.quantity, 0), [allocatedItems]);
+
 
   return (
     <div className="space-y-4">
