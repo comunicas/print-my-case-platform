@@ -29,7 +29,7 @@ type SortField = 'slot' | 'model' | 'quantity' | 'sales' | 'slots' | 'status';
 type SortDirection = 'asc' | 'desc';
 
 export function ProductStockTable({ products, isLoading }: ProductStockTableProps) {
-  const [sortField, setSortField] = useState<SortField>('quantity');
+  const [sortField, setSortField] = useState<SortField>('slot');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [page, setPage] = useState(0);
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
