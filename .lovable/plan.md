@@ -1,48 +1,42 @@
-## Módulo de Pré-Estoque (Compras) — Documentação Técnica
 
-### Tabela `pre_stock`
 
-| Coluna | Tipo | Default | Descrição |
-|--------|------|---------|-----------|
-| `id` | uuid | `gen_random_uuid()` | PK |
-| `organization_id` | uuid | — | FK → organizations |
-| `pdv_id` | uuid | NULL | PDV de origem (opcional) |
-| `allocated_pdv_id` | uuid | NULL | PDV de destino (preenchido na alocação total) |
-| `product_name` | text | — | Nome do produto |
-| `quantity` | integer | — | Quantidade comprada |
-| `remaining_quantity` | integer | — | Saldo restante (decrementado pela dedução) |
-| `unit_cost` | numeric | 15 | Custo unitário em R$ |
-| `status` | text | `'pending'` | `pending` ou `allocated` |
-| `created_by` | uuid | — | Usuário que registrou |
-| `notes` | text | NULL | Observações |
-| `created_at` | timestamptz | `now()` | Data de criação |
-| `updated_at` | timestamptz | `now()` | Última atualização |
+## Análise: Reorganizar Compras → Estoque e Vendas → Financeiro
 
-### Fluxo de Dedução Automática
+### Complexidade: **Baixa-Média** (~2-3 horas)
 
-1. **Trigger**: Upload de planilha de estoque (`process-spreadsheet`) ou inserção via API (`ingest-stock`)
-2. **Cálculo**: `increase = max(0, newQty - oldQty)` por produto — só deduz o **aumento real**
-3. **Busca**: Itens `pending` com `remaining_quantity > 0`, filtrando por `organization_id`, `product_name`, e `pdv_id` (matching ou NULL)
-4. **Dedução**: FIFO (mais antigos primeiro), decrementando `remaining_quantity`
-5. **Alocação**: `allocated_pdv_id` só é preenchido quando `remaining_quantity` chega a **zero** (alocação total), evitando inconsistências em entregas parciais
+Os componentes `PreStockTab` e `SalesRecordsTab` já são módulos independentes com seus próprios hooks. A mudança é essencialmente de **roteamento e layout**, não de lógica.
 
-### KPI Cards
+### Por que faz sentido
 
-- **Pendentes**: `SUM(remaining_quantity)` dos itens `pending` — query sem filtros
-- **Valor Pendente**: `SUM(remaining_quantity × unit_cost)` dos pendentes
-- **Alocados**: `SUM(quantity)` dos itens `allocated`
+- **Uploads** fica focado na sua função: receber e processar planilhas
+- **Estoque** ganha a aba "Compras" — faz sentido conceitual (pré-estoque é estoque pendente)
+- **Financeiro** ganha a aba "Vendas" — faz sentido (vendas são dados financeiros/receita)
+- A sidebar já tem submenus para Estoque e Marketing; basta adicionar as novas sub-rotas
 
-Os KPIs usam uma query separada (`pre_stock_summary`) sem filtros de PDV/status/search para refletir totais reais.
+### O que muda
 
-### Edge Functions Envolvidas
+| Arquivo | Mudança |
+|---------|---------|
+| `src/pages/Uploads.tsx` | Remover tabs "Vendas" e "Compras", manter apenas a lista de uploads |
+| `src/pages/Stock.tsx` | Adicionar tab "Compras" (importar `PreStockTab`) — tabs: Tabela, Mapa, Compras |
+| `src/pages/Financeiro.tsx` | Adicionar tab "Vendas" (importar `SalesRecordsTab`) — tabs: Resumo, DRE, Despesas, Vendas |
+| `src/components/layout/AppSidebar.tsx` | Adicionar sub-item "Compras" em Estoque (`/estoque?tab=compras`) |
+| `src/components/layout/MobileSidebar.tsx` | Mesmo: sub-item "Compras" em Estoque |
+| Sidebar Estoque/Financeiro | Atualizar `stockSubItems` e rotas do Financeiro na sidebar |
 
-- `process-spreadsheet/index.ts` — Dedução após upload de planilha de estoque
-- `ingest-stock/index.ts` — Dedução após inserção via API
+### O que NÃO muda
 
-### Arquivos Frontend
+- Hooks (`usePreStock`, `useSalesRecords`) — zero alteração
+- Componentes (`PreStockTab`, `SalesRecordsTab`) — zero alteração, só movem de página
+- Edge functions — intocadas
+- Banco de dados — intocado
 
-| Arquivo | Responsabilidade |
-|---------|------------------|
-| `src/hooks/usePreStock.ts` | CRUD + summary query |
-| `src/components/upload/PreStockForm.tsx` | Formulário de cadastro |
-| `src/components/upload/PreStockTab.tsx` | KPIs + tabela + filtros |
+### Riscos
+
+- Nenhum risco técnico significativo. Os componentes são autocontidos.
+- Único cuidado: atualizar `VALID_TABS` em `Stock.tsx` para incluir "compras"
+
+### Recomendação
+
+**Sim, fica mais organizado.** A separação de responsabilidades melhora a navegabilidade. Uploads vira apenas "gestão de planilhas", Estoque agrupa tudo sobre produtos físicos, e Financeiro concentra receita e despesas.
+
