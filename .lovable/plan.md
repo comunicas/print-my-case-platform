@@ -1,36 +1,27 @@
 
 
-## Melhorar Busca de Produtos no Pré-Estoque
+## Restringir Busca de Produtos aos Nomes Exatos do Estoque
 
-### Problema Atual
+### Problema
 
-A busca no formulário de compra usa `string.includes()` simples — não consegue buscar por palavras separadas (ex: "redmi 14" não encontra "Redmi note14 Pro") e não tem destaque visual dos termos encontrados.
+O formulário de compra permite digitação livre — o usuário pode registrar um nome de produto que não existe no estoque (ex: "iPhone 17" em vez de "APPLE iPhone 17"). Isso quebra a dedução automática, pois o matching é por nome exato.
 
 ### Solução
 
-Implementar busca fuzzy por tokens: cada palavra digitada é buscada independentemente no nome do produto. Digitar "redmi 14" encontra qualquer produto que contenha AMBAS as palavras. Números são tratados como tokens independentes.
+Restringir a seleção apenas a produtos que existem em `stock_records`, removendo a opção de texto livre. O usuário só pode selecionar da lista — garantindo que o `product_name` salvo no `pre_stock` seja idêntico ao do estoque.
 
 ### Mudanças
 
 **`src/components/upload/PreStockForm.tsx`**:
 
-1. Substituir filtro `.includes()` por busca multi-token:
-   - Splittar input por espaços → array de tokens
-   - Produto passa no filtro se TODOS os tokens aparecem no nome (case-insensitive)
-   - Ex: "ip 15" → encontra "APPLE iPhone 15 Pro", "APPLE iPhone 15"
-   
-2. Adicionar destaque (highlight) dos termos encontrados nos resultados usando `<mark>`
-
-3. Mostrar a marca extraída (via `extractBrandFromProductName`) como badge ao lado do nome para facilitar identificação visual
-
-4. Usar `shouldFilter={false}` no Command (já que filtramos manualmente) para evitar dupla filtragem
-
-5. Permitir digitação livre — se o produto não existe na lista, o usuário pode usar o texto digitado
+1. Remover o botão "Usar texto digitado" do `CommandEmpty` — substituir por mensagem "Nenhum produto encontrado"
+2. Separar o estado de busca (`searchTerm`) do estado de seleção (`productName`) — o input do Command controla `searchTerm`, e `productName` só é preenchido ao selecionar um item da lista
+3. Validação: o botão "Registrar" só habilita se `productName` estiver na lista de `productNames`
+4. Ao selecionar um produto, mostrar o nome completo no trigger do Popover e limpar o `searchTerm` para a próxima busca
 
 ### Resultado
 
-- "redmi 14" → encontra todos Redmi com "14" no nome
-- "iphone pro" → encontra iPhone Pro de qualquer geração
-- "galaxy s24" → encontra Galaxy S24, S24+, S24 Ultra
-- Busca instantânea, sem dependências extras
+- Impossível registrar produto com nome diferente do estoque
+- Dedução automática funciona com 100% de precisão no matching
+- UX clara: busca fuzzy para encontrar, seleção obrigatória para confirmar
 
