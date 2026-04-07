@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { usePDVs } from './usePDVs';
 import { useActiveOrg } from '@/contexts/ActiveOrgContext';
-import { filterSalesByProduct } from '@/lib/productNormalization';
+import { filterSalesByProduct, extractModelFromProductName } from '@/lib/productNormalization';
 
 export interface ProductAnalytics {
   // KPIs
@@ -42,6 +42,9 @@ export function useProductAnalytics(productName: string | null, pdvId?: string) 
         throw new Error('Product name is required');
       }
 
+      // Extract model from productKey format ("BRAND:model") for server-side pre-filter
+      const modelForQuery = extractModelFromProductName(productName);
+
       // Pre-filter server-side with ilike to reduce data transfer (~90% reduction),
       // then refine client-side with filterSalesByProduct for exact matching
       // (ilike can't distinguish "iPhone 14" from "iPhone 14 Pro Max").
@@ -50,7 +53,7 @@ export function useProductAnalytics(productName: string | null, pdvId?: string) 
         .select('*, order_time')
         .eq('status', 'Concluído')
         .not('payment_date', 'is', null)
-        .ilike('product_name', `%${productName}%`)
+        .ilike('product_name', `%${modelForQuery}%`)
         .order('payment_date', { ascending: false })
         .limit(5000);
 
