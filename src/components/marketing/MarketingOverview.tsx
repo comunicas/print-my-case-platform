@@ -42,6 +42,12 @@ export function MarketingOverview({ onNavigate, isAdmin }: MarketingOverviewProp
             icon: UserPlus,
           },
           {
+            id: "vendas",
+            title: "Vendas",
+            description: "Visualize e gerencie os registros de vendas dos seus PDVs.",
+            icon: ShoppingCart,
+          },
+          {
             id: "analytics",
             title: "Analytics",
             description: "Acompanhe métricas de desempenho do seu marketing.",
