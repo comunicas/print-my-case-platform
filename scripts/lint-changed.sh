@@ -24,10 +24,16 @@ else
   DIFF_RANGE="HEAD~1...HEAD"
 fi
 
-mapfile -t CHANGED_FILES < <(
-  git diff --name-only --diff-filter=ACMR "${DIFF_RANGE}" \
-    | rg '\.(js|jsx|ts|tsx|mjs|cjs)$' || true
+mapfile -t DIFF_FILES < <(
+  git diff --name-only --diff-filter=ACMR "${DIFF_RANGE}"
 )
+
+CHANGED_FILES=()
+for file in "${DIFF_FILES[@]}"; do
+  if [[ "${file}" =~ \.(js|jsx|ts|tsx|mjs|cjs)$ ]]; then
+    CHANGED_FILES+=("${file}")
+  fi
+done
 
 if [ "${#CHANGED_FILES[@]}" -eq 0 ]; then
   echo "No changed JS/TS files to lint."
