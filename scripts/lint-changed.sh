@@ -24,9 +24,16 @@ else
   DIFF_RANGE="HEAD~1...HEAD"
 fi
 
-mapfile -t DIFF_FILES < <(
-  git diff --name-only --diff-filter=ACMR "${DIFF_RANGE}"
-)
+DIFF_OUTPUT=""
+if ! DIFF_OUTPUT="$(git diff --name-only --diff-filter=ACMR "${DIFF_RANGE}")"; then
+  echo "git diff failed for range '${DIFF_RANGE}'." >&2
+  exit 1
+fi
+
+DIFF_FILES=()
+if [ -n "${DIFF_OUTPUT}" ]; then
+  mapfile -t DIFF_FILES <<<"${DIFF_OUTPUT}"
+fi
 
 CHANGED_FILES=()
 for file in "${DIFF_FILES[@]}"; do
