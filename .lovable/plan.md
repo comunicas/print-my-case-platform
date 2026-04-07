@@ -1,35 +1,30 @@
 
 
-## Fix: Lista de Produtos Não Aparece no Formulário de Compra
+## Mostrar Lista de Produtos ao Abrir o Popover
 
-### Causa Raiz
+### Problema
 
-A query em `usePreStock.ts` que busca nomes de produtos usa um filtro via join que não funciona corretamente com o PostgREST do Supabase:
+Ao clicar em "Buscar produto...", a lista não aparece até digitar algo. O usuário quer ver todos os produtos imediatamente ao abrir, e ir filtrando conforme digita. Além disso, os produtos devem vir de todos os PDVs da organização (já funciona assim).
 
-```ts
-.select("product_name, pdv:pdvs!inner(organization_id)")
-.eq("pdv.organization_id", activeOrgId)
-```
+### Mudanças
 
-O filtro `.eq("pdv.organization_id", ...)` com alias não é suportado dessa forma — a query retorna array vazio silenciosamente, por isso "Nenhum produto encontrado".
+**`src/components/upload/PreStockForm.tsx`**:
 
-### Solução
+1. Quando `searchTerm` está vazio (`tokens.length === 0`), já retorna `productNames.slice(0, 30)` — isso está correto. O problema é que o `CommandEmpty` mostra "Digite o nome do produto" quando `searchTerm` está vazio, dando a impressão de que precisa digitar. Remover essa condição — sempre mostrar "Nenhum produto encontrado" apenas quando realmente não há resultados.
 
-Alterar a query para buscar os `pdv_id`s da organização primeiro (já disponível via `usePDVs`), e depois filtrar `stock_records` com `.in("pdv_id", pdvIds)`:
+2. Aumentar o limite inicial de 30 para 50 produtos visíveis (são 90 no total, cabe bem).
 
-**`src/hooks/usePreStock.ts`** — Reescrever a query de `productNames`:
-
-1. Receber `pdvIds` como parâmetro (ou buscar PDVs internamente)
-2. Usar `.from("stock_records").select("product_name").in("pdv_id", pdvIds)` 
-3. Extrair nomes únicos e ordenar
-
-Alternativa mais simples: fazer a query em duas etapas dentro do mesmo `queryFn`:
-- Passo 1: buscar IDs dos PDVs da org via `supabase.from("pdvs").select("id").eq("organization_id", activeOrgId)`
-- Passo 2: buscar `stock_records.product_name` filtrado por esses IDs
+3. Ajustar o `CommandEmpty` para só mostrar mensagem quando `filteredProducts.length === 0` de fato, removendo a distinção `searchTerm.trim() ? ... : "Digite o nome do produto"`.
 
 ### Arquivo alterado
 
 | Arquivo | Mudança |
 |---------|---------|
-| `src/hooks/usePreStock.ts` | Reescrever query de productNames para usar 2-step approach com `pdv_id IN (...)` |
+| `src/components/upload/PreStockForm.tsx` | Remover mensagem "Digite o nome do produto", aumentar limite para 50, sempre mostrar lista ao abrir |
+
+### Resultado
+
+- Ao clicar no campo, todos os produtos aparecem imediatamente (até 50)
+- Ao digitar, a lista filtra em tempo real por tokens
+- UX fluida: abrir → ver lista → digitar para refinar
 
