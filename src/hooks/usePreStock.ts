@@ -29,7 +29,12 @@ interface UsePreStockOptions {
 export function usePreStock(options: UsePreStockOptions = {}) {
   const { activeOrgId } = useActiveOrg();
   const { user } = useAuth();
+  const { profile } = useProfile();
   const queryClient = useQueryClient();
+
+  const isAllOrgs = activeOrgId === "all";
+  const orgId = isAllOrgs ? null : (activeOrgId ?? profile?.organization_id ?? null);
+  const writeOrgId = orgId ?? profile?.organization_id;
 
   const queryKey = ["pre_stock", activeOrgId, options.pdvId, options.status, options.search];
 
