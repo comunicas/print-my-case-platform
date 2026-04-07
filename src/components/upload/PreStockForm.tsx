@@ -124,7 +124,7 @@ export function PreStockForm({
     if (!productName.trim() || !quantity) return;
 
     onSubmit({
-      pdv_id: pdvId || null,
+      pdv_id: pdvId && pdvId !== "none" ? pdvId : null,
       product_name: productName.trim(),
       quantity: parseInt(quantity, 10),
       notes: notes.trim() || undefined,

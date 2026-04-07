@@ -986,10 +986,9 @@ Deno.serve(async (req) => {
       }
 
       // === DEDUZIR PRÉ-ESTOQUE ===
-      if (recordsInserted > 0) {
+      if (recordsInserted > 0 && pdvData?.organization_id) {
         try {
-          const orgId = (await supabase.from("pdvs").select("organization_id").eq("id", pdvId).single()).data?.organization_id;
-          if (orgId) {
+          const orgId = pdvData.organization_id;
             // Group quantities by product_name
             const productQtys: Record<string, number> = {};
             for (const record of validRecords) {
@@ -1018,13 +1017,16 @@ Deno.serve(async (req) => {
                 if (toDeduct <= 0) break;
                 const deducted = Math.min(toDeduct, ps.remaining_quantity);
                 const newRemaining = ps.remaining_quantity - deducted;
+                const updateData: Record<string, unknown> = {
+                  remaining_quantity: newRemaining,
+                  status: newRemaining <= 0 ? "allocated" : "pending",
+                };
+                if (newRemaining <= 0) {
+                  updateData.allocated_pdv_id = pdvId;
+                }
                 await supabase
                   .from("pre_stock")
-                  .update({
-                    remaining_quantity: newRemaining,
-                    status: newRemaining <= 0 ? "allocated" : "pending",
-                    allocated_pdv_id: pdvId,
-                  })
+                  .update(updateData)
                   .eq("id", ps.id);
                 toDeduct -= deducted;
               }
@@ -1033,7 +1035,6 @@ Deno.serve(async (req) => {
               }
             }
             console.log(`[process-spreadsheet] Upload ${uploadId}: Pre-stock deduction completed`);
-          }
         } catch (preStockErr) {
           console.error(`Upload ${uploadId}: Pre-stock deduction error`, preStockErr);
           // Don't fail the upload
@@ -1058,11 +1059,7 @@ Deno.serve(async (req) => {
             .delete()
             .in("upload_id", oldIds);
 
-          // Delete associated stock_history
-          await supabase
-            .from("stock_history")
-            .delete()
-            .in("upload_id", oldIds);
+          // stock_history snapshots are preserved (independent daily records)
 
           // Delete files from storage
           for (const old of oldUploads) {

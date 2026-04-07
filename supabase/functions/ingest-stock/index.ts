@@ -291,13 +291,16 @@ Deno.serve(async (req) => {
         if (toDeduct <= 0) break;
         const deducted = Math.min(toDeduct, ps.remaining_quantity);
         const newRemaining = ps.remaining_quantity - deducted;
+        const updateData: Record<string, unknown> = {
+          remaining_quantity: newRemaining,
+          status: newRemaining <= 0 ? "allocated" : "pending",
+        };
+        if (newRemaining <= 0) {
+          updateData.allocated_pdv_id = pdv.id;
+        }
         await supabase
           .from("pre_stock")
-          .update({
-            remaining_quantity: newRemaining,
-            status: newRemaining <= 0 ? "allocated" : "pending",
-            allocated_pdv_id: pdv.id,
-          })
+          .update(updateData)
           .eq("id", ps.id);
         toDeduct -= deducted;
       }
