@@ -12,7 +12,8 @@ type AuditEventType =
   | 'user_creation_failed'
   | 'permission_violation'
   | 'organization_creation'
-  | 'role_assignment';
+  | 'role_assignment'
+  | 'user_creation_rollback';
 
 // Interface para evento de auditoria
 interface AuditEvent {
@@ -58,6 +59,37 @@ async function logAuditEvent(
   } catch {
     // Silent fail for audit logs - don't block main operation
   }
+}
+
+// deno-lint-ignore no-explicit-any
+async function waitForRecordWithTimeout(
+  supabaseAdmin: any,
+  table: 'profiles' | 'user_roles',
+  identifierField: 'id' | 'user_id',
+  identifierValue: string,
+  timeoutMs = 4000,
+  intervalMs = 200
+) {
+  const deadline = Date.now() + timeoutMs;
+  let lastError: string | null = null;
+
+  while (Date.now() < deadline) {
+    const { data, error } = await supabaseAdmin
+      .from(table)
+      .select(identifierField)
+      .eq(identifierField, identifierValue)
+      .maybeSingle();
+
+    if (error) {
+      lastError = error.message;
+    } else if (data) {
+      return { ok: true as const };
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+
+  return { ok: false as const, error: lastError };
 }
 
 Deno.serve(async (req) => {
@@ -499,6 +531,34 @@ Deno.serve(async (req) => {
 
     const newUser = newUserData.user;
 
+    // deno-lint-ignore no-explicit-any
+    const rollbackUserCreation = async (technicalReason: string, metadata: Record<string, any> = {}) => {
+      const { error: rollbackError } = await supabaseAdmin.auth.admin.deleteUser(newUser.id);
+
+      await logAuditEvent(supabaseAdmin, {
+        event_type: 'user_creation_rollback',
+        actor_id: callingUser.id,
+        actor_email: callingUser.email,
+        actor_role: callerRole,
+        target_email: email,
+        target_role: role,
+        organization_id: targetOrganizationId,
+        organization_name: targetOrganization?.name,
+        success: !rollbackError,
+        error_message: rollbackError
+          ? `Rollback falhou após createUser: ${rollbackError.message}`
+          : `Rollback executado: ${technicalReason}`,
+        ip_address: ipAddress,
+        user_agent: userAgent,
+        metadata: {
+          new_user_id: newUser.id,
+          technical_reason: technicalReason,
+          rollback_error: rollbackError?.message,
+          ...metadata
+        }
+      });
+    };
+
     // Create organization only if requested (only super_admin can do this)
     if (createNewOrganization) {
       const { data: orgData, error: orgError } = await supabaseAdmin
@@ -511,7 +571,10 @@ Deno.serve(async (req) => {
         .single();
 
       if (orgError) {
-        await supabaseAdmin.auth.admin.deleteUser(newUser.id);
+        await rollbackUserCreation('Falha ao criar organização após createUser', {
+          organization_name: organizationName || name,
+          supabase_error: orgError.message
+        });
         
         await logAuditEvent(supabaseAdmin, {
           event_type: 'user_creation_failed',
@@ -552,11 +615,45 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Wait for trigger to create the profile
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Aguarda de forma determinística os registros gerados por trigger.
+    const profileReady = await waitForRecordWithTimeout(supabaseAdmin, 'profiles', 'id', newUser.id);
+    const roleReady = await waitForRecordWithTimeout(supabaseAdmin, 'user_roles', 'user_id', newUser.id);
+
+    if (!profileReady.ok || !roleReady.ok) {
+      await rollbackUserCreation('Timeout aguardando criação de profile/user_role', {
+        profile_ready: profileReady.ok,
+        user_role_ready: roleReady.ok,
+        profile_error: profileReady.error,
+        user_role_error: roleReady.error
+      });
+
+      await logAuditEvent(supabaseAdmin, {
+        event_type: 'user_creation_failed',
+        actor_id: callingUser.id,
+        actor_email: callingUser.email,
+        actor_role: callerRole,
+        target_email: email,
+        target_role: role,
+        organization_id: targetOrganizationId,
+        organization_name: targetOrganization?.name,
+        success: false,
+        error_message: 'Timeout aguardando criação de profile/user_role',
+        ip_address: ipAddress,
+        user_agent: userAgent,
+        metadata: {
+          profile_ready: profileReady.ok,
+          user_role_ready: roleReady.ok
+        }
+      });
+
+      return new Response(
+        JSON.stringify({ error: 'Falha na criação de dados vinculados do usuário. Operação revertida.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Update profile with organization_id
-    await supabaseAdmin
+    const { error: profileUpdateError } = await supabaseAdmin
       .from('profiles')
       .update({ 
         organization_id: targetOrganizationId,
@@ -564,11 +661,65 @@ Deno.serve(async (req) => {
       })
       .eq('id', newUser.id);
 
+    if (profileUpdateError) {
+      await rollbackUserCreation('Falha no update de profiles após createUser', {
+        supabase_error: profileUpdateError.message
+      });
+
+      await logAuditEvent(supabaseAdmin, {
+        event_type: 'user_creation_failed',
+        actor_id: callingUser.id,
+        actor_email: callingUser.email,
+        actor_role: callerRole,
+        target_email: email,
+        target_role: role,
+        organization_id: targetOrganizationId,
+        organization_name: targetOrganization?.name,
+        success: false,
+        error_message: 'Erro ao atualizar perfil do novo usuário',
+        ip_address: ipAddress,
+        user_agent: userAgent,
+        metadata: { supabase_error: profileUpdateError.message, stage: 'profile_update' }
+      });
+
+      return new Response(
+        JSON.stringify({ error: 'Erro ao atualizar perfil do novo usuário. Operação revertida.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Update user role (trigger creates viewer by default)
     const { error: roleUpdateError } = await supabaseAdmin
       .from('user_roles')
       .update({ role: role })
       .eq('user_id', newUser.id);
+
+    if (roleUpdateError) {
+      await rollbackUserCreation('Falha no update de user_roles após createUser', {
+        supabase_error: roleUpdateError.message
+      });
+
+      await logAuditEvent(supabaseAdmin, {
+        event_type: 'user_creation_failed',
+        actor_id: callingUser.id,
+        actor_email: callingUser.email,
+        actor_role: callerRole,
+        target_email: email,
+        target_role: role,
+        organization_id: targetOrganizationId,
+        organization_name: targetOrganization?.name,
+        success: false,
+        error_message: 'Erro ao atualizar role do novo usuário',
+        ip_address: ipAddress,
+        user_agent: userAgent,
+        metadata: { supabase_error: roleUpdateError.message, stage: 'role_update' }
+      });
+
+      return new Response(
+        JSON.stringify({ error: 'Erro ao atualizar role do novo usuário. Operação revertida.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Log role assignment
     await logAuditEvent(supabaseAdmin, {
