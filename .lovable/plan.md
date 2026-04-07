@@ -1,27 +1,35 @@
 
 
-## Restringir Busca de Produtos aos Nomes Exatos do Estoque
+## Fix: Lista de Produtos Não Aparece no Formulário de Compra
 
-### Problema
+### Causa Raiz
 
-O formulário de compra permite digitação livre — o usuário pode registrar um nome de produto que não existe no estoque (ex: "iPhone 17" em vez de "APPLE iPhone 17"). Isso quebra a dedução automática, pois o matching é por nome exato.
+A query em `usePreStock.ts` que busca nomes de produtos usa um filtro via join que não funciona corretamente com o PostgREST do Supabase:
+
+```ts
+.select("product_name, pdv:pdvs!inner(organization_id)")
+.eq("pdv.organization_id", activeOrgId)
+```
+
+O filtro `.eq("pdv.organization_id", ...)` com alias não é suportado dessa forma — a query retorna array vazio silenciosamente, por isso "Nenhum produto encontrado".
 
 ### Solução
 
-Restringir a seleção apenas a produtos que existem em `stock_records`, removendo a opção de texto livre. O usuário só pode selecionar da lista — garantindo que o `product_name` salvo no `pre_stock` seja idêntico ao do estoque.
+Alterar a query para buscar os `pdv_id`s da organização primeiro (já disponível via `usePDVs`), e depois filtrar `stock_records` com `.in("pdv_id", pdvIds)`:
 
-### Mudanças
+**`src/hooks/usePreStock.ts`** — Reescrever a query de `productNames`:
 
-**`src/components/upload/PreStockForm.tsx`**:
+1. Receber `pdvIds` como parâmetro (ou buscar PDVs internamente)
+2. Usar `.from("stock_records").select("product_name").in("pdv_id", pdvIds)` 
+3. Extrair nomes únicos e ordenar
 
-1. Remover o botão "Usar texto digitado" do `CommandEmpty` — substituir por mensagem "Nenhum produto encontrado"
-2. Separar o estado de busca (`searchTerm`) do estado de seleção (`productName`) — o input do Command controla `searchTerm`, e `productName` só é preenchido ao selecionar um item da lista
-3. Validação: o botão "Registrar" só habilita se `productName` estiver na lista de `productNames`
-4. Ao selecionar um produto, mostrar o nome completo no trigger do Popover e limpar o `searchTerm` para a próxima busca
+Alternativa mais simples: fazer a query em duas etapas dentro do mesmo `queryFn`:
+- Passo 1: buscar IDs dos PDVs da org via `supabase.from("pdvs").select("id").eq("organization_id", activeOrgId)`
+- Passo 2: buscar `stock_records.product_name` filtrado por esses IDs
 
-### Resultado
+### Arquivo alterado
 
-- Impossível registrar produto com nome diferente do estoque
-- Dedução automática funciona com 100% de precisão no matching
-- UX clara: busca fuzzy para encontrar, seleção obrigatória para confirmar
+| Arquivo | Mudança |
+|---------|---------|
+| `src/hooks/usePreStock.ts` | Reescrever query de productNames para usar 2-step approach com `pdv_id IN (...)` |
 
