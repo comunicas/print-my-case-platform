@@ -604,6 +604,48 @@ export type Database = {
           },
         ]
       }
+      pre_stock: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          notes: string | null
+          organization_id: string
+          pdv_id: string | null
+          product_name: string
+          quantity: number
+          remaining_quantity: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          notes?: string | null
+          organization_id: string
+          pdv_id?: string | null
+          product_name: string
+          quantity: number
+          remaining_quantity: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          pdv_id?: string | null
+          product_name?: string
+          quantity?: number
+          remaining_quantity?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       preferences: {
         Row: {
           created_at: string | null
