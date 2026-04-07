@@ -1,51 +1,48 @@
+## Módulo de Pré-Estoque (Compras) — Documentação Técnica
 
+### Tabela `pre_stock`
 
-## Finalização v1 — Pré-Estoque (Compras)
+| Coluna | Tipo | Default | Descrição |
+|--------|------|---------|-----------|
+| `id` | uuid | `gen_random_uuid()` | PK |
+| `organization_id` | uuid | — | FK → organizations |
+| `pdv_id` | uuid | NULL | PDV de origem (opcional) |
+| `allocated_pdv_id` | uuid | NULL | PDV de destino (preenchido na alocação total) |
+| `product_name` | text | — | Nome do produto |
+| `quantity` | integer | — | Quantidade comprada |
+| `remaining_quantity` | integer | — | Saldo restante (decrementado pela dedução) |
+| `unit_cost` | numeric | 15 | Custo unitário em R$ |
+| `status` | text | `'pending'` | `pending` ou `allocated` |
+| `created_by` | uuid | — | Usuário que registrou |
+| `notes` | text | NULL | Observações |
+| `created_at` | timestamptz | `now()` | Data de criação |
+| `updated_at` | timestamptz | `now()` | Última atualização |
 
-### Itens identificados
+### Fluxo de Dedução Automática
 
-| # | Tipo | Descrição |
-|---|------|-----------|
-| 1 | Bug residual | `PreStockForm.tsx` ainda usa `value="none"` no SelectItem (linha 158). O fix no submit trata `pdvId === "none"`, mas o ideal é usar `value=""` para consistência com o padrão de Select vazio |
-| 2 | Indentação | `process-spreadsheet/index.ts` linhas 992-1036: bloco de dedução tem indentação inconsistente (mix de 12 e 14 espaços) |
-| 3 | Legado | `.lovable/plan.md` contém o plano do último passo (KPI Cards). Deve ser atualizado com documentação final do módulo completo |
-| 4 | KPI filtro | Os KPI cards calculam totais sobre `items` filtrados (por PDV/status/search). Quando o usuário filtra por "Alocado", o card "Pendentes" mostra 0. Isso pode confundir — os KPIs deveriam refletir o total geral, não os filtrados |
+1. **Trigger**: Upload de planilha de estoque (`process-spreadsheet`) ou inserção via API (`ingest-stock`)
+2. **Cálculo**: `increase = max(0, newQty - oldQty)` por produto — só deduz o **aumento real**
+3. **Busca**: Itens `pending` com `remaining_quantity > 0`, filtrando por `organization_id`, `product_name`, e `pdv_id` (matching ou NULL)
+4. **Dedução**: FIFO (mais antigos primeiro), decrementando `remaining_quantity`
+5. **Alocação**: `allocated_pdv_id` só é preenchido quando `remaining_quantity` chega a **zero** (alocação total), evitando inconsistências em entregas parciais
 
-### Ações
+### KPI Cards
 
-#### 1. Fix SelectItem value (PreStockForm.tsx)
-Trocar `<SelectItem value="none">` para `<SelectItem value="__none__">` e atualizar a checagem no submit. Alternativa: manter o fix atual (`pdvId !== "none"`) que já funciona — risco baixo.
+- **Pendentes**: `SUM(remaining_quantity)` dos itens `pending` — query sem filtros
+- **Valor Pendente**: `SUM(remaining_quantity × unit_cost)` dos pendentes
+- **Alocados**: `SUM(quantity)` dos itens `allocated`
 
-**Decisão**: Manter como está. O fix no submit já cobre o caso. Complexidade zero.
+Os KPIs usam uma query separada (`pre_stock_summary`) sem filtros de PDV/status/search para refletir totais reais.
 
-#### 2. Corrigir indentação (process-spreadsheet)
-Alinhar o bloco de dedução de pré-estoque para 10 espaços consistentes.
+### Edge Functions Envolvidas
 
-#### 3. Atualizar documentação (.lovable/plan.md)
-Substituir o conteúdo com documentação completa do módulo de Pré-Estoque:
-- Tabela `pre_stock` (schema, colunas, FKs)
-- Fluxo de dedução automática (por diferença)
-- Regras de alocação (allocated_pdv_id só em alocação total)
-- KPIs e formulário
-- Edge functions envolvidas
+- `process-spreadsheet/index.ts` — Dedução após upload de planilha de estoque
+- `ingest-stock/index.ts` — Dedução após inserção via API
 
-#### 4. KPIs com dados não-filtrados
-Adicionar uma segunda query (ou reusar `items` sem filtro) para os KPIs mostrarem totais globais. Alternativa simples: buscar os totais separadamente com um `useQuery` dedicado.
+### Arquivos Frontend
 
-**Abordagem escolhida**: Calcular KPIs a partir de uma query separada sem filtros no hook `usePreStock`, retornando `allItems` (ou `summary`) junto com `items`.
-
-### Arquivos alterados
-
-| Arquivo | Mudança |
-|---------|---------|
-| `supabase/functions/process-spreadsheet/index.ts` | Corrigir indentação do bloco de dedução |
-| `src/hooks/usePreStock.ts` | Adicionar query de summary (totais sem filtro) |
-| `src/components/upload/PreStockTab.tsx` | Usar summary do hook para KPIs em vez de items filtrados |
-| `.lovable/plan.md` | Documentação final do módulo |
-
-### Resultado
-
-- KPIs sempre mostram totais reais independente dos filtros
-- Código limpo e consistente
-- Documentação atualizada para referência futura
-
+| Arquivo | Responsabilidade |
+|---------|------------------|
+| `src/hooks/usePreStock.ts` | CRUD + summary query |
+| `src/components/upload/PreStockForm.tsx` | Formulário de cadastro |
+| `src/components/upload/PreStockTab.tsx` | KPIs + tabela + filtros |

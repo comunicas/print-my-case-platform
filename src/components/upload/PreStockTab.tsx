@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { usePreStock } from "@/hooks/usePreStock";
 import { usePDVs } from "@/hooks/usePDVs";
 import { useProfile } from "@/hooks/useProfile";
@@ -42,21 +42,11 @@ export function PreStockTab() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const { items, isLoading, createItem, deleteItem, productNames } = usePreStock({
+  const { items, isLoading, createItem, deleteItem, productNames, summary } = usePreStock({
     pdvId: filterPdv,
     status: filterStatus,
     search,
   });
-
-  const pendingItems = useMemo(() => items.filter((i) => i.status === "pending"), [items]);
-  const allocatedItems = useMemo(() => items.filter((i) => i.status === "allocated"), [items]);
-
-  const totalPending = useMemo(() => pendingItems.reduce((s, i) => s + i.remaining_quantity, 0), [pendingItems]);
-  const totalPendingValue = useMemo(
-    () => pendingItems.reduce((s, i) => s + i.remaining_quantity * (i.unit_cost ?? 15), 0),
-    [pendingItems]
-  );
-  const totalAllocated = useMemo(() => allocatedItems.reduce((s, i) => s + i.quantity, 0), [allocatedItems]);
 
   const handleDelete = () => {
     if (!deletingId) return;
@@ -86,7 +76,7 @@ export function PreStockTab() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Pendentes</p>
-              <p className="text-xl font-bold text-foreground">{totalPending} un.</p>
+              <p className="text-xl font-bold text-foreground">{summary.pendingUnits} un.</p>
             </div>
           </CardContent>
         </Card>
@@ -98,7 +88,7 @@ export function PreStockTab() {
             <div>
               <p className="text-sm text-muted-foreground">Valor Pendente</p>
               <p className="text-xl font-bold text-foreground">
-                {totalPendingValue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                {summary.pendingValue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
               </p>
             </div>
           </CardContent>
@@ -110,7 +100,7 @@ export function PreStockTab() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Alocados</p>
-              <p className="text-xl font-bold text-foreground">{totalAllocated} un.</p>
+              <p className="text-xl font-bold text-foreground">{summary.allocatedUnits} un.</p>
             </div>
           </CardContent>
         </Card>
