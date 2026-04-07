@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { SearchFilter } from "@/components/ui/SearchFilter";
 import { SelectFilter } from "@/components/ui/SelectFilter";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
