@@ -878,9 +878,22 @@ Deno.serve(async (req) => {
         recordsInserted += chunk.length;
       }
     } else if (upload.type === "stock") {
+      // === CAPTURE OLD STOCK BEFORE REPLACING ===
+      // Fetch old stock totals by product_name for smart pre-stock deduction
+      const oldStockByProduct: Record<string, number> = {};
+      {
+        const { data: oldRecords } = await supabase
+          .from("stock_records")
+          .select("product_name, quantity")
+          .eq("pdv_id", pdvId);
+        
+        for (const r of oldRecords ?? []) {
+          const name = r.product_name as string;
+          oldStockByProduct[name] = (oldStockByProduct[name] || 0) + ((r.quantity as number) || 0);
+        }
+      }
+
       // === REPLACE STOCK RECORDS FOR THIS PDV (snapshot) ===
-      // Stock is a snapshot of current machine state, so we replace existing stock_records
-      // for this PDV, but PRESERVE previous upload records for history
       const { count: deletedCount, error: deleteRecordsError } = await supabase
         .from("stock_records")
         .delete({ count: 'exact' })
