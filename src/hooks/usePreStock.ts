@@ -76,10 +76,10 @@ export function usePreStock(options: UsePreStockOptions = {}) {
       quantity: number;
       notes?: string;
     }) => {
-      if (!activeOrgId || !user?.id) throw new Error("Contexto inválido");
+      if (!writeOrgId || !user?.id) throw new Error("Contexto inválido");
 
       const { error } = await supabase.from("pre_stock").insert({
-        organization_id: activeOrgId,
+        organization_id: writeOrgId,
         pdv_id: input.pdv_id || null,
         product_name: input.product_name,
         quantity: input.quantity,
