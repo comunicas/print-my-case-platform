@@ -1,50 +1,48 @@
+## Módulo de Pré-Estoque (Compras) — Documentação Técnica
 
+### Tabela `pre_stock`
 
-## KPI Cards + Custo Unitário no Pré-Estoque
+| Coluna | Tipo | Default | Descrição |
+|--------|------|---------|-----------|
+| `id` | uuid | `gen_random_uuid()` | PK |
+| `organization_id` | uuid | — | FK → organizations |
+| `pdv_id` | uuid | NULL | PDV de origem (opcional) |
+| `allocated_pdv_id` | uuid | NULL | PDV de destino (preenchido na alocação total) |
+| `product_name` | text | — | Nome do produto |
+| `quantity` | integer | — | Quantidade comprada |
+| `remaining_quantity` | integer | — | Saldo restante (decrementado pela dedução) |
+| `unit_cost` | numeric | 15 | Custo unitário em R$ |
+| `status` | text | `'pending'` | `pending` ou `allocated` |
+| `created_by` | uuid | — | Usuário que registrou |
+| `notes` | text | NULL | Observações |
+| `created_at` | timestamptz | `now()` | Data de criação |
+| `updated_at` | timestamptz | `now()` | Última atualização |
 
-### Resumo
+### Fluxo de Dedução Automática
 
-Adicionar coluna `unit_cost` à tabela `pre_stock` (default R$15), exibir campo no formulário de cadastro, e mostrar cards de resumo no topo da aba Compras.
+1. **Trigger**: Upload de planilha de estoque (`process-spreadsheet`) ou inserção via API (`ingest-stock`)
+2. **Cálculo**: `increase = max(0, newQty - oldQty)` por produto — só deduz o **aumento real**
+3. **Busca**: Itens `pending` com `remaining_quantity > 0`, filtrando por `organization_id`, `product_name`, e `pdv_id` (matching ou NULL)
+4. **Dedução**: FIFO (mais antigos primeiro), decrementando `remaining_quantity`
+5. **Alocação**: `allocated_pdv_id` só é preenchido quando `remaining_quantity` chega a **zero** (alocação total), evitando inconsistências em entregas parciais
 
-### 1. Migration — Adicionar `unit_cost`
+### KPI Cards
 
-```sql
-ALTER TABLE public.pre_stock
-ADD COLUMN unit_cost numeric NOT NULL DEFAULT 15;
-```
+- **Pendentes**: `SUM(remaining_quantity)` dos itens `pending` — query sem filtros
+- **Valor Pendente**: `SUM(remaining_quantity × unit_cost)` dos pendentes
+- **Alocados**: `SUM(quantity)` dos itens `allocated`
 
-Registros existentes receberão automaticamente o valor 15.
+Os KPIs usam uma query separada (`pre_stock_summary`) sem filtros de PDV/status/search para refletir totais reais.
 
-### 2. KPI Cards no topo da aba
+### Edge Functions Envolvidas
 
-Três cards calculados a partir dos `items` já carregados:
+- `process-spreadsheet/index.ts` — Dedução após upload de planilha de estoque
+- `ingest-stock/index.ts` — Dedução após inserção via API
 
-| Card | Cálculo |
-|------|---------|
-| **Pendentes** | Soma de `remaining_quantity` dos itens com status `pending` |
-| **Valor Pendente** | Soma de `remaining_quantity × unit_cost` dos pendentes |
-| **Alocados** | Soma de `quantity` dos itens com status `allocated` |
+### Arquivos Frontend
 
-Usar o componente `Card` existente com ícones (Package, DollarSign, CheckCircle).
-
-### 3. Formulário — Campo "Custo unitário"
-
-**`PreStockForm.tsx`**: Adicionar campo `Input` numérico com default "15" entre Quantidade e Observações. Incluir `unit_cost` no payload do `onSubmit`.
-
-### 4. Hook — Persistir `unit_cost`
-
-**`usePreStock.ts`**: Adicionar `unit_cost` ao `PreStockItem` interface e ao `insert` da mutation. Incluir no input type.
-
-### 5. Tabela — Mostrar custo
-
-Adicionar coluna "Custo Un." na tabela exibindo `R$ {item.unit_cost.toFixed(2)}`.
-
-### Arquivos alterados
-
-| Arquivo | Mudança |
-|---------|---------|
-| Migration SQL | `ADD COLUMN unit_cost numeric NOT NULL DEFAULT 15` |
-| `src/hooks/usePreStock.ts` | Adicionar `unit_cost` à interface e mutation |
-| `src/components/upload/PreStockForm.tsx` | Campo custo unitário com default 15 |
-| `src/components/upload/PreStockTab.tsx` | KPI cards + coluna custo na tabela |
-
+| Arquivo | Responsabilidade |
+|---------|------------------|
+| `src/hooks/usePreStock.ts` | CRUD + summary query |
+| `src/components/upload/PreStockForm.tsx` | Formulário de cadastro |
+| `src/components/upload/PreStockTab.tsx` | KPIs + tabela + filtros |
