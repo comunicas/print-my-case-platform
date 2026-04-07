@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { usePreStock } from "@/hooks/usePreStock";
 import { usePDVs } from "@/hooks/usePDVs";
 import { useProfile } from "@/hooks/useProfile";
 import { PreStockForm } from "./PreStockForm";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { SearchFilter } from "@/components/ui/SearchFilter";
 import { SelectFilter } from "@/components/ui/SelectFilter";
@@ -27,7 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, Package, Loader2, ShoppingCart } from "lucide-react";
+import { Plus, Trash2, Package, Loader2, ShoppingCart, DollarSign, CheckCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -47,6 +48,16 @@ export function PreStockTab() {
     search,
   });
 
+  const pendingItems = useMemo(() => items.filter((i) => i.status === "pending"), [items]);
+  const allocatedItems = useMemo(() => items.filter((i) => i.status === "allocated"), [items]);
+
+  const totalPending = useMemo(() => pendingItems.reduce((s, i) => s + i.remaining_quantity, 0), [pendingItems]);
+  const totalPendingValue = useMemo(
+    () => pendingItems.reduce((s, i) => s + i.remaining_quantity * (i.unit_cost ?? 15), 0),
+    [pendingItems]
+  );
+  const totalAllocated = useMemo(() => allocatedItems.reduce((s, i) => s + i.quantity, 0), [allocatedItems]);
+
   const handleDelete = () => {
     if (!deletingId) return;
     deleteItem.mutate(deletingId, {
@@ -62,8 +73,49 @@ export function PreStockTab() {
     );
   }
 
+
+
   return (
     <div className="space-y-4">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="flex items-center gap-3 p-4">
+            <div className="rounded-full bg-amber-100 dark:bg-amber-900/30 p-2">
+              <Package className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Pendentes</p>
+              <p className="text-xl font-bold text-foreground">{totalPending} un.</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-3 p-4">
+            <div className="rounded-full bg-blue-100 dark:bg-blue-900/30 p-2">
+              <DollarSign className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Valor Pendente</p>
+              <p className="text-xl font-bold text-foreground">
+                {totalPendingValue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-3 p-4">
+            <div className="rounded-full bg-emerald-100 dark:bg-emerald-900/30 p-2">
+              <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Alocados</p>
+              <p className="text-xl font-bold text-foreground">{totalAllocated} un.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Action button */}
       {isAdmin && (
         <div className="flex justify-end">
@@ -118,6 +170,7 @@ export function PreStockTab() {
                 <TableHead>PDV</TableHead>
                 <TableHead className="text-center">Comprado</TableHead>
                 <TableHead className="text-center">Restante</TableHead>
+                <TableHead className="text-right">Custo Un.</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Data</TableHead>
                 {isAdmin && <TableHead className="w-12" />}
@@ -135,6 +188,9 @@ export function PreStockTab() {
                   <TableCell className="text-center">{item.quantity}</TableCell>
                   <TableCell className="text-center font-semibold">
                     {item.remaining_quantity}
+                  </TableCell>
+                  <TableCell className="text-right text-muted-foreground">
+                    R$ {(item.unit_cost ?? 15).toFixed(2)}
                   </TableCell>
                   <TableCell>
                     <Badge

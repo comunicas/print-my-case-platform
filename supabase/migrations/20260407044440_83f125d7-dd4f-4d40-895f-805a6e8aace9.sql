@@ -1,0 +1,1 @@
+ALTER TABLE public.pre_stock ADD COLUMN unit_cost numeric NOT NULL DEFAULT 15;

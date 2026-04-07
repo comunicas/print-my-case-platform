@@ -49,6 +49,7 @@ interface PreStockFormProps {
     pdv_id?: string | null;
     product_name: string;
     quantity: number;
+    unit_cost?: number;
     notes?: string;
   }) => void;
   isSubmitting: boolean;
@@ -101,6 +102,7 @@ export function PreStockForm({
   const [productName, setProductName] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [quantity, setQuantity] = useState("");
+  const [unitCost, setUnitCost] = useState("15");
   const [notes, setNotes] = useState("");
   const [productOpen, setProductOpen] = useState(false);
 
@@ -116,6 +118,7 @@ export function PreStockForm({
     setProductName("");
     setSearchTerm("");
     setQuantity("");
+    setUnitCost("15");
     setNotes("");
   };
 
@@ -127,6 +130,7 @@ export function PreStockForm({
       pdv_id: pdvId && pdvId !== "none" ? pdvId : null,
       product_name: productName.trim(),
       quantity: parseInt(quantity, 10),
+      unit_cost: parseFloat(unitCost) || 15,
       notes: notes.trim() || undefined,
     });
 
@@ -235,6 +239,19 @@ export function PreStockForm({
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
               placeholder="Ex: 10"
+            />
+          </div>
+
+          {/* Unit Cost */}
+          <div className="space-y-2">
+            <Label>Custo Unitário (R$)</Label>
+            <Input
+              type="number"
+              min="0"
+              step="0.01"
+              value={unitCost}
+              onChange={(e) => setUnitCost(e.target.value)}
+              placeholder="15.00"
             />
           </div>
 
