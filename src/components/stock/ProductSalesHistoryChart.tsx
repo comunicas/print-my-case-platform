@@ -98,7 +98,9 @@ export function ProductSalesHistoryChart({ productName, pdvId }: ProductSalesHis
   const totalRevenue = historyData.data.reduce((sum, d) => sum + d.revenue, 0);
 
   // Show fewer X-axis labels based on period
-  const tickInterval = selectedDays <= 7 ? 0 : selectedDays <= 15 ? 2 : 4;
+  const tickInterval = selectedDays === null
+    ? Math.max(1, Math.ceil(historyData.data.length / 8))
+    : selectedDays <= 7 ? 0 : selectedDays <= 15 ? 2 : 4;
 
   return (
     <div className="space-y-3" data-testid="sales-history-chart">
