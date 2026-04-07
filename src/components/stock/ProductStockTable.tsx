@@ -215,6 +215,13 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                 data-testid="product-row"
                 data-product-name={product.model}
               >
+                {/* Slot */}
+                <TableCell>
+                  <span className="font-mono text-sm text-muted-foreground">
+                    {product.slots.map(s => s.slotNumber).join(', ')}
+                  </span>
+                </TableCell>
+                {/* Produto */}
                 <TableCell>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -235,17 +242,13 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                     </TooltipContent>
                   </Tooltip>
                 </TableCell>
+                {/* Status */}
                 <TableCell>
-                  <div className="flex items-center gap-2 min-w-[120px]">
-                    <Progress 
-                      value={(product.totalQuantity / product.maxCapacity) * 100} 
-                      className="h-2 w-16"
-                    />
-                    <span className="text-sm font-medium">
-                      {product.totalQuantity}/{product.maxCapacity}
-                    </span>
-                  </div>
+                  <Badge variant="outline" className={productActionColors[product.status]}>
+                    {productActionLabels[product.status]}
+                  </Badge>
                 </TableCell>
+                {/* Vendas */}
                 <TableCell>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -273,14 +276,23 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                     </TooltipContent>
                   </Tooltip>
                 </TableCell>
+                {/* Estoque */}
+                <TableCell>
+                  <div className="flex items-center gap-2 min-w-[120px]">
+                    <Progress 
+                      value={(product.totalQuantity / product.maxCapacity) * 100} 
+                      className="h-2 w-16"
+                    />
+                    <span className="text-sm font-medium">
+                      {product.totalQuantity}/{product.maxCapacity}
+                    </span>
+                  </div>
+                </TableCell>
+                {/* Slots */}
                 <TableCell>
                   <span className="text-sm">{product.slots.length}</span>
                 </TableCell>
-                <TableCell>
-                  <Badge variant="outline" className={productActionColors[product.status]}>
-                    {productActionLabels[product.status]}
-                  </Badge>
-                </TableCell>
+                {/* Ações */}
                 <TableCell>
                   <Tooltip>
                     <TooltipTrigger asChild>
