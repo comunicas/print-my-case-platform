@@ -972,7 +972,54 @@ Deno.serve(async (req) => {
         }
       }
 
-      // === CLEANUP OLD STOCK UPLOADS FOR THIS PDV ===
+      // === DEDUZIR PRÉ-ESTOQUE ===
+      if (recordsInserted > 0) {
+        try {
+          const orgId = (await supabase.from("pdvs").select("organization_id").eq("id", pdvId).single()).data?.organization_id;
+          if (orgId) {
+            // Group quantities by product_name
+            const productQtys: Record<string, number> = {};
+            for (const record of validRecords) {
+              if (!record) continue;
+              const name = record.product_name as string;
+              productQtys[name] = (productQtys[name] || 0) + ((record.quantity as number) || 0);
+            }
+
+            for (const [productName, qty] of Object.entries(productQtys)) {
+              if (qty <= 0) continue;
+              const { data: preStockItems } = await supabase
+                .from("pre_stock")
+                .select("id, remaining_quantity")
+                .eq("organization_id", orgId)
+                .eq("product_name", productName)
+                .eq("status", "pending")
+                .gt("remaining_quantity", 0)
+                .or(`pdv_id.eq.${pdvId},pdv_id.is.null`)
+                .order("created_at", { ascending: true });
+
+              let toDeduct = qty;
+              for (const ps of preStockItems ?? []) {
+                if (toDeduct <= 0) break;
+                const deducted = Math.min(toDeduct, ps.remaining_quantity);
+                const newRemaining = ps.remaining_quantity - deducted;
+                await supabase
+                  .from("pre_stock")
+                  .update({
+                    remaining_quantity: newRemaining,
+                    status: newRemaining <= 0 ? "allocated" : "pending",
+                  })
+                  .eq("id", ps.id);
+                toDeduct -= deducted;
+              }
+            }
+            console.log(`[process-spreadsheet] Upload ${uploadId}: Pre-stock deduction completed`);
+          }
+        } catch (preStockErr) {
+          console.error(`Upload ${uploadId}: Pre-stock deduction error`, preStockErr);
+          // Don't fail the upload
+        }
+      }
+
       // Keep only the current upload; delete all previous stock uploads
       try {
         const { data: oldUploads } = await supabase
