@@ -1,50 +1,51 @@
 
 
-## KPI Cards + Custo Unitário no Pré-Estoque
+## Finalização v1 — Pré-Estoque (Compras)
 
-### Resumo
+### Itens identificados
 
-Adicionar coluna `unit_cost` à tabela `pre_stock` (default R$15), exibir campo no formulário de cadastro, e mostrar cards de resumo no topo da aba Compras.
+| # | Tipo | Descrição |
+|---|------|-----------|
+| 1 | Bug residual | `PreStockForm.tsx` ainda usa `value="none"` no SelectItem (linha 158). O fix no submit trata `pdvId === "none"`, mas o ideal é usar `value=""` para consistência com o padrão de Select vazio |
+| 2 | Indentação | `process-spreadsheet/index.ts` linhas 992-1036: bloco de dedução tem indentação inconsistente (mix de 12 e 14 espaços) |
+| 3 | Legado | `.lovable/plan.md` contém o plano do último passo (KPI Cards). Deve ser atualizado com documentação final do módulo completo |
+| 4 | KPI filtro | Os KPI cards calculam totais sobre `items` filtrados (por PDV/status/search). Quando o usuário filtra por "Alocado", o card "Pendentes" mostra 0. Isso pode confundir — os KPIs deveriam refletir o total geral, não os filtrados |
 
-### 1. Migration — Adicionar `unit_cost`
+### Ações
 
-```sql
-ALTER TABLE public.pre_stock
-ADD COLUMN unit_cost numeric NOT NULL DEFAULT 15;
-```
+#### 1. Fix SelectItem value (PreStockForm.tsx)
+Trocar `<SelectItem value="none">` para `<SelectItem value="__none__">` e atualizar a checagem no submit. Alternativa: manter o fix atual (`pdvId !== "none"`) que já funciona — risco baixo.
 
-Registros existentes receberão automaticamente o valor 15.
+**Decisão**: Manter como está. O fix no submit já cobre o caso. Complexidade zero.
 
-### 2. KPI Cards no topo da aba
+#### 2. Corrigir indentação (process-spreadsheet)
+Alinhar o bloco de dedução de pré-estoque para 10 espaços consistentes.
 
-Três cards calculados a partir dos `items` já carregados:
+#### 3. Atualizar documentação (.lovable/plan.md)
+Substituir o conteúdo com documentação completa do módulo de Pré-Estoque:
+- Tabela `pre_stock` (schema, colunas, FKs)
+- Fluxo de dedução automática (por diferença)
+- Regras de alocação (allocated_pdv_id só em alocação total)
+- KPIs e formulário
+- Edge functions envolvidas
 
-| Card | Cálculo |
-|------|---------|
-| **Pendentes** | Soma de `remaining_quantity` dos itens com status `pending` |
-| **Valor Pendente** | Soma de `remaining_quantity × unit_cost` dos pendentes |
-| **Alocados** | Soma de `quantity` dos itens com status `allocated` |
+#### 4. KPIs com dados não-filtrados
+Adicionar uma segunda query (ou reusar `items` sem filtro) para os KPIs mostrarem totais globais. Alternativa simples: buscar os totais separadamente com um `useQuery` dedicado.
 
-Usar o componente `Card` existente com ícones (Package, DollarSign, CheckCircle).
-
-### 3. Formulário — Campo "Custo unitário"
-
-**`PreStockForm.tsx`**: Adicionar campo `Input` numérico com default "15" entre Quantidade e Observações. Incluir `unit_cost` no payload do `onSubmit`.
-
-### 4. Hook — Persistir `unit_cost`
-
-**`usePreStock.ts`**: Adicionar `unit_cost` ao `PreStockItem` interface e ao `insert` da mutation. Incluir no input type.
-
-### 5. Tabela — Mostrar custo
-
-Adicionar coluna "Custo Un." na tabela exibindo `R$ {item.unit_cost.toFixed(2)}`.
+**Abordagem escolhida**: Calcular KPIs a partir de uma query separada sem filtros no hook `usePreStock`, retornando `allItems` (ou `summary`) junto com `items`.
 
 ### Arquivos alterados
 
 | Arquivo | Mudança |
 |---------|---------|
-| Migration SQL | `ADD COLUMN unit_cost numeric NOT NULL DEFAULT 15` |
-| `src/hooks/usePreStock.ts` | Adicionar `unit_cost` à interface e mutation |
-| `src/components/upload/PreStockForm.tsx` | Campo custo unitário com default 15 |
-| `src/components/upload/PreStockTab.tsx` | KPI cards + coluna custo na tabela |
+| `supabase/functions/process-spreadsheet/index.ts` | Corrigir indentação do bloco de dedução |
+| `src/hooks/usePreStock.ts` | Adicionar query de summary (totais sem filtro) |
+| `src/components/upload/PreStockTab.tsx` | Usar summary do hook para KPIs em vez de items filtrados |
+| `.lovable/plan.md` | Documentação final do módulo |
+
+### Resultado
+
+- KPIs sempre mostram totais reais independente dos filtros
+- Código limpo e consistente
+- Documentação atualizada para referência futura
 
