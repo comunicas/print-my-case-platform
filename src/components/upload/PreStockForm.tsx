@@ -99,11 +99,12 @@ export function PreStockForm({
 }: PreStockFormProps) {
   const [pdvId, setPdvId] = useState<string>("");
   const [productName, setProductName] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [quantity, setQuantity] = useState("");
   const [notes, setNotes] = useState("");
   const [productOpen, setProductOpen] = useState(false);
 
-  const tokens = useMemo(() => tokenize(productName), [productName]);
+  const tokens = useMemo(() => tokenize(searchTerm), [searchTerm]);
 
   const filteredProducts = useMemo(() => {
     if (tokens.length === 0) return productNames.slice(0, 30);
@@ -113,6 +114,7 @@ export function PreStockForm({
   const resetForm = () => {
     setPdvId("");
     setProductName("");
+    setSearchTerm("");
     setQuantity("");
     setNotes("");
   };
@@ -131,7 +133,7 @@ export function PreStockForm({
     resetForm();
   };
 
-  const isValid = productName.trim() && parseInt(quantity, 10) > 0;
+  const isValid = productName.trim() && productNames.includes(productName) && parseInt(quantity, 10) > 0;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) resetForm(); }}>
@@ -185,22 +187,14 @@ export function PreStockForm({
                 <Command shouldFilter={false}>
                   <CommandInput
                     placeholder="Ex: iphone 15, redmi 14, galaxy s24..."
-                    value={productName}
-                    onValueChange={setProductName}
+                    value={searchTerm}
+                    onValueChange={setSearchTerm}
                   />
                   <CommandList>
                     <CommandEmpty>
-                      {productName.trim() ? (
-                        <button
-                          type="button"
-                          className="w-full p-2 text-sm text-left hover:bg-accent rounded"
-                          onClick={() => { setProductOpen(false); }}
-                        >
-                          Usar "<span className="font-medium">{productName.trim()}</span>"
-                        </button>
-                      ) : (
-                        "Digite o nome do produto"
-                      )}
+                      {searchTerm.trim()
+                        ? "Nenhum produto encontrado"
+                        : "Digite o nome do produto"}
                     </CommandEmpty>
                     <CommandGroup>
                       {filteredProducts.map((name) => {
@@ -211,6 +205,7 @@ export function PreStockForm({
                             value={name}
                             onSelect={(value) => {
                               setProductName(value);
+                              setSearchTerm("");
                               setProductOpen(false);
                             }}
                           >
