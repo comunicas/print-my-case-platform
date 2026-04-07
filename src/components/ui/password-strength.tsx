@@ -22,7 +22,7 @@ function calculatePasswordStrength(password: string): PasswordStrength {
     hasUppercase: /[A-Z]/.test(password),
     hasLowercase: /[a-z]/.test(password),
     hasNumber: /[0-9]/.test(password),
-    hasSpecial: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
+    hasSpecial: /[^A-Za-z0-9]/.test(password),
   };
 
   const metCriteria = Object.values(criteria).filter(Boolean).length;

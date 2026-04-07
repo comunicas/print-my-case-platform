@@ -34,10 +34,17 @@ export function escapePostgrestOrValue(value: string): string {
   return value.replace(/[\\,()%_"]/g, (char) => POSTGREST_RESERVED_CHARS_MAP[char] ?? char);
 }
 
+function hasControlCharacters(value: string): boolean {
+  return [...value].some((char) => {
+    const code = char.charCodeAt(0);
+    return code <= 31 || code === 127;
+  });
+}
+
 export function sanitizePostgrestSearchTerm(term: string): string | null {
   const trimmedTerm = term.trim();
   if (trimmedTerm.length < 2) return null;
-  if (/[\u0000-\u001F\u007F]/.test(trimmedTerm)) return null;
+  if (hasControlCharacters(trimmedTerm)) return null;
 
   const escapedTerm = escapePostgrestOrValue(trimmedTerm);
   return escapedTerm.length > 0 ? escapedTerm : null;
@@ -62,7 +69,7 @@ async function logCrossOrgAudit(params: {
     organization_name: params.organizationName,
     metadata: params.metadata,
     success: true,
-  } as any);
+  });
 }
 
 export function useOrgCrossAccess(organizationId: string, open: boolean) {

@@ -22,6 +22,11 @@ export interface SalesRecordItem {
   upload_id: string | null;
 }
 
+
+type SalesRecordQueryRow = Omit<SalesRecordItem, "pdv"> & {
+  pdvs: { name: string } | null;
+};
+
 interface SalesRecordsFilters {
   pdvId: string;
   status: string;
@@ -96,7 +101,7 @@ export function useSalesRecords(filters: SalesRecordsFilters) {
     }
   }, [data?.totalCount]);
 
-  const records: SalesRecordItem[] = (data?.records ?? []).map((r: any) => ({
+  const records: SalesRecordItem[] = ((data?.records ?? []) as SalesRecordQueryRow[]).map((r) => ({
     ...r,
     pdv: r.pdvs ?? { name: "—" },
   }));
