@@ -16,6 +16,7 @@ import {
   PDVComparisonCards,
   ResumoKPICards,
 } from "@/components/financeiro";
+import { SalesRecordsTab } from "@/components/upload/SalesRecordsTab";
 import { useFinancialEntries, type FinancialEntry } from "@/hooks/useFinancialEntries";
 import { useDRE } from "@/hooks/useDRE";
 import { useProfile } from "@/hooks/useProfile";
@@ -127,6 +128,7 @@ export default function Financeiro() {
             <TabsTrigger value="resumo" className="flex-1">Resumo</TabsTrigger>
             <TabsTrigger value="dre" className="flex-1">DRE</TabsTrigger>
             <TabsTrigger value="despesas" className="flex-1">Despesas</TabsTrigger>
+            <TabsTrigger value="vendas" className="flex-1">Vendas</TabsTrigger>
           </TabsList>
 
           {/* === Aba Resumo === */}
@@ -209,6 +211,11 @@ export default function Financeiro() {
                 onDelete={(id) => deleteEntry.mutate(id)}
               />
             </div>
+          </TabsContent>
+
+          {/* === Aba Vendas === */}
+          <TabsContent value="vendas" className="space-y-6">
+            <SalesRecordsTab pdvs={pdvs.map(p => ({ id: p.id, name: p.name, machine_id: p.machine_id, status: p.status }))} canUpload={isAdmin} />
           </TabsContent>
         </Tabs>
       </div>

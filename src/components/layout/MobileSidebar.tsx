@@ -37,6 +37,7 @@ const bottomNavItems: NavItem[] = [
 const stockSubItems = [
   { label: "Tabela", href: "/estoque?tab=tabela" },
   { label: "Mapa", href: "/estoque?tab=mapa" },
+  { label: "Compras", href: "/estoque?tab=compras" },
 ];
 
 const marketingSubItems = [

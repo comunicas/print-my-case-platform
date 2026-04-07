@@ -9,11 +9,12 @@ import { ProductStockTable } from "@/components/stock/ProductStockTable";
 import { StockGridView } from "@/components/stock/StockGridView";
 import { StockEmptyState } from "@/components/stock/StockEmptyState";
 import { useProductStock } from "@/hooks/useProductStock";
+import { PreStockTab } from "@/components/upload/PreStockTab";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 
-const VALID_TABS = ["tabela", "mapa"] as const;
+const VALID_TABS = ["tabela", "mapa", "compras"] as const;
 
 function StockContent() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -71,6 +72,7 @@ function StockContent() {
             <TabsList>
               <TabsTrigger value="tabela">Tabela</TabsTrigger>
               <TabsTrigger value="mapa">Mapa</TabsTrigger>
+              <TabsTrigger value="compras">Compras</TabsTrigger>
             </TabsList>
 
             <TabsContent value="tabela" className="mt-4">
@@ -79,6 +81,10 @@ function StockContent() {
 
             <TabsContent value="mapa" className="mt-4">
               <StockGridView slots={slots} filteredSlots={filteredSlots} brands={brands} isLoading={isLoading} />
+            </TabsContent>
+
+            <TabsContent value="compras" className="mt-4">
+              <PreStockTab />
             </TabsContent>
           </Tabs>
         </div>

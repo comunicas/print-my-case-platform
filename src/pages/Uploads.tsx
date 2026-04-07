@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { SearchFilter } from "@/components/ui/SearchFilter";
 import { SelectFilter } from "@/components/ui/SelectFilter";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,8 +38,6 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { UploadDialog } from "@/components/upload/UploadDialog";
-import { SalesRecordsTab } from "@/components/upload/SalesRecordsTab";
-import { PreStockTab } from "@/components/upload/PreStockTab";
 import {
   UploadType,
   UploadStatus,
@@ -187,14 +184,7 @@ export default function Uploads() {
           </div>
         </div>
 
-        <Tabs defaultValue="uploads" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="uploads">Uploads</TabsTrigger>
-            <TabsTrigger value="vendas">Vendas</TabsTrigger>
-            <TabsTrigger value="compras">Compras</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="uploads" className="space-y-4">
+        <div className="space-y-4">
             {/* Upload action button */}
             {canUpload && (
               <div className="flex justify-end">
@@ -425,16 +415,7 @@ export default function Uploads() {
                 </p>
               </div>
             )}
-          </TabsContent>
-
-          <TabsContent value="vendas">
-            <SalesRecordsTab pdvs={pdvs} onUploadClick={() => setIsUploadDialogOpen(true)} canUpload={canUpload} />
-          </TabsContent>
-
-          <TabsContent value="compras">
-            <PreStockTab />
-          </TabsContent>
-        </Tabs>
+        </div>
       </div>
 
       {/* Upload Dialog */}
