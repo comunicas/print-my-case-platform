@@ -998,8 +998,11 @@ Deno.serve(async (req) => {
               productQtys[name] = (productQtys[name] || 0) + ((record.quantity as number) || 0);
             }
 
-            for (const [productName, qty] of Object.entries(productQtys)) {
-              if (qty <= 0) continue;
+            for (const [productName, newQty] of Object.entries(productQtys)) {
+              const oldQty = oldStockByProduct[productName] || 0;
+              const increase = Math.max(0, newQty - oldQty);
+              if (increase <= 0) continue;
+
               const { data: preStockItems } = await supabase
                 .from("pre_stock")
                 .select("id, remaining_quantity")
@@ -1010,7 +1013,7 @@ Deno.serve(async (req) => {
                 .or(`pdv_id.eq.${pdvId},pdv_id.is.null`)
                 .order("created_at", { ascending: true });
 
-              let toDeduct = qty;
+              let toDeduct = increase;
               for (const ps of preStockItems ?? []) {
                 if (toDeduct <= 0) break;
                 const deducted = Math.min(toDeduct, ps.remaining_quantity);
@@ -1020,9 +1023,13 @@ Deno.serve(async (req) => {
                   .update({
                     remaining_quantity: newRemaining,
                     status: newRemaining <= 0 ? "allocated" : "pending",
+                    allocated_pdv_id: pdvId,
                   })
                   .eq("id", ps.id);
                 toDeduct -= deducted;
+              }
+              if ((preStockItems ?? []).length > 0) {
+                console.log(`[process-spreadsheet] Upload ${uploadId}: Pre-stock deducted for ${productName}: increase=${increase}, old=${oldQty}, new=${newQty}`);
               }
             }
             console.log(`[process-spreadsheet] Upload ${uploadId}: Pre-stock deduction completed`);
