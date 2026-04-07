@@ -107,8 +107,8 @@ export function PreStockForm({
   const tokens = useMemo(() => tokenize(searchTerm), [searchTerm]);
 
   const filteredProducts = useMemo(() => {
-    if (tokens.length === 0) return productNames.slice(0, 30);
-    return productNames.filter((name) => matchesAllTokens(name, tokens)).slice(0, 30);
+    if (tokens.length === 0) return productNames.slice(0, 50);
+    return productNames.filter((name) => matchesAllTokens(name, tokens)).slice(0, 50);
   }, [productNames, tokens]);
 
   const resetForm = () => {
@@ -191,11 +191,7 @@ export function PreStockForm({
                     onValueChange={setSearchTerm}
                   />
                   <CommandList>
-                    <CommandEmpty>
-                      {searchTerm.trim()
-                        ? "Nenhum produto encontrado"
-                        : "Digite o nome do produto"}
-                    </CommandEmpty>
+                    <CommandEmpty>Nenhum produto encontrado</CommandEmpty>
                     <CommandGroup>
                       {filteredProducts.map((name) => {
                         const brand = extractBrandFromProductName(name);
