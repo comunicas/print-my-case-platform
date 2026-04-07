@@ -111,15 +111,23 @@ export function usePreStock(options: UsePreStockOptions = {}) {
     queryFn: async () => {
       if (!activeOrgId) return [];
 
+      const { data: pdvData, error: pdvError } = await supabase
+        .from("pdvs")
+        .select("id")
+        .eq("organization_id", activeOrgId);
+
+      if (pdvError) throw pdvError;
+      const pdvIds = pdvData?.map((p) => p.id) ?? [];
+      if (pdvIds.length === 0) return [];
+
       const { data, error } = await supabase
         .from("stock_records")
-        .select("product_name, pdv:pdvs!inner(organization_id)")
-        .eq("pdv.organization_id", activeOrgId);
+        .select("product_name")
+        .in("pdv_id", pdvIds);
 
       if (error) return [];
 
-      const unique = [...new Set((data ?? []).map((r: { product_name: string }) => r.product_name))];
-      return unique.sort();
+      return [...new Set((data ?? []).map((r) => r.product_name))].sort();
     },
     enabled: !!activeOrgId,
   });
