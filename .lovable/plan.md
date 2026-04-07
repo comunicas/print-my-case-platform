@@ -1,42 +1,29 @@
 
 
-## Fix: KPIs Zerados no Modal de Produto
+## Adicionar filtro "Total" ao Histórico de Vendas no Modal
 
-### Causa Raiz
+### Resumo
 
-O `productName` passado ao modal é um **productKey** no formato `"APPLE:iphone 11"` (com dois-pontos). O hook `useProductAnalytics` usa esse valor diretamente no filtro `ilike`:
+Adicionar opção "Total" nos botões de período do gráfico de histórico de vendas, que busca **todas** as vendas do produto sem limite de data.
 
-```typescript
-.ilike('product_name', `%APPLE:iphone 11%`)
-```
+### Mudanças
 
-Mas no banco, o campo `product_name` contém `"APPLE iPhone 11"` ou `"iPhone 11"` — nunca o formato com `:`. Resultado: zero linhas retornadas, KPIs zerados.
+**1. Hook `src/hooks/useProductSalesHistory.ts`**
 
-O gráfico de histórico (`useProductSalesHistory`) funciona porque **não usa `ilike`** — busca todos os dados e filtra client-side com `filterSalesByProduct`, que trata o formato com `:` corretamente.
+- Aceitar `days` como `number | null` (null = total)
+- Quando `days === null`: remover filtros `.gte` e `.lte` da query, usar `eachDayOfInterval` do primeiro ao último registro encontrado
+- Para trend: comparar segunda metade vs primeira metade dos dados retornados
 
-### Correção
+**2. Componente `src/components/stock/ProductSalesHistoryChart.tsx`**
 
-**Arquivo:** `src/hooks/useProductAnalytics.ts`
+- Adicionar `{ label: 'Total', days: null }` ao array `periodOptions`
+- Alterar estado `selectedDays` para `number | null`, default continua `15`
+- Ajustar `tickInterval` para "Total": calcular dinamicamente baseado na quantidade de pontos (ex: `Math.ceil(data.length / 8)`)
 
-Extrair o **modelo** do productKey antes de usar no `ilike`:
+### Arquivos
 
-```typescript
-// Antes (bugado)
-.ilike('product_name', `%${productName}%`)
-
-// Depois (correto)
-const modelForQuery = extractModelFromProductName(productName);
-// ...
-.ilike('product_name', `%${modelForQuery}%`)
-```
-
-Adicionar import de `extractModelFromProductName` do `productNormalization`.
-
-O `filterSalesByProduct` client-side continua garantindo matching exato após o pre-filter.
-
-### Resultado
-
-- KPIs (Vendas, Receita, Ticket Médio) passam a mostrar valores corretos
-- Gráfico de histórico continua funcionando como antes
-- O `ilike` continua servindo como pre-filter eficiente (~90% redução), e o `filterSalesByProduct` refina o matching exato
+| Arquivo | Mudança |
+|---------|---------|
+| `src/hooks/useProductSalesHistory.ts` | Suportar `days: null` para busca sem limite de data |
+| `src/components/stock/ProductSalesHistoryChart.tsx` | Adicionar botão "Total" e ajustar tipo do estado |
 
