@@ -4,13 +4,12 @@
 - **Status**: Aceito
 
 ## Contexto
-O repositório possuía lockfiles de múltiplos gerenciadores (`package-lock.json` e `bun.lock`), gerando risco de drift de dependências e inconsistência entre ambientes de desenvolvimento/CI/deploy.
+O repositório possuía lockfiles de múltiplos gerenciadores (`package-lock.json` e `bun.lockb`), gerando risco de drift de dependências e inconsistência entre ambientes de desenvolvimento/CI/deploy.
 
 ## Decisão
 1. Definir **npm** como package manager oficial do projeto.
 2. Manter apenas `package-lock.json` como lockfile versionado.
 3. Padronizar execução de scripts via `npm run <script>`.
-4. Bloquear lockfiles de outros gerenciadores no pipeline de CI/CD.
 
 ## Consequências
 - **Positivas**:
