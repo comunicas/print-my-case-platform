@@ -1,42 +1,26 @@
 
 
-## Análise: Reorganizar Compras → Estoque e Vendas → Financeiro
+## Mover "Vendas" de Financeiro para Marketing
 
-### Complexidade: **Baixa-Média** (~2-3 horas)
+### Resumo
 
-Os componentes `PreStockTab` e `SalesRecordsTab` já são módulos independentes com seus próprios hooks. A mudança é essencialmente de **roteamento e layout**, não de lógica.
+Remover a tab "Vendas" do Financeiro (restaurando-o ao estado original com Resumo, DRE, Despesas) e adicioná-la ao módulo Marketing como nova tab.
 
-### Por que faz sentido
-
-- **Uploads** fica focado na sua função: receber e processar planilhas
-- **Estoque** ganha a aba "Compras" — faz sentido conceitual (pré-estoque é estoque pendente)
-- **Financeiro** ganha a aba "Vendas" — faz sentido (vendas são dados financeiros/receita)
-- A sidebar já tem submenus para Estoque e Marketing; basta adicionar as novas sub-rotas
-
-### O que muda
+### Arquivos alterados
 
 | Arquivo | Mudança |
 |---------|---------|
-| `src/pages/Uploads.tsx` | Remover tabs "Vendas" e "Compras", manter apenas a lista de uploads |
-| `src/pages/Stock.tsx` | Adicionar tab "Compras" (importar `PreStockTab`) — tabs: Tabela, Mapa, Compras |
-| `src/pages/Financeiro.tsx` | Adicionar tab "Vendas" (importar `SalesRecordsTab`) — tabs: Resumo, DRE, Despesas, Vendas |
-| `src/components/layout/AppSidebar.tsx` | Adicionar sub-item "Compras" em Estoque (`/estoque?tab=compras`) |
-| `src/components/layout/MobileSidebar.tsx` | Mesmo: sub-item "Compras" em Estoque |
-| Sidebar Estoque/Financeiro | Atualizar `stockSubItems` e rotas do Financeiro na sidebar |
+| `src/pages/Financeiro.tsx` | Remover import `SalesRecordsTab`, remover TabsTrigger e TabsContent de "vendas" |
+| `src/pages/Marketing.tsx` | Import lazy de `SalesRecordsTab`, adicionar TabsTrigger "Vendas" e TabsContent |
+| `src/components/marketing/MarketingOverview.tsx` | Adicionar card "Vendas" na overview |
+| `src/components/layout/AppSidebar.tsx` | Adicionar sub-item `{ label: "Vendas", href: "/marketing?tab=vendas" }` em `marketingSubItems` |
+| `src/components/layout/MobileSidebar.tsx` | Mesmo: adicionar "Vendas" em `marketingSubItems` |
 
-### O que NÃO muda
+### Detalhes
 
-- Hooks (`usePreStock`, `useSalesRecords`) — zero alteração
-- Componentes (`PreStockTab`, `SalesRecordsTab`) — zero alteração, só movem de página
-- Edge functions — intocadas
-- Banco de dados — intocado
+**Financeiro** volta a ter apenas 3 tabs: Resumo, DRE, Despesas. Remove-se o import de `SalesRecordsTab` e as linhas 131, 216-219.
 
-### Riscos
+**Marketing** ganha a tab "vendas" após "pedidos". O `SalesRecordsTab` recebe `pdvs` e `canUpload={isAdmin}` já disponíveis no contexto da página.
 
-- Nenhum risco técnico significativo. Os componentes são autocontidos.
-- Único cuidado: atualizar `VALID_TABS` em `Stock.tsx` para incluir "compras"
-
-### Recomendação
-
-**Sim, fica mais organizado.** A separação de responsabilidades melhora a navegabilidade. Uploads vira apenas "gestão de planilhas", Estoque agrupa tudo sobre produtos físicos, e Financeiro concentra receita e despesas.
+**Sidebar**: `marketingSubItems` passa de `[Cupons, Mídias, Pedidos]` para `[Cupons, Mídias, Pedidos, Vendas]`.
 
