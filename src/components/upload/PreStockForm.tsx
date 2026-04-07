@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -32,6 +32,8 @@ import {
 } from "@/components/ui/popover";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { extractBrandFromProductName } from "@/lib/productNormalization";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 
 interface PDVOption {
   id: string;
@@ -52,6 +54,41 @@ interface PreStockFormProps {
   isSubmitting: boolean;
 }
 
+function tokenize(input: string): string[] {
+  return input
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((t) => t.length > 0);
+}
+
+function matchesAllTokens(name: string, tokens: string[]): boolean {
+  const lower = name.toLowerCase();
+  return tokens.every((token) => lower.includes(token));
+}
+
+function HighlightedName({ name, tokens }: { name: string; tokens: string[] }) {
+  if (tokens.length === 0) return <span>{name}</span>;
+
+  // Build regex from tokens, escape special chars
+  const escaped = tokens.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const regex = new RegExp(`(${escaped.join("|")})`, "gi");
+  const parts = name.split(regex);
+
+  return (
+    <span>
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <mark key={i} className="bg-primary/20 text-foreground rounded-sm px-0.5">
+            {part}
+          </mark>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </span>
+  );
+}
+
 export function PreStockForm({
   open,
   onOpenChange,
@@ -65,6 +102,13 @@ export function PreStockForm({
   const [quantity, setQuantity] = useState("");
   const [notes, setNotes] = useState("");
   const [productOpen, setProductOpen] = useState(false);
+
+  const tokens = useMemo(() => tokenize(productName), [productName]);
+
+  const filteredProducts = useMemo(() => {
+    if (tokens.length === 0) return productNames.slice(0, 30);
+    return productNames.filter((name) => matchesAllTokens(name, tokens)).slice(0, 30);
+  }, [productNames, tokens]);
 
   const resetForm = () => {
     setPdvId("");
@@ -126,14 +170,21 @@ export function PreStockForm({
                   aria-expanded={productOpen}
                   className="w-full justify-between font-normal"
                 >
-                  {productName || "Buscar produto..."}
+                  {productName ? (
+                    <span className="flex items-center gap-2 truncate">
+                      <BrandLogo brand={extractBrandFromProductName(productName)} size="xs" showTooltip={false} />
+                      <span className="truncate">{productName}</span>
+                    </span>
+                  ) : (
+                    "Buscar produto..."
+                  )}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                <Command>
+                <Command shouldFilter={false}>
                   <CommandInput
-                    placeholder="Buscar produto..."
+                    placeholder="Ex: iphone 15, redmi 14, galaxy s24..."
                     value={productName}
                     onValueChange={setProductName}
                   />
@@ -142,22 +193,19 @@ export function PreStockForm({
                       {productName.trim() ? (
                         <button
                           type="button"
-                          className="w-full p-2 text-sm text-left hover:bg-accent"
+                          className="w-full p-2 text-sm text-left hover:bg-accent rounded"
                           onClick={() => { setProductOpen(false); }}
                         >
-                          Usar "{productName.trim()}"
+                          Usar "<span className="font-medium">{productName.trim()}</span>"
                         </button>
                       ) : (
                         "Digite o nome do produto"
                       )}
                     </CommandEmpty>
                     <CommandGroup>
-                      {productNames
-                        .filter((name) =>
-                          name.toLowerCase().includes(productName.toLowerCase())
-                        )
-                        .slice(0, 20)
-                        .map((name) => (
+                      {filteredProducts.map((name) => {
+                        const brand = extractBrandFromProductName(name);
+                        return (
                           <CommandItem
                             key={name}
                             value={name}
@@ -168,13 +216,17 @@ export function PreStockForm({
                           >
                             <Check
                               className={cn(
-                                "mr-2 h-4 w-4",
+                                "mr-2 h-4 w-4 shrink-0",
                                 productName === name ? "opacity-100" : "opacity-0"
                               )}
                             />
-                            {name}
+                            <BrandLogo brand={brand} size="xs" showTooltip={false} className="mr-1.5 shrink-0" />
+                            <span className="truncate">
+                              <HighlightedName name={name} tokens={tokens} />
+                            </span>
                           </CommandItem>
-                        ))}
+                        );
+                      })}
                     </CommandGroup>
                   </CommandList>
                 </Command>
