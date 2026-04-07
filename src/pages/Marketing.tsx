@@ -18,6 +18,7 @@ const CatalogLeadsSettings = lazy(() => import("@/components/marketing/CatalogLe
 const MarketingAnalytics = lazy(() => import("@/components/marketing/MarketingAnalytics").then(m => ({ default: m.MarketingAnalytics })));
 const ProductRequestsSettings = lazy(() => import("@/components/marketing/ProductRequestsSettings").then(m => ({ default: m.ProductRequestsSettings })));
 const PDVCatalogList = lazy(() => import("@/components/marketing/PDVCatalogList").then(m => ({ default: m.PDVCatalogList })));
+const SalesRecordsTab = lazy(() => import("@/components/upload/SalesRecordsTab").then(m => ({ default: m.SalesRecordsTab })));
 
 export default function Marketing() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -95,6 +96,7 @@ export default function Marketing() {
             <TabsTrigger value="midias">Mídias</TabsTrigger>
             {isAdmin && <TabsTrigger value="catalogos">Catálogos</TabsTrigger>}
             {isAdmin && <TabsTrigger value="pedidos">Pedidos</TabsTrigger>}
+            {isAdmin && <TabsTrigger value="vendas">Vendas</TabsTrigger>}
             {isAdmin && <TabsTrigger value="leads">Leads</TabsTrigger>}
             {isAdmin && <TabsTrigger value="analytics">Analytics</TabsTrigger>}
           </TabsList>
@@ -138,6 +140,14 @@ export default function Marketing() {
             <TabsContent value="pedidos" className="mt-4">
               <Suspense fallback={<TabSkeleton />}>
                 <ProductRequestsSettings />
+              </Suspense>
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="vendas" className="mt-4">
+              <Suspense fallback={<TabSkeleton />}>
+                <SalesRecordsTab pdvs={pdvs.map(p => ({ id: p.id, name: p.name, machine_id: p.machine_id, status: p.status }))} canUpload={isAdmin} />
               </Suspense>
             </TabsContent>
           )}
