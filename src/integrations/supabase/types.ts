@@ -606,6 +606,7 @@ export type Database = {
       }
       pre_stock: {
         Row: {
+          allocated_pdv_id: string | null
           created_at: string
           created_by: string
           id: string
@@ -619,6 +620,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          allocated_pdv_id?: string | null
           created_at?: string
           created_by: string
           id?: string
@@ -632,6 +634,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          allocated_pdv_id?: string | null
           created_at?: string
           created_by?: string
           id?: string
@@ -645,6 +648,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "pre_stock_allocated_pdv_id_fkey"
+            columns: ["allocated_pdv_id"]
+            isOneToOne: false
+            referencedRelation: "pdvs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "pre_stock_pdv_id_fkey"
             columns: ["pdv_id"]
