@@ -155,6 +155,14 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
             <TableRow>
               <TableHead 
                 className="cursor-pointer hover:bg-muted/50"
+                onClick={() => handleSort('slot')}
+              >
+                <div className="flex items-center gap-1">
+                  Slot <SortIcon field="slot" />
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer hover:bg-muted/50"
                 onClick={() => handleSort('model')}
               >
                 <div className="flex items-center gap-1">
@@ -163,10 +171,10 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
               </TableHead>
               <TableHead 
                 className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleSort('quantity')}
+                onClick={() => handleSort('status')}
               >
                 <div className="flex items-center gap-1">
-                  Estoque <SortIcon field="quantity" />
+                  Status <SortIcon field="status" />
                 </div>
               </TableHead>
               <TableHead 
@@ -179,18 +187,18 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
               </TableHead>
               <TableHead 
                 className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleSort('slots')}
+                onClick={() => handleSort('quantity')}
               >
                 <div className="flex items-center gap-1">
-                  Slots <SortIcon field="slots" />
+                  Estoque <SortIcon field="quantity" />
                 </div>
               </TableHead>
               <TableHead 
                 className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleSort('status')}
+                onClick={() => handleSort('slots')}
               >
                 <div className="flex items-center gap-1">
-                  Status <SortIcon field="status" />
+                  Slots <SortIcon field="slots" />
                 </div>
               </TableHead>
               <TableHead className="w-[60px]"></TableHead>
