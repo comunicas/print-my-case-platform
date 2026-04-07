@@ -1,73 +1,125 @@
-# Welcome to your Lovable project
+# Print My Case Platform
 
-## Project info
+Plataforma web para operação de PDVs (pontos de venda) com foco em:
+- ingestão e consolidação de estoque/vendas,
+- dashboards operacionais e financeiros,
+- gestão de organização, equipe e integrações.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Arquitetura
 
-## How can I edit this code?
+### Visão geral
+- **Frontend SPA**: React + Vite + TypeScript (pasta `src/`).
+- **Dados e autenticação**: Supabase (Postgres + Auth + RLS).
+- **Back-end serverless**: Supabase Edge Functions (pasta `supabase/functions/`).
 
-There are several ways of editing your application.
+### Componentes principais
+- **Camada de UI**: `src/components/*` com shadcn/ui e Tailwind.
+- **Páginas e rotas**: `src/pages/*` e definição de rotas em `src/App.tsx`.
+- **Estado assíncrono**: TanStack Query para cache e sincronização.
+- **Contextos de negócio**: autenticação, perfil, organização ativa e modal de produto.
+- **Edge Functions**:
+  - `ingest-stock`: endpoint ativo para ingestão de estoque.
+  - `ingest-revenue`: endpoint oficialmente desativado por feature flag (ver seção de flags).
+  - demais funções utilitárias (OTP, redirecionamento, usuário, processamento).
 
-**Use Lovable**
+### Fluxo de dados (resumo)
+1. Usuário autentica via Supabase Auth.
+2. Frontend consulta dados no Supabase com políticas RLS.
+3. Integrações externas enviam dados para Edge Functions (quando habilitadas).
+4. Dashboards consomem tabelas/funções SQL consolidadas.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Stack e padrão oficial de ferramentas
 
-Changes made via Lovable will be committed automatically to this repo.
+- **Runtime local**: Node.js 20+
+- **Package manager oficial**: **npm**
+- **Build**: Vite
+- **Testes**: Vitest e Playwright
 
-**Use your preferred IDE**
+> Decisão registrada em `docs/adr/0001-package-manager-and-scripts.md`.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Variáveis de ambiente
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Frontend (`.env`)
+| Variável | Obrigatória | Descrição |
+|---|---:|---|
+| `VITE_SUPABASE_URL` | Sim | URL do projeto Supabase. |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Sim | Chave pública (anon/publishable) do Supabase. |
+| `VITE_FEATURE_INGEST_REVENUE_ENABLED` | Não (default `false`) | Exibe/oculta o endpoint de ingestão de receita na UI e sinaliza status da feature. |
 
-Follow these steps:
+### Edge Functions (Supabase secrets)
+| Variável | Obrigatória | Uso |
+|---|---:|---|
+| `SUPABASE_URL` | Sim | Cliente server-side das funções. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Sim | Operações privilegiadas nas funções. |
+| `SUPABASE_ANON_KEY` | Depende da função | Chamadas públicas específicas. |
+| `TWILIO_ACCOUNT_SID` | Apenas OTP | Integração de envio de SMS/OTP. |
+| `TWILIO_AUTH_TOKEN` | Apenas OTP | Credencial da API Twilio. |
+| `TWILIO_PHONE_NUMBER` | Apenas OTP | Número emissor do SMS. |
+| `INGEST_REVENUE_ENABLED` | Não (default `false`) | Habilita/desabilita o endpoint `ingest-revenue` no backend. |
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## Setup local
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
+npm ci
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Build de produção:
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+npm run build
+npm run preview
+```
 
-**Use GitHub Codespaces**
+Lint:
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```bash
+npm run lint
+```
 
-## What technologies are used for this project?
+## Deploy (fluxo recomendado)
 
-This project is built with:
+### 1) Banco e funções Supabase
+1. Aplicar migrações no ambiente alvo.
+2. Publicar Edge Functions necessárias.
+3. Configurar/validar secrets por ambiente.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### 2) Frontend
+1. Definir variáveis `VITE_*` do ambiente.
+2. Executar `npm run build`.
+3. Publicar artefatos (`dist/`) no provedor web.
 
-## How can I deploy this project?
+### 3) Pós-deploy (checklist)
+- Login e navegação básica.
+- Dashboard principal carregando sem erro de query.
+- Página de integrações respeitando flags de feature.
+- Saúde dos endpoints ativos de integração.
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## Operação
 
-## Can I connect a custom domain to my Lovable project?
+- Matriz de status de features e responsáveis: `docs/operations/feature-status.md`.
+- Integridade de API Keys de integração é gerenciada em **Configurações > Integrações**.
+- Para mudanças estruturais, criar ADR em `docs/adr/`.
 
-Yes, you can!
+## Troubleshooting
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### Front não sobe em desenvolvimento
+- Verifique versão do Node (20+).
+- Remova `node_modules` e rode `npm ci` novamente.
+- Confirme variáveis `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+### Erro de autenticação/consulta no Supabase
+- Validar sessão do usuário e organização ativa.
+- Conferir políticas RLS/tabelas usadas pela tela.
+- Inspecionar logs no navegador e no painel do Supabase.
+
+### Edge Function retorna 401
+- Confirmar header `Authorization: Bearer <api_key>`.
+- Verificar se API key está ativa na organização correta.
+
+### `ingest-revenue` indisponível
+- Comportamento esperado quando a feature está desativada.
+- Para habilitar temporariamente:
+  - frontend: `VITE_FEATURE_INGEST_REVENUE_ENABLED=true`
+  - backend: secret `INGEST_REVENUE_ENABLED=true`
+- Habilitação deve ser acompanhada por responsável técnico e monitoramento.
