@@ -1,34 +1,42 @@
 
 
-## Ajuste da Tabela de Estoque — Coluna Slot + Reordenação
+## Fix: KPIs Zerados no Modal de Produto
 
-### Mudança
+### Causa Raiz
 
-Adicionar coluna "Slot" mostrando os números dos slots separados por vírgula (ex: `3, 5, 8`) e reordenar as colunas para: **Slot → Produto → Status → Vendas → Estoque → Slots → Ações**.
+O `productName` passado ao modal é um **productKey** no formato `"APPLE:iphone 11"` (com dois-pontos). O hook `useProductAnalytics` usa esse valor diretamente no filtro `ilike`:
 
-### Arquivo: `src/components/stock/ProductStockTable.tsx`
-
-**Header (TableHeader)** — Nova ordem:
-1. **Slot** (novo, sortável pelo primeiro slot)
-2. **Produto** (existente)
-3. **Status** (existente)
-4. **Vendas** (existente)
-5. **Estoque** (existente)
-6. **Slots** (existente — quantidade de slots)
-7. **Ações** (botão Eye, existente)
-
-**Body (TableRow)** — Reordenar células na mesma sequência:
-1. Slot: `product.slots.map(s => s.slotNumber).join(', ')` em `<span className="font-mono text-sm">`
-2. Produto: `ProductDisplay` com link (existente)
-3. Status: Badge com `productActionLabels` (existente)
-4. Vendas: ShoppingCart + Badge salesIndex (existente)
-5. Estoque: Progress bar + quantidade (existente)
-6. Slots: `product.slots.length` (existente)
-7. Ações: botão Eye (existente)
-
-**Sort** — Adicionar `'slot'` ao tipo `SortField` e no switch de ordenação:
 ```typescript
-case 'slot':
-  comparison = (a.slots[0]?.slotNumber || '').localeCompare(b.slots[0]?.slotNumber || '', undefined, { numeric: true });
+.ilike('product_name', `%APPLE:iphone 11%`)
 ```
+
+Mas no banco, o campo `product_name` contém `"APPLE iPhone 11"` ou `"iPhone 11"` — nunca o formato com `:`. Resultado: zero linhas retornadas, KPIs zerados.
+
+O gráfico de histórico (`useProductSalesHistory`) funciona porque **não usa `ilike`** — busca todos os dados e filtra client-side com `filterSalesByProduct`, que trata o formato com `:` corretamente.
+
+### Correção
+
+**Arquivo:** `src/hooks/useProductAnalytics.ts`
+
+Extrair o **modelo** do productKey antes de usar no `ilike`:
+
+```typescript
+// Antes (bugado)
+.ilike('product_name', `%${productName}%`)
+
+// Depois (correto)
+const modelForQuery = extractModelFromProductName(productName);
+// ...
+.ilike('product_name', `%${modelForQuery}%`)
+```
+
+Adicionar import de `extractModelFromProductName` do `productNormalization`.
+
+O `filterSalesByProduct` client-side continua garantindo matching exato após o pre-filter.
+
+### Resultado
+
+- KPIs (Vendas, Receita, Ticket Médio) passam a mostrar valores corretos
+- Gráfico de histórico continua funcionando como antes
+- O `ilike` continua servindo como pre-filter eficiente (~90% redução), e o `filterSalesByProduct` refina o matching exato
 
