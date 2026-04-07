@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveOrg } from "@/contexts/ActiveOrgContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/hooks/useProfile";
 import { toast } from "sonner";
 
 export interface PreStockItem {
@@ -28,7 +29,12 @@ interface UsePreStockOptions {
 export function usePreStock(options: UsePreStockOptions = {}) {
   const { activeOrgId } = useActiveOrg();
   const { user } = useAuth();
+  const { profile } = useProfile();
   const queryClient = useQueryClient();
+
+  const isAllOrgs = activeOrgId === "all";
+  const orgId = isAllOrgs ? null : (activeOrgId ?? profile?.organization_id ?? null);
+  const writeOrgId = orgId ?? profile?.organization_id;
 
   const queryKey = ["pre_stock", activeOrgId, options.pdvId, options.status, options.search];
 
@@ -40,8 +46,11 @@ export function usePreStock(options: UsePreStockOptions = {}) {
       let query = supabase
         .from("pre_stock")
         .select("*, pdv:pdvs(id, name)")
-        .eq("organization_id", activeOrgId)
         .order("created_at", { ascending: false });
+
+      if (orgId) {
+        query = query.eq("organization_id", orgId);
+      }
 
       if (options.pdvId && options.pdvId !== "all") {
         query = query.eq("pdv_id", options.pdvId);
@@ -67,10 +76,10 @@ export function usePreStock(options: UsePreStockOptions = {}) {
       quantity: number;
       notes?: string;
     }) => {
-      if (!activeOrgId || !user?.id) throw new Error("Contexto inválido");
+      if (!writeOrgId || !user?.id) throw new Error("Contexto inválido");
 
       const { error } = await supabase.from("pre_stock").insert({
-        organization_id: activeOrgId,
+        organization_id: writeOrgId,
         pdv_id: input.pdv_id || null,
         product_name: input.product_name,
         quantity: input.quantity,
@@ -111,10 +120,11 @@ export function usePreStock(options: UsePreStockOptions = {}) {
     queryFn: async () => {
       if (!activeOrgId) return [];
 
-      const { data: pdvData, error: pdvError } = await supabase
-        .from("pdvs")
-        .select("id")
-        .eq("organization_id", activeOrgId);
+      let pdvQuery = supabase.from("pdvs").select("id");
+      if (orgId) {
+        pdvQuery = pdvQuery.eq("organization_id", orgId);
+      }
+      const { data: pdvData, error: pdvError } = await pdvQuery;
 
       if (pdvError) throw pdvError;
       const pdvIds = pdvData?.map((p) => p.id) ?? [];
