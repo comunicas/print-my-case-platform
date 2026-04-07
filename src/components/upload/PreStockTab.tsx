@@ -170,6 +170,7 @@ export function PreStockTab() {
                 <TableHead>PDV</TableHead>
                 <TableHead className="text-center">Comprado</TableHead>
                 <TableHead className="text-center">Restante</TableHead>
+                <TableHead className="text-right">Custo Un.</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Data</TableHead>
                 {isAdmin && <TableHead className="w-12" />}
@@ -187,6 +188,9 @@ export function PreStockTab() {
                   <TableCell className="text-center">{item.quantity}</TableCell>
                   <TableCell className="text-center font-semibold">
                     {item.remaining_quantity}
+                  </TableCell>
+                  <TableCell className="text-right text-muted-foreground">
+                    R$ {(item.unit_cost ?? 15).toFixed(2)}
                   </TableCell>
                   <TableCell>
                     <Badge
