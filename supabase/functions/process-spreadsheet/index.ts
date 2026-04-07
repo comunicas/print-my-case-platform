@@ -1035,7 +1035,6 @@ Deno.serve(async (req) => {
               }
             }
             console.log(`[process-spreadsheet] Upload ${uploadId}: Pre-stock deduction completed`);
-          }
         } catch (preStockErr) {
           console.error(`Upload ${uploadId}: Pre-stock deduction error`, preStockErr);
           // Don't fail the upload
