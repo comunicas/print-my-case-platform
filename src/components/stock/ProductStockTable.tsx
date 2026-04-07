@@ -25,11 +25,11 @@ interface ProductStockTableProps {
   isLoading?: boolean;
 }
 
-type SortField = 'model' | 'quantity' | 'sales' | 'slots' | 'status';
+type SortField = 'slot' | 'model' | 'quantity' | 'sales' | 'slots' | 'status';
 type SortDirection = 'asc' | 'desc';
 
 export function ProductStockTable({ products, isLoading }: ProductStockTableProps) {
-  const [sortField, setSortField] = useState<SortField>('quantity');
+  const [sortField, setSortField] = useState<SortField>('slot');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [page, setPage] = useState(0);
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
@@ -43,6 +43,9 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
       let comparison = 0;
       
       switch (sortField) {
+        case 'slot':
+          comparison = (a.slots[0]?.slotNumber || '').localeCompare(b.slots[0]?.slotNumber || '', undefined, { numeric: true });
+          break;
         case 'model':
           comparison = a.model.localeCompare(b.model);
           break;
@@ -152,6 +155,14 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
             <TableRow>
               <TableHead 
                 className="cursor-pointer hover:bg-muted/50"
+                onClick={() => handleSort('slot')}
+              >
+                <div className="flex items-center gap-1">
+                  Slot <SortIcon field="slot" />
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer hover:bg-muted/50"
                 onClick={() => handleSort('model')}
               >
                 <div className="flex items-center gap-1">
@@ -160,10 +171,10 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
               </TableHead>
               <TableHead 
                 className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleSort('quantity')}
+                onClick={() => handleSort('status')}
               >
                 <div className="flex items-center gap-1">
-                  Estoque <SortIcon field="quantity" />
+                  Status <SortIcon field="status" />
                 </div>
               </TableHead>
               <TableHead 
@@ -176,18 +187,18 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
               </TableHead>
               <TableHead 
                 className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleSort('slots')}
+                onClick={() => handleSort('quantity')}
               >
                 <div className="flex items-center gap-1">
-                  Slots <SortIcon field="slots" />
+                  Estoque <SortIcon field="quantity" />
                 </div>
               </TableHead>
               <TableHead 
                 className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleSort('status')}
+                onClick={() => handleSort('slots')}
               >
                 <div className="flex items-center gap-1">
-                  Status <SortIcon field="status" />
+                  Slots <SortIcon field="slots" />
                 </div>
               </TableHead>
               <TableHead className="w-[60px]"></TableHead>
@@ -204,6 +215,13 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                 data-testid="product-row"
                 data-product-name={product.model}
               >
+                {/* Slot */}
+                <TableCell>
+                  <span className="font-mono text-sm text-muted-foreground">
+                    {product.slots.map(s => s.slotNumber).join(', ')}
+                  </span>
+                </TableCell>
+                {/* Produto */}
                 <TableCell>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -224,17 +242,13 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                     </TooltipContent>
                   </Tooltip>
                 </TableCell>
+                {/* Status */}
                 <TableCell>
-                  <div className="flex items-center gap-2 min-w-[120px]">
-                    <Progress 
-                      value={(product.totalQuantity / product.maxCapacity) * 100} 
-                      className="h-2 w-16"
-                    />
-                    <span className="text-sm font-medium">
-                      {product.totalQuantity}/{product.maxCapacity}
-                    </span>
-                  </div>
+                  <Badge variant="outline" className={productActionColors[product.status]}>
+                    {productActionLabels[product.status]}
+                  </Badge>
                 </TableCell>
+                {/* Vendas */}
                 <TableCell>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -262,14 +276,23 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                     </TooltipContent>
                   </Tooltip>
                 </TableCell>
+                {/* Estoque */}
+                <TableCell>
+                  <div className="flex items-center gap-2 min-w-[120px]">
+                    <Progress 
+                      value={(product.totalQuantity / product.maxCapacity) * 100} 
+                      className="h-2 w-16"
+                    />
+                    <span className="text-sm font-medium">
+                      {product.totalQuantity}/{product.maxCapacity}
+                    </span>
+                  </div>
+                </TableCell>
+                {/* Slots */}
                 <TableCell>
                   <span className="text-sm">{product.slots.length}</span>
                 </TableCell>
-                <TableCell>
-                  <Badge variant="outline" className={productActionColors[product.status]}>
-                    {productActionLabels[product.status]}
-                  </Badge>
-                </TableCell>
+                {/* Ações */}
                 <TableCell>
                   <Tooltip>
                     <TooltipTrigger asChild>
