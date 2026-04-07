@@ -25,7 +25,7 @@ interface ProductStockTableProps {
   isLoading?: boolean;
 }
 
-type SortField = 'model' | 'quantity' | 'sales' | 'slots' | 'status';
+type SortField = 'slot' | 'model' | 'quantity' | 'sales' | 'slots' | 'status';
 type SortDirection = 'asc' | 'desc';
 
 export function ProductStockTable({ products, isLoading }: ProductStockTableProps) {
