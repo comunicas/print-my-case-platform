@@ -18,6 +18,7 @@ export interface PreStockItem {
   updated_at: string;
   notes: string | null;
   allocated_pdv_id: string | null;
+  unit_cost: number;
   pdv?: { id: string; name: string } | null;
   allocated_pdv?: { id: string; name: string } | null;
 }
@@ -76,6 +77,7 @@ export function usePreStock(options: UsePreStockOptions = {}) {
       pdv_id?: string | null;
       product_name: string;
       quantity: number;
+      unit_cost?: number;
       notes?: string;
     }) => {
       if (!writeOrgId || !user?.id) throw new Error("Contexto inválido");
@@ -86,6 +88,7 @@ export function usePreStock(options: UsePreStockOptions = {}) {
         product_name: input.product_name,
         quantity: input.quantity,
         remaining_quantity: input.quantity,
+        unit_cost: input.unit_cost ?? 15,
         status: "pending",
         created_by: user.id,
         notes: input.notes || null,
