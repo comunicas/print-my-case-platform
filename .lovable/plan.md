@@ -1,29 +1,30 @@
 
-
-## Fix: Lista de Compras Vazia (Erro 400)
+## Fix: Compras Não Aparecem Quando "Todas as Organizações" Selecionado
 
 ### Causa Raiz
 
-A query `select("*, pdv:pdvs(id, name)")` retorna erro 400 porque a tabela `pre_stock` não tem foreign key para `pdvs`. O PostgREST não consegue inferir a relação, e a query falha silenciosamente — a lista fica vazia apesar do insert funcionar.
+O hook `usePreStock` passa `activeOrgId` diretamente como filtro UUID — quando o super admin tem "Todas as organizações" selecionado, `activeOrgId` é a string `"all"`, causando erro 400 (`invalid input syntax for type uuid: "all"`).
 
 ### Solução
 
-Adicionar a foreign key `pre_stock.pdv_id → pdvs.id` via migration. Isso permite que o join funcione corretamente.
+Seguir o padrão já usado em `useFinancialEntries`, `useDRE`, etc.: detectar `activeOrgId === "all"` e usar o `organization_id` do perfil como fallback para escrita, e remover o filtro de org para leitura (ou usar o fallback).
 
 ### Mudanças
 
-1. **Migration SQL**: Adicionar foreign key constraint
-   ```sql
-   ALTER TABLE public.pre_stock
-   ADD CONSTRAINT pre_stock_pdv_id_fkey
-   FOREIGN KEY (pdv_id) REFERENCES public.pdvs(id) ON DELETE SET NULL;
-   ```
+**`src/hooks/usePreStock.ts`**:
 
-2. **Nenhuma mudança no código** — o hook `usePreStock.ts` já tem a query correta, só precisa da FK no banco.
+1. Importar `useProfile` e extrair `profile`
+2. Adicionar lógica `isAllOrgs` / `orgId` / `writeOrgId`:
+   - `isAllOrgs = activeOrgId === "all"`
+   - `orgId = isAllOrgs ? null : (activeOrgId ?? profile?.organization_id)`
+   - `writeOrgId = orgId ?? profile?.organization_id`
+3. Na query de listagem: se `orgId` é null (all orgs), não adicionar filtro `.eq("organization_id", ...)` — o RLS já filtra por acesso
+4. Na query de `productNames`: mesma lógica — se all orgs, buscar PDVs sem filtro de org (o RLS filtra)
+5. Na mutation `createItem`: usar `writeOrgId` em vez de `activeOrgId`
+6. Manter `enabled: !!activeOrgId` (funciona porque "all" é truthy)
 
-### Resultado
+### Arquivo alterado
 
-- A query deixa de retornar 400
-- Os registros de compra aparecem na lista com o nome do PDV
-- O registro de teste (APPLE iPhone 15 Pro, qtd 5, Extra Ricardo Jafet) ficará visível
-
+| Arquivo | Mudança |
+|---------|---------|
+| `src/hooks/usePreStock.ts` | Tratar `activeOrgId === "all"` seguindo padrão existente |
