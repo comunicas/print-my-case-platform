@@ -1,35 +1,50 @@
 
 
-## Verificação do Fluxo Completo — Resultado da Análise
+## KPI Cards + Custo Unitário no Pré-Estoque
 
-### Status dos Fixes
+### Resumo
 
-Todos os 4 fixes estão corretamente implementados no código:
+Adicionar coluna `unit_cost` à tabela `pre_stock` (default R$15), exibir campo no formulário de cadastro, e mostrar cards de resumo no topo da aba Compras.
 
-1. **Fix "none" como UUID** — `PreStockForm.tsx` linha 127: `pdvId && pdvId !== "none" ? pdvId : null` ✅
-2. **allocated_pdv_id só em alocação total** — Ambas edge functions: `if (newRemaining <= 0) { updateData.allocated_pdv_id = pdvId; }` ✅
-3. **Org_id sem fetch duplicado** — `process-spreadsheet` reutiliza `pdvData.organization_id` ✅
-4. **Limpeza não deleta stock_history** — Rotina de cleanup só deleta `stock_records` e `uploads` antigos ✅
+### 1. Migration — Adicionar `unit_cost`
 
-### Dados Atuais no Banco
+```sql
+ALTER TABLE public.pre_stock
+ADD COLUMN unit_cost numeric NOT NULL DEFAULT 15;
+```
 
-- **10 registros de pré-estoque pendentes** (todos com `pdv_id: null`, `allocated_pdv_id: null`)
-- **2 registros Motorola alocados** corretamente (com `allocated_pdv_id` = Tietê Plaza Shopping)
-- **Estoque atual** presente nos 3 PDVs
+Registros existentes receberão automaticamente o valor 15.
 
-### Limitação do Teste
+### 2. KPI Cards no topo da aba
 
-Não é possível testar o fluxo completo de dedução via ferramentas de debug porque:
-- A `ingest-stock` requer API key válida
-- A `process-spreadsheet` requer upload real de arquivo via UI
+Três cards calculados a partir dos `items` já carregados:
 
-### Proposta para Teste Real
+| Card | Cálculo |
+|------|---------|
+| **Pendentes** | Soma de `remaining_quantity` dos itens com status `pending` |
+| **Valor Pendente** | Soma de `remaining_quantity × unit_cost` dos pendentes |
+| **Alocados** | Soma de `quantity` dos itens com status `allocated` |
 
-Para verificar a dedução parcial sem gravar `allocated_pdv_id`, o usuário precisa:
+Usar o componente `Card` existente com ícones (Package, DollarSign, CheckCircle).
 
-1. **Fazer upload** de uma planilha de estoque (ex: Boulevard Tatuapé) com quantidade **aumentada** em um produto que tenha pré-estoque pendente (ex: APPLE iPhone 16 Pro, atual=4 no Tatuapé, pré-estoque=14)
-2. Se enviar com qty=7, o aumento será 3 (7-4), deduzindo 3 do pré-estoque (14→11)
-3. Como `remaining_quantity` (11) > 0, o status permanece `pending` e `allocated_pdv_id` fica `NULL` — validando o fix
+### 3. Formulário — Campo "Custo unitário"
 
-Não há mudanças de código necessárias. Os fixes já estão deployados.
+**`PreStockForm.tsx`**: Adicionar campo `Input` numérico com default "15" entre Quantidade e Observações. Incluir `unit_cost` no payload do `onSubmit`.
+
+### 4. Hook — Persistir `unit_cost`
+
+**`usePreStock.ts`**: Adicionar `unit_cost` ao `PreStockItem` interface e ao `insert` da mutation. Incluir no input type.
+
+### 5. Tabela — Mostrar custo
+
+Adicionar coluna "Custo Un." na tabela exibindo `R$ {item.unit_cost.toFixed(2)}`.
+
+### Arquivos alterados
+
+| Arquivo | Mudança |
+|---------|---------|
+| Migration SQL | `ADD COLUMN unit_cost numeric NOT NULL DEFAULT 15` |
+| `src/hooks/usePreStock.ts` | Adicionar `unit_cost` à interface e mutation |
+| `src/components/upload/PreStockForm.tsx` | Campo custo unitário com default 15 |
+| `src/components/upload/PreStockTab.tsx` | KPI cards + coluna custo na tabela |
 
