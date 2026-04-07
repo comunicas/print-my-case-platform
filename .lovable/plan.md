@@ -1,26 +1,34 @@
 
 
-## Mover "Vendas" de Financeiro para Marketing
+## Ajuste da Tabela de Estoque — Coluna Slot + Reordenação
 
-### Resumo
+### Mudança
 
-Remover a tab "Vendas" do Financeiro (restaurando-o ao estado original com Resumo, DRE, Despesas) e adicioná-la ao módulo Marketing como nova tab.
+Adicionar coluna "Slot" mostrando os números dos slots separados por vírgula (ex: `3, 5, 8`) e reordenar as colunas para: **Slot → Produto → Status → Vendas → Estoque → Slots → Ações**.
 
-### Arquivos alterados
+### Arquivo: `src/components/stock/ProductStockTable.tsx`
 
-| Arquivo | Mudança |
-|---------|---------|
-| `src/pages/Financeiro.tsx` | Remover import `SalesRecordsTab`, remover TabsTrigger e TabsContent de "vendas" |
-| `src/pages/Marketing.tsx` | Import lazy de `SalesRecordsTab`, adicionar TabsTrigger "Vendas" e TabsContent |
-| `src/components/marketing/MarketingOverview.tsx` | Adicionar card "Vendas" na overview |
-| `src/components/layout/AppSidebar.tsx` | Adicionar sub-item `{ label: "Vendas", href: "/marketing?tab=vendas" }` em `marketingSubItems` |
-| `src/components/layout/MobileSidebar.tsx` | Mesmo: adicionar "Vendas" em `marketingSubItems` |
+**Header (TableHeader)** — Nova ordem:
+1. **Slot** (novo, sortável pelo primeiro slot)
+2. **Produto** (existente)
+3. **Status** (existente)
+4. **Vendas** (existente)
+5. **Estoque** (existente)
+6. **Slots** (existente — quantidade de slots)
+7. **Ações** (botão Eye, existente)
 
-### Detalhes
+**Body (TableRow)** — Reordenar células na mesma sequência:
+1. Slot: `product.slots.map(s => s.slotNumber).join(', ')` em `<span className="font-mono text-sm">`
+2. Produto: `ProductDisplay` com link (existente)
+3. Status: Badge com `productActionLabels` (existente)
+4. Vendas: ShoppingCart + Badge salesIndex (existente)
+5. Estoque: Progress bar + quantidade (existente)
+6. Slots: `product.slots.length` (existente)
+7. Ações: botão Eye (existente)
 
-**Financeiro** volta a ter apenas 3 tabs: Resumo, DRE, Despesas. Remove-se o import de `SalesRecordsTab` e as linhas 131, 216-219.
-
-**Marketing** ganha a tab "vendas" após "pedidos". O `SalesRecordsTab` recebe `pdvs` e `canUpload={isAdmin}` já disponíveis no contexto da página.
-
-**Sidebar**: `marketingSubItems` passa de `[Cupons, Mídias, Pedidos]` para `[Cupons, Mídias, Pedidos, Vendas]`.
+**Sort** — Adicionar `'slot'` ao tipo `SortField` e no switch de ordenação:
+```typescript
+case 'slot':
+  comparison = (a.slots[0]?.slotNumber || '').localeCompare(b.slots[0]?.slotNumber || '', undefined, { numeric: true });
+```
 
