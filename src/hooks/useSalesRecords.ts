@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { usePagination } from "@/hooks/usePaginatedQuery";
+import { sanitizePostgrestSearchTerm } from "@/hooks/useOrgCrossAccess";
 
 export interface SalesRecordItem {
   id: string;
@@ -39,6 +40,13 @@ export interface CreateSalesRecordData {
   refund_amount?: number;
 }
 
+export function buildSalesRecordsSearchOrFilter(search: string): string | null {
+  const sanitizedSearch = sanitizePostgrestSearchTerm(search);
+  if (!sanitizedSearch) return null;
+
+  return `product_name.ilike.%${sanitizedSearch}%,order_number.ilike.%${sanitizedSearch}%`;
+}
+
 export function useSalesRecords(filters: SalesRecordsFilters) {
   const { session } = useAuth();
   const queryClient = useQueryClient();
@@ -65,7 +73,10 @@ export function useSalesRecords(filters: SalesRecordsFilters) {
         query = query.eq("status", filters.status);
       }
       if (filters.search) {
-        query = query.or(`product_name.ilike.%${filters.search}%,order_number.ilike.%${filters.search}%`);
+        const searchOrFilter = buildSalesRecordsSearchOrFilter(filters.search);
+        if (searchOrFilter) {
+          query = query.or(searchOrFilter);
+        }
       }
 
       const { from, to } = pagination.getRange();
