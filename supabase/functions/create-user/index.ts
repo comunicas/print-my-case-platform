@@ -204,15 +204,18 @@ Deno.serve(async (req) => {
     const callerOrgId = callerProfile?.organization_id;
 
     // Parse request body
-    const { 
-      name, 
-      email, 
-      password, 
+    const body: CreateUserRequest = await req.json();
+    const {
+      name,
+      email,
+      password,
+      organizationName,
+      role = 'operator',
+    } = body;
+    let {
       createNewOrganization = false,
       organizationId,
-      organizationName,
-      role = 'operator'
-    } = await req.json();
+    } = body;
 
     // Log attempt
     await logAuditEvent(supabaseAdmin, {
