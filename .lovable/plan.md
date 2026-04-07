@@ -1,65 +1,36 @@
 
 
-## Dedução Inteligente de Pré-Estoque + Rastreio de PDV
+## Corrigir Registros de Pré-Estoque — Reverter para Pendente
 
-### Problemas Atuais
+### Contexto
 
-1. **Dedução sem comparação**: Ambas as edge functions deduzem com base na quantidade total do novo estoque, não na diferença (aumento). Se o estoque é reenviado com os mesmos valores, deduz novamente.
-2. **Sem rastreio de PDV**: Quando o pré-estoque é alocado, não registra para qual PDV foi enviado.
+Os 3 registros foram marcados como "allocated" incorretamente (pela dedução que usava quantidade total em vez de diferença). Como não devem ser atribuídos a nenhum PDV ainda, precisam voltar ao status "pending" com `remaining_quantity` restaurada.
 
-### Solução
+### Registros afetados
 
-#### 1. Migration: Adicionar coluna `allocated_pdv_id` na tabela `pre_stock`
+| Produto | Qtd Original | Status Atual | Ação |
+|---------|-------------|-------------|------|
+| APPLE iPhone 16 Pro | 14 | allocated (remaining: 0) | → pending (remaining: 14) |
+| APPLE iPhone 16 Pro Max | 7 | allocated (remaining: 0) | → pending (remaining: 7) |
+| APPLE iPhone 14 Pro | 7 | allocated (remaining: 0) | → pending (remaining: 7) |
+
+### Implementação
+
+Executar 3 UPDATEs via ferramenta de inserção (não é migration, é dado):
 
 ```sql
-ALTER TABLE public.pre_stock
-ADD COLUMN allocated_pdv_id uuid REFERENCES public.pdvs(id) ON DELETE SET NULL;
+UPDATE pre_stock SET status = 'pending', remaining_quantity = quantity, allocated_pdv_id = NULL
+WHERE id IN (
+  '9abea25b-2814-4d7c-8523-37e4fd74a2cb',
+  '11b14d4f-2821-47f5-9b3c-6262c0b8eb42',
+  'bcc1d2f9-2671-4ea0-a02b-c4968afec27b'
+);
 ```
 
-Armazena o PDV que recebeu o produto quando o status muda para "allocated".
+### Resultado
 
-#### 2. Corrigir `process-spreadsheet` — dedução por diferença
-
-Antes de deletar os stock_records antigos, buscar os totais por produto do estoque anterior. Após inserir os novos registros, calcular a diferença (novo - antigo) por produto. Só deduzir pré-estoque se houve aumento real.
-
-**Lógica**:
-```text
-1. Antes do delete: buscar stock_records antigos do PDV, agrupar qty por product_name
-2. Inserir novos registros normalmente
-3. Para cada produto: increase = new_qty - old_qty
-4. Só deduzir do pre_stock se increase > 0
-5. Ao atualizar pre_stock, setar allocated_pdv_id = pdvId
-```
-
-#### 3. Corrigir `ingest-stock` — dedução por diferença no slot
-
-A API já deleta o registro antigo do slot antes de inserir. Buscar a quantidade anterior do slot deletado e só deduzir a diferença.
-
-**Lógica**:
-```text
-1. Antes do delete: buscar qty atual do slot (device_id + slot_number)
-2. Deletar e inserir normalmente
-3. increase = new_qty - old_qty
-4. Só deduzir se increase > 0
-5. Ao atualizar pre_stock, setar allocated_pdv_id = pdv.id
-```
-
-#### 4. Atualizar UI — mostrar PDV de alocação
-
-Na tabela da aba Compras, quando o status é "Alocado", mostrar o nome do PDV de destino.
-
-**Mudanças**:
-- `usePreStock.ts`: incluir `allocated_pdv:pdvs(id, name)` no select
-- `PreStockTab.tsx`: exibir "→ PDV Nome" na coluna de PDV quando alocado
-- `PreStockItem` interface: adicionar `allocated_pdv_id` e `allocated_pdv`
-
-### Arquivos Alterados
-
-| Arquivo | Mudança |
-|---------|---------|
-| Migration SQL | Adicionar `allocated_pdv_id` à tabela `pre_stock` |
-| `supabase/functions/process-spreadsheet/index.ts` | Buscar estoque anterior antes do delete; deduzir só o aumento; setar `allocated_pdv_id` |
-| `supabase/functions/ingest-stock/index.ts` | Buscar qty anterior do slot; deduzir só o aumento; setar `allocated_pdv_id` |
-| `src/hooks/usePreStock.ts` | Incluir `allocated_pdv` no select |
-| `src/components/upload/PreStockTab.tsx` | Mostrar PDV de alocação na coluna |
+- Os 3 registros voltam a aparecer como "Pendente" na aba Compras
+- `remaining_quantity` é restaurada ao valor original
+- `allocated_pdv_id` fica NULL
+- Quando o estoque for atualizado novamente, a dedução inteligente (por diferença) atuará corretamente
 
