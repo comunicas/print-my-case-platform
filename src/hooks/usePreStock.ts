@@ -46,8 +46,11 @@ export function usePreStock(options: UsePreStockOptions = {}) {
       let query = supabase
         .from("pre_stock")
         .select("*, pdv:pdvs(id, name)")
-        .eq("organization_id", activeOrgId)
         .order("created_at", { ascending: false });
+
+      if (orgId) {
+        query = query.eq("organization_id", orgId);
+      }
 
       if (options.pdvId && options.pdvId !== "all") {
         query = query.eq("pdv_id", options.pdvId);
