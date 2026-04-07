@@ -17,7 +17,9 @@ export interface PreStockItem {
   created_at: string;
   updated_at: string;
   notes: string | null;
+  allocated_pdv_id: string | null;
   pdv?: { id: string; name: string } | null;
+  allocated_pdv?: { id: string; name: string } | null;
 }
 
 interface UsePreStockOptions {
@@ -45,7 +47,7 @@ export function usePreStock(options: UsePreStockOptions = {}) {
 
       let query = supabase
         .from("pre_stock")
-        .select("*, pdv:pdvs(id, name)")
+        .select("*, pdv:pdvs!pre_stock_pdv_id_fkey(id, name), allocated_pdv:pdvs!pre_stock_allocated_pdv_id_fkey(id, name)")
         .order("created_at", { ascending: false });
 
       if (orgId) {
