@@ -215,7 +215,23 @@ Deno.serve(async (req) => {
       uploadId = newUpload.id;
     }
 
-    // 7. Delete old stock_record for this device_id + slot_number only
+    // 7. Fetch old quantity BEFORE deleting for smart pre-stock deduction
+    let oldQuantity = 0;
+    {
+      const { data: oldRecord } = await supabase
+        .from("stock_records")
+        .select("quantity")
+        .eq("pdv_id", pdv.id)
+        .eq("device_id", deviceId)
+        .eq("slot_number", slotNumber)
+        .maybeSingle();
+      
+      if (oldRecord) {
+        oldQuantity = (oldRecord.quantity as number) || 0;
+      }
+    }
+
+    // 7b. Delete old stock_record for this device_id + slot_number only
     const { count: deletedCount, error: deleteError } = await supabase
       .from("stock_records")
       .delete({ count: "exact" })
@@ -255,11 +271,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`[ingest-stock] OK | pdv=${pdv.id} slot=${slotNumber} product=${productName} qty=${quantity} deleted=${deletedCount ?? 0}`);
+    console.log(`[ingest-stock] OK | pdv=${pdv.id} slot=${slotNumber} product=${productName} qty=${quantity} oldQty=${oldQuantity} deleted=${deletedCount ?? 0}`);
 
-    // 8b. Deduzir pré-estoque se houve aumento de quantidade
-    const qtyIncrease = quantity - (deletedCount === 1 ? 0 : 0); // Para ingest-stock, cada chamada é um upsert de 1 slot
-    if (quantity > 0) {
+    // 8b. Deduzir pré-estoque somente se houve AUMENTO real de quantidade
+    const qtyIncrease = Math.max(0, quantity - oldQuantity);
+    if (qtyIncrease > 0) {
       const { data: preStockItems } = await supabase
         .from("pre_stock")
         .select("id, remaining_quantity")
@@ -270,7 +286,7 @@ Deno.serve(async (req) => {
         .or(`pdv_id.eq.${pdv.id},pdv_id.is.null`)
         .order("created_at", { ascending: true });
 
-      let toDeduct = quantity;
+      let toDeduct = qtyIncrease;
       for (const ps of preStockItems ?? []) {
         if (toDeduct <= 0) break;
         const deducted = Math.min(toDeduct, ps.remaining_quantity);
@@ -280,12 +296,13 @@ Deno.serve(async (req) => {
           .update({
             remaining_quantity: newRemaining,
             status: newRemaining <= 0 ? "allocated" : "pending",
+            allocated_pdv_id: pdv.id,
           })
           .eq("id", ps.id);
         toDeduct -= deducted;
       }
       if ((preStockItems ?? []).length > 0) {
-        console.log(`[ingest-stock] pre_stock deducted | product=${productName} qty=${quantity}`);
+        console.log(`[ingest-stock] pre_stock deducted | product=${productName} increase=${qtyIncrease} (old=${oldQuantity} new=${quantity})`);
       }
     }
 
