@@ -128,7 +128,9 @@ export function PreStockTab() {
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">{item.product_name}</TableCell>
                   <TableCell className="text-muted-foreground">
-                    {item.pdv?.name ?? "—"}
+                    {item.status === "allocated" && item.allocated_pdv?.name
+                      ? `→ ${item.allocated_pdv.name}`
+                      : item.pdv?.name ?? "—"}
                   </TableCell>
                   <TableCell className="text-center">{item.quantity}</TableCell>
                   <TableCell className="text-center font-semibold">
