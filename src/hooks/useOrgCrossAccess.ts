@@ -20,6 +20,29 @@ export interface SearchableUser {
   email: string;
 }
 
+const POSTGREST_RESERVED_CHARS_MAP: Record<string, string> = {
+  "\\": "\\\\",
+  ",": "\\,",
+  "(": "\\(",
+  ")": "\\)",
+  "%": "\\%",
+  "_": "\\_",
+  '"': '\\"',
+};
+
+export function escapePostgrestOrValue(value: string): string {
+  return value.replace(/[\\,()%_"]/g, (char) => POSTGREST_RESERVED_CHARS_MAP[char] ?? char);
+}
+
+export function sanitizePostgrestSearchTerm(term: string): string | null {
+  const trimmedTerm = term.trim();
+  if (trimmedTerm.length < 2) return null;
+  if (/[\u0000-\u001F\u007F]/.test(trimmedTerm)) return null;
+
+  const escapedTerm = escapePostgrestOrValue(trimmedTerm);
+  return escapedTerm.length > 0 ? escapedTerm : null;
+}
+
 // ── Audit log helper ──────────────────────────────────────────
 async function logCrossOrgAudit(params: {
   eventType: "cross_org_access_granted" | "cross_org_access_revoked" | "cross_org_access_updated";
@@ -177,6 +200,8 @@ export function useOrgCrossAccess(organizationId: string, open: boolean) {
     queryKey: ["org-cross-search-users", organizationId, debouncedSearch],
     queryFn: async () => {
       if (!debouncedSearch || debouncedSearch.length < 2) return [] as SearchableUser[];
+      const sanitizedSearch = sanitizePostgrestSearchTerm(debouncedSearch);
+      if (!sanitizedSearch) return [] as SearchableUser[];
 
       const { data: existing } = await supabase
         .from("user_org_access")
@@ -189,7 +214,7 @@ export function useOrgCrossAccess(organizationId: string, open: boolean) {
         .from("profiles")
         .select("id, name, email")
         .neq("organization_id", organizationId)
-        .or(`email.ilike.%${debouncedSearch}%,name.ilike.%${debouncedSearch}%`)
+        .or(`email.ilike.%${sanitizedSearch}%,name.ilike.%${sanitizedSearch}%`)
         .limit(10);
 
       const { data, error } = await query;
