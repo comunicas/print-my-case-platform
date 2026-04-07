@@ -120,10 +120,11 @@ export function usePreStock(options: UsePreStockOptions = {}) {
     queryFn: async () => {
       if (!activeOrgId) return [];
 
-      const { data: pdvData, error: pdvError } = await supabase
-        .from("pdvs")
-        .select("id")
-        .eq("organization_id", activeOrgId);
+      let pdvQuery = supabase.from("pdvs").select("id");
+      if (orgId) {
+        pdvQuery = pdvQuery.eq("organization_id", orgId);
+      }
+      const { data: pdvData, error: pdvError } = await pdvQuery;
 
       if (pdvError) throw pdvError;
       const pdvIds = pdvData?.map((p) => p.id) ?? [];
