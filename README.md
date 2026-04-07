@@ -77,6 +77,13 @@ Lint:
 npm run lint
 ```
 
+## CI/CD (padrão oficial)
+
+- O pipeline oficial usa **apenas npm**.
+- Instalação de dependências no CI/CD deve ser feita com `npm ci`.
+- O projeto versiona somente `package-lock.json`.
+- O check `npm run check:lockfiles` bloqueia lockfiles não oficiais (`bun.lock`, `bun.lockb`, `yarn.lock`, `pnpm-lock.yaml`).
+
 ## Deploy (fluxo recomendado)
 
 ### 1) Banco e funções Supabase
@@ -86,7 +93,7 @@ npm run lint
 
 ### 2) Frontend
 1. Definir variáveis `VITE_*` do ambiente.
-2. Executar `npm run build`.
+2. Executar `npm ci` seguido de `npm run build`.
 3. Publicar artefatos (`dist/`) no provedor web.
 
 ### 3) Pós-deploy (checklist)
