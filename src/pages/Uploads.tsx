@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { UploadDialog } from "@/components/upload/UploadDialog";
 import { SalesRecordsTab } from "@/components/upload/SalesRecordsTab";
+import { PreStockTab } from "@/components/upload/PreStockTab";
 import {
   UploadType,
   UploadStatus,
@@ -190,6 +191,7 @@ export default function Uploads() {
           <TabsList>
             <TabsTrigger value="uploads">Uploads</TabsTrigger>
             <TabsTrigger value="vendas">Vendas</TabsTrigger>
+            <TabsTrigger value="compras">Compras</TabsTrigger>
           </TabsList>
 
           <TabsContent value="uploads" className="space-y-4">
@@ -427,6 +429,10 @@ export default function Uploads() {
 
           <TabsContent value="vendas">
             <SalesRecordsTab pdvs={pdvs} onUploadClick={() => setIsUploadDialogOpen(true)} canUpload={canUpload} />
+          </TabsContent>
+
+          <TabsContent value="compras">
+            <PreStockTab />
           </TabsContent>
         </Tabs>
       </div>
