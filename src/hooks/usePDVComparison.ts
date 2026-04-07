@@ -16,6 +16,19 @@ export interface PDVComparisonData {
   transacoes: number;
 }
 
+
+interface DRESalesSummaryRow {
+  faturamento: number | string | null;
+  deducoes: number | string | null;
+  sales_count: number | string | null;
+  card_revenue: number | string | null;
+}
+
+interface FinancialEntryRow {
+  category: string;
+  amount: number | string | null;
+}
+
 export function usePDVComparison() {
   const { profile } = useProfile();
   const { activeOrgId } = useActiveOrg();
@@ -61,7 +74,7 @@ export function usePDVComparison() {
       const results = await Promise.all(
         activePdvs.map(async (pdv) => {
           const [salesResult, pdvEntriesResult] = await Promise.all([
-            (supabase as unknown as any).rpc("get_dre_sales_summary", {
+            supabase.rpc("get_dre_sales_summary", {
               p_pdv_ids: [pdv.id],
               p_start_date: startStr,
               p_end_date: endStr,
@@ -74,19 +87,19 @@ export function usePDVComparison() {
               .eq("pdv_id", pdv.id),
           ]);
 
-          const sales = salesResult.data?.[0] ?? { faturamento: 0, deducoes: 0, sales_count: 0, card_revenue: 0 };
-          const pdvEntries = pdvEntriesResult.data ?? [];
+          const sales = (salesResult.data?.[0] ?? { faturamento: 0, deducoes: 0, sales_count: 0, card_revenue: 0 }) as DRESalesSummaryRow;
+          const pdvEntries = (pdvEntriesResult.data ?? []) as FinancialEntryRow[];
 
           const receita = Number(sales.faturamento) || 0;
           const impostos = receita * taxRate;
-          const pdvDeducoes = pdvEntries.filter((e: any) => e.category === "deducoes").reduce((s: number, e: any) => s + Number(e.amount), 0);
+          const pdvDeducoes = pdvEntries.filter((e) => e.category === "deducoes").reduce((s, e) => s + Number(e.amount), 0);
           const totalDeducoes = pdvDeducoes + sharedDeducoes;
           const reembolsos = (Number(sales.deducoes) || 0) + totalDeducoes;
           const receitaLiquida = receita - impostos - reembolsos;
           const cmv = (Number(sales.sales_count) || 0) * unitCost;
           const taxasStone = (Number(sales.card_revenue) || 0) * stoneRate;
-          const pdvFixas = pdvEntries.filter((e: any) => e.category === "fixas").reduce((s: number, e: any) => s + Number(e.amount), 0);
-          const pdvImplantacao = pdvEntries.filter((e: any) => e.category === "implantacao").reduce((s: number, e: any) => s + Number(e.amount), 0);
+          const pdvFixas = pdvEntries.filter((e) => e.category === "fixas").reduce((s, e) => s + Number(e.amount), 0);
+          const pdvImplantacao = pdvEntries.filter((e) => e.category === "implantacao").reduce((s, e) => s + Number(e.amount), 0);
           const totalFixas = pdvFixas + sharedFixas;
           const totalImplantacao = pdvImplantacao + sharedImplantacao;
           const resultado = receitaLiquida - cmv - taxasStone - totalFixas - totalImplantacao;

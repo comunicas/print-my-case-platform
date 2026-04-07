@@ -208,7 +208,10 @@ function sanitizeString(value: unknown, maxLength: number): string | null {
   let str = String(value).trim();
   
   // Remove null bytes and other control characters (except common whitespace)
-  str = str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+  str = [...str].filter((char) => {
+    const code = char.charCodeAt(0);
+    return !(code <= 8 || code === 11 || code === 12 || (code >= 14 && code <= 31) || code === 127);
+  }).join("");
   
   // Truncate to max length
   if (str.length > maxLength) {
@@ -227,7 +230,7 @@ function sanitizeOrderNumber(value: unknown): string | null {
   if (!str) return null;
   
   // Remove characters that aren't alphanumeric, hyphens, underscores, or dots
-  const sanitized = str.replace(/[^a-zA-Z0-9\-_\.]/g, "");
+  const sanitized = str.replace(/[^a-zA-Z0-9._-]/g, "");
   
   return sanitized || null;
 }
@@ -241,7 +244,7 @@ function sanitizeDeviceId(value: unknown): string | null {
   if (!str) return null;
   
   // Remove characters that aren't alphanumeric or hyphens
-  const sanitized = str.replace(/[^a-zA-Z0-9\-]/g, "");
+  const sanitized = str.replace(/[^a-zA-Z0-9-]/g, "");
   
   return sanitized || null;
 }
@@ -406,11 +409,12 @@ function mapSalesRow(row: Record<string, unknown>, pdvId: string, uploadId: stri
     const value = getColumnValue(row, aliases);
     
     switch (dbCol) {
-      case "payment_date":
+      case "payment_date": {
         // Use order_time as fallback when payment_date is empty (e.g., cancelled orders)
         const paymentDate = value ? parsePaymentDate(value) : null;
         mapped[dbCol] = paymentDate || orderTime || new Date().toISOString();
         break;
+      }
       case "order_time":
         mapped[dbCol] = orderTime;
         break;

@@ -25,6 +25,15 @@ export interface MonthSummary {
   transacoes: number;
 }
 
+
+interface AnnualDRESummaryRow {
+  month_start: string;
+  faturamento: number | string | null;
+  deducoes: number | string | null;
+  sales_count: number | string | null;
+  card_revenue: number | string | null;
+}
+
 interface UseMonthlyDRESummaryOptions {
   pdvId?: string | null;
   months?: number;
@@ -59,12 +68,12 @@ export function useMonthlyDRESummary({ pdvId, months = 6 }: UseMonthlyDRESummary
 
       await Promise.all(
         yearsToFetch.map(async (year) => {
-          const { data, error } = await (supabase as unknown as any).rpc("get_annual_dre_summary", {
+          const { data, error } = await supabase.rpc("get_annual_dre_summary", {
             p_pdv_ids: pdvIds,
             p_year: year,
           });
           if (error) throw error;
-          for (const row of data ?? []) {
+          for (const row of (data ?? []) as AnnualDRESummaryRow[]) {
             salesByMonth.set(row.month_start, {
               faturamento: Number(row.faturamento) || 0,
               deducoes: Number(row.deducoes) || 0,

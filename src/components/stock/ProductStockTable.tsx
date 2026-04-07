@@ -58,10 +58,11 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
         case 'slots':
           comparison = a.slots.length - b.slots.length;
           break;
-        case 'status':
+        case 'status': {
           const statusOrder: Record<string, number> = { restock: 0, warning: 1, monitor: 2, perfect: 3 };
           comparison = statusOrder[a.status] - statusOrder[b.status];
           break;
+        }
       }
       
       return sortDirection === 'asc' ? comparison : -comparison;
