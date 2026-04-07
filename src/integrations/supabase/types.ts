@@ -617,6 +617,7 @@ export type Database = {
           quantity: number
           remaining_quantity: number
           status: string
+          unit_cost: number
           updated_at: string
         }
         Insert: {
@@ -631,6 +632,7 @@ export type Database = {
           quantity: number
           remaining_quantity: number
           status?: string
+          unit_cost?: number
           updated_at?: string
         }
         Update: {
@@ -645,6 +647,7 @@ export type Database = {
           quantity?: number
           remaining_quantity?: number
           status?: string
+          unit_cost?: number
           updated_at?: string
         }
         Relationships: [
