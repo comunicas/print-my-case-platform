@@ -22,13 +22,19 @@ interface StockFiltersContextType extends StockFiltersState {
   pdvWasAutoApplied: boolean;
 }
 
-const defaultState: StockFiltersState = {
-  selectedPdv: 'all',
-  searchTerm: '',
-  brandFilter: 'all',
-  statusFilter: 'all',
-  salesIndexFilter: 'all',
-};
+const VALID_STATUSES = ['perfect', 'monitor', 'warning', 'restock'];
+
+function getInitialState(): StockFiltersState {
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlStatus = urlParams.get('status');
+  return {
+    selectedPdv: 'all',
+    searchTerm: '',
+    brandFilter: 'all',
+    statusFilter: urlStatus && VALID_STATUSES.includes(urlStatus) ? urlStatus : 'all',
+    salesIndexFilter: 'all',
+  };
+}
 
 const StockFiltersContext = createContext<StockFiltersContextType | undefined>(undefined);
 
