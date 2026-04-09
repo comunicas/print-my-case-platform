@@ -34,7 +34,7 @@ export function OrgSwitcher() {
   return (
     <div className="flex items-center gap-2">
       <Select value={activeOrgId ?? ""} onValueChange={setActiveOrgId}>
-        <SelectTrigger className="w-full sm:w-[200px] h-9">
+        <SelectTrigger className="w-[160px] sm:w-[200px] h-9">
           <SelectValue placeholder="Selecione a empresa" />
         </SelectTrigger>
         <SelectContent>
@@ -65,11 +65,11 @@ export function OrgSwitcher() {
       {!isOwnOrg && !isAllOrgs && activeOrg && (
         <>
           {isReadOnly ? (
-            <Badge variant="secondary" className="text-xs whitespace-nowrap">
+            <Badge variant="secondary" className="hidden sm:inline-flex text-xs whitespace-nowrap">
               Somente leitura
             </Badge>
           ) : (
-            <Badge variant="outline" className="text-xs whitespace-nowrap">
+            <Badge variant="outline" className="hidden sm:inline-flex text-xs whitespace-nowrap">
               Compartilhada
             </Badge>
           )}
