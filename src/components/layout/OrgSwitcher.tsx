@@ -34,10 +34,10 @@ export function OrgSwitcher() {
   return (
     <div className="flex items-center gap-2">
       <Select value={activeOrgId ?? ""} onValueChange={setActiveOrgId}>
-        <SelectTrigger className="w-[160px] sm:w-[200px] h-9">
+        <SelectTrigger className="w-[160px] sm:w-[200px] h-9 text-sm [&>span]:truncate">
           <SelectValue placeholder="Selecione a empresa" />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="max-w-[280px] sm:max-w-none">
           {isSuperAdmin && (
             <>
               <SelectItem value="all">
@@ -51,11 +51,11 @@ export function OrgSwitcher() {
           )}
           {organizations.map((org) => (
             <SelectItem key={org.id} value={org.id}>
-              <span className="flex items-center gap-2">
+              <span className="flex items-center gap-2 min-w-0">
                 {getAccessIcon(org.accessLevel)}
-                {org.name}
+                <span className="truncate">{org.name}</span>
                 {org.accessLevel === "viewer" && (
-                  <span className="text-[10px] text-muted-foreground">Leitura</span>
+                  <span className="text-xs text-muted-foreground flex-shrink-0">Leitura</span>
                 )}
               </span>
             </SelectItem>

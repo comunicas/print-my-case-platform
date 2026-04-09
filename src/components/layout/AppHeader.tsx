@@ -57,9 +57,9 @@ export function AppHeader({ isMobile, onMenuClick }: AppHeaderProps) {
         )}
 
         <img
-          src="/placeholder.svg"
+          src="/icon-printmycase.png"
           alt="PrintMyCase"
-          className="hidden md:block h-8 w-8 flex-shrink-0"
+          className="hidden md:block h-8 w-8 flex-shrink-0 object-contain"
         />
 
         {hasMultipleOrgs ? (
@@ -91,23 +91,23 @@ export function AppHeader({ isMobile, onMenuClick }: AppHeaderProps) {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="gap-2 px-1 md:px-2">
+            <Button variant="ghost" className="gap-2 px-1 md:px-2 min-w-[44px] min-h-[44px]">
               <Avatar className="h-7 w-7 md:h-8 md:w-8">
                 <AvatarImage src={profile?.avatar_url || ""} />
                 <AvatarFallback className="bg-primary text-primary-foreground text-xs md:text-sm">
                   {initials}
                 </AvatarFallback>
               </Avatar>
-              <div className="hidden md:block text-left">
-                <p className="text-sm font-medium text-foreground truncate max-w-[100px] lg:max-w-none">
+              <div className="hidden md:block text-left min-w-0">
+                <p className="text-sm font-medium text-foreground truncate max-w-[120px] lg:max-w-[180px]">
                   {profile?.name || "Usuário"}
                 </p>
-                <p className="text-xs text-muted-foreground">{profile?.email}</p>
+                <p className="text-xs text-muted-foreground truncate max-w-[120px] lg:max-w-[180px]">{profile?.email}</p>
               </div>
               <ChevronDown className="h-4 w-4 hidden md:inline text-muted-foreground flex-shrink-0" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuItem onClick={() => navigate("/settings?tab=profile")}>
               <User className="mr-2 h-4 w-4" />
               Meu Perfil
