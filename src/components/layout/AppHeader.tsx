@@ -51,10 +51,16 @@ export function AppHeader({ isMobile, onMenuClick }: AppHeaderProps) {
     <header className="h-14 md:h-16 bg-card border-b border-border flex items-center justify-between px-3 md:px-6 flex-shrink-0">
       <div className="flex items-center gap-2 md:gap-4 min-w-0">
         {isMobile && (
-          <Button variant="ghost" size="icon" onClick={onMenuClick} className="flex-shrink-0">
+          <Button variant="ghost" size="icon" onClick={onMenuClick} className="flex-shrink-0 h-9 w-9 min-w-[44px] min-h-[44px]">
             <Menu className="h-5 w-5" />
           </Button>
         )}
+
+        <img
+          src="/placeholder.svg"
+          alt="PrintMyCase"
+          className="hidden md:block h-8 w-8 flex-shrink-0"
+        />
 
         {hasMultipleOrgs ? (
           <OrgSwitcher />
@@ -70,12 +76,12 @@ export function AppHeader({ isMobile, onMenuClick }: AppHeaderProps) {
         )}
       </div>
 
-      <div className="flex items-center gap-1 md:gap-3">
+      <div className="flex items-center gap-1.5 md:gap-3">
         <Button
           variant="ghost"
           size="icon"
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          className="relative"
+          className="relative h-9 w-9 min-w-[44px] min-h-[44px]"
         >
           <Sun className="h-4 w-4 md:h-5 md:w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 text-muted-foreground" />
           <Moon className="absolute h-4 w-4 md:h-5 md:w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 text-muted-foreground" />
