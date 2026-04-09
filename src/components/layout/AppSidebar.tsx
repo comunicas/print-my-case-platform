@@ -6,7 +6,6 @@ import {
   Building2,
   Megaphone,
   Wallet,
-  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -191,39 +190,6 @@ export function AppSidebar({
 
         {/* Footer: Settings + Collapse Toggle */}
         <div className="p-2 border-t border-sidebar-border mt-auto flex-shrink-0 space-y-1">
-          {collapsed ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => onNavigate("/settings")}
-                  className={cn(
-                    "w-full flex items-center justify-center px-2 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                    activeItem === "/settings"
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-                  )}
-                >
-                  <Settings className="h-5 w-5 flex-shrink-0" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="font-medium">
-                Configurações
-              </TooltipContent>
-            </Tooltip>
-          ) : (
-            <button
-              onClick={() => onNavigate("/settings")}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                activeItem === "/settings"
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-              )}
-            >
-              <Settings className="h-5 w-5 flex-shrink-0" />
-              <span>Configurações</span>
-            </button>
-          )}
           {collapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
