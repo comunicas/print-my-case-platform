@@ -306,7 +306,7 @@ export function PreStockTab() {
         <ProductSearchAutocomplete
           suggestions={preStockSuggestions}
           value={search}
-          onChange={setSearch}
+          onChange={handleSearchChange}
           placeholder="Buscar produto..."
           countLabel={{ singular: 'pendente', plural: 'pendentes' }}
         />
