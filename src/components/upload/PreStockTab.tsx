@@ -298,6 +298,7 @@ export function PreStockTab() {
           value={search}
           onChange={setSearch}
           placeholder="Buscar produto..."
+          countLabel={{ singular: 'pendente', plural: 'pendentes' }}
         />
         <PDVFilter
           value={filterPdv}
