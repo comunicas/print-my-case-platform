@@ -42,6 +42,7 @@ export function PreStockTab() {
   const [search, setSearch] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"table" | "ranking">("table");
 
   const { items, isLoading, createItem, deleteItem, productNames, summary } = usePreStock({
     pdvId: filterPdv,
