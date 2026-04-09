@@ -22,6 +22,7 @@ interface ProductSearchAutocompleteProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  countLabel?: { singular: string; plural: string };
 }
 
 function highlightMatch(text: string, term: string): ReactNode {
@@ -42,6 +43,7 @@ export function ProductSearchAutocomplete({
   value,
   onChange,
   placeholder = "Buscar modelo...",
+  countLabel = { singular: 'venda', plural: 'vendas' },
 }: ProductSearchAutocompleteProps) {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState(value);
@@ -150,7 +152,7 @@ export function ProductSearchAutocomplete({
                 </p>
                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
                   <ShoppingCart className="h-3 w-3" />
-                  <span>{pluralize(suggestion.totalSold, 'venda', 'vendas')}</span>
+                  <span>{pluralize(suggestion.totalSold, countLabel.singular, countLabel.plural)}</span>
                 </div>
               </div>
             </button>

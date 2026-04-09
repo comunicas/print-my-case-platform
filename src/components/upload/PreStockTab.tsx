@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { FilterBar } from "@/components/ui/FilterBar";
-import { SearchFilter } from "@/components/ui/SearchFilter";
+import { ProductSearchAutocomplete, ProductSuggestion } from "@/components/stock/ProductSearchAutocomplete";
 import { SelectFilter } from "@/components/ui/SelectFilter";
 import { PDVFilter } from "@/components/ui/PDVFilter";
 import {
@@ -34,6 +34,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { UseMutationResult } from "@tanstack/react-query";
+import { useMemo } from "react";
 
 interface PreStockListProps {
   items: PreStockItem[];
@@ -173,6 +174,28 @@ export function PreStockTab() {
     search,
   });
 
+  const preStockSuggestions = useMemo<ProductSuggestion[]>(() => {
+    const grouped = new Map<string, { brand: string; model: string; total: number }>();
+    for (const item of items) {
+      const name = item.product_name;
+      const existing = grouped.get(name);
+      if (existing) {
+        existing.total += item.remaining_quantity;
+      } else {
+        const parts = name.split(' ');
+        const brand = parts[0] ?? '';
+        const model = parts.length > 1 ? parts.slice(1).join(' ') : name;
+        grouped.set(name, { brand, model, total: item.remaining_quantity });
+      }
+    }
+    return Array.from(grouped.entries()).map(([key, v]) => ({
+      productKey: key,
+      brand: v.brand,
+      model: v.model,
+      totalSold: v.total,
+    }));
+  }, [items]);
+
   const handleDelete = () => {
     if (!deletingId) return;
     deleteItem.mutate(deletingId, {
@@ -270,11 +293,12 @@ export function PreStockTab() {
           setFilterStatus("all");
         }}
       >
-        <SearchFilter
+        <ProductSearchAutocomplete
+          suggestions={preStockSuggestions}
           value={search}
           onChange={setSearch}
           placeholder="Buscar produto..."
-          className="flex-1"
+          countLabel={{ singular: 'pendente', plural: 'pendentes' }}
         />
         <PDVFilter
           value={filterPdv}
