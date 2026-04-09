@@ -35,6 +35,7 @@ import { ptBR } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { UseMutationResult } from "@tanstack/react-query";
 import { useMemo, useCallback } from "react";
+import { extractBrandFromProductName, extractModelFromProductName } from "@/lib/productNormalization";
 
 interface PreStockListProps {
   items: PreStockItem[];
@@ -192,9 +193,8 @@ export function PreStockTab() {
       if (existing) {
         existing.total += item.remaining_quantity;
       } else {
-        const parts = name.split(' ');
-        const brand = parts[0] ?? '';
-        const model = parts.length > 1 ? parts.slice(1).join(' ') : name;
+        const brand = extractBrandFromProductName(name);
+        const model = extractModelFromProductName(name);
         grouped.set(name, { brand, model, total: item.remaining_quantity });
       }
     }
