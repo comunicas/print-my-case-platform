@@ -19,6 +19,8 @@ import { useProductModal } from '@/contexts/ProductModalContext';
 import { useStockFilters } from '@/contexts/StockFiltersContext';
 import { DataPagination } from '@/components/ui/data-pagination';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Card, CardContent } from '@/components/ui/card';
 
 interface ProductStockTableProps {
   products: ProductStock[];
@@ -147,6 +149,70 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
     return <div className="flex items-center justify-center h-64 text-muted-foreground">Nenhum produto encontrado</div>;
   }
 
+  const isMobile = useIsMobile();
+
+  // Mobile card layout
+  if (isMobile) {
+    return (
+      <div className="space-y-4">
+        <div className="space-y-2">
+          {paginatedProducts.map((product) => (
+            <Card
+              key={product.productKey}
+              className="overflow-hidden active:bg-muted/50 transition-colors"
+              onClick={() => openProductModal(product.productKey, selectedPdv !== 'all' ? selectedPdv : undefined)}
+            >
+              <CardContent className="p-3">
+                {/* Line 1: Slot + Product + Status */}
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="font-mono text-xs text-muted-foreground shrink-0">
+                    {product.slots.map(s => s.slotNumber).join(',')}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <ProductDisplay brand={product.brand} model={product.model} logoSize="sm" />
+                  </div>
+                  <Badge variant="outline" className={cn("shrink-0 text-[10px] px-1.5", productActionColors[product.status])}>
+                    {productActionLabels[product.status]}
+                  </Badge>
+                </div>
+                {/* Line 2: Sales + Stock + Eye */}
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <ShoppingCart className="h-3 w-3" />
+                    <span className="font-medium text-foreground">{product.totalSold}</span>
+                    <Badge variant="outline" className={cn("text-[9px] px-1 py-0", salesIndexColors[product.salesIndex])}>
+                      {salesIndexLabels[product.salesIndex]}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                    <Progress value={(product.totalQuantity / product.maxCapacity) * 100} className="h-1.5 flex-1" />
+                    <span className="text-xs font-medium shrink-0">{product.totalQuantity}/{product.maxCapacity}</span>
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={(e) => { e.stopPropagation(); openProductModal(product.productKey, selectedPdv !== 'all' ? selectedPdv : undefined); }}>
+                    <Eye className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {totalPages > 1 && (
+          <DataPagination
+            page={page + 1}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalCount={products.length}
+            hasNextPage={page < totalPages - 1}
+            hasPrevPage={page > 0}
+            onPageChange={(p) => setPage(p - 1)}
+            showPageSizeSelector={false}
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
     <TooltipProvider>
     <div className="space-y-4">
@@ -154,53 +220,23 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead 
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleSort('slot')}
-              >
-                <div className="flex items-center gap-1">
-                  Slot <SortIcon field="slot" />
-                </div>
+              <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('slot')}>
+                <div className="flex items-center gap-1">Slot <SortIcon field="slot" /></div>
               </TableHead>
-              <TableHead 
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleSort('model')}
-              >
-                <div className="flex items-center gap-1">
-                  Produto <SortIcon field="model" />
-                </div>
+              <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('model')}>
+                <div className="flex items-center gap-1">Produto <SortIcon field="model" /></div>
               </TableHead>
-              <TableHead 
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleSort('status')}
-              >
-                <div className="flex items-center gap-1">
-                  Status <SortIcon field="status" />
-                </div>
+              <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('status')}>
+                <div className="flex items-center gap-1">Status <SortIcon field="status" /></div>
               </TableHead>
-              <TableHead 
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleSort('sales')}
-              >
-                <div className="flex items-center gap-1">
-                  Vendas <SortIcon field="sales" />
-                </div>
+              <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('sales')}>
+                <div className="flex items-center gap-1">Vendas <SortIcon field="sales" /></div>
               </TableHead>
-              <TableHead 
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleSort('quantity')}
-              >
-                <div className="flex items-center gap-1">
-                  Estoque <SortIcon field="quantity" />
-                </div>
+              <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('quantity')}>
+                <div className="flex items-center gap-1">Estoque <SortIcon field="quantity" /></div>
               </TableHead>
-              <TableHead 
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleSort('slots')}
-              >
-                <div className="flex items-center gap-1">
-                  Slots <SortIcon field="slots" />
-                </div>
+              <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('slots')}>
+                <div className="flex items-center gap-1">Slots <SortIcon field="slots" /></div>
               </TableHead>
               <TableHead className="w-[60px]"></TableHead>
             </TableRow>
@@ -216,13 +252,11 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                 data-testid="product-row"
                 data-product-name={product.model}
               >
-                {/* Slot */}
                 <TableCell>
                   <span className="font-mono text-sm text-muted-foreground">
                     {product.slots.map(s => s.slotNumber).join(', ')}
                   </span>
                 </TableCell>
-                {/* Produto */}
                 <TableCell>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -231,25 +265,17 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                         className="text-left text-primary hover:underline cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
                         data-testid="product-name"
                       >
-                        <ProductDisplay 
-                          brand={product.brand} 
-                          model={product.model}
-                          logoSize="sm"
-                        />
+                        <ProductDisplay brand={product.brand} model={product.model} logoSize="sm" />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Clique para ver detalhes</p>
-                    </TooltipContent>
+                    <TooltipContent><p>Clique para ver detalhes</p></TooltipContent>
                   </Tooltip>
                 </TableCell>
-                {/* Status */}
                 <TableCell>
                   <Badge variant="outline" className={productActionColors[product.status]}>
                     {productActionLabels[product.status]}
                   </Badge>
                 </TableCell>
-                {/* Vendas */}
                 <TableCell>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -258,57 +284,33 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                           <ShoppingCart className="h-3.5 w-3.5 text-muted-foreground" />
                           <span>{product.totalSold}</span>
                         </div>
-                        <Badge 
-                          variant="outline" 
-                          className={salesIndexColors[product.salesIndex]}
-                          data-testid={`sales-badge-${product.salesIndex}`}
-                        >
+                        <Badge variant="outline" className={salesIndexColors[product.salesIndex]} data-testid={`sales-badge-${product.salesIndex}`}>
                           {salesIndexLabels[product.salesIndex]}
                         </Badge>
                       </div>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>
-                        {product.totalSold === 0 
-                          ? 'Nenhuma venda registrada' 
-                          : `${product.totalSold} unidade${product.totalSold > 1 ? 's' : ''} vendida${product.totalSold > 1 ? 's' : ''}`
-                        }
-                      </p>
+                      <p>{product.totalSold === 0 ? 'Nenhuma venda registrada' : `${product.totalSold} unidade${product.totalSold > 1 ? 's' : ''} vendida${product.totalSold > 1 ? 's' : ''}`}</p>
                     </TooltipContent>
                   </Tooltip>
                 </TableCell>
-                {/* Estoque */}
                 <TableCell>
                   <div className="flex items-center gap-2 min-w-[120px]">
-                    <Progress 
-                      value={(product.totalQuantity / product.maxCapacity) * 100} 
-                      className="h-2 w-16"
-                    />
-                    <span className="text-sm font-medium">
-                      {product.totalQuantity}/{product.maxCapacity}
-                    </span>
+                    <Progress value={(product.totalQuantity / product.maxCapacity) * 100} className="h-2 w-16" />
+                    <span className="text-sm font-medium">{product.totalQuantity}/{product.maxCapacity}</span>
                   </div>
                 </TableCell>
-                {/* Slots */}
                 <TableCell>
                   <span className="text-sm">{product.slots.length}</span>
                 </TableCell>
-                {/* Ações */}
                 <TableCell>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => openProductModal(product.productKey, selectedPdv !== 'all' ? selectedPdv : undefined)}
-                        data-testid="product-detail-button"
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => openProductModal(product.productKey, selectedPdv !== 'all' ? selectedPdv : undefined)} data-testid="product-detail-button">
                         <Eye className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Ver detalhes</p>
-                    </TooltipContent>
+                    <TooltipContent><p>Ver detalhes</p></TooltipContent>
                   </Tooltip>
                 </TableCell>
               </TableRow>
@@ -317,7 +319,6 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
         </Table>
       </div>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <DataPagination
           page={page + 1}

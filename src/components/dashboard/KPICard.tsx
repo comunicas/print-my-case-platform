@@ -51,8 +51,8 @@ export function KPICard({
   const TrendIcon = getTrendIcon();
 
   return (
-    <Card data-testid={testId} className="overflow-hidden">
-      <CardHeader className="flex flex-row items-center justify-between pb-1 md:pb-2 px-3 md:px-6 xl:px-3 pt-3 md:pt-6 xl:pt-3">
+    <Card data-testid={testId} className="overflow-hidden min-h-[88px]">
+      <CardHeader className="flex flex-row items-center justify-between pb-1 md:pb-2 px-3 md:px-6 xl:px-3 pt-4 md:pt-6 xl:pt-3">
         <CardTitle className="text-[10px] md:text-sm xl:text-[10px] font-medium text-muted-foreground truncate pr-2">
           {title}
         </CardTitle>
