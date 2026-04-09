@@ -174,9 +174,19 @@ export function PreStockTab() {
     search,
   });
 
+  // Fetch ALL items (no search filter) for stable suggestions
+  const { items: allItems } = usePreStock({
+    pdvId: filterPdv,
+    status: filterStatus,
+  });
+
+  const handleSearchChange = useCallback((val: string) => {
+    setSearch(val);
+  }, []);
+
   const preStockSuggestions = useMemo<ProductSuggestion[]>(() => {
     const grouped = new Map<string, { brand: string; model: string; total: number }>();
-    for (const item of items) {
+    for (const item of allItems) {
       const name = item.product_name;
       const existing = grouped.get(name);
       if (existing) {
@@ -194,7 +204,7 @@ export function PreStockTab() {
       model: v.model,
       totalSold: v.total,
     }));
-  }, [items]);
+  }, [allItems]);
 
   const handleDelete = () => {
     if (!deletingId) return;
