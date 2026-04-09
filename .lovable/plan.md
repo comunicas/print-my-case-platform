@@ -1,49 +1,27 @@
 
 
-## Correções: Filtro URL + Busca Unificada
+## Unificar Busca: Usar ProductSearchAutocomplete na Página de Compras
 
-### Problema 1: `?status=restock` não é aplicado
-O `StockFiltersContext` não lê query params da URL. Quando o usuário clica "Repor" no Resumo e navega para `/estoque/tabela?status=restock`, o filtro de status permanece em `'all'`.
-
-### Problema 2: Busca inconsistente entre páginas
-- **Estoque (Tabela)**: Usa `ProductSearchAutocomplete` (refatorado, com debounce, highlight, clear button)
-- **Compras (PreStockTab)**: Usa `SearchFilter` (básico, sem debounce, sem clear)
-- **Uploads, SalesRecords, Organizations**: Também usam `SearchFilter` básico
+### Problema
+A Tabela de Estoque tem busca com autocomplete rico (sugestões com logo de marca, highlight, "Mais vendidos"), enquanto Compras usa um campo de texto simples. A experiência deveria ser consistente.
 
 ### Solução
+Adaptar o `ProductSearchAutocomplete` para aceitar sugestões genéricas, e alimentá-lo com os produtos do pré-estoque na página de Compras.
 
-**1. StockFiltersContext — ler `?status=` da URL no mount**
+### Mudanças
 
-Adicionar um efeito no `StockFiltersProvider` que lê `window.location.search` na inicialização e aplica o valor de `status` ao estado. Isso é one-shot (apenas na montagem), para não sobrescrever interações do usuário depois.
+**1. `src/components/stock/ProductSearchAutocomplete.tsx`**
+- Adicionar prop opcional `suggestions` externa para permitir uso fora do contexto de StockFilters
+- Adicionar prop opcional `onValueChange` como alternativa ao dispatch do contexto
+- Quando `suggestions` é fornecido externamente, usar essas ao invés de ler do contexto
 
-```
-// Na inicialização, antes do efeito de preferências:
-const urlParams = new URLSearchParams(window.location.search);
-const urlStatus = urlParams.get('status');
-// Se urlStatus é válido (restock, warning, perfect, monitor), 
-// setar como estado inicial do statusFilter
-```
-
-Modificar o `defaultState` para ser calculado dinamicamente a partir da URL.
-
-**2. SearchFilter — upgrade para versão com debounce e clear**
-
-Refatorar `src/components/ui/SearchFilter.tsx` para incluir:
-- Debounce de 300ms (usando `useDebounce`)
-- Botão X para limpar
-- Spinner durante debounce
-- Mesma API externa (`value`, `onChange`, `placeholder`, `className`)
-
-Isso atualiza automaticamente todas as 4 páginas que usam `SearchFilter` (Uploads, SalesRecords, PreStockTab, Organizations) sem alterar nenhuma delas.
-
-### Arquivos
-
-| Arquivo | Mudança |
-|---------|---------|
-| `src/contexts/StockFiltersContext.tsx` | Ler `?status=` da URL como estado inicial do `statusFilter` |
-| `src/components/ui/SearchFilter.tsx` | Adicionar debounce, clear button, spinner — mesma interface pública |
+**2. `src/components/upload/PreStockTab.tsx`**
+- Substituir `SearchFilter` por `ProductSearchAutocomplete`
+- Derivar lista de sugestões a partir dos `items` do pré-estoque (agrupar por produto, contar quantidade pendente)
+- Passar `onValueChange={setSearch}` e `suggestions` derivados
 
 ### Resultado
-- Clicar "Repor" no Resumo → Tabela abre já filtrada por status restock
-- Todas as buscas têm debounce, clear button e feedback visual consistente
+- Busca na página de Compras terá autocomplete com logo de marca, highlight e sugestões dos produtos comprados
+- Mesmo componente visual nas duas páginas
+- Zero impacto na Tabela de Estoque (props opcionais, retrocompatível)
 
