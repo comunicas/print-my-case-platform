@@ -22,13 +22,19 @@ interface StockFiltersContextType extends StockFiltersState {
   pdvWasAutoApplied: boolean;
 }
 
-const defaultState: StockFiltersState = {
-  selectedPdv: 'all',
-  searchTerm: '',
-  brandFilter: 'all',
-  statusFilter: 'all',
-  salesIndexFilter: 'all',
-};
+const VALID_STATUSES = ['perfect', 'monitor', 'warning', 'restock'];
+
+function getInitialState(): StockFiltersState {
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlStatus = urlParams.get('status');
+  return {
+    selectedPdv: 'all',
+    searchTerm: '',
+    brandFilter: 'all',
+    statusFilter: urlStatus && VALID_STATUSES.includes(urlStatus) ? urlStatus : 'all',
+    salesIndexFilter: 'all',
+  };
+}
 
 const StockFiltersContext = createContext<StockFiltersContextType | undefined>(undefined);
 
@@ -37,7 +43,7 @@ const AUTO_APPLIED_TOAST_KEY = 'pdv_auto_applied_toast_shown';
 export function StockFiltersProvider({ children }: { children: ReactNode }) {
   const { preferences, isLoading: isLoadingPreferences } = usePreferences();
   const { pdvs = [], isLoading: isLoadingPdvs } = usePDVs();
-  const [state, setState] = useState<StockFiltersState>(defaultState);
+  const [state, setState] = useState<StockFiltersState>(getInitialState);
   const [pdvWasAutoApplied, setPdvWasAutoApplied] = useState(false);
   const [prefsInitialized, setPrefsInitialized] = useState(false);
 
@@ -74,7 +80,13 @@ export function StockFiltersProvider({ children }: { children: ReactNode }) {
   const setStatusFilter = (status: string) => setState(s => ({ ...s, statusFilter: status }));
   const setSalesIndexFilter = (index: string) => setState(s => ({ ...s, salesIndexFilter: index }));
   
-  const clearFilters = () => setState(defaultState);
+  const clearFilters = () => setState({
+    selectedPdv: state.selectedPdv,
+    searchTerm: '',
+    brandFilter: 'all',
+    statusFilter: 'all',
+    salesIndexFilter: 'all',
+  });
   
   const hasActiveFilters = 
     state.searchTerm !== '' ||
