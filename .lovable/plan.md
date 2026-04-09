@@ -1,75 +1,60 @@
 
 
-## Revisao Completa da Experiencia Mobile
+## Refinamento da Experiencia de Busca e Autocomplete
 
-### Problemas Identificados
+### Problemas Atuais
 
-1. **Tabela de Estoque (Tabela)**: Colunas Vendas, Estoque, Slots e Acoes ficam cortadas/invissiveis no mobile — apenas Slot, Produto e Status aparecem
-2. **Aba Compras**: Botoes "Tabela/Ranking" e "Registrar Compra" ficam apertados; tabela de compras tambem corta colunas
-3. **Filtros na pagina de Estoque**: 5 filtros empilhados verticalmente ocupam ~250px de altura antes do conteudo real
-4. **Dashboard - Date presets**: 5 botoes de periodo + calendar picker em uma linha quebram em 2 linhas de forma desorganizada
-5. **Dashboard - Visao Consolidada**: 5 metricas em grid 2-col deixam "Ticket Medio Global" sozinho na ultima linha
-6. **PreStockRanking cards**: Valor pendente e texto "pend./aloc." truncam em telas <390px
-7. **Tabela PreStock (Compras)**: 8 colunas, todas cortadas no mobile
-
----
+1. **Padrao combobox-button no Estoque**: O `ProductSearchAutocomplete` usa um botao que precisa ser clicado para abrir o dropdown — no mobile exige 2 toques (abrir + digitar). O `PublicStockSearch` ja usa input direto, que e superior.
+2. **Sem debounce no Estoque**: Cada tecla digitada dispara `onChange` imediatamente, causando re-filtragem e re-render da tabela/grid a cada caractere.
+3. **Sem destaque visual do termo buscado**: As sugestoes mostram o nome do modelo mas nao destacam a parte que corresponde ao que foi digitado.
+4. **Touch targets pequenos nas sugestoes**: Os itens do dropdown tem `py-2` — abaixo do minimo de 44px recomendado para mobile.
+5. **Sem feedback de "digitando..."**: Quando o debounce esta ativo, o usuario nao sabe se a busca esta processando.
 
 ### Mudancas Planejadas
 
-#### 1. Tabela de Estoque — Layout mobile com cards
-**Arquivo:** `src/components/stock/ProductStockTable.tsx`
+#### 1. Substituir combobox-button por input direto
+**Arquivo:** `src/components/stock/ProductSearchAutocomplete.tsx`
 
-No mobile, substituir a tabela por uma lista de cards compactos. Cada card mostra:
-- Linha 1: Slot (mono) + Produto (brand logo + model) + Status badge
-- Linha 2: Vendas (icone + numero) + Estoque (progress bar + X/Y) + botao Eye
+- Remover o `<Button>` trigger e usar `<Input>` direto com icone de busca (como o `PublicStockSearch`)
+- Dropdown abre automaticamente ao digitar (sem clique extra)
+- No focus sem texto: mostrar top 5 produtos mais vendidos como sugestoes rapidas
+- Botao X para limpar quando ha texto
 
-Manter a tabela completa para `sm:` e acima. Usar `useIsMobile()` para alternar.
+#### 2. Adicionar debounce na propagacao do filtro
+**Arquivo:** `src/components/stock/ProductSearchAutocomplete.tsx`
 
-#### 2. Filtros compactos no mobile
-**Arquivo:** `src/components/stock/StockFilters.tsx`
+- Manter `inputValue` local para UI responsiva (dropdown filtra instantaneamente)
+- Propagar para `onChange` (que dispara a filtragem pesada da tabela/grid) apenas apos 300ms de debounce usando `useDebounce`
+- Isso separa: digitacao rapida no dropdown vs. re-render da tabela
 
-Agrupar filtros secundarios (Marca, Status, Vendas) dentro de um `Collapsible` no mobile com botao "Mais filtros" + badge com contador de filtros ativos. PDV e busca ficam sempre visiveis.
+#### 3. Highlight do termo buscado nas sugestoes
+**Arquivo:** `src/components/stock/ProductSearchAutocomplete.tsx`
 
-#### 3. Aba Compras — Botoes e tabela mobile
-**Arquivo:** `src/components/upload/PreStockTab.tsx`
+- Criar funcao utilitaria `highlightMatch(text, term)` que retorna fragmentos com `<mark>` para a parte correspondente
+- Aplicar no nome do modelo dentro de cada `CommandItem`
 
-- Botoes Tabela/Ranking: usar largura total `w-full` no mobile com icones maiores
-- Botao "Registrar Compra": colocar em linha separada no mobile, `w-full`
-- Tabela de compras: no mobile, mostrar apenas Produto, Restante, Status com layout card similar ao item 1
+#### 4. Touch targets maiores e feedback visual
+**Arquivo:** `src/components/stock/ProductSearchAutocomplete.tsx`
 
-#### 4. PreStockRanking — Ajuste de overflow
-**Arquivo:** `src/components/upload/PreStockRanking.tsx`
+- Aumentar padding dos itens de sugestao: `py-2` → `py-3` no mobile
+- Adicionar indicador sutil de loading (spinner pequeno no input) enquanto debounce esta pendente
 
-- Diminuir texto do rank `#N` de `text-lg` para `text-base` no mobile
-- Mover valor pendente para linha separada abaixo do nome no mobile
-- Texto "pend./aloc." usar `text-[10px]` e quebrar em 2 linhas se necessario
+#### 5. Limpar busca com botao X
+**Arquivo:** `src/components/stock/ProductSearchAutocomplete.tsx`
 
-#### 5. Dashboard — Date presets scrollavel
-**Arquivo:** `src/components/dashboard/DateRangeFilter.tsx`
-
-Envolver os botoes de preset em um container com `overflow-x-auto scrollbar-hide` e `flex-nowrap` no mobile, permitindo scroll horizontal ao inves de wrap.
-
-#### 6. Dashboard — KPI Cards touch targets
-**Arquivo:** `src/components/dashboard/KPICard.tsx`
-
-- Aumentar padding vertical no mobile: `py-3` → `py-4`
-- Garantir `min-h-[88px]` para area de toque adequada (44px minimo Apple HIG)
-
-#### 7. Tabela PreStock — Card view no mobile
-**Arquivo:** `src/components/upload/PreStockTab.tsx`
-
-Substituir `<Table>` por lista de cards no mobile (detectado via `useIsMobile()`), mostrando: Produto (bold), Status badge, Restante/Comprado, Custo unit., e botao de delete.
-
----
+- Quando `inputValue` nao esta vazio, mostrar icone X clicavel no lado direito do input
+- Ao clicar, limpa o input e o filtro imediatamente
 
 ### Arquivos Impactados
 
-| Arquivo | Tipo de Mudanca |
-|---------|----------------|
-| `src/components/stock/ProductStockTable.tsx` | Card layout mobile |
-| `src/components/stock/StockFilters.tsx` | Filtros colapsaveis |
-| `src/components/upload/PreStockTab.tsx` | Botoes full-width + card view para tabela |
-| `src/components/upload/PreStockRanking.tsx` | Ajuste de layout em telas estreitas |
-| `src/components/dashboard/DateRangeFilter.tsx` | Scroll horizontal nos presets |
-| `src/components/dashboard/KPICard.tsx` | Touch targets maiores |
+| Arquivo | Mudanca |
+|---------|---------|
+| `src/components/stock/ProductSearchAutocomplete.tsx` | Reescrever: input direto, debounce, highlight, clear button, touch targets |
+
+### Resultado Esperado
+
+- **1 toque** para comecar a buscar (vs. 2 antes)
+- **Filtragem suave** sem jank durante digitacao rapida
+- **Feedback visual** claro do que esta sendo buscado
+- **Touch-friendly** com alvos de toque adequados
 
