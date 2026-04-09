@@ -196,7 +196,7 @@ export function DateRangeFilter({
   return (
     <div data-testid="date-filter" className={cn("flex flex-col sm:flex-row sm:items-center gap-3", className)}>
       {/* Preset Buttons */}
-      <div className="flex items-center gap-1 flex-wrap">
+      <div className="flex items-center gap-1 flex-nowrap overflow-x-auto scrollbar-hide">
         {PRESETS.map((preset) => (
           <Button
             key={preset.label}

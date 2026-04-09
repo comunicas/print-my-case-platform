@@ -6,7 +6,12 @@ import { ProductSearchAutocomplete, ProductSuggestion } from './ProductSearchAut
 import { PDVFilter } from '@/components/ui/PDVFilter';
 import { FilterBar } from '@/components/ui/FilterBar';
 import { SelectFilter, type SelectFilterOption } from '@/components/ui/SelectFilter';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronDown, SlidersHorizontal } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 const STATUS_OPTIONS: SelectFilterOption[] = [
   { value: 'all', label: 'Todos os status' },
@@ -58,7 +63,41 @@ export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockF
     })),
   ], [brands]);
 
-  // Arrays estáticos movidos para fora do componente (STATUS_OPTIONS, etc.)
+  const isMobile = useIsMobile();
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
+
+  const secondaryFilterCount = [
+    brandFilter !== 'all' ? 1 : 0,
+    statusFilter !== 'all' ? 1 : 0,
+    salesIndexFilter !== 'all' ? 1 : 0,
+  ].reduce((a, b) => a + b, 0);
+
+  const secondaryFilters = (
+    <>
+      <SelectFilter
+        value={brandFilter}
+        onChange={setBrandFilter}
+        placeholder="Marca"
+        options={brandOptions}
+        triggerClassName="w-full sm:w-[160px]"
+      />
+      <SelectFilter
+        value={statusFilter}
+        onChange={setStatusFilter}
+        placeholder="Status"
+        options={STATUS_OPTIONS}
+        triggerClassName="w-full sm:w-[150px]"
+      />
+      <SelectFilter
+        value={salesIndexFilter}
+        onChange={setSalesIndexFilter}
+        placeholder="Vendas"
+        options={SALES_INDEX_OPTIONS}
+        triggerClassName="w-full sm:w-[140px]"
+        testId="sales-index-filter"
+      />
+    </>
+  );
 
   return (
     <FilterBar hasActiveFilters={hasActiveFilters} onClear={clearFilters}>
@@ -80,34 +119,30 @@ export function StockFilters({ brands = KNOWN_BRANDS, suggestions = [] }: StockF
         />
       </div>
 
-      {/* Brand Filter */}
-      <SelectFilter
-        value={brandFilter}
-        onChange={setBrandFilter}
-        placeholder="Marca"
-        options={brandOptions}
-        triggerClassName="w-full sm:w-[160px]"
-      />
-
-      {/* Status Filter */}
-      <SelectFilter
-        value={statusFilter}
-        onChange={setStatusFilter}
-        placeholder="Status"
-        options={STATUS_OPTIONS}
-        triggerClassName="w-full sm:w-[150px]"
-      />
-
-      {/* Sales Index Filter */}
-      <SelectFilter
-        value={salesIndexFilter}
-        onChange={setSalesIndexFilter}
-        placeholder="Vendas"
-        options={SALES_INDEX_OPTIONS}
-        triggerClassName="w-full sm:w-[140px]"
-        testId="sales-index-filter"
-      />
-
+      {/* Secondary filters: collapsible on mobile, inline on desktop */}
+      {isMobile ? (
+        <Collapsible open={moreFiltersOpen} onOpenChange={setMoreFiltersOpen} className="w-full">
+          <CollapsibleTrigger asChild>
+            <Button variant="outline" size="sm" className="w-full h-9 justify-between">
+              <span className="flex items-center gap-2">
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Mais filtros
+                {secondaryFilterCount > 0 && (
+                  <Badge variant="secondary" className="h-5 min-w-[20px] px-1.5 text-[10px]">
+                    {secondaryFilterCount}
+                  </Badge>
+                )}
+              </span>
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${moreFiltersOpen ? 'rotate-180' : ''}`} />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-2 space-y-2">
+            {secondaryFilters}
+          </CollapsibleContent>
+        </Collapsible>
+      ) : (
+        secondaryFilters
+      )}
     </FilterBar>
   );
 }

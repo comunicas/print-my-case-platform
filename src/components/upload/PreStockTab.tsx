@@ -32,6 +32,7 @@ import { Plus, Trash2, Package, Loader2, ShoppingCart, DollarSign, CheckCircle, 
 import { PreStockRanking } from "./PreStockRanking";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export function PreStockTab() {
   const { pdvs } = usePDVs();
@@ -109,29 +110,29 @@ export function PreStockTab() {
       </div>
 
       {/* Action button */}
-      <div className="flex items-center justify-end gap-2">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2">
         <div className="flex items-center border rounded-md overflow-hidden">
           <Button
             variant={viewMode === "table" ? "default" : "ghost"}
             size="sm"
-            className="rounded-none h-8 px-3"
+            className="rounded-none h-9 sm:h-8 flex-1 sm:flex-none px-3"
             onClick={() => setViewMode("table")}
           >
-            <TableIcon className="h-4 w-4 mr-1" />
+            <TableIcon className="h-4 w-4 mr-1.5" />
             Tabela
           </Button>
           <Button
             variant={viewMode === "ranking" ? "default" : "ghost"}
             size="sm"
-            className="rounded-none h-8 px-3"
+            className="rounded-none h-9 sm:h-8 flex-1 sm:flex-none px-3"
             onClick={() => setViewMode("ranking")}
           >
-            <BarChart3 className="h-4 w-4 mr-1" />
+            <BarChart3 className="h-4 w-4 mr-1.5" />
             Ranking
           </Button>
         </div>
         {isAdmin && (
-          <Button onClick={() => setIsFormOpen(true)}>
+          <Button className="h-9 sm:h-8" onClick={() => setIsFormOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Registrar Compra
           </Button>
@@ -176,71 +177,7 @@ export function PreStockTab() {
       {viewMode === "ranking" ? (
         <PreStockRanking items={items} />
       ) : items.length > 0 ? (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Produto</TableHead>
-                <TableHead>PDV</TableHead>
-                <TableHead className="text-center">Comprado</TableHead>
-                <TableHead className="text-center">Restante</TableHead>
-                <TableHead className="text-right">Custo Un.</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Data</TableHead>
-                {isAdmin && <TableHead className="w-12" />}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium">{item.product_name}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {item.status === "allocated" && item.allocated_pdv?.name
-                      ? `→ ${item.allocated_pdv.name}`
-                      : item.pdv?.name ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-center">{item.quantity}</TableCell>
-                  <TableCell className="text-center font-semibold">
-                    {item.remaining_quantity}
-                  </TableCell>
-                  <TableCell className="text-right text-muted-foreground">
-                    R$ {(item.unit_cost ?? 15).toFixed(2)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      className={
-                        item.status === "pending"
-                          ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                          : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                      }
-                    >
-                      {item.status === "pending" ? "Pendente" : "Alocado"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {formatDistanceToNow(new Date(item.created_at), {
-                      addSuffix: true,
-                      locale: ptBR,
-                    })}
-                  </TableCell>
-                  {isAdmin && (
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => setDeletingId(item.id)}
-                        disabled={deleteItem.isPending}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </TableCell>
-                  )}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <MobileAwarePreStockList items={items} isAdmin={isAdmin} onDelete={setDeletingId} deleteItem={deleteItem} />
       ) : (
         <div className="text-center py-12">
           <ShoppingCart className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
