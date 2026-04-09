@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, ReactNode } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { Search, X, Loader2, ShoppingCart } from 'lucide-react';
 import { cn, pluralize } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -48,18 +48,30 @@ export function ProductSearchAutocomplete({
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
+  const lastPropagated = useRef(value);
   const debouncedValue = useDebounce(inputValue, 300);
   const isDebouncing = inputValue !== debouncedValue;
 
-  // Sync external value (e.g. clearFilters)
+  // Stable ref for onChange to avoid dependency issues
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  // Sync external value (e.g. clearFilters) — only if truly different
   useEffect(() => {
-    setInputValue(value);
+    if (value !== inputValue && value !== lastPropagated.current) {
+      setInputValue(value);
+      lastPropagated.current = value;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
-  // Propagate debounced value
+  // Propagate debounced value — only when it actually changed
   useEffect(() => {
-    onChange(debouncedValue);
-  }, [debouncedValue, onChange]);
+    if (debouncedValue !== lastPropagated.current) {
+      lastPropagated.current = debouncedValue;
+      onChangeRef.current(debouncedValue);
+    }
+  }, [debouncedValue]);
 
   const filteredSuggestions = useMemo(() => {
     if (!inputValue.trim()) {
