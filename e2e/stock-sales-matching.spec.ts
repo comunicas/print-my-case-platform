@@ -3,7 +3,7 @@ import { test, expect } from './fixtures/auth';
 test.describe('Stock-Sales Matching Integration', () => {
   
   test.beforeEach(async ({ authenticatedPage }) => {
-    await authenticatedPage.goto('/estoque');
+    await authenticatedPage.goto('/estoque/tabela');
     await authenticatedPage.waitForLoadState('networkidle');
   });
 
@@ -163,19 +163,17 @@ test.describe('Stock-Sales Matching Integration', () => {
   test('should navigate between table and map views', async ({ authenticatedPage }) => {
     const page = authenticatedPage;
     
-    // Verificar que tabs existem
+    // Verificar que toggle de view existe
     await expect(page.locator('text=Tabela')).toBeVisible();
-    await expect(page.locator('text=Mapa')).toBeVisible();
     
-    // Navegar para mapa
-    await page.click('text=Mapa');
-    await page.waitForURL('**/estoque?tab=mapa');
+    // Clicar no toggle de mapa
+    await page.click('button:has-text("Mapa")');
+    await page.waitForURL('**/estoque/tabela?view=map');
     
     // Verificar que mapa carregou
     await expect(page.locator('[data-testid="stock-content"]')).toBeVisible();
     
     // Voltar para tabela
-    await page.click('text=Tabela');
-    await page.waitForURL('**/estoque?tab=tabela');
+    await page.click('button:has-text("Tabela")');
   });
 });

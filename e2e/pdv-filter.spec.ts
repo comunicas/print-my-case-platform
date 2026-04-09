@@ -3,7 +3,7 @@ import { test, expect } from './fixtures/auth';
 test.describe('PDV Filter - Default PDV Flow', () => {
   test.beforeEach(async ({ authenticatedPage }) => {
     // Navigate to Stock page
-    await authenticatedPage.goto('/estoque');
+    await authenticatedPage.goto('/estoque/tabela');
     await authenticatedPage.waitForLoadState('networkidle');
   });
 

@@ -16,7 +16,9 @@ import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 const Index = lazy(() => import("./pages/Index"));
 const Uploads = lazy(() => import("./pages/Uploads"));
 const UploadDetails = lazy(() => import("./pages/UploadDetails"));
-const Stock = lazy(() => import("./pages/Stock"));
+const StockOverview = lazy(() => import("./pages/StockOverview"));
+const StockTablePage = lazy(() => import("./pages/StockTable"));
+const StockPurchases = lazy(() => import("./pages/StockPurchases"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Organizations = lazy(() => import("./pages/Organizations"));
 const Auth = lazy(() => import("./pages/Auth"));
@@ -69,7 +71,9 @@ const App = () => (
                       <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
                       <Route path="/uploads" element={<ProtectedRoute><Uploads /></ProtectedRoute>} />
                       <Route path="/uploads/:id" element={<ProtectedRoute><UploadDetails /></ProtectedRoute>} />
-                      <Route path="/estoque" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
+                      <Route path="/estoque" element={<ProtectedRoute><StockOverview /></ProtectedRoute>} />
+                      <Route path="/estoque/tabela" element={<ProtectedRoute><StockTablePage /></ProtectedRoute>} />
+                      <Route path="/estoque/compras" element={<ProtectedRoute><StockPurchases /></ProtectedRoute>} />
                       <Route path="/reports" element={<Navigate to="/estoque" replace />} />
                       <Route path="/marketing" element={<ProtectedRoute><Marketing /></ProtectedRoute>} />
                       <Route path="/financeiro" element={<ProtectedRoute><Financeiro /></ProtectedRoute>} />

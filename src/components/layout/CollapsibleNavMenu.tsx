@@ -96,11 +96,20 @@ export function CollapsibleNavMenu({
       <CollapsibleContent>
         <div className="ml-4 mt-1 space-y-1">
           {subItems.map((subItem) => {
-            const activeTab = activeItem.startsWith(href)
-              ? new URLSearchParams(activeItem.split("?")[1]).get("tab") || defaultSubTab
-              : null;
-            const subItemTab = subItem.href.split("=")[1];
-            const isSubActive = activeTab === subItemTab;
+            let isSubActive = false;
+
+            if (subItem.href.includes('?')) {
+              // Query-based matching (Marketing)
+              const activeTab = activeItem.startsWith(href)
+                ? new URLSearchParams(activeItem.split("?")[1]).get("tab") || defaultSubTab
+                : null;
+              const subItemTab = subItem.href.split("=")[1];
+              isSubActive = activeTab === subItemTab;
+            } else {
+              // Path-based matching (Estoque)
+              const activePath = activeItem.split("?")[0];
+              isSubActive = activePath === subItem.href;
+            }
 
             return (
               <button

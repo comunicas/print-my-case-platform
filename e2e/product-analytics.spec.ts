@@ -3,7 +3,7 @@ import { test, expect } from './fixtures/auth';
 test.describe('Product Analytics Integration', () => {
   
   test.beforeEach(async ({ authenticatedPage }) => {
-    await authenticatedPage.goto('/estoque');
+    await authenticatedPage.goto('/estoque/tabela');
     await authenticatedPage.waitForLoadState('networkidle');
   });
 
