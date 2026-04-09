@@ -7,24 +7,12 @@ on:
       - main
 
 jobs:
-codex/create-technical-backlog-with-eslint-rules
   lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-  lint-legacy:
-    name: Lint legacy (non-blocking)
-    runs-on: ubuntu-latest
-    continue-on-error: true
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-main
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -35,17 +23,12 @@ main
       - name: Install dependencies
         run: npm ci
 
-codex/create-technical-backlog-with-eslint-rules
       - name: Run lint
         run: npm run lint
 
-      - name: Run full-repo lint (legacy)
-        run: npm run lint
-
   lint-changed:
-    name: Lint changed files (blocking)
+    name: Lint changed files
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -63,4 +46,3 @@ codex/create-technical-backlog-with-eslint-rules
 
       - name: Run incremental lint on PR changes
         run: npm run lint:changed
-main

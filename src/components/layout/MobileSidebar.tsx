@@ -20,16 +20,11 @@ interface NavItem {
   icon: React.ElementType;
   label: string;
   href: string;
-  superAdminOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
   { icon: Upload, label: "Uploads", href: "/uploads" },
-];
-
-const bottomNavItems: NavItem[] = [
-  { icon: Building2, label: "Organizações", href: "/organizations", superAdminOnly: true },
 ];
 
 const stockSubItems = [
@@ -128,7 +123,6 @@ export function MobileSidebar({
             />
             {renderNavItem(navItems[1])}
             <CollapsibleNavMenu
-
               icon={Megaphone}
               label="Marketing"
               href="/marketing"
@@ -146,7 +140,7 @@ export function MobileSidebar({
           
           {isSuperAdmin && (
             <nav className="py-4 px-2 space-y-1 border-t border-sidebar-border">
-              {bottomNavItems.map(renderNavItem)}
+              {renderNavItem({ icon: Building2, label: "Organizações", href: "/organizations" })}
             </nav>
           )}
         </div>

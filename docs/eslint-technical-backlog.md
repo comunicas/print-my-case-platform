@@ -27,6 +27,6 @@
   - `src/lib/productNormalization.ts`
 
 ## Épico 4 — Lint obrigatório no CI
-- Garantir `npm run lint` sem erros.
-- Promover lint global para etapa obrigatória no workflow CI e remover `continue-on-error`.
-- Observação: repositório ainda não possui `.github/workflows/ci.yml`; criar pipeline com lint obrigatório.
+- ✅ `.github/workflows/ci.yml` criado e funcional.
+- ✅ Jobs `lint` e `lint-changed` são blocking (sem `continue-on-error`).
+- Garantir `npm run lint` sem erros antes de promover como gate obrigatório no branch protection.
