@@ -173,7 +173,9 @@ export function PreStockTab() {
       </FilterBar>
 
       {/* Table */}
-      {items.length > 0 ? (
+      {viewMode === "ranking" ? (
+        <PreStockRanking items={items} />
+      ) : items.length > 0 ? (
         <div className="rounded-md border">
           <Table>
             <TableHeader>
