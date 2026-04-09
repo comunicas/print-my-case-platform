@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { usePreStock, PreStockItem } from "@/hooks/usePreStock";
 import { usePDVs } from "@/hooks/usePDVs";
 import { useProfile } from "@/hooks/useProfile";
@@ -34,7 +34,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { UseMutationResult } from "@tanstack/react-query";
-import { useMemo, useCallback as _cb } from "react";
+import { useMemo, useCallback } from "react";
 
 interface PreStockListProps {
   items: PreStockItem[];
