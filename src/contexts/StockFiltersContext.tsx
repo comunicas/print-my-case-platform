@@ -43,7 +43,7 @@ const AUTO_APPLIED_TOAST_KEY = 'pdv_auto_applied_toast_shown';
 export function StockFiltersProvider({ children }: { children: ReactNode }) {
   const { preferences, isLoading: isLoadingPreferences } = usePreferences();
   const { pdvs = [], isLoading: isLoadingPdvs } = usePDVs();
-  const [state, setState] = useState<StockFiltersState>(defaultState);
+  const [state, setState] = useState<StockFiltersState>(getInitialState);
   const [pdvWasAutoApplied, setPdvWasAutoApplied] = useState(false);
   const [prefsInitialized, setPrefsInitialized] = useState(false);
 
