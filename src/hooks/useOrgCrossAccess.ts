@@ -67,9 +67,9 @@ async function logCrossOrgAudit(params: {
     target_email: params.targetEmail,
     organization_id: params.organizationId,
     organization_name: params.organizationName,
-    metadata: params.metadata,
+    metadata: params.metadata as unknown as Record<string, unknown>,
     success: true,
-  });
+  } as never);
 }
 
 export function useOrgCrossAccess(organizationId: string, open: boolean) {
