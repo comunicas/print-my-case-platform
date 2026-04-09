@@ -80,7 +80,13 @@ export function StockFiltersProvider({ children }: { children: ReactNode }) {
   const setStatusFilter = (status: string) => setState(s => ({ ...s, statusFilter: status }));
   const setSalesIndexFilter = (index: string) => setState(s => ({ ...s, salesIndexFilter: index }));
   
-  const clearFilters = () => setState(defaultState);
+  const clearFilters = () => setState({
+    selectedPdv: state.selectedPdv,
+    searchTerm: '',
+    brandFilter: 'all',
+    statusFilter: 'all',
+    salesIndexFilter: 'all',
+  });
   
   const hasActiveFilters = 
     state.searchTerm !== '' ||
