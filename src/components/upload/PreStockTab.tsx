@@ -109,14 +109,34 @@ export function PreStockTab() {
       </div>
 
       {/* Action button */}
-      {isAdmin && (
-        <div className="flex justify-end">
+      <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center border rounded-md overflow-hidden">
+          <Button
+            variant={viewMode === "table" ? "default" : "ghost"}
+            size="sm"
+            className="rounded-none h-8 px-3"
+            onClick={() => setViewMode("table")}
+          >
+            <TableIcon className="h-4 w-4 mr-1" />
+            Tabela
+          </Button>
+          <Button
+            variant={viewMode === "ranking" ? "default" : "ghost"}
+            size="sm"
+            className="rounded-none h-8 px-3"
+            onClick={() => setViewMode("ranking")}
+          >
+            <BarChart3 className="h-4 w-4 mr-1" />
+            Ranking
+          </Button>
+        </div>
+        {isAdmin && (
           <Button onClick={() => setIsFormOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Registrar Compra
           </Button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Filters */}
       <FilterBar
