@@ -1,79 +1,49 @@
 
 
-## Reorganização do Estoque em 3 Páginas — Plano Faseado
+## Correções: Filtro URL + Busca Unificada
 
-### Fase 1: Infraestrutura de Rotas e Navegação
+### Problema 1: `?status=restock` não é aplicado
+O `StockFiltersContext` não lê query params da URL. Quando o usuário clica "Repor" no Resumo e navega para `/estoque/tabela?status=restock`, o filtro de status permanece em `'all'`.
 
-**Objetivo**: Trocar de `?tab=` para rotas reais sem alterar conteúdo das páginas.
+### Problema 2: Busca inconsistente entre páginas
+- **Estoque (Tabela)**: Usa `ProductSearchAutocomplete` (refatorado, com debounce, highlight, clear button)
+- **Compras (PreStockTab)**: Usa `SearchFilter` (básico, sem debounce, sem clear)
+- **Uploads, SalesRecords, Organizations**: Também usam `SearchFilter` básico
 
-**Arquivos**:
-- `src/App.tsx` — Adicionar rotas `/estoque` (overview), `/estoque/tabela`, `/estoque/compras`. Componente `StockRedirect` para compatibilidade com URLs legadas
-- `src/components/layout/AppSidebar.tsx` — Atualizar `stockSubItems` para rotas reais: Resumo, Tabela, Compras
-- `src/components/layout/MobileSidebar.tsx` — Mesma atualização
-- `src/components/layout/CollapsibleNavMenu.tsx` — Lógica híbrida de `isSubActive`: path-based para Estoque, query-based para Marketing (detecta pela presença de `?` no href)
+### Solução
 
----
+**1. StockFiltersContext — ler `?status=` da URL no mount**
 
-### Fase 2: Página Resumo (`/estoque`)
+Adicionar um efeito no `StockFiltersProvider` que lê `window.location.search` na inicialização e aplica o valor de `status` ao estado. Isso é one-shot (apenas na montagem), para não sobrescrever interações do usuário depois.
 
-**Objetivo**: Home do Estoque com KPIs clicáveis e alertas de estoque crítico.
+```
+// Na inicialização, antes do efeito de preferências:
+const urlParams = new URLSearchParams(window.location.search);
+const urlStatus = urlParams.get('status');
+// Se urlStatus é válido (restock, warning, perfect, monitor), 
+// setar como estado inicial do statusFilter
+```
 
-**Arquivos**:
-- `src/pages/StockOverview.tsx` — **Novo**. KPIs clicáveis + top 5 produtos para repor + links "Ver todos"
-- `src/components/stock/StockKPICards.tsx` — Nova prop `onCardClick` para navegação com filtro pré-aplicado
+Modificar o `defaultState` para ser calculado dinamicamente a partir da URL.
 
----
+**2. SearchFilter — upgrade para versão com debounce e clear**
 
-### Fase 3: Página Tabela + Mapa Inline (`/estoque/tabela`)
+Refatorar `src/components/ui/SearchFilter.tsx` para incluir:
+- Debounce de 300ms (usando `useDebounce`)
+- Botão X para limpar
+- Spinner durante debounce
+- Mesma API externa (`value`, `onChange`, `placeholder`, `className`)
 
-**Objetivo**: Consolidar tabela e mapa numa única página com toggle visual.
+Isso atualiza automaticamente todas as 4 páginas que usam `SearchFilter` (Uploads, SalesRecords, PreStockTab, Organizations) sem alterar nenhuma delas.
 
-**Arquivos**:
-- `src/pages/StockTable.tsx` — **Novo**. Toggle `table/map` no header, lê `?status=` e `?view=` da URL, StockFilters + PullToRefresh
-- `src/pages/Stock.tsx` — **Remover** (substituído)
+### Arquivos
 
----
+| Arquivo | Mudança |
+|---------|---------|
+| `src/contexts/StockFiltersContext.tsx` | Ler `?status=` da URL como estado inicial do `statusFilter` |
+| `src/components/ui/SearchFilter.tsx` | Adicionar debounce, clear button, spinner — mesma interface pública |
 
-### Fase 4: Página Compras + Testes E2E
-
-**Objetivo**: Isolar compras e atualizar testes.
-
-**Arquivos**:
-- `src/pages/StockPurchases.tsx` — **Novo**. Wrapper: AppLayout + PreStockTab (sem StockFilters duplicado)
-- `e2e/pdv-filter.spec.ts` — Rota `/estoque` → `/estoque/tabela`
-- `e2e/stock-sales-matching.spec.ts` — Mesma atualização
-- `e2e/product-analytics.spec.ts` — Mesma atualização
-
----
-
-### Detalhe: CollapsibleNavMenu Híbrido
-
-O componente suportará ambos os padrões simultaneamente:
-- Se `subItem.href` contém `?` → lógica atual (query params, para Marketing)
-- Se não contém `?` → comparação direta de pathname (para Estoque)
-
-Isso garante zero impacto no módulo Marketing.
-
----
-
-### Alternativa Considerada
-
-Manter tabs com lazy loading por tab. Descartada porque não permite deep-linking, KPIs como página de entrada, nem URLs semânticas.
-
----
-
-### Resumo
-
-| Ação | Arquivo |
-|------|---------|
-| Criar | `src/pages/StockOverview.tsx` |
-| Criar | `src/pages/StockTable.tsx` |
-| Criar | `src/pages/StockPurchases.tsx` |
-| Modificar | `src/App.tsx` |
-| Modificar | `src/components/layout/AppSidebar.tsx` |
-| Modificar | `src/components/layout/MobileSidebar.tsx` |
-| Modificar | `src/components/layout/CollapsibleNavMenu.tsx` |
-| Modificar | `src/components/stock/StockKPICards.tsx` |
-| Modificar | 3 arquivos E2E |
-| Remover | `src/pages/Stock.tsx` |
+### Resultado
+- Clicar "Repor" no Resumo → Tabela abre já filtrada por status restock
+- Todas as buscas têm debounce, clear button e feedback visual consistente
 
