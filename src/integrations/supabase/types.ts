@@ -1330,8 +1330,6 @@ export type Database = {
         | "user_creation_attempt"
         | "user_creation_success"
         | "user_creation_failed"
-        | "user_deletion_success"
-        | "user_deletion_failed"
         | "permission_violation"
         | "organization_creation"
         | "role_assignment"
@@ -1474,8 +1472,6 @@ export const Constants = {
         "user_creation_attempt",
         "user_creation_success",
         "user_creation_failed",
-        "user_deletion_success",
-        "user_deletion_failed",
         "permission_violation",
         "organization_creation",
         "role_assignment",

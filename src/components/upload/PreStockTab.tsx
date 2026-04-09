@@ -28,7 +28,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, Package, Loader2, ShoppingCart, DollarSign, CheckCircle } from "lucide-react";
+import { Plus, Trash2, Package, Loader2, ShoppingCart, DollarSign, CheckCircle, TableIcon, BarChart3 } from "lucide-react";
+import { PreStockRanking } from "./PreStockRanking";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -41,6 +42,7 @@ export function PreStockTab() {
   const [search, setSearch] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"table" | "ranking">("table");
 
   const { items, isLoading, createItem, deleteItem, productNames, summary } = usePreStock({
     pdvId: filterPdv,
@@ -107,14 +109,34 @@ export function PreStockTab() {
       </div>
 
       {/* Action button */}
-      {isAdmin && (
-        <div className="flex justify-end">
+      <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center border rounded-md overflow-hidden">
+          <Button
+            variant={viewMode === "table" ? "default" : "ghost"}
+            size="sm"
+            className="rounded-none h-8 px-3"
+            onClick={() => setViewMode("table")}
+          >
+            <TableIcon className="h-4 w-4 mr-1" />
+            Tabela
+          </Button>
+          <Button
+            variant={viewMode === "ranking" ? "default" : "ghost"}
+            size="sm"
+            className="rounded-none h-8 px-3"
+            onClick={() => setViewMode("ranking")}
+          >
+            <BarChart3 className="h-4 w-4 mr-1" />
+            Ranking
+          </Button>
+        </div>
+        {isAdmin && (
           <Button onClick={() => setIsFormOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Registrar Compra
           </Button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Filters */}
       <FilterBar
@@ -151,7 +173,9 @@ export function PreStockTab() {
       </FilterBar>
 
       {/* Table */}
-      {items.length > 0 ? (
+      {viewMode === "ranking" ? (
+        <PreStockRanking items={items} />
+      ) : items.length > 0 ? (
         <div className="rounded-md border">
           <Table>
             <TableHeader>
