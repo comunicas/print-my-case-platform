@@ -5,7 +5,6 @@ import {
   Megaphone,
   Wallet,
   Building2,
-  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -31,7 +30,6 @@ const navItems: NavItem[] = [
 
 const bottomNavItems: NavItem[] = [
   { icon: Building2, label: "Organizações", href: "/organizations", superAdminOnly: true },
-  { icon: Settings, label: "Configurações", href: "/settings" },
 ];
 
 const stockSubItems = [
@@ -146,11 +144,11 @@ export function MobileSidebar({
             {renderNavItem({ icon: Wallet, label: "Financeiro", href: "/financeiro" })}
           </nav>
           
-          <nav className="py-4 px-2 space-y-1 border-t border-sidebar-border">
-            {bottomNavItems
-              .filter(item => !item.superAdminOnly || isSuperAdmin)
-              .map(renderNavItem)}
-          </nav>
+          {isSuperAdmin && (
+            <nav className="py-4 px-2 space-y-1 border-t border-sidebar-border">
+              {bottomNavItems.map(renderNavItem)}
+            </nav>
+          )}
         </div>
       </SheetContent>
     </Sheet>
