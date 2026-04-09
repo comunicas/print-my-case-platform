@@ -10,9 +10,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { BrandLogo } from "@/components/ui/BrandLogo";
 import { toast } from "sonner";
-import { PDVFilter } from "@/components/ui/PDVFilter";
 
 function StockOverviewContent() {
   const navigate = useNavigate();
@@ -59,7 +57,7 @@ function StockOverviewContent() {
             Visão geral do inventário
           </p>
         </div>
-        <PDVFilter />
+        
       </div>
 
       <StockKPICards 

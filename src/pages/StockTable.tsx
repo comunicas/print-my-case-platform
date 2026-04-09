@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 function StockTableContent() {
   const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useIsMobile();
-  const { products, kpis, globalKpis, brands, slots, filteredSlots, suggestions, isLoading, isFetching, refetch } = useProductStock();
+  const { products, brands, slots, filteredSlots, suggestions, isLoading, isFetching, refetch } = useProductStock();
 
   const viewParam = searchParams.get("view");
   const [viewMode, setViewMode] = useState<'table' | 'map'>(viewParam === 'map' ? 'map' : 'table');
