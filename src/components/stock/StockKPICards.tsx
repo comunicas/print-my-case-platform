@@ -7,9 +7,10 @@ interface StockKPICardsProps {
   kpis: StockKPIs;
   globalKpis?: StockKPIs;
   isLoading?: boolean;
+  onCardClick?: (filter: string) => void;
 }
 
-export const StockKPICards = React.memo(function StockKPICards({ kpis, globalKpis, isLoading }: StockKPICardsProps) {
+export const StockKPICards = React.memo(function StockKPICards({ kpis, globalKpis, isLoading, onCardClick }: StockKPICardsProps) {
   const isFiltered = !!globalKpis;
 
   const formatValue = (filtered: number, global: number | undefined) => {
@@ -36,6 +37,7 @@ export const StockKPICards = React.memo(function StockKPICards({ kpis, globalKpi
       icon: AlertTriangle,
       description: '0 unidades',
       highlight: kpis.criticalProducts > 0 ? 'destructive' : undefined,
+      filter: 'restock',
     },
     {
       title: 'Atenção',
@@ -43,13 +45,18 @@ export const StockKPICards = React.memo(function StockKPICards({ kpis, globalKpi
       icon: RefreshCw,
       description: '1-2 unidades',
       highlight: kpis.warningProducts > 0 ? 'warning' : undefined,
+      filter: 'warning',
     },
   ];
 
   return (
     <div className="grid gap-2 md:gap-4 grid-cols-2 lg:grid-cols-4">
       {cards.map((card) => (
-        <Card key={card.title}>
+        <Card 
+          key={card.title} 
+          className={onCardClick && card.filter ? "cursor-pointer hover:shadow-md transition-shadow" : ""}
+          onClick={() => onCardClick && card.filter ? onCardClick(card.filter) : undefined}
+        >
           <CardContent className="px-3 md:px-4 py-3 md:py-4">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5 md:space-y-1">
