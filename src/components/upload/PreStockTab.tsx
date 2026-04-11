@@ -242,11 +242,14 @@ export function PreStockTab() {
   const [allocPdvId, setAllocPdvId] = useState("");
   const [allocQty, setAllocQty] = useState("");
 
-  const { items, isLoading, createItem, deleteItem, allocateItem, productNames, summary } = usePreStock({
+  const { items, isLoading, createItem, deleteItem, allocateItem, unallocateItem, productNames, summary } = usePreStock({
     pdvId: filterPdv,
     status: filterStatus,
     search,
   });
+
+  // State for unallocate confirmation
+  const [unallocatingItem, setUnallocatingItem] = useState<PreStockItem | null>(null);
 
   // Fetch ALL items (no search filter) for stable suggestions
   const { items: allItems } = usePreStock({
