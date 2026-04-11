@@ -10,6 +10,8 @@ import { FilterBar } from "@/components/ui/FilterBar";
 import { ProductSearchAutocomplete, ProductSuggestion } from "@/components/stock/ProductSearchAutocomplete";
 import { SelectFilter } from "@/components/ui/SelectFilter";
 import { PDVFilter } from "@/components/ui/PDVFilter";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -28,7 +30,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, Package, Loader2, ShoppingCart, DollarSign, CheckCircle, TableIcon, BarChart3 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, Trash2, Package, Loader2, ShoppingCart, DollarSign, CheckCircle, TableIcon, BarChart3, ArrowRight } from "lucide-react";
 import { PreStockRanking } from "./PreStockRanking";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -41,10 +58,11 @@ interface PreStockListProps {
   items: PreStockItem[];
   isAdmin: boolean;
   onDelete: (id: string) => void;
+  onAllocate: (item: PreStockItem) => void;
   deleteItem: UseMutationResult<void, Error, string>;
 }
 
-function MobileAwarePreStockList({ items, isAdmin, onDelete, deleteItem }: PreStockListProps) {
+function MobileAwarePreStockList({ items, isAdmin, onDelete, onAllocate, deleteItem }: PreStockListProps) {
   const isMobile = useIsMobile();
 
   if (isMobile) {
@@ -75,17 +93,30 @@ function MobileAwarePreStockList({ items, isAdmin, onDelete, deleteItem }: PreSt
                 <span className="text-[10px] text-muted-foreground">
                   {formatDistanceToNow(new Date(item.created_at), { addSuffix: true, locale: ptBR })}
                 </span>
-                {isAdmin && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => onDelete(item.id)}
-                    disabled={deleteItem.isPending}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                )}
+                <div className="flex gap-1">
+                  {isAdmin && item.status === "pending" && item.remaining_quantity > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => onAllocate(item)}
+                    >
+                      <ArrowRight className="h-3 w-3 mr-1" />
+                      Alocar
+                    </Button>
+                  )}
+                  {isAdmin && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => onDelete(item.id)}
+                      disabled={deleteItem.isPending}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -106,7 +137,7 @@ function MobileAwarePreStockList({ items, isAdmin, onDelete, deleteItem }: PreSt
             <TableHead className="text-right">Custo Un.</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Data</TableHead>
-            {isAdmin && <TableHead className="w-12" />}
+            {isAdmin && <TableHead className="w-24" />}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -139,15 +170,28 @@ function MobileAwarePreStockList({ items, isAdmin, onDelete, deleteItem }: PreSt
               </TableCell>
               {isAdmin && (
                 <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => onDelete(item.id)}
-                    disabled={deleteItem.isPending}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  <div className="flex gap-1">
+                    {item.status === "pending" && item.remaining_quantity > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => onAllocate(item)}
+                      >
+                        <ArrowRight className="h-3 w-3 mr-1" />
+                        Alocar
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => onDelete(item.id)}
+                      disabled={deleteItem.isPending}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </TableCell>
               )}
             </TableRow>
@@ -169,7 +213,12 @@ export function PreStockTab() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"table" | "ranking">("table");
 
-  const { items, isLoading, createItem, deleteItem, productNames, summary } = usePreStock({
+  // Allocation modal state
+  const [allocatingItem, setAllocatingItem] = useState<PreStockItem | null>(null);
+  const [allocPdvId, setAllocPdvId] = useState("");
+  const [allocQty, setAllocQty] = useState("");
+
+  const { items, isLoading, createItem, deleteItem, allocateItem, productNames, summary } = usePreStock({
     pdvId: filterPdv,
     status: filterStatus,
     search,
@@ -213,6 +262,32 @@ export function PreStockTab() {
     });
   };
 
+  const openAllocateModal = (item: PreStockItem) => {
+    setAllocatingItem(item);
+    setAllocPdvId("");
+    setAllocQty(String(item.remaining_quantity));
+  };
+
+  const handleAllocate = () => {
+    if (!allocatingItem || !allocPdvId) return;
+    const qty = parseInt(allocQty, 10);
+    if (isNaN(qty) || qty <= 0 || qty > allocatingItem.remaining_quantity) return;
+
+    allocateItem.mutate(
+      {
+        id: allocatingItem.id,
+        pdv_id: allocPdvId,
+        quantity: qty,
+        currentRemaining: allocatingItem.remaining_quantity,
+      },
+      {
+        onSuccess: () => setAllocatingItem(null),
+      }
+    );
+  };
+
+  const activePdvs = pdvs.filter((p) => p.status === "active");
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-48">
@@ -220,8 +295,6 @@ export function PreStockTab() {
       </div>
     );
   }
-
-
 
   return (
     <div className="space-y-4">
@@ -333,7 +406,7 @@ export function PreStockTab() {
       {viewMode === "ranking" ? (
         <PreStockRanking items={items} />
       ) : items.length > 0 ? (
-        <MobileAwarePreStockList items={items} isAdmin={isAdmin} onDelete={setDeletingId} deleteItem={deleteItem} />
+        <MobileAwarePreStockList items={items} isAdmin={isAdmin} onDelete={setDeletingId} onAllocate={openAllocateModal} deleteItem={deleteItem} />
       ) : (
         <div className="text-center py-12">
           <ShoppingCart className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -352,7 +425,7 @@ export function PreStockTab() {
       <PreStockForm
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
-        pdvs={pdvs.filter((p) => p.status === "active")}
+        pdvs={activePdvs}
         productNames={productNames}
         onSubmit={(data) => {
           createItem.mutate(data, {
@@ -361,6 +434,76 @@ export function PreStockTab() {
         }}
         isSubmitting={createItem.isPending}
       />
+
+      {/* Allocate Dialog */}
+      <Dialog open={!!allocatingItem} onOpenChange={(v) => !v && setAllocatingItem(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Alocar para PDV</DialogTitle>
+            <DialogDescription>
+              {allocatingItem && (
+                <>
+                  <span className="font-medium text-foreground">{allocatingItem.product_name}</span>
+                  {" — "}
+                  {allocatingItem.remaining_quantity} un. disponíveis
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>PDV de destino</Label>
+              <Select value={allocPdvId} onValueChange={setAllocPdvId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o PDV" />
+                </SelectTrigger>
+                <SelectContent>
+                  {activePdvs.map((pdv) => (
+                    <SelectItem key={pdv.id} value={pdv.id}>
+                      {pdv.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Quantidade</Label>
+              <Input
+                type="number"
+                min={1}
+                max={allocatingItem?.remaining_quantity ?? 1}
+                value={allocQty}
+                onChange={(e) => setAllocQty(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Máximo: {allocatingItem?.remaining_quantity ?? 0} un.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAllocatingItem(null)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleAllocate}
+              disabled={
+                !allocPdvId ||
+                !allocQty ||
+                parseInt(allocQty, 10) <= 0 ||
+                parseInt(allocQty, 10) > (allocatingItem?.remaining_quantity ?? 0) ||
+                allocateItem.isPending
+              }
+            >
+              {allocateItem.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <ArrowRight className="h-4 w-4 mr-2" />
+              )}
+              Confirmar Alocação
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Dialog */}
       <AlertDialog open={!!deletingId} onOpenChange={(v) => !v && setDeletingId(null)}>

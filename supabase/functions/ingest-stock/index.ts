@@ -4,6 +4,19 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  // API de estoque temporariamente desativada
+  return new Response(
+    JSON.stringify({ error: "Ingestão de estoque via API temporariamente desativada" }),
+    { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+});
+
+// === CÓDIGO ORIGINAL PRESERVADO ABAIXO (inativo) ===
 
 const FIELD_LIMITS = {
   device_id: 100,

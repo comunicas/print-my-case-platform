@@ -151,6 +151,40 @@ export function usePreStock(options: UsePreStockOptions = {}) {
     },
   });
 
+  const allocateItem = useMutation({
+    mutationFn: async (input: {
+      id: string;
+      pdv_id: string;
+      quantity: number;
+      currentRemaining: number;
+    }) => {
+      const newRemaining = input.currentRemaining - input.quantity;
+      if (newRemaining < 0) throw new Error("Quantidade excede o saldo disponível");
+
+      const updateData: Record<string, unknown> = {
+        remaining_quantity: newRemaining,
+        allocated_pdv_id: input.pdv_id,
+      };
+      if (newRemaining === 0) {
+        updateData.status = "allocated";
+      }
+
+      const { error } = await supabase
+        .from("pre_stock")
+        .update(updateData)
+        .eq("id", input.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pre_stock"] });
+      toast.success("Alocação registrada com sucesso");
+    },
+    onError: (error) => {
+      toast.error("Erro ao alocar", { description: error.message });
+    },
+  });
+
   // Distinct product names for autocomplete
   const { data: productNames = [] } = useQuery({
     queryKey: ["pre_stock_products", activeOrgId],
@@ -184,6 +218,7 @@ export function usePreStock(options: UsePreStockOptions = {}) {
     isLoading,
     createItem,
     deleteItem,
+    allocateItem,
     productNames,
     summary: summary ?? { pendingUnits: 0, pendingValue: 0, allocatedUnits: 0 },
   };
