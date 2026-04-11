@@ -1,52 +1,33 @@
 
 
-## Correção: Erro "pdvData is not defined" no processamento de estoque
+## Correção: Alocações Incorretas de Pré-Estoque
 
 ### Causa Raiz
 
-Na linha 943, `pdvData` é declarado com `const` dentro de um bloco `if (recordsInserted > 0)`:
-
+Na linha 1003 de `process-spreadsheet/index.ts`:
 ```typescript
-// Linha 943 — dentro de um bloco if
-const { data: pdvData } = await supabase
-  .from("pdvs")
-  .select("organization_id")
-  .eq("id", pdvId)
-  .single();
+const oldQty = oldStockByProduct[productName] || 0;
+const increase = Math.max(0, newQty - oldQty);
 ```
 
-Na linha 993, `pdvData` é referenciado novamente num bloco irmão:
+Quando o PDV não tem registros anteriores (`deletedPreviousRecords === 0`), `oldQty` é 0 para tudo. O sistema interpreta todo o estoque como "aumento" e deduz do pré-estoque indevidamente.
 
-```typescript
-// Linha 993 — bloco separado, pdvData não existe aqui
-if (recordsInserted > 0 && pdvData?.organization_id) {
-```
+### Mudanças
 
-Como `pdvData` foi declarado com `const` dentro do `if` da linha 941, ele não existe no escopo da linha 993. Resultado: `ReferenceError: pdvData is not defined`.
+**1. `supabase/functions/process-spreadsheet/index.ts`**
+- Condicionar a dedução de pré-estoque a `deletedPreviousRecords > 0` (só comparar quando há estoque anterior real)
+- Linha 991: mudar `if (recordsInserted > 0 && pdvData?.organization_id)` para `if (recordsInserted > 0 && pdvData?.organization_id && deletedPreviousRecords > 0)`
+- Adicionar log quando pula a dedução: `"Skipping pre-stock deduction: no previous stock records for comparison"`
 
-### Correção
-
-Mover a consulta de `pdvData` para **antes** dos dois blocos que precisam dele, logo após a inserção dos stock records (antes da linha 941). Ambos os blocos (stock_history snapshot e pré-estoque) usarão a mesma variável.
-
-**`supabase/functions/process-spreadsheet/index.ts`**
-
-1. Após a linha 938 (fim do batch insert de stock), adicionar a consulta de `pdvData` no escopo do bloco `stock`:
-
-```typescript
-// Fetch organization_id once for both stock_history and pre_stock
-const { data: pdvData } = await supabase
-  .from("pdvs")
-  .select("organization_id")
-  .eq("id", pdvId)
-  .single();
-```
-
-2. Remover a declaração duplicada de `pdvData` que está dentro do bloco `if (recordsInserted > 0)` na linha 943.
-
-3. Manter a condição `if (recordsInserted > 0)` para os dois blocos que usam `pdvData`, mas agora ambos terão acesso à variável.
+**2. Migration SQL — Reverter alocações incorretas**
+- Resetar os 34 itens alocados incorretamente (todos com `updated_at` em 2026-04-11 02:56–02:57):
+  - `remaining_quantity` volta para `quantity` (saldo original)
+  - `status` volta para `'pending'`
+  - `allocated_pdv_id` volta para `NULL`
+- Filtro seguro: `WHERE status = 'allocated' AND updated_at >= '2026-04-11 02:56:00' AND updated_at <= '2026-04-11 02:58:00'`
 
 ### Resultado
-- Uploads de estoque voltam a funcionar sem erro
-- Deduplicação de pré-estoque funciona corretamente
-- Histórico de estoque continua sendo gerado
+- Alocações incorretas revertidas — 34 itens voltam a "Pendente"
+- Uploads futuros sem estoque anterior não disparam deduções falsas
+- Uploads com estoque anterior continuam deduzindo corretamente (comportamento desejado)
 
