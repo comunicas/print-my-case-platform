@@ -3,13 +3,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { DataPagination } from "@/components/ui/data-pagination";
 import { AlertTriangle, Check, X, CheckCheck, Loader2, ChevronDown, History } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useState } from "react";
+import type { PaginationControls } from "@/hooks/usePaginatedQuery";
 
 export function PendingAllocations() {
-  const { pendingAllocations, resolvedAllocations, count, acceptAllocation, rejectAllocation, acceptAll } = usePendingAllocations();
+  const { pendingAllocations, resolvedAllocations, count, acceptAllocation, rejectAllocation, acceptAll, historyPagination } = usePendingAllocations();
 
   if (count === 0 && resolvedAllocations.length === 0) return null;
 
