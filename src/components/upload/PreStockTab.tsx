@@ -107,6 +107,17 @@ function MobileAwarePreStockList({ items, isAdmin, onDelete, onAllocate, onUnall
                       Alocar
                     </Button>
                   )}
+                  {isAdmin && item.status === "allocated" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => onUnallocate(item)}
+                    >
+                      <Undo2 className="h-3 w-3 mr-1" />
+                      Desfazer
+                    </Button>
+                  )}
                   {isAdmin && (
                     <Button
                       variant="ghost"
@@ -182,6 +193,17 @@ function MobileAwarePreStockList({ items, isAdmin, onDelete, onAllocate, onUnall
                       >
                         <ArrowRight className="h-3 w-3 mr-1" />
                         Alocar
+                      </Button>
+                    )}
+                    {item.status === "allocated" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => onUnallocate(item)}
+                      >
+                        <Undo2 className="h-3 w-3 mr-1" />
+                        Desfazer
                       </Button>
                     )}
                     <Button
