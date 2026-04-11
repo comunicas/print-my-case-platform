@@ -988,7 +988,8 @@ Deno.serve(async (req) => {
       }
 
       // === DEDUZIR PRÉ-ESTOQUE ===
-      if (recordsInserted > 0 && pdvData?.organization_id) {
+      // Only compare when there were previous stock records to diff against
+      if (recordsInserted > 0 && pdvData?.organization_id && deletedPreviousRecords > 0) {
         try {
           const orgId = pdvData.organization_id;
           // Group quantities by product_name
