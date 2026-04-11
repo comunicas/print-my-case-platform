@@ -35,7 +35,7 @@ interface ProductCodeModalProps {
 }
 
 export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps>(
-  ({ isOpen, onClose, code, productName, qrcodeUrl, modalText, organizationId, pdvId, catalogSlug }, ref) => {
+  ({ isOpen, onClose, code, productName, qrcodeUrl, modalText, organizationId, pdvId, catalogSlug, onOpen }, ref) => {
     const [step, setStep] = useState<"phone" | "otp" | "revealed">("phone");
     const [phone, setPhone] = useState("");
     const [otpCode, setOtpCode] = useState("");
@@ -73,8 +73,14 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
       setOtpCode("");
     }, []);
 
+    // Fire onOpen callback when modal opens
     useEffect(() => {
-      if (!isOpen || !hcaptchaSiteKey) return;
+      if (isOpen) {
+        onOpen?.();
+      }
+    }, [isOpen, onOpen]);
+
+    useEffect(() => {
 
       const ensureScript = () =>
         new Promise<void>((resolve, reject) => {
