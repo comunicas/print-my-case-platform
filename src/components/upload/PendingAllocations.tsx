@@ -64,7 +64,7 @@ export function PendingAllocations() {
         </Card>
       )}
 
-      {resolvedAllocations.length > 0 && <AllocationHistory allocations={resolvedAllocations} />}
+      {resolvedAllocations.length > 0 && <AllocationHistory allocations={resolvedAllocations} pagination={historyPagination} />}
     </div>
   );
 }
