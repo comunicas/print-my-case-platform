@@ -51,8 +51,32 @@ export function usePendingAllocations() {
     enabled: !!activeOrgId,
   });
 
+  const { data: resolvedAllocations = [] } = useQuery({
+    queryKey: ["resolved_allocations", activeOrgId],
+    queryFn: async () => {
+      if (!activeOrgId) return [];
+
+      let query = supabase
+        .from("pending_allocations")
+        .select("*, pdv:pdvs!pending_allocations_pdv_id_fkey(id, name)")
+        .in("status", ["accepted", "rejected", "undone"])
+        .order("resolved_at", { ascending: false })
+        .limit(50);
+
+      if (orgId) {
+        query = query.eq("organization_id", orgId);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data ?? []) as unknown as PendingAllocation[];
+    },
+    enabled: !!activeOrgId,
+  });
+
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ["pending_allocations"] });
+    queryClient.invalidateQueries({ queryKey: ["resolved_allocations"] });
     queryClient.invalidateQueries({ queryKey: ["pre_stock"] });
   };
 
@@ -179,6 +203,7 @@ export function usePendingAllocations() {
 
   return {
     pendingAllocations,
+    resolvedAllocations,
     isLoading,
     acceptAllocation,
     rejectAllocation,
