@@ -45,7 +45,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Package, Loader2, ShoppingCart, DollarSign, CheckCircle, TableIcon, BarChart3, ArrowRight } from "lucide-react";
+import { Plus, Trash2, Package, Loader2, ShoppingCart, DollarSign, CheckCircle, TableIcon, BarChart3, ArrowRight, Undo2 } from "lucide-react";
 import { PreStockRanking } from "./PreStockRanking";
 import { PendingAllocations } from "./PendingAllocations";
 import { formatDistanceToNow } from "date-fns";
@@ -60,6 +60,7 @@ interface PreStockListProps {
   isAdmin: boolean;
   onDelete: (id: string) => void;
   onAllocate: (item: PreStockItem) => void;
+  onUnallocate: (item: PreStockItem) => void;
   deleteItem: UseMutationResult<void, Error, string>;
 }
 
