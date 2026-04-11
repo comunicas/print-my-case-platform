@@ -436,7 +436,7 @@ export function PreStockTab() {
       {viewMode === "ranking" ? (
         <PreStockRanking items={items} />
       ) : items.length > 0 ? (
-        <MobileAwarePreStockList items={items} isAdmin={isAdmin} onDelete={setDeletingId} onAllocate={openAllocateModal} deleteItem={deleteItem} />
+        <MobileAwarePreStockList items={items} isAdmin={isAdmin} onDelete={setDeletingId} onAllocate={openAllocateModal} onUnallocate={setUnallocatingItem} deleteItem={deleteItem} />
       ) : (
         <div className="text-center py-12">
           <ShoppingCart className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -534,6 +534,34 @@ export function PreStockTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Unallocate Confirmation Dialog */}
+      <AlertDialog open={!!unallocatingItem} onOpenChange={(v) => !v && setUnallocatingItem(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desfazer alocação</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja desfazer a alocação de{" "}
+              <span className="font-medium">{unallocatingItem?.product_name}</span>?
+              O saldo será restaurado para {unallocatingItem?.quantity} un. e o item voltará ao status pendente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!unallocatingItem) return;
+                unallocateItem.mutate(
+                  { id: unallocatingItem.id, quantity: unallocatingItem.quantity },
+                  { onSuccess: () => setUnallocatingItem(null) }
+                );
+              }}
+            >
+              Desfazer Alocação
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Dialog */}
       <AlertDialog open={!!deletingId} onOpenChange={(v) => !v && setDeletingId(null)}>
