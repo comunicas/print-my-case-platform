@@ -214,7 +214,9 @@ export function usePreStock(options: UsePreStockOptions = {}) {
   });
 
   const unallocateItem = useMutation({
-    mutationFn: async (item: { id: string; quantity: number }) => {
+    mutationFn: async (item: { id: string; quantity: number; product_name: string; allocated_pdv_id: string | null; organization_id: string }) => {
+      if (!user?.id) throw new Error("Usuário não autenticado");
+
       const { error } = await supabase
         .from("pre_stock")
         .update({
@@ -224,9 +226,24 @@ export function usePreStock(options: UsePreStockOptions = {}) {
         })
         .eq("id", item.id);
       if (error) throw error;
+
+      // Record undone action in pending_allocations history
+      if (item.allocated_pdv_id) {
+        await supabase.from("pending_allocations").insert({
+          organization_id: item.organization_id,
+          pdv_id: item.allocated_pdv_id,
+          product_name: item.product_name,
+          suggested_quantity: item.quantity,
+          pre_stock_id: item.id,
+          status: "undone",
+          resolved_at: new Date().toISOString(),
+          resolved_by: user.id,
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pre_stock"] });
+      queryClient.invalidateQueries({ queryKey: ["resolved_allocations"] });
       toast.success("Alocação desfeita com sucesso");
     },
     onError: (error) => {
