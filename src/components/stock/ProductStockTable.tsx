@@ -218,7 +218,7 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
     <div className="space-y-4">
       <div className="rounded-md border">
         <Table>
-          <TableHeader>
+           <TableHeader>
             <TableRow>
               <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('slot')}>
                 <div className="flex items-center gap-1">Slot <SortIcon field="slot" /></div>
@@ -226,6 +226,9 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
               <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('model')}>
                 <div className="flex items-center gap-1">Produto <SortIcon field="model" /></div>
               </TableHead>
+              {isGlobalView && (
+                <TableHead>PDV</TableHead>
+              )}
               <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('status')}>
                 <div className="flex items-center gap-1">Status <SortIcon field="status" /></div>
               </TableHead>
@@ -271,6 +274,13 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                     <TooltipContent><p>Clique para ver detalhes</p></TooltipContent>
                   </Tooltip>
                 </TableCell>
+                {isGlobalView && (
+                  <TableCell>
+                    <span className="text-sm text-muted-foreground truncate max-w-[120px] block">
+                      {product.pdvName || '—'}
+                    </span>
+                  </TableCell>
+                )}
                 <TableCell>
                   <Badge variant="outline" className={productActionColors[product.status]}>
                     {productActionLabels[product.status]}
