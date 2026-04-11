@@ -1,40 +1,59 @@
 
 
-## Desabilitar API de Estoque e Adicionar Confirmação Manual de Alocação
+## Alocação Dinâmica de Pré-Estoque ao Detectar Aumento de Estoque
 
-### Verificação (concluída)
-- 51 itens pendentes com saldo integral (224 unidades)
-- 2 itens alocados legitimamente (Motorolas)
-- Estado correto
+### Conceito
+
+Quando um upload de estoque detecta aumento líquido de itens em um PDV (novo > anterior), o sistema cria **sugestões de alocação pendentes** e notifica o usuário. Na aba Compras, o usuário vê as sugestões e confirma/rejeita cada uma.
 
 ### Mudanças
 
-**1. Desabilitar ingest-stock (`supabase/functions/ingest-stock/index.ts`)**
-- Adicionar retorno imediato no início da função com status 503 e mensagem "Ingestão de estoque via API temporariamente desativada"
-- Manter o código existente intacto (comentado ou após o return) para reativação futura
+**1. Nova tabela `pending_allocations` (migration)**
+- Armazena sugestões geradas automaticamente pelo processamento de estoque
+- Campos: `id`, `organization_id`, `upload_id`, `pdv_id`, `product_name`, `suggested_quantity`, `pre_stock_id` (item de compra candidato), `status` (pending/accepted/rejected), `created_at`, `resolved_at`, `resolved_by`
+- RLS: admins da org podem ver/atualizar/deletar
 
-**2. Remover dedução automática de pré-estoque do process-spreadsheet (`supabase/functions/process-spreadsheet/index.ts`)**
-- Remover o bloco de dedução automática (linhas 990-1047)
-- Substituir por log informativo: "Pre-stock auto-deduction disabled — requires manual confirmation"
-- Upload de estoque continua funcionando normalmente (stock_records, stock_history), apenas não toca no pre_stock
+**2. Edge Function `process-spreadsheet` — gerar sugestões**
+- No bloco onde a dedução automática foi desabilitada (linha 990), reativar a lógica de comparação old vs new stock
+- Quando `deletedPreviousRecords > 0` e há aumento líquido por produto:
+  - Buscar itens de `pre_stock` pendentes com `product_name` compatível
+  - Inserir registros em `pending_allocations` com a quantidade sugerida (mínimo entre aumento e saldo disponível)
+  - Criar notificação informando "X sugestões de alocação para PDV Y aguardam confirmação"
+- **Não toca** no `pre_stock` diretamente — apenas cria sugestões
 
-**3. Criar tela de confirmação manual na aba Compras**
-- Adicionar botão "Alocar" em cada item pendente do pré-estoque
-- Modal de alocação com:
-  - Seletor de PDV (destino da alocação)
-  - Quantidade a alocar (default: remaining_quantity)
-  - Botão confirmar
-- Ao confirmar: UPDATE no pre_stock com remaining_quantity reduzida, allocated_pdv_id e status ajustados
-- Permitir alocação parcial (alocar parte do saldo para um PDV)
+**3. Aba Compras — seção de sugestões pendentes**
+- Novo componente `PendingAllocations` exibido no topo da aba quando há sugestões
+- Card com badge de contagem, mostrando: PDV destino, produto, quantidade sugerida, item de compra relacionado
+- Botões "Confirmar" e "Rejeitar" por sugestão, e "Confirmar Todas" em lote
+- Ao confirmar: UPDATE no `pre_stock` (deduz saldo, atualiza `allocated_pdv_id`) e marca sugestão como `accepted`
+- Ao rejeitar: marca como `rejected`, sem alterar `pre_stock`
+
+**4. Hook `usePendingAllocations`**
+- Query para buscar sugestões pendentes da org
+- Mutations para aceitar/rejeitar individual e em lote
+
+### Fluxo
+
+```text
+Upload estoque → process-spreadsheet detecta aumento
+  ↓
+Cria pending_allocations + notificação
+  ↓
+Usuário abre aba Compras → vê banner "3 sugestões de alocação"
+  ↓
+Confirma/rejeita cada sugestão → pre_stock atualizado
+```
 
 ### Arquivos afetados
-- `supabase/functions/ingest-stock/index.ts` — desabilitar
-- `supabase/functions/process-spreadsheet/index.ts` — remover auto-dedução
-- `src/components/upload/PreStockTab.tsx` — adicionar botão e modal de alocação manual
-- `src/hooks/usePreStock.ts` — adicionar mutation de alocação manual
+- `supabase/functions/process-spreadsheet/index.ts` — gerar sugestões
+- Nova migration — tabela `pending_allocations`
+- Novo: `src/hooks/usePendingAllocations.ts`
+- Novo: `src/components/upload/PendingAllocations.tsx`
+- `src/components/upload/PreStockTab.tsx` — integrar componente de sugestões
 
 ### Resultado
-- API de estoque desativada (retorna 503)
-- Uploads de planilha funcionam mas não alocam automaticamente
-- Usuário controla manualmente quando e para qual PDV alocar cada compra
+- Upload de estoque continua funcionando normalmente
+- Quando há aumento, sugestões aparecem para confirmação manual
+- PDVs sem estoque anterior (primeiro upload) não geram sugestões falsas
+- Usuário mantém controle total sobre alocações
 
