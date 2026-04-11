@@ -1,39 +1,41 @@
 
 
-## Atualização do Plano — API desabilitada, apenas upload de planilha
+## Corrigir Filtros de Status no Modo "Todas as Organizações" + Fix Hook Error
 
-### Contexto
-A edge function `ingest-stock` permanece desabilitada (retornando 503). A detecção de aumento de estoque e geração de sugestões de alocação funciona **apenas** via upload de planilha (`process-spreadsheet`).
+### Problema Raiz
 
-### Estado Atual (já implementado)
-1. **`ingest-stock`** — desabilitada, retorna 503
-2. **`process-spreadsheet`** — detecta aumento líquido de estoque por produto/PDV e cria registros em `pending_allocations`
-3. **`PendingAllocations.tsx`** — exibe sugestões pendentes com aceitar/rejeitar individual e em lote
-4. **`usePendingAllocations.ts`** — queries de pendentes e resolvidos, mutations de aceitar/rejeitar
-5. **Desfazer alocação** — botão na aba Compras para reverter itens alocados, registra histórico como "undone"
-6. **Histórico de alocações** — seção colapsável mostrando alocações aceitas, rejeitadas e desfeitas
+Quando "Todas as organizações" está ativo, a função `aggregateProductStock` agrupa o **mesmo produto de PDVs diferentes** em um único registro. Isso soma as quantidades — ex: iPhone 11 com qty=0 no BOULEVARD TATUAPE + qty=15 em outros PDVs = totalQuantity=15 → status "Perfeito", não "Repor".
 
-### Pendência: Corrigir FK para histórico funcionar
-A query de `pending_allocations` falha (HTTP 400) porque o join com `pdvs` usa uma FK que não existe. Necessário:
+O filtro "Repor" (e todos os outros status) usa o `totalQuantity` agregado, então produtos que precisam reposição em um PDV específico desaparecem quando vistos globalmente.
 
-**Migration** — adicionar foreign key:
-```sql
-ALTER TABLE pending_allocations 
-ADD CONSTRAINT pending_allocations_pdv_id_fkey 
-FOREIGN KEY (pdv_id) REFERENCES pdvs(id);
-```
+### Solução
 
-### Paginação do histórico
-- Usar `usePagination` no hook `usePendingAllocations` para a query de resolvidos
-- Integrar `DataPagination` na seção colapsável do histórico
+**Mudar a chave de agrupamento para incluir o PDV quando `selectedPdv === 'all'`**. Assim cada combinação produto+PDV gera uma linha independente na tabela, mantendo o status correto por máquina.
 
-### O que NÃO será feito
-- **Não reativar `ingest-stock`** — permanece retornando 503
-- **Não adicionar detecção via API** — apenas planilha gera sugestões
+### Mudanças
 
-### Arquivos afetados
-- Nova migration (FK constraint `pending_allocations.pdv_id → pdvs.id`)
-- `src/hooks/usePendingAllocations.ts` — paginação no histórico
-- `src/components/upload/PendingAllocations.tsx` — UI de paginação
-- `.lovable/plan.md` — atualizar com este conteúdo
+**1. `src/lib/stockUtils.ts` — nova função `aggregateProductStockByPdv`**
+- Quando no modo multi-PDV, a chave de agrupamento será `productName|pdvId` em vez de apenas `productName`
+- Cada linha mostra o status real daquele produto naquele PDV específico
+- Adicionar campo `pdvName` ao tipo `ProductStock` para exibição
+
+**2. `src/hooks/useProductStock.ts` — usar agrupamento correto**
+- Quando `selectedPdv === 'all'`, chamar `aggregateProductStockByPdv` (agrupa por produto+PDV)
+- Quando um PDV específico está selecionado, manter `aggregateProductStock` atual (agrupa só por produto)
+
+**3. `src/components/stock/ProductStockTable.tsx` — mostrar coluna PDV + fix hooks**
+- Quando `selectedPdv === 'all'`, exibir coluna "PDV" na tabela para identificar a máquina
+- **Fix crítico**: mover `useIsMobile()` para antes dos early returns (causa o erro "Rendered fewer hooks than expected")
+
+**4. `src/lib/stockTypes.ts` — adicionar `pdvName?` ao tipo `ProductStock`**
+
+### O que NÃO muda
+- Filtro por PDV específico continua funcionando como antes (agrupamento por produto)
+- Lógica de status, vendas e capacidade não muda
+- Grid/Mapa não é afetado (já funciona por slot individual)
+
+### Resultado
+- Filtro "Repor" em "Todas as organizações" mostra TODOS os produtos com qty=0 em qualquer PDV
+- Todos os filtros de status ficam corretos no modo global
+- Erro de hooks resolvido
 
