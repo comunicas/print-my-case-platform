@@ -38,7 +38,9 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
   const pageSize = 10;
   const { openProductModal } = useProductModal();
   const { selectedPdv } = useStockFilters();
+  const isMobile = useIsMobile();
   const rowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
+  const isGlobalView = !selectedPdv || selectedPdv === 'all';
 
   const sortedProducts = useMemo(() => {
     const sorted = [...products].sort((a, b) => {
@@ -149,8 +151,6 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
     return <div className="flex items-center justify-center h-64 text-muted-foreground">Nenhum produto encontrado</div>;
   }
 
-  const isMobile = useIsMobile();
-
   // Mobile card layout
   if (isMobile) {
     return (
@@ -175,6 +175,9 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                     {productActionLabels[product.status]}
                   </Badge>
                 </div>
+                {isGlobalView && product.pdvName && (
+                  <div className="text-[10px] text-muted-foreground truncate mb-1">📍 {product.pdvName}</div>
+                )}
                 {/* Line 2: Sales + Stock + Eye */}
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -218,7 +221,7 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
     <div className="space-y-4">
       <div className="rounded-md border">
         <Table>
-          <TableHeader>
+           <TableHeader>
             <TableRow>
               <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('slot')}>
                 <div className="flex items-center gap-1">Slot <SortIcon field="slot" /></div>
@@ -226,6 +229,9 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
               <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('model')}>
                 <div className="flex items-center gap-1">Produto <SortIcon field="model" /></div>
               </TableHead>
+              {isGlobalView && (
+                <TableHead>PDV</TableHead>
+              )}
               <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('status')}>
                 <div className="flex items-center gap-1">Status <SortIcon field="status" /></div>
               </TableHead>
@@ -271,6 +277,13 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                     <TooltipContent><p>Clique para ver detalhes</p></TooltipContent>
                   </Tooltip>
                 </TableCell>
+                {isGlobalView && (
+                  <TableCell>
+                    <span className="text-sm text-muted-foreground truncate max-w-[120px] block">
+                      {product.pdvName || '—'}
+                    </span>
+                  </TableCell>
+                )}
                 <TableCell>
                   <Badge variant="outline" className={productActionColors[product.status]}>
                     {productActionLabels[product.status]}

@@ -6,7 +6,8 @@ import { useStockFilters } from '@/contexts/StockFiltersContext';
 import { useUserAllowedPDVs } from './useUserAllowedPDVs';
 import { 
   SlotData,
-  aggregateProductStock, 
+  aggregateProductStock,
+  aggregateProductStockByPdv,
   calculateStockKPIs,
   extractUniqueBrands,
   getSalesIndex,
@@ -74,7 +75,10 @@ export function useProductStock() {
   
   // Agrega produtos e aplica filtros
   const { products, kpis, globalKpis, brands, suggestions, filteredSlots } = useMemo(() => {
-    const allProducts = aggregateProductStock(slots, salesByProduct);
+    const isGlobalView = !filters.selectedPdv || filters.selectedPdv === 'all';
+    const allProducts = isGlobalView
+      ? aggregateProductStockByPdv(slots, salesByProduct)
+      : aggregateProductStock(slots, salesByProduct);
     const uniqueBrands = extractUniqueBrands(slots);
     
     // Cria lista de sugestões para autocomplete

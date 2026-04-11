@@ -32,3 +32,11 @@ export type SlotVisualStatus = 'empty' | 'critical' | 'low' | 'medium' | 'full' 
  * Índice de vendas do produto
  */
 export type SalesIndex = 'high' | 'medium' | 'low' | 'none';
+
+/**
+ * Interface estendida de ProductStock com campo opcional de PDV
+ */
+export interface ProductStockPdvInfo {
+  pdvId?: string;
+  pdvName?: string;
+}
