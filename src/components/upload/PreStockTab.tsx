@@ -45,7 +45,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Package, Loader2, ShoppingCart, DollarSign, CheckCircle, TableIcon, BarChart3, ArrowRight } from "lucide-react";
+import { Plus, Trash2, Package, Loader2, ShoppingCart, DollarSign, CheckCircle, TableIcon, BarChart3, ArrowRight, Undo2 } from "lucide-react";
 import { PreStockRanking } from "./PreStockRanking";
 import { PendingAllocations } from "./PendingAllocations";
 import { formatDistanceToNow } from "date-fns";
@@ -60,10 +60,11 @@ interface PreStockListProps {
   isAdmin: boolean;
   onDelete: (id: string) => void;
   onAllocate: (item: PreStockItem) => void;
+  onUnallocate: (item: PreStockItem) => void;
   deleteItem: UseMutationResult<void, Error, string>;
 }
 
-function MobileAwarePreStockList({ items, isAdmin, onDelete, onAllocate, deleteItem }: PreStockListProps) {
+function MobileAwarePreStockList({ items, isAdmin, onDelete, onAllocate, onUnallocate, deleteItem }: PreStockListProps) {
   const isMobile = useIsMobile();
 
   if (isMobile) {
@@ -104,6 +105,17 @@ function MobileAwarePreStockList({ items, isAdmin, onDelete, onAllocate, deleteI
                     >
                       <ArrowRight className="h-3 w-3 mr-1" />
                       Alocar
+                    </Button>
+                  )}
+                  {isAdmin && item.status === "allocated" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => onUnallocate(item)}
+                    >
+                      <Undo2 className="h-3 w-3 mr-1" />
+                      Desfazer
                     </Button>
                   )}
                   {isAdmin && (
@@ -183,6 +195,17 @@ function MobileAwarePreStockList({ items, isAdmin, onDelete, onAllocate, deleteI
                         Alocar
                       </Button>
                     )}
+                    {item.status === "allocated" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => onUnallocate(item)}
+                      >
+                        <Undo2 className="h-3 w-3 mr-1" />
+                        Desfazer
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"
@@ -219,11 +242,14 @@ export function PreStockTab() {
   const [allocPdvId, setAllocPdvId] = useState("");
   const [allocQty, setAllocQty] = useState("");
 
-  const { items, isLoading, createItem, deleteItem, allocateItem, productNames, summary } = usePreStock({
+  const { items, isLoading, createItem, deleteItem, allocateItem, unallocateItem, productNames, summary } = usePreStock({
     pdvId: filterPdv,
     status: filterStatus,
     search,
   });
+
+  // State for unallocate confirmation
+  const [unallocatingItem, setUnallocatingItem] = useState<PreStockItem | null>(null);
 
   // Fetch ALL items (no search filter) for stable suggestions
   const { items: allItems } = usePreStock({
@@ -410,7 +436,7 @@ export function PreStockTab() {
       {viewMode === "ranking" ? (
         <PreStockRanking items={items} />
       ) : items.length > 0 ? (
-        <MobileAwarePreStockList items={items} isAdmin={isAdmin} onDelete={setDeletingId} onAllocate={openAllocateModal} deleteItem={deleteItem} />
+        <MobileAwarePreStockList items={items} isAdmin={isAdmin} onDelete={setDeletingId} onAllocate={openAllocateModal} onUnallocate={setUnallocatingItem} deleteItem={deleteItem} />
       ) : (
         <div className="text-center py-12">
           <ShoppingCart className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -508,6 +534,34 @@ export function PreStockTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Unallocate Confirmation Dialog */}
+      <AlertDialog open={!!unallocatingItem} onOpenChange={(v) => !v && setUnallocatingItem(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desfazer alocação</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja desfazer a alocação de{" "}
+              <span className="font-medium">{unallocatingItem?.product_name}</span>?
+              O saldo será restaurado para {unallocatingItem?.quantity} un. e o item voltará ao status pendente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!unallocatingItem) return;
+                unallocateItem.mutate(
+                  { id: unallocatingItem.id, quantity: unallocatingItem.quantity },
+                  { onSuccess: () => setUnallocatingItem(null) }
+                );
+              }}
+            >
+              Desfazer Alocação
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Dialog */}
       <AlertDialog open={!!deletingId} onOpenChange={(v) => !v && setDeletingId(null)}>

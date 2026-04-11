@@ -213,12 +213,34 @@ export function usePreStock(options: UsePreStockOptions = {}) {
     enabled: !!activeOrgId,
   });
 
+  const unallocateItem = useMutation({
+    mutationFn: async (item: { id: string; quantity: number }) => {
+      const { error } = await supabase
+        .from("pre_stock")
+        .update({
+          remaining_quantity: item.quantity,
+          status: "pending",
+          allocated_pdv_id: null,
+        })
+        .eq("id", item.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pre_stock"] });
+      toast.success("Alocação desfeita com sucesso");
+    },
+    onError: (error) => {
+      toast.error("Erro ao desfazer alocação", { description: error.message });
+    },
+  });
+
   return {
     items,
     isLoading,
     createItem,
     deleteItem,
     allocateItem,
+    unallocateItem,
     productNames,
     summary: summary ?? { pendingUnits: 0, pendingValue: 0, allocatedUnits: 0 },
   };
