@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Loader2, Package, MapPin, X, Share2, Copy, Navigation } from "lucide-react";
 import { toast } from "sonner";
@@ -27,6 +27,16 @@ export default function PublicStock() {
   } = usePublicStock(orgSlug);
 
   const { vibrate } = useHapticFeedback();
+
+  // Facebook Pixel: ViewContent when catalog loads
+  useEffect(() => {
+    if (organization && typeof window.fbq === "function") {
+      window.fbq("track", "ViewContent", {
+        content_name: organization.pdv_name || organization.name,
+        content_category: "catalog",
+      });
+    }
+  }, [organization]);
 
   const handleRefresh = useCallback(async () => {
     await refetchStock();
@@ -313,6 +323,13 @@ export default function PublicStock() {
           organizationId={organization.id}
           pdvId={organization.catalog_pdv_id || null}
           catalogSlug={orgSlug || ""}
+          onOpen={() => {
+            if (typeof window.fbq === "function") {
+              window.fbq("track", "Lead", {
+                content_name: selectedProduct,
+              });
+            }
+          }}
         />
       )}
     </div>

@@ -31,10 +31,11 @@ interface ProductCodeModalProps {
   organizationId: string;
   pdvId: string | null;
   catalogSlug: string;
+  onOpen?: () => void;
 }
 
 export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps>(
-  ({ isOpen, onClose, code, productName, qrcodeUrl, modalText, organizationId, pdvId, catalogSlug }, ref) => {
+  ({ isOpen, onClose, code, productName, qrcodeUrl, modalText, organizationId, pdvId, catalogSlug, onOpen }, ref) => {
     const [step, setStep] = useState<"phone" | "otp" | "revealed">("phone");
     const [phone, setPhone] = useState("");
     const [otpCode, setOtpCode] = useState("");
@@ -72,8 +73,14 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
       setOtpCode("");
     }, []);
 
+    // Fire onOpen callback when modal opens
     useEffect(() => {
-      if (!isOpen || !hcaptchaSiteKey) return;
+      if (isOpen) {
+        onOpen?.();
+      }
+    }, [isOpen, onOpen]);
+
+    useEffect(() => {
 
       const ensureScript = () =>
         new Promise<void>((resolve, reject) => {
@@ -167,6 +174,13 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
         if (leadResponse?.error) throw new Error(leadResponse.error);
 
         setStep("revealed");
+
+        // Facebook Pixel: CompleteRegistration on coupon reveal
+        if (typeof window.fbq === "function") {
+          window.fbq("track", "CompleteRegistration", {
+            content_name: productName,
+          });
+        }
       } catch {
         toast.error("Não foi possível verificar. Tente novamente.");
       } finally {
