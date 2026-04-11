@@ -89,27 +89,43 @@ function AllocationHistory({ allocations, pagination }: { allocations: PendingAl
           <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
         </Button>
       </CollapsibleTrigger>
-      <CollapsibleContent className="space-y-1.5 pt-1">
-        {allocations.map((a) => {
-          const cfg = statusConfig[a.status] ?? statusConfig.undone;
-          return (
-            <div key={a.id} className="flex items-center justify-between gap-3 rounded-md border bg-background p-2.5 text-xs">
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-foreground truncate">{a.product_name}</p>
-                <p className="text-muted-foreground">
-                  {a.suggested_quantity} un. → {a.pdv?.name ?? "PDV"}
-                  {a.resolved_at && (
-                    <>
-                      {" · "}
-                      {formatDistanceToNow(new Date(a.resolved_at), { addSuffix: true, locale: ptBR })}
-                    </>
-                  )}
-                </p>
+      <CollapsibleContent className="space-y-3 pt-1">
+        <div className="space-y-1.5">
+          {allocations.map((a) => {
+            const cfg = statusConfig[a.status] ?? statusConfig.undone;
+            return (
+              <div key={a.id} className="flex items-center justify-between gap-3 rounded-md border bg-background p-2.5 text-xs">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-foreground truncate">{a.product_name}</p>
+                  <p className="text-muted-foreground">
+                    {a.suggested_quantity} un. → {a.pdv?.name ?? "PDV"}
+                    {a.resolved_at && (
+                      <>
+                        {" · "}
+                        {formatDistanceToNow(new Date(a.resolved_at), { addSuffix: true, locale: ptBR })}
+                      </>
+                    )}
+                  </p>
+                </div>
+                <Badge className={cfg.className}>{cfg.label}</Badge>
               </div>
-              <Badge className={cfg.className}>{cfg.label}</Badge>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+        {pagination.totalPages > 1 && (
+          <DataPagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            pageSize={pagination.pageSize}
+            totalCount={pagination.totalCount}
+            hasNextPage={pagination.hasNextPage}
+            hasPrevPage={pagination.hasPrevPage}
+            onPageChange={pagination.setPage}
+            onPageSizeChange={pagination.setPageSize}
+            pageSizeOptions={[10, 25, 50]}
+            showPageSizeSelector={false}
+          />
+        )}
       </CollapsibleContent>
     </Collapsible>
   );
