@@ -552,7 +552,7 @@ export function PreStockTab() {
               onClick={() => {
                 if (!unallocatingItem) return;
                 unallocateItem.mutate(
-                  { id: unallocatingItem.id, quantity: unallocatingItem.quantity },
+                  { id: unallocatingItem.id, quantity: unallocatingItem.quantity, product_name: unallocatingItem.product_name, allocated_pdv_id: unallocatingItem.allocated_pdv_id ?? "", organization_id: unallocatingItem.organization_id },
                   { onSuccess: () => setUnallocatingItem(null) }
                 );
               }}
