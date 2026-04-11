@@ -985,7 +985,6 @@ Deno.serve(async (req) => {
             console.error(`Upload ${uploadId}: Stock history error`, historyError.message);
             // Don't fail the upload because of this
           }
-        }
       }
 
       // === DEDUZIR PRÉ-ESTOQUE ===
