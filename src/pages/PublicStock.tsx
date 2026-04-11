@@ -323,6 +323,14 @@ export default function PublicStock() {
           organizationId={organization.id}
           pdvId={organization.catalog_pdv_id || null}
           catalogSlug={orgSlug || ""}
+          onOpen={() => {
+            if (typeof window.fbq === "function") {
+              window.fbq("track", "Lead", {
+                content_name: selectedProduct,
+              });
+            }
+          }}
+        />
         />
       )}
     </div>
