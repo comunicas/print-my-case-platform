@@ -3,13 +3,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { DataPagination } from "@/components/ui/data-pagination";
 import { AlertTriangle, Check, X, CheckCheck, Loader2, ChevronDown, History } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useState } from "react";
+import type { PaginationControls } from "@/hooks/usePaginatedQuery";
 
 export function PendingAllocations() {
-  const { pendingAllocations, resolvedAllocations, count, acceptAllocation, rejectAllocation, acceptAll } = usePendingAllocations();
+  const { pendingAllocations, resolvedAllocations, count, acceptAllocation, rejectAllocation, acceptAll, historyPagination } = usePendingAllocations();
 
   if (count === 0 && resolvedAllocations.length === 0) return null;
 
@@ -62,12 +64,12 @@ export function PendingAllocations() {
         </Card>
       )}
 
-      {resolvedAllocations.length > 0 && <AllocationHistory allocations={resolvedAllocations} />}
+      {resolvedAllocations.length > 0 && <AllocationHistory allocations={resolvedAllocations} pagination={historyPagination} />}
     </div>
   );
 }
 
-function AllocationHistory({ allocations }: { allocations: PendingAllocation[] }) {
+function AllocationHistory({ allocations, pagination }: { allocations: PendingAllocation[]; pagination: PaginationControls }) {
   const [open, setOpen] = useState(false);
 
   const statusConfig: Record<string, { label: string; className: string }> = {
@@ -87,27 +89,43 @@ function AllocationHistory({ allocations }: { allocations: PendingAllocation[] }
           <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
         </Button>
       </CollapsibleTrigger>
-      <CollapsibleContent className="space-y-1.5 pt-1">
-        {allocations.map((a) => {
-          const cfg = statusConfig[a.status] ?? statusConfig.undone;
-          return (
-            <div key={a.id} className="flex items-center justify-between gap-3 rounded-md border bg-background p-2.5 text-xs">
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-foreground truncate">{a.product_name}</p>
-                <p className="text-muted-foreground">
-                  {a.suggested_quantity} un. → {a.pdv?.name ?? "PDV"}
-                  {a.resolved_at && (
-                    <>
-                      {" · "}
-                      {formatDistanceToNow(new Date(a.resolved_at), { addSuffix: true, locale: ptBR })}
-                    </>
-                  )}
-                </p>
+      <CollapsibleContent className="space-y-3 pt-1">
+        <div className="space-y-1.5">
+          {allocations.map((a) => {
+            const cfg = statusConfig[a.status] ?? statusConfig.undone;
+            return (
+              <div key={a.id} className="flex items-center justify-between gap-3 rounded-md border bg-background p-2.5 text-xs">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-foreground truncate">{a.product_name}</p>
+                  <p className="text-muted-foreground">
+                    {a.suggested_quantity} un. → {a.pdv?.name ?? "PDV"}
+                    {a.resolved_at && (
+                      <>
+                        {" · "}
+                        {formatDistanceToNow(new Date(a.resolved_at), { addSuffix: true, locale: ptBR })}
+                      </>
+                    )}
+                  </p>
+                </div>
+                <Badge className={cfg.className}>{cfg.label}</Badge>
               </div>
-              <Badge className={cfg.className}>{cfg.label}</Badge>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+        {pagination.totalPages > 1 && (
+          <DataPagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            pageSize={pagination.pageSize}
+            totalCount={pagination.totalCount}
+            hasNextPage={pagination.hasNextPage}
+            hasPrevPage={pagination.hasPrevPage}
+            onPageChange={pagination.setPage}
+            onPageSizeChange={pagination.setPageSize}
+            pageSizeOptions={[10, 25, 50]}
+            showPageSizeSelector={false}
+          />
+        )}
       </CollapsibleContent>
     </Collapsible>
   );

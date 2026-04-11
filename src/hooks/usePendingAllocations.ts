@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useActiveOrg } from "@/contexts/ActiveOrgContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
+import { usePagination } from "@/hooks/usePaginatedQuery";
 import { toast } from "sonner";
 
 export interface PendingAllocation {
@@ -51,24 +52,29 @@ export function usePendingAllocations() {
     enabled: !!activeOrgId,
   });
 
+  const historyPagination = usePagination(10);
+
   const { data: resolvedAllocations = [] } = useQuery({
-    queryKey: ["resolved_allocations", activeOrgId],
+    queryKey: ["resolved_allocations", activeOrgId, historyPagination.page, historyPagination.pageSize],
     queryFn: async () => {
       if (!activeOrgId) return [];
 
+      const { from, to } = historyPagination.getRange();
+
       let query = supabase
         .from("pending_allocations")
-        .select("*, pdv:pdvs!pending_allocations_pdv_id_fkey(id, name)")
+        .select("*, pdv:pdvs!pending_allocations_pdv_id_fkey(id, name)", { count: "exact" })
         .in("status", ["accepted", "rejected", "undone"])
         .order("resolved_at", { ascending: false })
-        .limit(50);
+        .range(from, to);
 
       if (orgId) {
         query = query.eq("organization_id", orgId);
       }
 
-      const { data, error } = await query;
+      const { data, error, count } = await query;
       if (error) throw error;
+      if (count !== null) historyPagination.setTotalCount(count);
       return (data ?? []) as unknown as PendingAllocation[];
     },
     enabled: !!activeOrgId,
@@ -209,5 +215,6 @@ export function usePendingAllocations() {
     rejectAllocation,
     acceptAll,
     count: pendingAllocations.length,
+    historyPagination,
   };
 }
