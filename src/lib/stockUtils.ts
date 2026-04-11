@@ -1,5 +1,6 @@
 import { getExactProductKey, countSalesForProduct } from './productNormalization';
 import { MAX_CAPACITY, ProductActionStatus, SalesIndex } from './stockTypes';
+import type { ProductStockPdvInfo } from './stockTypes';
 
 // Re-exports para compatibilidade
 export type { ProductActionStatus, SalesIndex };
@@ -45,7 +46,7 @@ export interface SlotData {
   isActive: boolean;
 }
 
-export interface ProductStock {
+export interface ProductStock extends ProductStockPdvInfo {
   productKey: string;     // Chave única para agrupar
   productName: string;    // "APPLE iPhone 17"
   brand: string;          // "APPLE"
