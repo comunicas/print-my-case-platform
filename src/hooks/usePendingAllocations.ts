@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useActiveOrg } from "@/contexts/ActiveOrgContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
+import { usePagination } from "@/hooks/usePaginatedQuery";
 import { toast } from "sonner";
 
 export interface PendingAllocation {
