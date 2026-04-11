@@ -988,7 +988,8 @@ Deno.serve(async (req) => {
       }
 
       // === DEDUZIR PRÉ-ESTOQUE ===
-      if (recordsInserted > 0 && pdvData?.organization_id) {
+      // Only compare when there were previous stock records to diff against
+      if (recordsInserted > 0 && pdvData?.organization_id && deletedPreviousRecords > 0) {
         try {
           const orgId = pdvData.organization_id;
           // Group quantities by product_name
@@ -1041,9 +1042,11 @@ Deno.serve(async (req) => {
           console.error(`Upload ${uploadId}: Pre-stock deduction error`, preStockErr);
           // Don't fail the upload
         }
+      } else if (recordsInserted > 0 && pdvData?.organization_id && deletedPreviousRecords === 0) {
+        console.log(`[process-spreadsheet] Upload ${uploadId}: Skipping pre-stock deduction — no previous stock records for comparison`);
       }
 
-      // Keep only the current upload; delete all previous stock uploads
+
       try {
         const { data: oldUploads } = await supabase
           .from("uploads")
