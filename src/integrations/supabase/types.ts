@@ -644,7 +644,15 @@ export type Database = {
           suggested_quantity?: number
           upload_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pending_allocations_pdv_id_fkey"
+            columns: ["pdv_id"]
+            isOneToOne: false
+            referencedRelation: "pdvs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pre_stock: {
         Row: {
