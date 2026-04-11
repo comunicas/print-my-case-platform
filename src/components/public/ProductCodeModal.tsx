@@ -167,6 +167,13 @@ export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps
         if (leadResponse?.error) throw new Error(leadResponse.error);
 
         setStep("revealed");
+
+        // Facebook Pixel: CompleteRegistration on coupon reveal
+        if (typeof window.fbq === "function") {
+          window.fbq("track", "CompleteRegistration", {
+            content_name: productName,
+          });
+        }
       } catch {
         toast.error("Não foi possível verificar. Tente novamente.");
       } finally {
