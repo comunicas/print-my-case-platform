@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/select";
 import { Plus, Trash2, Package, Loader2, ShoppingCart, DollarSign, CheckCircle, TableIcon, BarChart3, ArrowRight } from "lucide-react";
 import { PreStockRanking } from "./PreStockRanking";
+import { PendingAllocations } from "./PendingAllocations";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -298,6 +299,9 @@ export function PreStockTab() {
 
   return (
     <div className="space-y-4">
+      {/* Pending Allocations Banner */}
+      <PendingAllocations />
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>

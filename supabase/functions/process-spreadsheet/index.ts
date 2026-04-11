@@ -987,10 +987,106 @@ Deno.serve(async (req) => {
           }
       }
 
-      // === PRÉ-ESTOQUE: dedução automática desabilitada ===
-      // Alocação agora é feita manualmente pelo usuário na aba Compras
-      if (recordsInserted > 0 && pdvData?.organization_id) {
-        console.log(`[process-spreadsheet] Upload ${uploadId}: Pre-stock auto-deduction disabled — requires manual confirmation`);
+      // === PRÉ-ESTOQUE: detecção de aumento e sugestões de alocação ===
+      if (recordsInserted > 0 && pdvData?.organization_id && deletedPreviousRecords > 0) {
+        try {
+          // Compare new vs old: group new records by product_name
+          const newProductTotals: Record<string, number> = {};
+          for (const record of validRecords) {
+            if (!record) continue;
+            const name = record.product_name as string;
+            newProductTotals[name] = (newProductTotals[name] || 0) + ((record.quantity as number) || 0);
+          }
+
+          // We don't have old records anymore (they were deleted), but we have stock_history
+          // Use the previous day's stock_history to estimate old totals by brand isn't granular enough
+          // Instead, track net total: if new total > deleted count, there's likely an increase
+          const newTotal = Object.values(newProductTotals).reduce((a, b) => a + b, 0);
+          
+          if (newTotal > deletedPreviousRecords) {
+            // Fetch pending pre_stock items for this org
+            const { data: pendingPreStock } = await supabase
+              .from("pre_stock")
+              .select("id, product_name, remaining_quantity")
+              .eq("organization_id", pdvData.organization_id)
+              .eq("status", "pending")
+              .gt("remaining_quantity", 0);
+
+            if (pendingPreStock && pendingPreStock.length > 0) {
+              const allocationsToCreate: Array<{
+                organization_id: string;
+                upload_id: string;
+                pdv_id: string;
+                product_name: string;
+                suggested_quantity: number;
+                pre_stock_id: string;
+                status: string;
+              }> = [];
+
+              // For each new product, find matching pre_stock items
+              for (const [productName, newQty] of Object.entries(newProductTotals)) {
+                const normalizedNew = productName.toLowerCase().trim();
+                
+                // Find matching pre_stock by product name (case-insensitive partial match)
+                const matchingPreStock = pendingPreStock.filter(ps => {
+                  const normalizedPs = ps.product_name.toLowerCase().trim();
+                  return normalizedNew.includes(normalizedPs) || normalizedPs.includes(normalizedNew);
+                });
+
+                for (const ps of matchingPreStock) {
+                  if (ps.remaining_quantity <= 0) continue;
+                  
+                  const suggestedQty = Math.min(newQty, ps.remaining_quantity);
+                  if (suggestedQty <= 0) continue;
+
+                  allocationsToCreate.push({
+                    organization_id: pdvData.organization_id,
+                    upload_id: uploadId,
+                    pdv_id: pdvId,
+                    product_name: productName,
+                    suggested_quantity: suggestedQty,
+                    pre_stock_id: ps.id,
+                    status: "pending",
+                  });
+                }
+              }
+
+              if (allocationsToCreate.length > 0) {
+                const { error: allocError } = await supabase
+                  .from("pending_allocations")
+                  .insert(allocationsToCreate);
+
+                if (allocError) {
+                  console.error(`[process-spreadsheet] Upload ${uploadId}: Error creating pending allocations`, allocError.message);
+                } else {
+                  console.log(`[process-spreadsheet] Upload ${uploadId}: Created ${allocationsToCreate.length} pending allocation suggestions for PDV ${pdvId}`);
+
+                  // Create notification
+                  const { data: pdvInfo } = await supabase
+                    .from("pdvs")
+                    .select("name")
+                    .eq("id", pdvId)
+                    .single();
+
+                  await supabase.from("notifications").insert({
+                    organization_id: pdvData.organization_id,
+                    user_id: null,
+                    type: "pending_allocation",
+                    title: "Sugestões de alocação",
+                    message: `${allocationsToCreate.length} sugestão(ões) de alocação para ${pdvInfo?.name ?? "PDV"} aguardam confirmação.`,
+                    metadata: { upload_id: uploadId, pdv_id: pdvId, count: allocationsToCreate.length },
+                  });
+                }
+              }
+            }
+          }
+
+          console.log(`[process-spreadsheet] Upload ${uploadId}: Stock increase check completed (new: ${newTotal}, old: ${deletedPreviousRecords})`);
+        } catch (preStockError) {
+          console.error(`[process-spreadsheet] Upload ${uploadId}: Pending allocation error (non-fatal)`, preStockError);
+        }
+      } else if (recordsInserted > 0 && pdvData?.organization_id) {
+        console.log(`[process-spreadsheet] Upload ${uploadId}: First stock upload for PDV — no comparison available`);
       }
 
 

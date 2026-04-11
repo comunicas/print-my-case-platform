@@ -604,6 +604,48 @@ export type Database = {
           },
         ]
       }
+      pending_allocations: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string
+          pdv_id: string
+          pre_stock_id: string | null
+          product_name: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          suggested_quantity: number
+          upload_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id: string
+          pdv_id: string
+          pre_stock_id?: string | null
+          product_name: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          suggested_quantity: number
+          upload_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string
+          pdv_id?: string
+          pre_stock_id?: string | null
+          product_name?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          suggested_quantity?: number
+          upload_id?: string | null
+        }
+        Relationships: []
+      }
       pre_stock: {
         Row: {
           allocated_pdv_id: string | null
