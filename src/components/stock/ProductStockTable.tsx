@@ -38,7 +38,9 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
   const pageSize = 10;
   const { openProductModal } = useProductModal();
   const { selectedPdv } = useStockFilters();
+  const isMobile = useIsMobile();
   const rowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
+  const isGlobalView = !selectedPdv || selectedPdv === 'all';
 
   const sortedProducts = useMemo(() => {
     const sorted = [...products].sort((a, b) => {
@@ -148,8 +150,6 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
   if (products.length === 0) {
     return <div className="flex items-center justify-center h-64 text-muted-foreground">Nenhum produto encontrado</div>;
   }
-
-  const isMobile = useIsMobile();
 
   // Mobile card layout
   if (isMobile) {

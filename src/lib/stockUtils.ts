@@ -126,6 +126,63 @@ export function aggregateProductStock(
 }
 
 /**
+ * Agrega slots por produto+PDV (para visão multi-PDV)
+ * Cada combinação produto+PDV gera uma linha independente
+ */
+export function aggregateProductStockByPdv(
+  slots: SlotData[], 
+  salesByProduct: Map<string, number>
+): ProductStock[] {
+  const productMap = new Map<string, ProductStock>();
+  
+  for (const slot of slots) {
+    if (!slot.isActive) continue;
+    
+    const productKey = getExactProductKey(slot.productName);
+    const key = `${productKey}|${slot.pdvId}`;
+    
+    if (!productMap.has(key)) {
+      const totalSold = countSalesForProduct(slot.productName, salesByProduct);
+      
+      productMap.set(key, {
+        productKey: key,
+        productName: slot.productName,
+        brand: slot.brand,
+        model: slot.model,
+        pdvId: slot.pdvId,
+        pdvName: slot.pdvName || slot.pdvId,
+        slots: [],
+        totalQuantity: 0,
+        maxCapacity: 0,
+        totalSold,
+        hasOutOfStock: false,
+        hasLowStock: false,
+        status: 'perfect',
+        salesIndex: getSalesIndex(totalSold),
+      });
+    }
+    
+    const product = productMap.get(key)!;
+    product.slots.push({
+      slotNumber: slot.slot,
+      quantity: slot.quantity,
+      pdvId: slot.pdvId,
+    });
+    product.totalQuantity += slot.quantity;
+    product.maxCapacity += MAX_CAPACITY;
+    
+    if (slot.quantity === 0) product.hasOutOfStock = true;
+    if (slot.quantity <= 2) product.hasLowStock = true;
+  }
+  
+  for (const product of productMap.values()) {
+    product.status = getProductStatus(product);
+  }
+  
+  return Array.from(productMap.values());
+}
+
+/**
  * Determina o status do produto baseado na quantidade total
  */
 export function getProductStatus(product: ProductStock): ProductActionStatus {
