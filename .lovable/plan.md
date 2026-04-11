@@ -1,41 +1,33 @@
 
 
-## Corrigir Filtros de Status no Modo "Todas as Organizações" + Fix Hook Error
+## Implementar Facebook Pixel para rastreamento do catálogo público
 
-### Problema Raiz
-
-Quando "Todas as organizações" está ativo, a função `aggregateProductStock` agrupa o **mesmo produto de PDVs diferentes** em um único registro. Isso soma as quantidades — ex: iPhone 11 com qty=0 no BOULEVARD TATUAPE + qty=15 em outros PDVs = totalQuantity=15 → status "Perfeito", não "Repor".
-
-O filtro "Repor" (e todos os outros status) usa o `totalQuantity` agregado, então produtos que precisam reposição em um PDV específico desaparecem quando vistos globalmente.
-
-### Solução
-
-**Mudar a chave de agrupamento para incluir o PDV quando `selectedPdv === 'all'`**. Assim cada combinação produto+PDV gera uma linha independente na tabela, mantendo o status correto por máquina.
+### Contexto
+O pixel do Facebook (ID: `772617998947470`) será usado para rastrear visitantes que acessam o catálogo público e resgatam QR codes, permitindo otimizar as campanhas de publicidade.
 
 ### Mudanças
 
-**1. `src/lib/stockUtils.ts` — nova função `aggregateProductStockByPdv`**
-- Quando no modo multi-PDV, a chave de agrupamento será `productName|pdvId` em vez de apenas `productName`
-- Cada linha mostra o status real daquele produto naquele PDV específico
-- Adicionar campo `pdvName` ao tipo `ProductStock` para exibição
+**1. `index.html` — Script base do pixel**
+- Adicionar o script padrão do Facebook Pixel no `<head>`
+- Adicionar o `<noscript><img>` fallback no `<body>` (não pode ficar no `<head>` por restrição HTML5)
+- O `PageView` padrão será disparado em todas as páginas
 
-**2. `src/hooks/useProductStock.ts` — usar agrupamento correto**
-- Quando `selectedPdv === 'all'`, chamar `aggregateProductStockByPdv` (agrupa por produto+PDV)
-- Quando um PDV específico está selecionado, manter `aggregateProductStock` atual (agrupa só por produto)
+**2. `src/pages/PublicStock.tsx` — Eventos customizados**
+- Disparar `fbq('track', 'ViewContent')` quando o usuário abre o catálogo público
+- Disparar `fbq('track', 'Lead')` quando o usuário resgata o cupom (modal de código revelado)
 
-**3. `src/components/stock/ProductStockTable.tsx` — mostrar coluna PDV + fix hooks**
-- Quando `selectedPdv === 'all'`, exibir coluna "PDV" na tabela para identificar a máquina
-- **Fix crítico**: mover `useIsMobile()` para antes dos early returns (causa o erro "Rendered fewer hooks than expected")
+**3. `src/components/public/ProductCodeModal.tsx` — Evento de conversão**
+- Disparar `fbq('track', 'CompleteRegistration')` quando o OTP é verificado e o cupom é liberado (step = "revealed")
+- Isso permite rastrear a conversão completa do funil: visualização → resgate
 
-**4. `src/lib/stockTypes.ts` — adicionar `pdvName?` ao tipo `ProductStock`**
+### Eventos rastreados
+- **PageView** — automático em todas as páginas
+- **ViewContent** — ao abrir catálogo público (`/catalogo/:slug`)
+- **Lead** — ao iniciar processo de resgate (abrir modal do código)
+- **CompleteRegistration** — ao verificar telefone e liberar o cupom
 
-### O que NÃO muda
-- Filtro por PDV específico continua funcionando como antes (agrupamento por produto)
-- Lógica de status, vendas e capacidade não muda
-- Grid/Mapa não é afetado (já funciona por slot individual)
-
-### Resultado
-- Filtro "Repor" em "Todas as organizações" mostra TODOS os produtos com qty=0 em qualquer PDV
-- Todos os filtros de status ficam corretos no modo global
-- Erro de hooks resolvido
+### Arquivos afetados
+- `index.html` — script do pixel + noscript fallback
+- `src/pages/PublicStock.tsx` — evento ViewContent
+- `src/components/public/ProductCodeModal.tsx` — eventos Lead e CompleteRegistration
 
