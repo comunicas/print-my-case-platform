@@ -1,20 +1,28 @@
 
 
-## Adicionar botão "Desfazer Alocação" em itens alocados
+## Testar "Desfazer Alocação" e Adicionar Histórico de Alocações
 
-### Mudanças
+### 1. Teste do "Desfazer Alocação"
+O botão "Desfazer" já está implementado na aba Compras para itens com status "allocated". A funcionalidade restaura `remaining_quantity` ao valor original (`quantity`), limpa `allocated_pdv_id` e retorna o status para "pending". Há 7 itens alocados disponíveis para teste. Vou verificar o fluxo no browser.
 
-**1. Hook `usePreStock.ts` — nova mutation `unallocateItem`**
-- Recebe o `id` do item
-- UPDATE no `pre_stock`: `remaining_quantity = quantity`, `status = 'pending'`, `allocated_pdv_id = NULL`
-- Invalida queries de `pre_stock`
+### 2. Histórico de Alocações Resolvidas (nova funcionalidade)
 
-**2. UI `PreStockTab.tsx` — botão "Desfazer" para itens alocados**
-- Na coluna de ações, quando `item.status === "allocated"`, mostrar botão "Desfazer" (ícone de undo)
-- Confirmar com AlertDialog antes de executar
-- Ao confirmar, chama `unallocateItem` que restaura o item para status pendente com saldo original
+**Hook `usePendingAllocations.ts`**
+- Adicionar query separada para buscar alocações com status `accepted`, `rejected` ou `undone` (resolvidas), ordenadas por `resolved_at` desc, limitadas a 50
 
-### Resultado
-- Itens alocados incorretamente podem ser revertidos com um clique
-- O saldo volta ao valor original (`quantity`) e o item fica disponível para re-alocação
+**Componente `PendingAllocations.tsx`**
+- Abaixo das sugestões pendentes (ou quando não há pendentes), exibir seção colapsável "Histórico de Alocações"
+- Cada linha mostra: produto, PDV, quantidade, status (badge colorido: verde=aceita, vermelho=rejeitada, cinza=desfeita), data de resolução
+- Usar `Collapsible` do shadcn para expandir/colapsar
+
+**Hook `usePreStock.ts`**
+- No `unallocateItem`, além de atualizar o `pre_stock`, também inserir um registro em `pending_allocations` com status `undone` para registrar a ação no histórico (ou atualizar o registro existente se houver um `pending_allocation` aceito correspondente)
+
+**Migration**
+- Nenhuma necessária — a tabela `pending_allocations` já tem campo `status` text que aceita qualquer valor, e `resolved_at`/`resolved_by` para rastreio
+
+### Arquivos afetados
+- `src/hooks/usePendingAllocations.ts` — query de histórico
+- `src/components/upload/PendingAllocations.tsx` — seção de histórico colapsável
+- `src/hooks/usePreStock.ts` — registrar "undone" no histórico ao desfazer
 
