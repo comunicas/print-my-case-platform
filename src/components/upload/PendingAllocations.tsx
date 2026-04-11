@@ -69,7 +69,7 @@ export function PendingAllocations() {
   );
 }
 
-function AllocationHistory({ allocations }: { allocations: PendingAllocation[] }) {
+function AllocationHistory({ allocations, pagination }: { allocations: PendingAllocation[]; pagination: PaginationControls }) {
   const [open, setOpen] = useState(false);
 
   const statusConfig: Record<string, { label: string; className: string }> = {
