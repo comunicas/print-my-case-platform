@@ -175,6 +175,9 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                     {productActionLabels[product.status]}
                   </Badge>
                 </div>
+                {isGlobalView && product.pdvName && (
+                  <div className="text-[10px] text-muted-foreground truncate mb-1">📍 {product.pdvName}</div>
+                )}
                 {/* Line 2: Sales + Stock + Eye */}
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
