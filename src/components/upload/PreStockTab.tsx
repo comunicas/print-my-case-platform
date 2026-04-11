@@ -64,7 +64,7 @@ interface PreStockListProps {
   deleteItem: UseMutationResult<void, Error, string>;
 }
 
-function MobileAwarePreStockList({ items, isAdmin, onDelete, onAllocate, deleteItem }: PreStockListProps) {
+function MobileAwarePreStockList({ items, isAdmin, onDelete, onAllocate, onUnallocate, deleteItem }: PreStockListProps) {
   const isMobile = useIsMobile();
 
   if (isMobile) {
