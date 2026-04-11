@@ -331,7 +331,6 @@ export default function PublicStock() {
             }
           }}
         />
-        />
       )}
     </div>
   );

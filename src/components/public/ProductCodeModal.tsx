@@ -31,6 +31,7 @@ interface ProductCodeModalProps {
   organizationId: string;
   pdvId: string | null;
   catalogSlug: string;
+  onOpen?: () => void;
 }
 
 export const ProductCodeModal = forwardRef<HTMLDivElement, ProductCodeModalProps>(
