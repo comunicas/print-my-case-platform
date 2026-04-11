@@ -218,6 +218,7 @@ export function usePreStock(options: UsePreStockOptions = {}) {
     isLoading,
     createItem,
     deleteItem,
+    allocateItem,
     productNames,
     summary: summary ?? { pendingUnits: 0, pendingValue: 0, allocatedUnits: 0 },
   };
