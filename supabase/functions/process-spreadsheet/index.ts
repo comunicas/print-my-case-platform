@@ -937,16 +937,15 @@ Deno.serve(async (req) => {
         recordsInserted += chunk.length;
       }
       
+      // Fetch organization_id once for both stock_history and pre_stock
+      const { data: pdvData } = await supabase
+        .from("pdvs")
+        .select("organization_id")
+        .eq("id", pdvId)
+        .single();
+
       // Generate stock history snapshot
-      if (recordsInserted > 0) {
-        // Get organization_id from PDV
-        const { data: pdvData } = await supabase
-          .from("pdvs")
-          .select("organization_id")
-          .eq("id", pdvId)
-          .single();
-        
-        if (pdvData?.organization_id) {
+      if (recordsInserted > 0 && pdvData?.organization_id) {
           // Group by brand
           const brandTotals: Record<string, { quantity: number; activeSlots: number }> = {};
           
@@ -986,7 +985,6 @@ Deno.serve(async (req) => {
             console.error(`Upload ${uploadId}: Stock history error`, historyError.message);
             // Don't fail the upload because of this
           }
-        }
       }
 
       // === DEDUZIR PRÉ-ESTOQUE ===
