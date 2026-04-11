@@ -215,5 +215,6 @@ export function usePendingAllocations() {
     rejectAllocation,
     acceptAll,
     count: pendingAllocations.length,
+    historyPagination,
   };
 }
