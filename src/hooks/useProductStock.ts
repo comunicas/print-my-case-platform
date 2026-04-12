@@ -13,7 +13,7 @@ import {
   getSalesIndex,
   matchesSearchFilter,
 } from '@/lib/stockUtils';
-import { countSalesForProduct } from '@/lib/productNormalization';
+import { countSalesForProduct, getExactProductKey } from '@/lib/productNormalization';
 import type { ProductActionStatus } from '@/lib/stockTypes';
 import { GRID_LAYOUT } from '@/lib/stockGridUtils';
 import type { ProductSuggestion } from '@/components/stock/ProductSearchAutocomplete';
@@ -73,12 +73,41 @@ export function useProductStock() {
     return map;
   }, [salesData]);
   
+  // Busca dados de pré-estoque pendente
+  const {
+    data: preStockData = [],
+    isLoading: preStockLoading,
+  } = useQuery({
+    queryKey: ['pre-stock-pending'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('pre_stock')
+        .select('product_name, remaining_quantity')
+        .eq('status', 'pending')
+        .gt('remaining_quantity', 0);
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+    placeholderData: (previousData) => previousData,
+  });
+
+  // Agrupa pré-estoque por produto normalizado
+  const preStockByProduct = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const item of preStockData) {
+      const key = getExactProductKey(item.product_name);
+      map.set(key, (map.get(key) || 0) + item.remaining_quantity);
+    }
+    return map;
+  }, [preStockData]);
+
   // Agrega produtos e aplica filtros
   const { products, kpis, globalKpis, brands, suggestions, filteredSlots } = useMemo(() => {
     const isGlobalView = !filters.selectedPdv || filters.selectedPdv === 'all';
     const allProducts = isGlobalView
-      ? aggregateProductStockByPdv(slots, salesByProduct)
-      : aggregateProductStock(slots, salesByProduct);
+      ? aggregateProductStockByPdv(slots, salesByProduct, preStockByProduct)
+      : aggregateProductStock(slots, salesByProduct, preStockByProduct);
     const uniqueBrands = extractUniqueBrands(slots);
     
     // Cria lista de sugestões para autocomplete
@@ -156,7 +185,7 @@ export function useProductStock() {
       suggestions: productSuggestions,
       filteredSlots: slotsFiltered,
     };
-  }, [slots, salesByProduct, filters.searchTerm, filters.brandFilter, filters.statusFilter, filters.salesIndexFilter]);
+  }, [slots, salesByProduct, preStockByProduct, filters.searchTerm, filters.brandFilter, filters.statusFilter, filters.salesIndexFilter]);
   
   const refetch = async () => {
     await Promise.all([refetchSlots(), refetchSales()]);
@@ -170,7 +199,7 @@ export function useProductStock() {
     slots,
     filteredSlots,
     suggestions,
-    isLoading: slotsLoading || salesLoading,
+    isLoading: slotsLoading || salesLoading || preStockLoading,
     isFetching: slotsFetching || salesFetching,
     refetch,
   };

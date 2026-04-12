@@ -55,6 +55,7 @@ export interface ProductStock extends ProductStockPdvInfo {
   totalQuantity: number;
   maxCapacity: number;
   totalSold: number;
+  preStockQuantity: number;
   hasOutOfStock: boolean;
   hasLowStock: boolean;
   status: ProductActionStatus;
@@ -76,7 +77,8 @@ export interface StockKPIs {
  */
 export function aggregateProductStock(
   slots: SlotData[], 
-  salesByProduct: Map<string, number>
+  salesByProduct: Map<string, number>,
+  preStockByProduct?: Map<string, number>
 ): ProductStock[] {
   const productMap = new Map<string, ProductStock>();
   
@@ -97,6 +99,7 @@ export function aggregateProductStock(
         totalQuantity: 0,
         maxCapacity: 0,
         totalSold,
+        preStockQuantity: preStockByProduct?.get(key) || 0,
         hasOutOfStock: false,
         hasLowStock: false,
         status: 'perfect',
@@ -117,7 +120,6 @@ export function aggregateProductStock(
     if (slot.quantity <= 2) product.hasLowStock = true;
   }
   
-  // Calcula status para cada produto
   for (const product of productMap.values()) {
     product.status = getProductStatus(product);
   }
@@ -131,7 +133,8 @@ export function aggregateProductStock(
  */
 export function aggregateProductStockByPdv(
   slots: SlotData[], 
-  salesByProduct: Map<string, number>
+  salesByProduct: Map<string, number>,
+  preStockByProduct?: Map<string, number>
 ): ProductStock[] {
   const productMap = new Map<string, ProductStock>();
   
@@ -144,6 +147,7 @@ export function aggregateProductStockByPdv(
     if (!productMap.has(key)) {
       const totalSold = countSalesForProduct(slot.productName, salesByProduct);
       
+      const productOnlyKey = getExactProductKey(slot.productName);
       productMap.set(key, {
         productKey: key,
         productName: slot.productName,
@@ -155,6 +159,7 @@ export function aggregateProductStockByPdv(
         totalQuantity: 0,
         maxCapacity: 0,
         totalSold,
+        preStockQuantity: preStockByProduct?.get(productOnlyKey) || 0,
         hasOutOfStock: false,
         hasLowStock: false,
         status: 'perfect',
