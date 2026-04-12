@@ -1,36 +1,37 @@
 
 
-## Corrigir Lógica de Sugestões de Alocação + Limpar Dados Incorretos
+## Exibir Quantidade Disponível em Compras na Tabela de Estoque
 
-### Problema
-A edge function `process-spreadsheet` gera sugestões duplicadas e incorretas por 3 motivos:
-1. **Matching parcial** (`.includes()`) — "iPhone 15" casa com "iPhone 15 Plus", gerando sugestões cruzadas
-2. **Sem deduplicação** — cada upload cria novas sugestões mesmo que já existam pendentes para o mesmo produto+PDV
-3. **Loop redundante** — itera por cada pre_stock item, criando múltiplas sugestões para o mesmo produto
+### Objetivo
+Adicionar uma coluna "Compras" na tabela de estoque que mostra a quantidade pendente (remaining_quantity) de cada produto no pré-estoque, permitindo ao usuário saber rapidamente se já existe reposição comprada para aquele item.
 
 ### Mudanças
 
-**1. Migration — limpar as 216 sugestões pendentes incorretas**
-```sql
-DELETE FROM pending_allocations WHERE status = 'pending';
-```
+**1. `src/hooks/useProductStock.ts` — buscar dados de pré-estoque pendente**
+- Adicionar query para buscar itens `pre_stock` com `status = 'pending'` agrupados por `product_name`
+- Criar um Map `preStockByProduct` com a soma de `remaining_quantity` por produto (normalizado)
+- Passar esse Map para o retorno do hook
 
-**2. `supabase/functions/process-spreadsheet/index.ts` — corrigir lógica**
+**2. `src/lib/stockUtils.ts` — adicionar campo `preStockQuantity` ao tipo `ProductStock`**
+- Adicionar `preStockQuantity: number` à interface `ProductStock`
+- Preencher o campo nas funções `aggregateProductStock` e `aggregateProductStockByPdv` usando o Map recebido como parâmetro opcional
 
-- **Matching exato**: substituir `.includes()` por comparação exata normalizada (lowercase + trim)
-```typescript
-// ANTES (errado)
-return normalizedNew.includes(normalizedPs) || normalizedPs.includes(normalizedNew);
+**3. `src/components/stock/ProductStockTable.tsx` — exibir coluna "Compras"**
+- Adicionar coluna "Compras" entre "Estoque" e "Slots" (desktop)
+- Exibir badge com quantidade pendente quando > 0, ou "—" quando 0
+- Badge verde/azul com ícone de caixa para indicar unidades disponíveis para alocação
+- No layout mobile (cards), exibir a informação de compras ao lado do estoque quando disponível
 
-// DEPOIS (correto)  
-return normalizedNew === normalizedPs;
-```
+**4. `src/pages/StockTable.tsx` — passar dados de pré-estoque**
+- Já disponível via `useProductStock`, sem mudança necessária neste arquivo
 
-- **Deduplicação**: antes de inserir, buscar `pending_allocations` existentes com status `pending` para o mesmo `pdv_id` e verificar se já existe sugestão para o mesmo `product_name` (normalizado). Pular se já existir.
-
-- **Uma sugestão por produto**: consolidar o loop para gerar no máximo 1 sugestão por `product_name` + `pdv_id`, usando o primeiro pre_stock item que fizer match exato.
+### Visualização esperada
+- Coluna "Compras" mostra ex: `📦 5` quando há 5 unidades pendentes no pré-estoque para aquele produto
+- Quando não há compras pendentes, exibe "—"
+- Tooltip explicando: "X unidades disponíveis em compras para alocação"
 
 ### Arquivos afetados
-- `supabase/functions/process-spreadsheet/index.ts` — lógica de matching e deduplicação
-- Migration SQL — limpeza dos 216 registros pendentes incorretos
+- `src/lib/stockUtils.ts` — tipo ProductStock + funções de agregação
+- `src/hooks/useProductStock.ts` — query de pré-estoque + Map
+- `src/components/stock/ProductStockTable.tsx` — coluna visual
 
