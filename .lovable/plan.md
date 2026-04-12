@@ -1,33 +1,36 @@
 
 
-## Implementar Facebook Pixel para rastreamento do catálogo público
+## Corrigir Lógica de Sugestões de Alocação + Limpar Dados Incorretos
 
-### Contexto
-O pixel do Facebook (ID: `772617998947470`) será usado para rastrear visitantes que acessam o catálogo público e resgatam QR codes, permitindo otimizar as campanhas de publicidade.
+### Problema
+A edge function `process-spreadsheet` gera sugestões duplicadas e incorretas por 3 motivos:
+1. **Matching parcial** (`.includes()`) — "iPhone 15" casa com "iPhone 15 Plus", gerando sugestões cruzadas
+2. **Sem deduplicação** — cada upload cria novas sugestões mesmo que já existam pendentes para o mesmo produto+PDV
+3. **Loop redundante** — itera por cada pre_stock item, criando múltiplas sugestões para o mesmo produto
 
 ### Mudanças
 
-**1. `index.html` — Script base do pixel**
-- Adicionar o script padrão do Facebook Pixel no `<head>`
-- Adicionar o `<noscript><img>` fallback no `<body>` (não pode ficar no `<head>` por restrição HTML5)
-- O `PageView` padrão será disparado em todas as páginas
+**1. Migration — limpar as 216 sugestões pendentes incorretas**
+```sql
+DELETE FROM pending_allocations WHERE status = 'pending';
+```
 
-**2. `src/pages/PublicStock.tsx` — Eventos customizados**
-- Disparar `fbq('track', 'ViewContent')` quando o usuário abre o catálogo público
-- Disparar `fbq('track', 'Lead')` quando o usuário resgata o cupom (modal de código revelado)
+**2. `supabase/functions/process-spreadsheet/index.ts` — corrigir lógica**
 
-**3. `src/components/public/ProductCodeModal.tsx` — Evento de conversão**
-- Disparar `fbq('track', 'CompleteRegistration')` quando o OTP é verificado e o cupom é liberado (step = "revealed")
-- Isso permite rastrear a conversão completa do funil: visualização → resgate
+- **Matching exato**: substituir `.includes()` por comparação exata normalizada (lowercase + trim)
+```typescript
+// ANTES (errado)
+return normalizedNew.includes(normalizedPs) || normalizedPs.includes(normalizedNew);
 
-### Eventos rastreados
-- **PageView** — automático em todas as páginas
-- **ViewContent** — ao abrir catálogo público (`/catalogo/:slug`)
-- **Lead** — ao iniciar processo de resgate (abrir modal do código)
-- **CompleteRegistration** — ao verificar telefone e liberar o cupom
+// DEPOIS (correto)  
+return normalizedNew === normalizedPs;
+```
+
+- **Deduplicação**: antes de inserir, buscar `pending_allocations` existentes com status `pending` para o mesmo `pdv_id` e verificar se já existe sugestão para o mesmo `product_name` (normalizado). Pular se já existir.
+
+- **Uma sugestão por produto**: consolidar o loop para gerar no máximo 1 sugestão por `product_name` + `pdv_id`, usando o primeiro pre_stock item que fizer match exato.
 
 ### Arquivos afetados
-- `index.html` — script do pixel + noscript fallback
-- `src/pages/PublicStock.tsx` — evento ViewContent
-- `src/components/public/ProductCodeModal.tsx` — eventos Lead e CompleteRegistration
+- `supabase/functions/process-spreadsheet/index.ts` — lógica de matching e deduplicação
+- Migration SQL — limpeza dos 216 registros pendentes incorretos
 
