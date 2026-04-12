@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { ChevronDown, ChevronUp, Eye, ShoppingCart } from 'lucide-react';
+import { ChevronDown, ChevronUp, Eye, ShoppingCart, Package } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -187,6 +187,12 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                       {salesIndexLabels[product.salesIndex]}
                     </Badge>
                   </div>
+                  {product.preStockQuantity > 0 && (
+                    <div className="flex items-center gap-0.5 text-xs text-blue-600 dark:text-blue-400">
+                      <Package className="h-3 w-3" />
+                      <span className="font-medium">{product.preStockQuantity}</span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-1.5 flex-1 min-w-0">
                     <Progress value={(product.totalQuantity / product.maxCapacity) * 100} className="h-1.5 flex-1" />
                     <span className="text-xs font-medium shrink-0">{product.totalQuantity}/{product.maxCapacity}</span>
@@ -240,6 +246,9 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
               </TableHead>
               <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('quantity')}>
                 <div className="flex items-center gap-1">Estoque <SortIcon field="quantity" /></div>
+              </TableHead>
+              <TableHead>
+                <div className="flex items-center gap-1">Compras</div>
               </TableHead>
               <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('slots')}>
                 <div className="flex items-center gap-1">Slots <SortIcon field="slots" /></div>
@@ -312,6 +321,23 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                     <Progress value={(product.totalQuantity / product.maxCapacity) * 100} className="h-2 w-16" />
                     <span className="text-sm font-medium">{product.totalQuantity}/{product.maxCapacity}</span>
                   </div>
+                </TableCell>
+                <TableCell>
+                  {product.preStockQuantity > 0 ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400 cursor-help">
+                          <Package className="h-3.5 w-3.5" />
+                          <span className="text-sm font-medium">{product.preStockQuantity}</span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{product.preStockQuantity} unidade{product.preStockQuantity > 1 ? 's' : ''} disponível{product.preStockQuantity > 1 ? 'is' : ''} em compras para alocação</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">—</span>
+                  )}
                 </TableCell>
                 <TableCell>
                   <span className="text-sm">{product.slots.length}</span>
