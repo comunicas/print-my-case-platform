@@ -998,9 +998,6 @@ Deno.serve(async (req) => {
             newProductTotals[name] = (newProductTotals[name] || 0) + ((record.quantity as number) || 0);
           }
 
-          // We don't have old records anymore (they were deleted), but we have stock_history
-          // Use the previous day's stock_history to estimate old totals by brand isn't granular enough
-          // Instead, track net total: if new total > deleted count, there's likely an increase
           const newTotal = Object.values(newProductTotals).reduce((a, b) => a + b, 0);
           
           if (newTotal > deletedPreviousRecords) {
@@ -1013,6 +1010,19 @@ Deno.serve(async (req) => {
               .gt("remaining_quantity", 0);
 
             if (pendingPreStock && pendingPreStock.length > 0) {
+              // Fetch existing pending allocations for this PDV to deduplicate
+              const { data: existingAllocations } = await supabase
+                .from("pending_allocations")
+                .select("product_name, pdv_id")
+                .eq("pdv_id", pdvId)
+                .eq("status", "pending");
+
+              const existingKeys = new Set(
+                (existingAllocations ?? []).map(a => 
+                  `${a.product_name.toLowerCase().trim()}::${a.pdv_id}`
+                )
+              );
+
               const allocationsToCreate: Array<{
                 organization_id: string;
                 upload_id: string;
@@ -1023,32 +1033,49 @@ Deno.serve(async (req) => {
                 status: string;
               }> = [];
 
-              // For each new product, find matching pre_stock items
+              // Track which product+pdv combos we've already created in this batch
+              const createdKeys = new Set<string>();
+
+              // For each new product, find EXACT matching pre_stock items
               for (const [productName, newQty] of Object.entries(newProductTotals)) {
                 const normalizedNew = productName.toLowerCase().trim();
+                const dedupKey = `${normalizedNew}::${pdvId}`;
+
+                // Skip if already exists in DB or already created in this batch
+                if (existingKeys.has(dedupKey) || createdKeys.has(dedupKey)) continue;
+
+                // Check if there was a net increase for this specific product
+                const oldQty = oldStockByProduct[productName] || 0;
+                if (newQty <= oldQty) continue;
+
+                const increase = newQty - oldQty;
                 
-                // Find matching pre_stock by product name (case-insensitive partial match)
+                // Find EXACT matching pre_stock by product name (case-insensitive)
                 const matchingPreStock = pendingPreStock.filter(ps => {
                   const normalizedPs = ps.product_name.toLowerCase().trim();
-                  return normalizedNew.includes(normalizedPs) || normalizedPs.includes(normalizedNew);
+                  return normalizedNew === normalizedPs;
                 });
 
-                for (const ps of matchingPreStock) {
-                  if (ps.remaining_quantity <= 0) continue;
-                  
-                  const suggestedQty = Math.min(newQty, ps.remaining_quantity);
-                  if (suggestedQty <= 0) continue;
+                if (matchingPreStock.length === 0) continue;
 
-                  allocationsToCreate.push({
-                    organization_id: pdvData.organization_id,
-                    upload_id: uploadId,
-                    pdv_id: pdvId,
-                    product_name: productName,
-                    suggested_quantity: suggestedQty,
-                    pre_stock_id: ps.id,
-                    status: "pending",
-                  });
-                }
+                // Use the first matching pre_stock item
+                const ps = matchingPreStock[0];
+                if (ps.remaining_quantity <= 0) continue;
+                
+                const suggestedQty = Math.min(increase, ps.remaining_quantity);
+                if (suggestedQty <= 0) continue;
+
+                allocationsToCreate.push({
+                  organization_id: pdvData.organization_id,
+                  upload_id: uploadId,
+                  pdv_id: pdvId,
+                  product_name: productName,
+                  suggested_quantity: suggestedQty,
+                  pre_stock_id: ps.id,
+                  status: "pending",
+                });
+
+                createdKeys.add(dedupKey);
               }
 
               if (allocationsToCreate.length > 0) {
