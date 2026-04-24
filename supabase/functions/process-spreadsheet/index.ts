@@ -988,7 +988,7 @@ Deno.serve(async (req) => {
       }
 
       // === PRÉ-ESTOQUE: detecção de aumento e sugestões de alocação ===
-      if (recordsInserted > 0 && pdvData?.organization_id && deletedPreviousRecords > 0) {
+      if (recordsInserted > 0 && pdvData?.organization_id) {
         try {
           // Compare new vs old: group new records by product_name
           const newProductTotals: Record<string, number> = {};
@@ -999,8 +999,10 @@ Deno.serve(async (req) => {
           }
 
           const newTotal = Object.values(newProductTotals).reduce((a, b) => a + b, 0);
-          
-          if (newTotal > deletedPreviousRecords) {
+
+          // First upload (or post-transfer) is treated as a full increase from zero,
+          // so any new stock should be matched against pending pre_stock.
+          if (newTotal > deletedPreviousRecords || deletedPreviousRecords === 0) {
             // Fetch pending pre_stock items for this org
             const { data: pendingPreStock } = await supabase
               .from("pre_stock")
