@@ -189,38 +189,27 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
         previousCancellationsQuery,
       ]);
 
-      // Fetch global metrics for super_admin with robust error handling
+      // Fetch global metrics for super_admin via SECURITY DEFINER RPC
+      // (avoids HEAD COUNT timeouts caused by per-row RLS evaluation)
       let globalMetrics: DashboardData["globalMetrics"] = undefined;
       if (isSuperAdmin) {
-        try {
-          const [orgsResult, globalPdvsResult, globalSalesResult] = await Promise.all([
-            supabase.from("organizations").select("id", { count: "exact", head: true }),
-            supabase.from("pdvs").select("id", { count: "exact", head: true }).eq("status", "active"),
-            supabase.from("sales_records").select("amount, refund_amount").gte("payment_date", startDate.toISOString()).lte("payment_date", endDate.toISOString()).eq("status", "Concluído"),
-          ]);
-          
-          // Only set global metrics if all queries succeeded
-          if (!orgsResult.error && !globalPdvsResult.error && !globalSalesResult.error) {
-            const globalSalesData = globalSalesResult.data || [];
-            const totalRevenueGlobal = calculateTotalRevenue(globalSalesData);
-            const totalRefundsGlobal = globalSalesData.reduce(
-              (sum, record) => sum + Number(record.refund_amount || 0),
-              0
-            );
-            const avgTicketGlobal = globalSalesData.length > 0
-              ? totalRevenueGlobal / globalSalesData.length
-              : 0;
-            globalMetrics = {
-              totalOrganizations: orgsResult.count || 0,
-              totalPdvsGlobal: globalPdvsResult.count || 0,
-              totalRevenueGlobal,
-              totalTransactionsGlobal: globalSalesData.length,
-              totalRefundsGlobal,
-              avgTicketGlobal,
-            };
+        const { data: globalRows, error: globalErr } = await supabase.rpc(
+          "get_super_admin_global_metrics",
+          {
+            p_start_date: startDate.toISOString(),
+            p_end_date: endDate.toISOString(),
           }
-        } catch {
-          // Silently handle errors for global metrics - they're optional
+        );
+        if (!globalErr && globalRows && globalRows.length > 0) {
+          const row = globalRows[0];
+          globalMetrics = {
+            totalOrganizations: Number(row.total_organizations) || 0,
+            totalPdvsGlobal: Number(row.total_pdvs_global) || 0,
+            totalRevenueGlobal: Number(row.total_revenue_global) || 0,
+            totalTransactionsGlobal: Number(row.total_transactions_global) || 0,
+            totalRefundsGlobal: Number(row.total_refunds_global) || 0,
+            avgTicketGlobal: Number(row.avg_ticket_global) || 0,
+          };
         }
       }
 
