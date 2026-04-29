@@ -10,7 +10,6 @@ import {
   getQuickStats,
   getLossesByDay,
   calculateKPIs,
-  calculateTotalRevenue,
   SaleRecord,
   SalesByDayData,
   HeatmapCell,
