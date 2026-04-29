@@ -1344,6 +1344,17 @@ export type Database = {
           min_date: string
         }[]
       }
+      get_super_admin_global_metrics: {
+        Args: { p_end_date: string; p_start_date: string }
+        Returns: {
+          avg_ticket_global: number
+          total_organizations: number
+          total_pdvs_global: number
+          total_refunds_global: number
+          total_revenue_global: number
+          total_transactions_global: number
+        }[]
+      }
       get_user_org_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
