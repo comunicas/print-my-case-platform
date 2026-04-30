@@ -131,13 +131,14 @@ export function getSalesByDay(
 
   // Preenche dias ausentes dentro do intervalo com zeros
   if (startDate && endDate) {
-    const current = new Date(startDate);
-    while (current <= endDate) {
-      const key = format(current, 'yyyy-MM-dd');
-      if (!byDay.has(key)) {
-        byDay.set(key, { revenue: 0, count: 0 });
-      }
-      current.setDate(current.getDate() + 1);
+    const cur = new Date(startDate);
+    cur.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    while (cur <= end) {
+      const key = format(cur, 'yyyy-MM-dd');
+      if (!byDay.has(key)) byDay.set(key, { revenue: 0, count: 0 });
+      cur.setDate(cur.getDate() + 1);
     }
   }
 
