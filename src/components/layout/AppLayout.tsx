@@ -9,9 +9,15 @@ import { ErrorBoundary, PageErrorFallback } from "@/components/ui/ErrorBoundary"
 
 interface AppLayoutProps {
   children: React.ReactNode;
+  /**
+   * When true, the main content area becomes a non-scrolling flex container.
+   * Use for full-height pages (chat, etc.) that manage their own internal
+   * scroll and need a sticky footer pinned to the viewport bottom.
+   */
+  fullHeight?: boolean;
 }
 
-export function AppLayout({ children }: AppLayoutProps) {
+export function AppLayout({ children, fullHeight = false }: AppLayoutProps) {
   const { 
     collapsed: sidebarCollapsed, 
     updateCollapsed, 
@@ -39,7 +45,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen flex w-full bg-background">
+    <div className="h-screen flex w-full bg-background overflow-hidden">
       {/* Mobile Sidebar (Sheet/Drawer) */}
       {isMobile && (
         <MobileSidebar
@@ -73,7 +79,13 @@ export function AppLayout({ children }: AppLayoutProps) {
           isMobile={isMobile}
           onMenuClick={() => setMobileMenuOpen(true)}
         />
-        <main className="flex-1 flex flex-col min-h-0 p-4 md:p-5 lg:p-6 overflow-auto">
+        <main
+          className={
+            fullHeight
+              ? "flex-1 flex flex-col min-h-0 overflow-hidden p-3 sm:p-4 md:p-5 lg:p-6"
+              : "flex-1 flex flex-col min-h-0 p-4 md:p-5 lg:p-6 overflow-auto"
+          }
+        >
           <ErrorBoundary fallback={<PageErrorFallback />}>
             {children}
           </ErrorBoundary>
