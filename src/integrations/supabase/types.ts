@@ -1503,6 +1503,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      ai_analyze_restock_targets: {
+        Args: {
+          _min_coverage_days?: number
+          _product_names: string[]
+          _target_coverage_days?: number
+        }
+        Returns: {
+          cobertura_destino_dias: number
+          compras_pendentes: number
+          decisao: string
+          excedente_origem: number
+          justificativa: string
+          melhor_origem: string
+          pdv_destino: string
+          product_name: string
+          qtd_transferivel: number
+          stock_destino: number
+          stock_origem: number
+          vendas_30d_destino: number
+        }[]
+      }
       ai_get_financial_summary: {
         Args: { _end: string; _start: string }
         Returns: {
@@ -1530,14 +1551,28 @@ export type Database = {
           ticket_medio: number
         }[]
       }
-      ai_get_purchases_summary: {
-        Args: { _end?: string; _limit?: number; _start?: string }
-        Returns: {
-          product_name: string
-          total_cost: number
-          total_pending: number
-        }[]
-      }
+      ai_get_purchases_summary:
+        | {
+            Args: { _end?: string; _limit?: number; _start?: string }
+            Returns: {
+              product_name: string
+              total_cost: number
+              total_pending: number
+            }[]
+          }
+        | {
+            Args: {
+              _end?: string
+              _limit?: number
+              _product_names?: string[]
+              _start?: string
+            }
+            Returns: {
+              product_name: string
+              total_cost: number
+              total_pending: number
+            }[]
+          }
       ai_get_sales_summary: {
         Args: { _end: string; _pdv_ids?: string[]; _start: string }
         Returns: {
@@ -1548,32 +1583,68 @@ export type Database = {
           ticket_medio: number
         }[]
       }
-      ai_get_stock_overview: {
-        Args: { _limit?: number; _pdv_ids?: string[] }
-        Returns: {
-          pdv_name: string
-          product_name: string
-          slot_count: number
-          total_quantity: number
-        }[]
-      }
-      ai_get_stock_redistribution_suggestions: {
-        Args: { _limit?: number; _min_coverage_days?: number }
-        Returns: {
-          cobertura_destino_dias: number
-          cobertura_origem_dias: number
-          justificativa: string
-          pdv_destino: string
-          pdv_origem: string
-          prioridade: string
-          product_name: string
-          qtd_sugerida: number
-          stock_destino: number
-          stock_origem: number
-          vendas_30d_destino: number
-          vendas_30d_origem: number
-        }[]
-      }
+      ai_get_stock_overview:
+        | {
+            Args: { _limit?: number; _pdv_ids?: string[] }
+            Returns: {
+              pdv_name: string
+              product_name: string
+              slot_count: number
+              total_quantity: number
+            }[]
+          }
+        | {
+            Args: {
+              _limit?: number
+              _pdv_ids?: string[]
+              _product_name?: string
+            }
+            Returns: {
+              pdv_name: string
+              product_name: string
+              slot_count: number
+              total_quantity: number
+            }[]
+          }
+      ai_get_stock_redistribution_suggestions:
+        | {
+            Args: { _limit?: number; _min_coverage_days?: number }
+            Returns: {
+              cobertura_destino_dias: number
+              cobertura_origem_dias: number
+              justificativa: string
+              pdv_destino: string
+              pdv_origem: string
+              prioridade: string
+              product_name: string
+              qtd_sugerida: number
+              stock_destino: number
+              stock_origem: number
+              vendas_30d_destino: number
+              vendas_30d_origem: number
+            }[]
+          }
+        | {
+            Args: {
+              _limit?: number
+              _min_coverage_days?: number
+              _product_name?: string
+            }
+            Returns: {
+              cobertura_destino_dias: number
+              cobertura_origem_dias: number
+              justificativa: string
+              pdv_destino: string
+              pdv_origem: string
+              prioridade: string
+              product_name: string
+              qtd_sugerida: number
+              stock_destino: number
+              stock_origem: number
+              vendas_30d_destino: number
+              vendas_30d_origem: number
+            }[]
+          }
       ai_get_top_products: {
         Args: {
           _end: string
@@ -1585,6 +1656,20 @@ export type Database = {
           product_name: string
           revenue: number
           sales_count: number
+        }[]
+      }
+      ai_get_zero_stock_items: {
+        Args: { _limit?: number; _pdv_ids?: string[] }
+        Returns: {
+          network_total_quantity: number
+          pdv_id: string
+          pdv_name: string
+          product_name: string
+          slot_count: number
+          stock_in_other_pdvs: number
+          total_quantity: number
+          zero_scope: string
+          zero_slot_count: number
         }[]
       }
       ai_match_knowledge: {

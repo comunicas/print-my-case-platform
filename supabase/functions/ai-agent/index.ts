@@ -280,14 +280,19 @@ Deno.serve(async (req) => {
         if (!mapping) {
           toolStatus = "error";
           toolErr = `Tool desconhecida: ${toolName}`;
-          resultStr = JSON.stringify({ error: toolErr });
+          resultStr = JSON.stringify({ error: "tool_unavailable", user_message: "Esta consulta não está disponível no momento." });
         } else {
           const rpcParams = mapping.mapParams(args);
           const { data, error } = await supabaseUser.rpc(mapping.rpc, rpcParams as never);
           if (error) {
             toolStatus = "error";
             toolErr = error.message;
-            resultStr = JSON.stringify({ error: error.message });
+            // Sanitiza: nunca expor SQL/nome de coluna/tabela ao modelo (que poderia repassar ao usuário)
+            resultStr = JSON.stringify({
+              error: "tool_failed",
+              user_message:
+                "Não consegui executar essa consulta agora. Informe ao usuário de forma genérica que a análise falhou e sugira refinar a pergunta ou tentar novamente. Não mencione detalhes técnicos.",
+            });
           } else {
             const arr = Array.isArray(data) ? data : data ? [data] : [];
             rowsReturned = arr.length;
