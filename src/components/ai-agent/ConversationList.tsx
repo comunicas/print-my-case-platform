@@ -1,7 +1,18 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Plus, MessageSquare, Trash2, MessagesSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { AiConversation } from "@/hooks/useAiConversations";
 
 interface Props {
@@ -33,6 +44,14 @@ function groupByDate(items: AiConversation[]) {
 
 export function ConversationList({ conversations, activeId, onSelect, onDelete, isLoading }: Props) {
   const groups = groupByDate(conversations);
+  const [pendingDelete, setPendingDelete] = useState<AiConversation | null>(null);
+
+  const confirmDelete = () => {
+    if (pendingDelete) {
+      onDelete(pendingDelete.id);
+      setPendingDelete(null);
+    }
+  };
 
   const renderGroup = (label: string, items: AiConversation[]) => {
     if (items.length === 0) return null;
@@ -44,7 +63,7 @@ export function ConversationList({ conversations, activeId, onSelect, onDelete, 
             <div
               key={c.id}
               className={cn(
-                "group flex items-center gap-2 rounded-md pl-2 pr-2 py-2 text-[13px] cursor-pointer hover:bg-muted/70 border-l-2 border-transparent",
+                "group flex items-center gap-2 rounded-md pl-2 pr-1 py-2 text-[13px] cursor-pointer hover:bg-muted/70 border-l-2 border-transparent",
                 activeId === c.id && "bg-accent text-accent-foreground border-l-primary hover:bg-accent",
               )}
               onClick={() => onSelect(c.id)}
@@ -55,10 +74,16 @@ export function ConversationList({ conversations, activeId, onSelect, onDelete, 
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (confirm("Excluir conversa?")) onDelete(c.id);
+                  setPendingDelete(c);
                 }}
-                className="opacity-100 md:opacity-0 md:group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity p-1 -m-1"
-                aria-label="Excluir"
+                className={cn(
+                  "shrink-0 inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors",
+                  // Sempre visível em telas touch; aparece no hover em desktop
+                  "opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100",
+                  activeId === c.id && "md:opacity-100",
+                )}
+                aria-label={`Excluir conversa ${c.title || ""}`.trim()}
+                title="Excluir conversa"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
@@ -108,6 +133,34 @@ export function ConversationList({ conversations, activeId, onSelect, onDelete, 
           {renderGroup("Mais antigas", groups.older)}
         </div>
       </ScrollArea>
+
+      <AlertDialog open={!!pendingDelete} onOpenChange={(open) => !open && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir conversa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é permanente e não pode ser desfeita. Todo o histórico de mensagens
+              {pendingDelete?.title ? (
+                <>
+                  {" "}da conversa <span className="font-medium text-foreground">"{pendingDelete.title}"</span>
+                </>
+              ) : (
+                " desta conversa"
+              )}
+              {" "}será removido.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
