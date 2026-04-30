@@ -44,12 +44,12 @@ export function ConversationList({ conversations, activeId, onSelect, onDelete, 
             <div
               key={c.id}
               className={cn(
-                "group flex items-center gap-2 rounded-md px-2 py-2 text-sm cursor-pointer hover:bg-muted",
+                "group flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] cursor-pointer hover:bg-muted",
                 activeId === c.id && "bg-muted",
               )}
               onClick={() => onSelect(c.id)}
             >
-              <MessageSquare className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+              <MessageSquare className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
               <span className="flex-1 truncate">{c.title || "Conversa sem título"}</span>
               <button
                 type="button"
@@ -71,9 +71,19 @@ export function ConversationList({ conversations, activeId, onSelect, onDelete, 
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-3 border-b">
-        <Button onClick={() => onSelect(null)} className="w-full" variant="default">
-          <Plus className="h-4 w-4 mr-2" /> Nova conversa
+      <div className="flex items-center justify-between px-3 py-2 border-b">
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Conversas
+        </span>
+        <Button
+          onClick={() => onSelect(null)}
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          aria-label="Nova conversa"
+          title="Nova conversa"
+        >
+          <Plus className="h-4 w-4" />
         </Button>
       </div>
       <ScrollArea className="flex-1">
