@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, MessageSquare, Trash2, MessagesSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -122,20 +123,40 @@ export function ConversationList({ conversations, activeId, onSelect, onDelete, 
       </div>
       <ScrollArea className="flex-1">
         <div className="p-2.5">
-          {isLoading && <p className="text-xs text-muted-foreground p-2">Carregando…</p>}
-          {!isLoading && conversations.length === 0 && (
-            <div className="flex flex-col items-center justify-center text-center py-8 px-3">
-              <MessageSquare className="h-8 w-8 text-muted-foreground/50 mb-2" />
+          {isLoading ? (
+            <div className="space-y-3" aria-busy="true" aria-label="Carregando conversas">
+              <Skeleton className="h-3 w-12 ml-2" />
+              <div className="space-y-1.5">
+                {Array.from({ length: 6 }).map((_, i) => {
+                  const widths = ["85%", "70%", "92%", "65%", "78%", "88%"];
+                  return (
+                    <div key={i} className="flex items-center gap-2 px-2 py-2">
+                      <Skeleton className="h-3.5 w-3.5 rounded-sm" />
+                      <Skeleton className="h-3.5" style={{ width: widths[i] }} />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : conversations.length === 0 ? (
+            <div className="flex flex-col items-center justify-center text-center py-10 px-4">
+              <div className="h-12 w-12 rounded-full bg-muted/60 flex items-center justify-center mb-3">
+                <MessageSquare className="h-6 w-6 text-muted-foreground/70" />
+              </div>
               <p className="text-sm font-medium text-foreground mb-1">Nenhuma conversa ainda</p>
-              <p className="text-xs text-muted-foreground">
-                Clique em <span className="font-medium">Novo</span> para iniciar um chat.
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Clique em <span className="font-medium text-foreground">Novo</span> para iniciar
+                um chat com o assistente.
               </p>
             </div>
+          ) : (
+            <>
+              {renderGroup("Hoje", groups.today)}
+              {renderGroup("Ontem", groups.yesterday)}
+              {renderGroup("Últimos 7 dias", groups.week)}
+              {renderGroup("Mais antigas", groups.older)}
+            </>
           )}
-          {renderGroup("Hoje", groups.today)}
-          {renderGroup("Ontem", groups.yesterday)}
-          {renderGroup("Últimos 7 dias", groups.week)}
-          {renderGroup("Mais antigas", groups.older)}
         </div>
       </ScrollArea>
 
