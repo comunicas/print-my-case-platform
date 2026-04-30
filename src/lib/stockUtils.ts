@@ -27,11 +27,12 @@ export function matchesSearchFilter(
 ): boolean {
   const modelLower = model.toLowerCase().trim();
   const productLower = productName.toLowerCase().trim();
-  
+  const termLower = term.toLowerCase().trim();
+
   if (exactModelMatch) {
-    return modelLower === term || productLower === term;
+    return modelLower === termLower || productLower.includes(termLower);
   }
-  return modelLower.includes(term) || productLower.includes(term);
+  return modelLower.includes(termLower) || productLower.includes(termLower);
 }
 
 export interface SlotData {
