@@ -1,132 +1,93 @@
-# Plano: Layout Responsivo Definitivo do `/assistente`
+# Plano: Revisão, correção de bugs e limpeza de legado do `/assistente`
 
 ## Objetivo
 
-Garantir que em `/assistente`:
+Após várias iterações no Assistente IA, sobraram inconsistências, código morto e a documentação ficou desatualizada. Esta entrega faz uma passagem de revisão técnica, corrige bugs encontrados, remove legado e atualiza `docs/assistente-ia.md` para refletir o estado real.
 
-1. Em md+ (≥768px) o **histórico** e o **chat** fiquem sempre lado a lado, nunca empilhados.
-2. O painel de histórico tenha largura controlada (`280px` / `xl:320px`), com botão para **minimizar/expandir**.
-3. O **campo de envio (ChatInput)** fique **fixo no rodapé** do painel em qualquer dispositivo, sem rolar com as mensagens.
-4. Apenas a área de mensagens role; sem scroll duplicado e sem stacking vertical em nenhum breakpoint.
+## Bugs e inconsistências encontrados
 
-## Diagnóstico Atual
+1. **Loader da página `/assistente` quebra o layout fullHeight.** Em `src/pages/Assistente.tsx`, durante `isLoading` o componente renderiza `<div className="flex items-center justify-center h-64">` dentro de um `AppLayout fullHeight`. Como o `<main>` está em `overflow-hidden` + `flex-col`, o `h-64` fixo deixa um vazio no rodapé e nunca centraliza no espaço disponível. Deve usar `flex-1 min-h-0` para ocupar a área inteira.
 
-Estado de `AgentChatPanel.tsx` após últimas mudanças:
+2. **Double-render do header em `Assistente.tsx`.** A página tem um `<h1>Assistente IA</h1>` + parágrafo logo acima do `AgentChatPanel`, e o painel também já tem seu próprio header (com toggle de sidebar e título da conversa). Em desktop ficam dois "headers" empilhados, gastando altura útil do chat. Solução: remover o header da página e manter apenas o do painel (que já mostra o título da conversa ativa). O título "Assistente IA" não agrega — o item do menu lateral já indica a página.
 
-- Root usa `flex flex-1 min-h-0`, com `<aside class="hidden md:flex shrink-0 w-[280px] xl:w-[320px]">` e chat em `flex-1`.
-- Input já está fora da área de scroll (logo após `<ScrollArea>`), portanto fixo ao rodapé do painel.
-- Falta: botão para minimizar a sidebar em desktop, persistência opcional do estado, e validação visual em todos os breakpoints (375, 768, 1024, 1336, 1920).
+3. **Mutation `rename` exportada mas nunca consumida.** `useAiConversations.rename` não é usado em nenhum componente (`ConversationList` só chama `onSelect` e `onDelete`). É código morto vindo de uma versão anterior. Remover do hook (mantém o arquivo enxuto e o bundle menor).
 
-A queixa de “empilhar” veio do estado anterior (`grid` falhando). O `flex` atual já resolve, mas não temos garantia visual via teste responsivo, nem botão de colapsar.
+4. **`Loader2` importado e não usado** em `AgentChatPanel.tsx` agora que o estado de loading das mensagens é tratado dentro do `ScrollArea` — confirmar e remover imports não utilizados (`Loader2` está usado, mas vou auditar `Plus`, `PanelLeftOpen`, etc. e remover qualquer ícone órfão após a limpeza). Rodar verificação final.
 
-## Mudanças
+5. **`border-r-0` redundante** quando `w-0` no `<aside>` colapsado: a borda só existe se houver largura, mas mantemos por segurança visual em transição. Manter, é intencional.
 
-### 1. `AgentChatPanel.tsx` — colapsar sidebar + reforçar layout
+6. **`overflow-hidden` no `<aside>` corta tooltip/foco.** Hoje o aside usa `overflow-hidden` para esconder o conteúdo ao animar `w-0`. Como o conteúdo está envolto em `{!sidebarCollapsed && ...}`, o `overflow-hidden` é desnecessário e impede sombras/ring de foco em itens da lista quando o painel está aberto. Trocar por `overflow-visible` (mantendo a transição de width).
 
-- Adicionar estado `sidebarCollapsed` (default `false`), persistido em `localStorage` com a chave `ai-agent.sidebar-collapsed`.
-- Sidebar desktop:
-  - `hidden md:flex shrink-0 border-r bg-muted/20 overflow-hidden transition-[width] duration-200`
-  - largura dinâmica: `w-0` quando colapsada, `w-[280px] xl:w-[320px]` quando aberta.
-  - quando colapsada, esconder o conteúdo (`hidden`) para evitar foco em itens invisíveis.
-- Adicionar botão de toggle no header do chat (desktop apenas, `hidden md:inline-flex`):
-  - ícone `PanelLeft` (aberto) / `PanelLeftOpen` (colapsado), `h-9 w-9`, `aria-label="Mostrar/Ocultar histórico"`, `title` correspondente.
-- Criar header desktop fino acima da área de mensagens contendo:
-  - botão de toggle à esquerda;
-  - título da conversa ativa (`activeTitle`) truncado;
-  - botão `Novo` (mesmo do mobile) à direita, mas só visível quando a sidebar está **colapsada** (caso contrário o `Novo` da `ConversationList` já cobre).
-- Manter `flex-1 min-h-0` em todos os wrappers para o input continuar fixo no rodapé.
-- Garantir que `ChatInput` permaneça **fora** do `<ScrollArea>` (já está) e adicionar `shrink-0` na div pai dele para reforçar.
+7. **Auto-scroll dispara em troca de conversa mesmo sem mensagens novas.** O `useEffect` depende de `[messages, isSending]`. Ao alternar entre conversas, o array `messages` muda de referência mesmo carregando do cache, gerando um `scrollTo` desnecessário com `behavior: "smooth"` que pisca. Adicionar guarda: só fazer smooth scroll se `messages.length` aumentou; usar `instant` ao trocar de conversa (resetar para o final imediatamente). Implementação: rastrear `prevConversationId` e `prevLength` via `useRef`.
 
-### 2. `ConversationList.tsx` — pequeno ajuste
+8. **`activeTitle` não atualiza após criar conversa nova.** Quando o usuário envia a primeira mensagem (`activeId === null`), `send()` retorna o novo `conversationId` e seta `activeId`. Mas a lista `conversations` é atualizada via `invalidateQueries` assíncrono — por 200–500ms o título mostra "Conversa" em vez do título gerado pela edge function. Aceitável; não bloqueia. Documentar como limitação conhecida.
 
-- Sem mudanças estruturais. Apenas garantir `min-w-0` no header para o título “CONVERSAS” não forçar overflow quando a sidebar estiver em `w-[280px]` (já presente).
+## Limpeza de legado
 
-### 3. Validação visual responsiva (QA)
+- Remover `rename` (mutation + export) de `useAiConversations.ts`.
+- Remover header redundante (`<h1>Assistente IA</h1>` + parágrafo) de `pages/Assistente.tsx`.
+- Trocar `overflow-hidden` por `overflow-visible` no `<aside>` desktop em `AgentChatPanel.tsx`.
+- Auditar imports não usados em `AgentChatPanel.tsx` após as mudanças.
+- Remover do `.lovable/plan.md` o conteúdo antigo (ou substituir pelo plano atual). Optar por **deletar** o arquivo: ele é um plano de iteração já concluído e não faz parte da documentação oficial do produto.
 
-Após a edição, executar via `browser--set_viewport_size` + `browser--screenshot` em:
+## Mudanças por arquivo
 
-- 375×812 (mobile): sidebar deve estar oculta, header com `PanelLeft` (Sheet) + título + `Novo`.
-- 768×1024 (tablet): sidebar visível à esquerda (`280px`), chat à direita, lado a lado.
-- 1024×768: idem 768.
-- 1336×853 (viewport atual do usuário): sidebar `280px`, chat ocupando o restante.
-- 1920×1080 (xl): sidebar `320px`.
-- Em desktop: clicar no botão de colapsar e tirar screenshot confirmando que a sidebar some e o chat ocupa 100%.
-- Verificar em todos: input visível e fixo no rodapé, sem scroll na página, apenas scroll dentro da lista de mensagens.
-
-## Detalhes Técnicos
+### `src/pages/Assistente.tsx`
+- Loader: trocar `h-64` por `flex-1 min-h-0` para centralizar no viewport.
+- Remover o `<div>` com `<h1>` e o parágrafo informativo. O `AgentChatPanel` ocupa 100% da área via `flex-1 min-h-0`.
 
 ```tsx
-// AgentChatPanel.tsx (trecho)
-const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
-  if (typeof window === "undefined") return false;
-  return localStorage.getItem("ai-agent.sidebar-collapsed") === "1";
-});
-
-useEffect(() => {
-  localStorage.setItem("ai-agent.sidebar-collapsed", sidebarCollapsed ? "1" : "0");
-}, [sidebarCollapsed]);
-
-// Sidebar desktop
-<aside
-  className={cn(
-    "hidden md:flex shrink-0 border-r bg-muted/20 overflow-hidden transition-[width] duration-200",
-    sidebarCollapsed ? "w-0" : "w-[280px] xl:w-[320px]",
-  )}
-  aria-hidden={sidebarCollapsed}
->
-  {!sidebarCollapsed && (
-    <ConversationList ... />
-  )}
-</aside>
-
-// Header desktop (acima do ScrollArea)
-<div className="hidden md:flex items-center gap-2 px-3 py-2 border-b bg-background shrink-0">
-  <Button
-    variant="ghost"
-    size="icon"
-    className="h-9 w-9"
-    onClick={() => setSidebarCollapsed((v) => !v)}
-    aria-label={sidebarCollapsed ? "Mostrar histórico" : "Ocultar histórico"}
-    title={sidebarCollapsed ? "Mostrar histórico" : "Ocultar histórico"}
-  >
-    {sidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
-  </Button>
-  <p className="flex-1 min-w-0 text-sm font-medium truncate">{activeTitle}</p>
-  {sidebarCollapsed && (
-    <Button size="sm" className="h-9 gap-1.5" onClick={() => handleSelect(null)}>
-      <Plus className="h-4 w-4" />Novo
-    </Button>
-  )}
-</div>
+return (
+  <AppLayout fullHeight>
+    <AgentChatPanel />
+  </AppLayout>
+);
 ```
 
-Estrutura final do painel:
+### `src/components/ai-agent/AgentChatPanel.tsx`
+- `<aside>`: `overflow-hidden` → `overflow-visible`.
+- Auto-scroll: usar `useRef` para `prevConvIdRef` e `prevLenRef`. Se `prevConvIdRef.current !== activeId` → scroll instantâneo; se `messages.length > prevLenRef.current` → smooth; caso contrário, não rolar.
+- Limpar imports órfãos (verificar após as edições).
 
-```text
-┌──────────────────────────────────────────────────────┐
-│ AgentChatPanel (flex flex-1 min-h-0)                 │
-│ ┌────────────┬─────────────────────────────────────┐ │
-│ │ aside      │ flex-col flex-1 min-h-0             │ │
-│ │ 280/320px  │  header (mobile OU desktop)         │ │
-│ │ collapsible│  ScrollArea flex-1 min-h-0          │ │
-│ │            │  ChatInput  (shrink-0, fixo rodapé) │ │
-│ └────────────┴─────────────────────────────────────┘ │
-└──────────────────────────────────────────────────────┘
-```
+### `src/hooks/useAiConversations.ts`
+- Remover toda a `rename` mutation e seu export. Manter apenas `conversations`, `isLoading`, `remove`.
 
-## Arquivos Alterados
+### `.lovable/plan.md`
+- Deletar arquivo (plano de iteração concluído).
 
-- `src/components/ai-agent/AgentChatPanel.tsx`
+### `docs/assistente-ia.md`
+Atualizar para refletir o estado real da UI e do front:
 
-## Fora de Escopo
+- Adicionar seção **"UI / UX"** descrevendo:
+  - Layout de duas colunas em md+ (`280px` / `xl:320px`) com botão de colapsar persistido em `localStorage` (`ai-agent.sidebar-collapsed`).
+  - Em mobile (<768px), histórico é acessado via `Sheet` lateral.
+  - `ChatInput` fixo no rodapé (page com `AppLayout fullHeight`).
+  - Exclusão de conversa via `AlertDialog` na lista.
+  - Auto-scroll: smooth ao receber novas mensagens, instantâneo ao trocar de conversa.
+- Adicionar seção **"Componentes do front"** listando:
+  - `pages/Assistente.tsx` — guard de role + `AppLayout fullHeight`.
+  - `components/ai-agent/AgentChatPanel.tsx` — orquestração.
+  - `components/ai-agent/ConversationList.tsx` — histórico + exclusão.
+  - `components/ai-agent/ChatInput.tsx`, `MessageBubble.tsx`, `QuickActions.tsx`.
+  - Hooks: `useAiConversations`, `useAiMessages`, `useAiChat`.
+- Atualizar **Checklist de deploy** com itens de UI já entregues.
+- Adicionar **Limitações conhecidas**:
+  - Título da conversa nova só aparece após o `invalidateQueries` resolver (~300ms).
+  - Sem renomeação de conversa pela UI (mutation foi removida; reintroduzir quando houver tela).
+- Limpar artefatos antigos do trecho ASCII da arquitetura (linha com indentação inconsistente).
 
-- Backend, Edge Functions, RPCs, RAG, hooks de envio.
-- `Assistente.tsx`, `AppLayout.tsx`, `ConversationList.tsx` (mantidos como estão).
+## Fora de escopo
 
-## Critérios de Aceite
+- Edge functions (`supabase/functions/ai-agent/*`), RPCs, RAG.
+- Mudanças em `AppLayout`, `AppHeader`, `AppSidebar`.
+- Renomeação de conversas pela UI (não há demanda imediata).
 
-- Em todos os viewports listados, sidebar e chat aparecem lado a lado em md+ (nunca empilham).
-- Sidebar respeita `280px` / `xl:320px` e nunca expande para 100%.
-- Botão de minimizar funciona em desktop, com estado persistido entre recarregamentos.
-- ChatInput fica fixo no rodapé do painel em mobile, tablet e desktop, sem scroll da página.
-- Apenas a lista de mensagens rola; auto-scroll continua funcionando.
+## Critérios de aceite
+
+- `/assistente` renderiza sem header duplicado; chat ocupa toda a altura útil.
+- Loader inicial fica centralizado verticalmente no espaço da página.
+- Trocar de conversa não causa flicker de scroll suave.
+- `useAiConversations` não exporta `rename`; nenhum import quebrado em todo o projeto.
+- `docs/assistente-ia.md` reflete o front atual (UI, componentes, limitações).
+- `.lovable/plan.md` removido.
+- Nenhum import não usado em `AgentChatPanel.tsx`.

@@ -10,7 +10,7 @@ export default function Assistente() {
   if (isLoading) {
     return (
       <AppLayout fullHeight>
-        <div className="flex items-center justify-center h-64">
+        <div className="flex flex-1 min-h-0 items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       </AppLayout>
@@ -23,15 +23,7 @@ export default function Assistente() {
 
   return (
     <AppLayout fullHeight>
-      <div className="flex flex-col gap-2 sm:gap-3 flex-1 min-h-0">
-        <div className="flex items-baseline justify-between gap-2 shrink-0">
-          <h1 className="text-xl sm:text-2xl font-bold">Assistente IA</h1>
-          <p className="hidden md:block text-xs text-muted-foreground truncate">
-            Pergunte sobre estoque, vendas e otimização de PDVs.
-          </p>
-        </div>
-        <AgentChatPanel />
-      </div>
+      <AgentChatPanel />
     </AppLayout>
   );
 }
