@@ -14,6 +14,232 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_conversations: {
+        Row: {
+          created_at: string
+          id: string
+          last_message_at: string
+          organization_id: string
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_message_at?: string
+          organization_id: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_message_at?: string
+          organization_id?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_knowledge_chunks: {
+        Row: {
+          content: string
+          created_at: string
+          embedding: string | null
+          id: string
+          metadata: Json | null
+          organization_id: string | null
+          source: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          metadata?: Json | null
+          organization_id?: string | null
+          source: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          metadata?: Json | null
+          organization_id?: string | null
+          source?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ai_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          role: string
+          status: string
+          tool_calls: Json | null
+          tool_results: Json | null
+        }
+        Insert: {
+          content?: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          role: string
+          status?: string
+          tool_calls?: Json | null
+          tool_results?: Json | null
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          role?: string
+          status?: string
+          tool_calls?: Json | null
+          tool_results?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_runs: {
+        Row: {
+          cached_tokens: number | null
+          conversation_id: string | null
+          created_at: string
+          duration_ms: number | null
+          error_message: string | null
+          error_type: string | null
+          id: string
+          input_tokens: number | null
+          message_id: string | null
+          model: string
+          organization_id: string
+          output_tokens: number | null
+          provider: string
+          request_id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          cached_tokens?: number | null
+          conversation_id?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          error_type?: string | null
+          id?: string
+          input_tokens?: number | null
+          message_id?: string | null
+          model: string
+          organization_id: string
+          output_tokens?: number | null
+          provider: string
+          request_id: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          cached_tokens?: number | null
+          conversation_id?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          error_type?: string | null
+          id?: string
+          input_tokens?: number | null
+          message_id?: string | null
+          model?: string
+          organization_id?: string
+          output_tokens?: number | null
+          provider?: string
+          request_id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_runs_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_runs_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "ai_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_tool_calls: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          error_message: string | null
+          id: string
+          params_sanitized: Json | null
+          request_id: string
+          rows_returned: number | null
+          run_id: string | null
+          status: string
+          tool_name: string
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          params_sanitized?: Json | null
+          request_id: string
+          rows_returned?: number | null
+          run_id?: string | null
+          status?: string
+          tool_name: string
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          params_sanitized?: Json | null
+          request_id?: string
+          rows_returned?: number | null
+          run_id?: string | null
+          status?: string
+          tool_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_tool_calls_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "ai_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       api_keys: {
         Row: {
           created_at: string
@@ -1277,6 +1503,104 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      ai_get_financial_summary: {
+        Args: { _end: string; _start: string }
+        Returns: {
+          deducoes: number
+          despesas: number
+          faturamento: number
+          resultado: number
+        }[]
+      }
+      ai_get_low_stock_alerts: {
+        Args: { _limit?: number; _threshold?: number }
+        Returns: {
+          pdv_name: string
+          product_name: string
+          total_quantity: number
+          vendas_30d: number
+        }[]
+      }
+      ai_get_pdv_comparison: {
+        Args: { _end: string; _start: string }
+        Returns: {
+          pdv_name: string
+          revenue: number
+          sales_count: number
+          ticket_medio: number
+        }[]
+      }
+      ai_get_purchases_summary: {
+        Args: { _end?: string; _limit?: number; _start?: string }
+        Returns: {
+          product_name: string
+          total_cost: number
+          total_pending: number
+        }[]
+      }
+      ai_get_sales_summary: {
+        Args: { _end: string; _pdv_ids?: string[]; _start: string }
+        Returns: {
+          card_revenue: number
+          deducoes: number
+          faturamento: number
+          sales_count: number
+          ticket_medio: number
+        }[]
+      }
+      ai_get_stock_overview: {
+        Args: { _limit?: number; _pdv_ids?: string[] }
+        Returns: {
+          pdv_name: string
+          product_name: string
+          slot_count: number
+          total_quantity: number
+        }[]
+      }
+      ai_get_stock_redistribution_suggestions: {
+        Args: { _limit?: number; _min_coverage_days?: number }
+        Returns: {
+          cobertura_destino_dias: number
+          cobertura_origem_dias: number
+          justificativa: string
+          pdv_destino: string
+          pdv_origem: string
+          prioridade: string
+          product_name: string
+          qtd_sugerida: number
+          stock_destino: number
+          stock_origem: number
+          vendas_30d_destino: number
+          vendas_30d_origem: number
+        }[]
+      }
+      ai_get_top_products: {
+        Args: {
+          _end: string
+          _limit?: number
+          _pdv_ids?: string[]
+          _start: string
+        }
+        Returns: {
+          product_name: string
+          revenue: number
+          sales_count: number
+        }[]
+      }
+      ai_match_knowledge: {
+        Args: {
+          _match_count?: number
+          _query_embedding: string
+          _threshold?: number
+        }
+        Returns: {
+          content: string
+          id: string
+          similarity: number
+          source: string
+          title: string
+        }[]
+      }
       can_assign_role: {
         Args: {
           _assigner_id: string
