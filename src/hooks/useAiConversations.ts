@@ -30,21 +30,6 @@ export function useAiConversations() {
     staleTime: 30 * 1000,
   });
 
-  const rename = useMutation({
-    mutationFn: async ({ id, title }: { id: string; title: string }) => {
-      const { error } = await supabase
-        .from("ai_conversations")
-        .update({ title } as never)
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ai-conversations"] });
-      toast.success("Conversa renomeada");
-    },
-    onError: (e: Error) => toast.error("Erro ao renomear", { description: e.message }),
-  });
-
   const remove = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("ai_conversations").delete().eq("id", id);
@@ -60,7 +45,6 @@ export function useAiConversations() {
   return {
     conversations: list.data ?? [],
     isLoading: list.isLoading,
-    rename: rename.mutate,
     remove: remove.mutate,
   };
 }
