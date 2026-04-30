@@ -43,7 +43,7 @@ function groupByDate(items: AiConversation[]) {
   return { today, yesterday, week, older };
 }
 
-function truncateTitle(text: string, max = 42) {
+function truncateTitle(text: string, max = 32) {
   if (text.length <= max) return text;
   return text.slice(0, max - 1).trimEnd() + "…";
 }
@@ -69,14 +69,14 @@ export function ConversationList({ conversations, activeId, onSelect, onDelete, 
             <div
               key={c.id}
               className={cn(
-                "group flex items-center gap-2 min-w-0 rounded-md pl-2 pr-1 py-2 text-[13px] cursor-pointer hover:bg-muted/70 border-l-2 border-transparent",
+                "group flex items-center gap-2 w-full min-w-0 overflow-hidden rounded-md pl-2 pr-1 py-2 text-[13px] cursor-pointer hover:bg-muted/70 border-l-2 border-transparent",
                 activeId === c.id && "bg-accent text-accent-foreground border-l-primary hover:bg-accent",
               )}
               onClick={() => onSelect(c.id)}
             >
               <MessageSquare className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
               <span
-                className="flex-1 min-w-0 truncate font-medium"
+                className="flex-1 min-w-0 truncate font-medium pr-1"
                 title={c.title || "Conversa sem título"}
               >
                 {truncateTitle(c.title || "Conversa sem título")}
@@ -87,7 +87,7 @@ export function ConversationList({ conversations, activeId, onSelect, onDelete, 
                   e.stopPropagation();
                   setPendingDelete(c);
                 }}
-                className="shrink-0 inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                className="relative z-10 shrink-0 inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground/80 hover:text-destructive hover:bg-destructive/10 focus-visible:text-destructive focus-visible:bg-destructive/10 transition-colors"
                 aria-label={`Excluir conversa ${c.title || ""}`.trim()}
                 title="Excluir conversa"
               >
@@ -121,7 +121,7 @@ export function ConversationList({ conversations, activeId, onSelect, onDelete, 
           <span className="text-xs font-medium">Novo</span>
         </Button>
       </div>
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 [&_[data-radix-scroll-area-viewport]>div]:!block [&_[data-radix-scroll-area-viewport]>div]:!w-full">
         <div className="p-2.5">
           {isLoading ? (
             <div className="space-y-3" aria-busy="true" aria-label="Carregando conversas">
