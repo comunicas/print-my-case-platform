@@ -23,8 +23,6 @@ interface SlotStackProps {
   isFocused?: boolean;
   viewMode?: StockViewMode;
   aggregateInfo?: AggregateInfo;
-  /** @deprecated Use slotData + onSlotClick instead */
-  onClick?: () => void;
   slotData?: SlotData;
   onSlotClick?: (data: SlotData) => void;
 }
@@ -40,17 +38,14 @@ export const SlotStack = React.memo(function SlotStack({
   isFocused = false,
   viewMode = 'expanded',
   aggregateInfo,
-  onClick,
   slotData,
   onSlotClick,
 }: SlotStackProps) {
   const handleClick = React.useCallback(() => {
     if (slotData && onSlotClick) {
       onSlotClick(slotData);
-    } else if (onClick) {
-      onClick();
     }
-  }, [slotData, onSlotClick, onClick]);
+  }, [slotData, onSlotClick]);
   const blocks = Array.from({ length: MAX_CAPACITY }, (_, i) => i);
   const dimensions = SLOT_DIMENSIONS[viewMode];
   
