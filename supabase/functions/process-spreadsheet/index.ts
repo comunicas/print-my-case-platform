@@ -1114,8 +1114,6 @@ Deno.serve(async (req) => {
         } catch (preStockError) {
           console.error(`[process-spreadsheet] Upload ${uploadId}: Pending allocation error (non-fatal)`, preStockError);
         }
-      } else if (recordsInserted > 0 && pdvData?.organization_id) {
-        console.log(`[process-spreadsheet] Upload ${uploadId}: First stock upload for PDV — no comparison available`);
       }
 
 
