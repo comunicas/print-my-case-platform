@@ -257,7 +257,12 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
         payment_date: c.payment_date,
         amount: Number(c.amount),
       }));
-      const lossesByDay = getLossesByDay(salesRecordsForCharts, cancellationsForChart);
+      const lossesByDay = getLossesByDay(
+        salesRecordsForCharts,
+        cancellationsForChart,
+        startDate,
+        endDate,
+      );
 
       const previousRefunds = previousSales.reduce(
         (sum, record) => sum + Number(record.refund_amount || 0),
