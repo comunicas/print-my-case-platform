@@ -9,7 +9,9 @@ const corsHeaders = {
   "Access-Control-Expose-Headers": "x-request-id",
 };
 
-const MODEL = "openai/gpt-5-mini";
+const MODEL = "gpt-5-mini";
+const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
+const PROVIDER = "openai";
 const MAX_TOOL_ITERATIONS = 5;
 const RATE_LIMIT_PER_10_MIN = 20;
 const HISTORY_LIMIT = 12;
@@ -167,10 +169,14 @@ Deno.serve(async (req) => {
   }
   messages.push({ role: "user", content: userMessage });
 
-  // 9. Tool-calling loop + stream
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_API_KEY) {
-    return jsonResponse({ error: "AI Gateway não configurado." }, 500, requestId);
+  // 9. Tool-calling loop
+  const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+  if (!OPENAI_API_KEY) {
+    return jsonResponse(
+      { error: "OpenAI não configurada. Defina OPENAI_API_KEY nas secrets." },
+      500,
+      requestId,
+    );
   }
 
   // Helpers para registrar run/tool_calls
@@ -182,10 +188,10 @@ Deno.serve(async (req) => {
   // Executa as tools até o modelo dar resposta final OU atingir limite
   // Para a parte FINAL (sem tools restantes), fazemos streaming SSE para o cliente.
   for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResp = await fetch(OPENAI_CHAT_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -196,13 +202,31 @@ Deno.serve(async (req) => {
       }),
     });
 
-    if (aiResp.status === 429) {
-      await logRun("rate_limited", "rate_limited", "Provider rate limit");
-      return jsonResponse({ error: "Limite do provedor de IA atingido. Tente novamente em instantes." }, 429, requestId);
+    if (aiResp.status === 401) {
+      await logRun("error", "unauthorized", "OpenAI API key inválida");
+      return jsonResponse(
+        { error: "Chave da OpenAI inválida. Verifique OPENAI_API_KEY." },
+        500,
+        requestId,
+      );
     }
-    if (aiResp.status === 402) {
-      await logRun("error", "payment_required", "Créditos esgotados");
-      return jsonResponse({ error: "Créditos de IA esgotados. Adicione créditos no workspace." }, 402, requestId);
+    if (aiResp.status === 429) {
+      const errBody = await aiResp.text();
+      const isQuota = /insufficient_quota|exceeded.*quota/i.test(errBody);
+      if (isQuota) {
+        await logRun("error", "insufficient_quota", "Cota OpenAI esgotada");
+        return jsonResponse(
+          { error: "Saldo/cota da OpenAI esgotado. Verifique billing em platform.openai.com." },
+          402,
+          requestId,
+        );
+      }
+      await logRun("rate_limited", "rate_limited", "Provider rate limit");
+      return jsonResponse(
+        { error: "Limite da OpenAI atingido. Tente novamente em instantes." },
+        429,
+        requestId,
+      );
     }
     if (!aiResp.ok) {
       const errText = await aiResp.text();
@@ -341,7 +365,7 @@ Deno.serve(async (req) => {
           message_id: messageId,
           user_id: userId,
           organization_id: organizationId ?? userId,
-          provider: "lovable",
+          provider: PROVIDER,
           model: MODEL,
           input_tokens: totalInputTokens,
           output_tokens: totalOutputTokens,
