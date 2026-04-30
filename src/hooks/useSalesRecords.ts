@@ -64,7 +64,7 @@ export function useSalesRecords(filters: SalesRecordsFilters) {
 
   const queryKey = ["sales-records", filters, pagination.page, pagination.pageSize];
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey,
     queryFn: async () => {
       let query = supabase
@@ -148,6 +148,7 @@ export function useSalesRecords(filters: SalesRecordsFilters) {
   return {
     records,
     isLoading,
+    error: error as Error | null,
     totalCount: data?.totalCount ?? 0,
     pagination,
     createRecord,
