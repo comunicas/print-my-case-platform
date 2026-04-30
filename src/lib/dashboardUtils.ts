@@ -424,7 +424,9 @@ export function calculateKPIs(
  */
 export function getLossesByDay(
   sales: SaleRecord[],
-  cancellations: CancellationRecord[]
+  cancellations: CancellationRecord[],
+  startDate?: Date,
+  endDate?: Date,
 ): LossesByDayData[] {
   const byDay = new Map<string, { 
     cancellations: number; 
@@ -459,7 +461,25 @@ export function getLossesByDay(
       byDay.set(date, current);
     }
   }
-  
+
+  // Preenche dias ausentes dentro do intervalo com zeros
+  if (startDate && endDate) {
+    const cur = new Date(startDate);
+    cur.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    while (cur <= end) {
+      const key = format(cur, 'yyyy-MM-dd');
+      if (!byDay.has(key)) {
+        byDay.set(key, {
+          cancellations: 0, cancellationCount: 0,
+          refunds: 0, refundCount: 0,
+        });
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+  }
+
   return Array.from(byDay.entries())
     .map(([date, data]) => ({
       date,
