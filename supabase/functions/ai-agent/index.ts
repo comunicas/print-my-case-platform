@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { SKILL_CORE } from "./skill.ts";
-import { TOOLS, TOOL_TO_RPC } from "./tools.ts";
+import { SKILL_CORE as DEFAULT_SKILL_CORE } from "./skill.ts";
+import { TOOLS as DEFAULT_TOOLS, TOOL_TO_RPC } from "./tools.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,12 +9,77 @@ const corsHeaders = {
   "Access-Control-Expose-Headers": "x-request-id",
 };
 
-const MODEL = "gpt-5-mini";
+const DEFAULT_MODEL = "gpt-5-mini";
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const PROVIDER = "openai";
-const MAX_TOOL_ITERATIONS = 8;
-const RATE_LIMIT_PER_10_MIN = 20;
-const HISTORY_LIMIT = 12;
+const DEFAULT_MAX_TOOL_ITERATIONS = 8;
+const DEFAULT_RATE_LIMIT_PER_10_MIN = 20;
+const DEFAULT_HISTORY_LIMIT = 12;
+const DEFAULT_MAX_MESSAGE_CHARS = 4000;
+const CONFIG_CACHE_TTL_MS = 60 * 1000;
+
+type AgentConfig = {
+  model: string;
+  system_prompt: string;
+  max_tool_iterations: number;
+  history_limit: number;
+  rate_limit_per_10min: number;
+  max_message_chars: number;
+  tools: typeof DEFAULT_TOOLS;
+};
+
+let cachedConfig: { value: AgentConfig; ts: number } | null = null;
+
+async function loadAgentConfig(supabaseAdmin: ReturnType<typeof createClient>): Promise<AgentConfig> {
+  const now = Date.now();
+  if (cachedConfig && now - cachedConfig.ts < CONFIG_CACHE_TTL_MS) return cachedConfig.value;
+
+  const fallback: AgentConfig = {
+    model: DEFAULT_MODEL,
+    system_prompt: DEFAULT_SKILL_CORE,
+    max_tool_iterations: DEFAULT_MAX_TOOL_ITERATIONS,
+    history_limit: DEFAULT_HISTORY_LIMIT,
+    rate_limit_per_10min: DEFAULT_RATE_LIMIT_PER_10_MIN,
+    max_message_chars: DEFAULT_MAX_MESSAGE_CHARS,
+    tools: DEFAULT_TOOLS,
+  };
+
+  try {
+    const [{ data: cfg }, { data: tools }] = await Promise.all([
+      supabaseAdmin.from("ai_agent_config").select("*").eq("singleton", true).maybeSingle(),
+      supabaseAdmin
+        .from("ai_agent_tools")
+        .select("name, description, parameters_schema, enabled")
+        .eq("enabled", true),
+    ]);
+
+    const dynamicTools = (tools ?? [])
+      .filter((t: any) => TOOL_TO_RPC[t.name])
+      .map((t: any) => ({
+        type: "function" as const,
+        function: {
+          name: t.name,
+          description: t.description,
+          parameters: t.parameters_schema,
+        },
+      })) as typeof DEFAULT_TOOLS;
+
+    const value: AgentConfig = {
+      model: (cfg?.model as string) ?? fallback.model,
+      system_prompt: (cfg?.system_prompt as string) ?? fallback.system_prompt,
+      max_tool_iterations: (cfg?.max_tool_iterations as number) ?? fallback.max_tool_iterations,
+      history_limit: (cfg?.history_limit as number) ?? fallback.history_limit,
+      rate_limit_per_10min: (cfg?.rate_limit_per_10min as number) ?? fallback.rate_limit_per_10min,
+      max_message_chars: (cfg?.max_message_chars as number) ?? fallback.max_message_chars,
+      tools: dynamicTools.length > 0 ? dynamicTools : fallback.tools,
+    };
+    cachedConfig = { value, ts: now };
+    return value;
+  } catch (e) {
+    console.warn("ai-agent: config load failed, using defaults", e);
+    return fallback;
+  }
+}
 
 function logEvent(event: string, fields: Record<string, unknown>) {
   console.log(JSON.stringify({ event, ts: new Date().toISOString(), ...fields }));
@@ -57,6 +122,8 @@ Deno.serve(async (req) => {
   }
   const userId = claimsData.claims.sub as string;
 
+  const agentCfg = await loadAgentConfig(supabaseAdmin);
+
   // 2. Resolver role + org
   const [{ data: roleRows }, { data: profile }] = await Promise.all([
     supabaseAdmin.from("user_roles").select("role").eq("user_id", userId),
@@ -86,8 +153,12 @@ Deno.serve(async (req) => {
   if (!userMessage) {
     return jsonResponse({ error: "Mensagem vazia." }, 400, requestId);
   }
-  if (userMessage.length > 4000) {
-    return jsonResponse({ error: "Mensagem muito longa (máx. 4000 caracteres)." }, 400, requestId);
+  if (userMessage.length > agentCfg.max_message_chars) {
+    return jsonResponse(
+      { error: `Mensagem muito longa (máx. ${agentCfg.max_message_chars} caracteres).` },
+      400,
+      requestId,
+    );
   }
 
   // 4. Rate limit (por usuário, últimos 10 min)
@@ -99,7 +170,7 @@ Deno.serve(async (req) => {
     .eq("ai_conversations.user_id", userId)
     .gte("created_at", tenMinAgo);
 
-  if ((recentCount ?? 0) >= RATE_LIMIT_PER_10_MIN) {
+  if ((recentCount ?? 0) >= agentCfg.rate_limit_per_10min) {
     logEvent("ai_agent_rate_limited", { request_id: requestId, user_id: userId, count: recentCount });
     return jsonResponse(
       { error: "Você atingiu o limite de mensagens. Tente novamente em alguns minutos." },
@@ -143,7 +214,7 @@ Deno.serve(async (req) => {
     .select("role, content, tool_calls, tool_results")
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: false })
-    .limit(HISTORY_LIMIT);
+    .limit(agentCfg.history_limit);
   const history = (historyRows ?? []).reverse();
 
   // 7. Persiste mensagem do usuário
@@ -160,7 +231,7 @@ Deno.serve(async (req) => {
 
   // 8. Monta mensagens (estático → dinâmico, otimizando prompt caching)
   const messages: Array<Record<string, unknown>> = [
-    { role: "system", content: SKILL_CORE },
+    { role: "system", content: agentCfg.system_prompt },
   ];
   for (const h of history) {
     if (h.role === "user" || h.role === "assistant") {
@@ -187,10 +258,10 @@ Deno.serve(async (req) => {
 
   // Executa as tools até o modelo dar resposta final OU atingir limite
   // Para a parte FINAL (sem tools restantes), fazemos streaming SSE para o cliente.
-  for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
+  for (let iter = 0; iter < agentCfg.max_tool_iterations; iter++) {
     // Na última iteração, forçamos o modelo a responder em texto (sem mais tools)
     // para garantir uma resposta útil ao usuário com os dados já coletados.
-    const isLastIteration = iter === MAX_TOOL_ITERATIONS - 1;
+    const isLastIteration = iter === agentCfg.max_tool_iterations - 1;
     const aiResp = await fetch(OPENAI_CHAT_URL, {
       method: "POST",
       headers: {
@@ -198,9 +269,9 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: MODEL,
+        model: agentCfg.model,
         messages,
-        ...(isLastIteration ? { tool_choice: "none" } : { tools: TOOLS }),
+        ...(isLastIteration ? { tool_choice: "none" } : { tools: agentCfg.tools }),
         stream: false,
       }),
     });
@@ -384,7 +455,7 @@ Deno.serve(async (req) => {
           user_id: userId,
           organization_id: organizationId ?? userId,
           provider: PROVIDER,
-          model: MODEL,
+          model: agentCfg.model,
           input_tokens: totalInputTokens,
           output_tokens: totalOutputTokens,
           cached_tokens: cachedTokens,
