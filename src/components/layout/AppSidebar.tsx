@@ -6,6 +6,7 @@ import {
   Building2,
   Megaphone,
   Wallet,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ interface NavItem {
   label: string;
   href: string;
   superAdminOnly?: boolean;
+  adminOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -69,6 +71,7 @@ export function AppSidebar({
   const { role } = useProfile();
   const { prefetchMap, prefetchMarketing } = usePrefetchRoutes();
   const isSuperAdmin = role === "super_admin";
+  const isAdmin = role === "super_admin" || role === "org_admin";
   const isStockActive = activeItem.startsWith("/estoque");
   const isMarketingActive = activeItem.startsWith("/marketing");
 
@@ -184,6 +187,7 @@ export function AppSidebar({
           {renderNavItem(visibleNavItems[1])} {/* Uploads */}
           {marketingMenu}
           {renderNavItem({ icon: Wallet, label: "Financeiro", href: "/financeiro" })}
+          {isAdmin && renderNavItem({ icon: Sparkles, label: "Assistente IA", href: "/assistente" })}
           {/* Super Admin items */}
           {visibleNavItems.slice(2).map(renderNavItem)}
         </nav>

@@ -5,6 +5,7 @@ import {
   Megaphone,
   Wallet,
   Building2,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -63,6 +64,7 @@ export function MobileSidebar({
 }: MobileSidebarProps) {
   const { role } = useProfile();
   const isSuperAdmin = role === "super_admin";
+  const isAdmin = role === "super_admin" || role === "org_admin";
   
   const isStockActive = activeItem.startsWith("/estoque");
   const isMarketingActive = activeItem.startsWith("/marketing");
@@ -136,6 +138,7 @@ export function MobileSidebar({
               defaultSubTab="cupons"
             />
             {renderNavItem({ icon: Wallet, label: "Financeiro", href: "/financeiro" })}
+            {isAdmin && renderNavItem({ icon: Sparkles, label: "Assistente IA", href: "/assistente" })}
           </nav>
           
           {isSuperAdmin && (
