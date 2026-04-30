@@ -67,32 +67,35 @@ function ModalSkeleton() {
 
 export function ProductDetailModal({ productName, isOpen, onClose, pdvId }: ProductDetailModalProps) {
   const { pdvs } = usePDVs();
-  const pdvName = pdvId && pdvId !== 'all' ? pdvs.find(p => p.id === pdvId)?.name : null;
-  
-  // Busca slots filtrados pelo PDV selecionado
+
+  // Em modo multi-PDV, productName pode vir como "BRAND:model|{pdvId}".
+  // Extraímos as partes limpas para usar em hooks e filtros.
+  const cleanProductName = productName?.includes('|')
+    ? productName.split('|')[0]
+    : productName;
+  const impliedPdvId = productName?.includes('|')
+    ? productName.split('|')[1]
+    : undefined;
+  const effectivePdvId = pdvId || impliedPdvId;
+
+  const pdvName = effectivePdvId && effectivePdvId !== 'all'
+    ? pdvs.find(p => p.id === effectivePdvId)?.name
+    : null;
+
+  // Busca slots filtrados pelo PDV efetivo
   const { allowedPdvIds } = useUserAllowedPDVs();
   const { data: slots = [], isLoading: slotsLoading } = useSlotsData({ 
-    pdvId: pdvId !== 'all' ? pdvId : undefined,
+    pdvId: effectivePdvId !== 'all' ? effectivePdvId : undefined,
     allowedPdvIds 
   });
 
-  const { data: analytics, isLoading: analyticsLoading } = useProductAnalytics(productName, pdvId);
+  const { data: analytics, isLoading: analyticsLoading } = useProductAnalytics(cleanProductName, effectivePdvId);
 
   // Filtra e agrega dados do produto usando productKey para comparação consistente
   const productData = useMemo(() => {
-    if (!productName) return null;
+    if (!cleanProductName) return null;
 
-    // Em modo multi-PDV ("Todos os PDVs"), o productKey vem no formato
-    // "BRAND:model|{pdvId}". Extraímos o nome limpo e o pdvId implícito.
-    const cleanProductName = productName.includes('|')
-      ? productName.split('|')[0]
-      : productName;
-    const impliedPdvId = productName.includes('|')
-      ? productName.split('|')[1]
-      : undefined;
-    const effectivePdvId = pdvId || impliedPdvId;
-
-    // Usa getExactProductKey para comparar - productName aqui é o productKey normalizado
+    // Usa getExactProductKey para comparar - cleanProductName aqui é o productKey normalizado
     const productSlots = slots.filter(s => {
       const keyMatch = getExactProductKey(s.productName) === cleanProductName;
       if (!effectivePdvId || effectivePdvId === 'all') return keyMatch;
@@ -119,7 +122,7 @@ export function ProductDetailModal({ productName, isOpen, onClose, pdvId }: Prod
       status,
       slots: productSlots,
     };
-  }, [productName, slots, pdvId]);
+  }, [cleanProductName, slots, effectivePdvId]);
 
   // Mostra skeleton enquanto carrega os slots
   if (slotsLoading && isOpen && productName) {
@@ -238,9 +241,9 @@ export function ProductDetailModal({ productName, isOpen, onClose, pdvId }: Prod
 
             {/* Histórico de Vendas */}
             <div className="p-4 bg-muted/30 rounded-lg">
-              <ProductSalesHistoryChart 
-                productName={productName} 
-                pdvId={pdvId}
+          <ProductSalesHistoryChart 
+                productName={cleanProductName} 
+                pdvId={effectivePdvId}
               />
             </div>
           </TabsContent>
