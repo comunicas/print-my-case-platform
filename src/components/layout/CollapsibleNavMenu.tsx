@@ -62,7 +62,7 @@ export function CollapsibleNavMenu({
             <Icon className="h-5 w-5 flex-shrink-0" />
           </button>
         </TooltipTrigger>
-        <TooltipContent side="right" className="font-medium">
+        <TooltipContent side="right" sideOffset={8} className="font-medium z-50">
           {label}
         </TooltipContent>
       </Tooltip>
