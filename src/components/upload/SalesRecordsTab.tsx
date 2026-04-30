@@ -76,6 +76,7 @@ export function SalesRecordsTab({ pdvs, onUploadClick, canUpload }: Props) {
   const {
     records,
     isLoading,
+    error,
     totalCount,
     pagination,
     createRecord,
@@ -107,14 +108,6 @@ export function SalesRecordsTab({ pdvs, onUploadClick, canUpload }: Props) {
       onSuccess: () => { setDeleteDialogOpen(false); setDeletingId(null); },
     });
   };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">
