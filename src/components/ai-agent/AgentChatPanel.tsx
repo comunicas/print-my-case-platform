@@ -47,7 +47,7 @@ export function AgentChatPanel() {
   return (
     <div className="relative grid grid-cols-1 md:grid-cols-[260px_1fr] xl:grid-cols-[300px_1fr] gap-0 h-[calc(100dvh-9rem)] md:h-[calc(100dvh-10rem)] min-h-[420px] border rounded-lg overflow-hidden bg-card z-0">
       {/* Sidebar (desktop/tablet) */}
-      <aside className="hidden md:flex border-r bg-muted/20 min-w-0">
+      <aside className="hidden md:flex border-r bg-muted/20 min-w-0 overflow-hidden">
         <ConversationList
           conversations={conversations}
           activeId={activeId}
