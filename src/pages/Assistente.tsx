@@ -2,7 +2,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { AgentChatPanel } from "@/components/ai-agent/AgentChatPanel";
 import { useProfile } from "@/hooks/useProfile";
 import { Navigate } from "react-router-dom";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 export default function Assistente() {
   const { role, isLoading } = useProfile();
@@ -23,14 +23,13 @@ export default function Assistente() {
 
   return (
     <AppLayout>
-      <div className="space-y-3 sm:space-y-4">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-primary flex-shrink-0" />
+      <div className="flex flex-col gap-2 sm:gap-3 h-full">
+        <div className="flex items-baseline justify-between gap-2">
           <h1 className="text-xl sm:text-2xl font-bold">Assistente IA</h1>
+          <p className="hidden md:block text-xs text-muted-foreground truncate">
+            Pergunte sobre estoque, vendas e otimização de PDVs.
+          </p>
         </div>
-        <p className="hidden sm:block text-sm text-muted-foreground">
-          Pergunte sobre estoque, vendas, faturamento e otimização de PDVs com base nos seus dados em tempo real.
-        </p>
         <AgentChatPanel />
       </div>
     </AppLayout>
