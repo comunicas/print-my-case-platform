@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -95,6 +95,21 @@ export function useSalesRecords(filters: SalesRecordsFilters) {
     enabled: !!session,
   });
 
+  // Fallback timeout: if loading exceeds 8s, surface a friendly error so the
+  // UI never gets stuck on an infinite spinner (e.g. when used outside of the
+  // Uploads context where session may resolve later or RLS blocks the query).
+  const [timeoutError, setTimeoutError] = useState<Error | null>(null);
+  useEffect(() => {
+    if (!isLoading) {
+      setTimeoutError(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setTimeoutError(new Error("Não foi possível carregar as vendas."));
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [isLoading, queryKey.join("|")]);
+
   useEffect(() => {
     if (data?.totalCount !== undefined) {
       pagination.setTotalCount(data.totalCount);
@@ -148,7 +163,7 @@ export function useSalesRecords(filters: SalesRecordsFilters) {
   return {
     records,
     isLoading,
-    error: error as Error | null,
+    error: (error as Error | null) ?? timeoutError,
     totalCount: data?.totalCount ?? 0,
     pagination,
     createRecord,
