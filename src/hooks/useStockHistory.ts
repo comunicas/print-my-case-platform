@@ -85,7 +85,38 @@ export function useStockHistory({ days = 90, organizationId, pdvId }: UseStockHi
         if (indexB === -1) return -1;
         return indexA - indexB;
       });
-      
+
+      // Preenche dias sem snapshot dentro do período
+      const periodStart = subDays(new Date(), days);
+      periodStart.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const existingDates = new Set(chartData.map(d => d.date));
+      const cur = new Date(periodStart);
+
+      while (cur <= today) {
+        const key = format(cur, 'yyyy-MM-dd');
+        if (!existingDates.has(key)) {
+          const entry: StockHistoryData = {
+            date: key,
+            dateDisplay: format(new Date(key + 'T00:00:00'), "EEE, dd MMM", { locale: ptBR }),
+          };
+          // Para cada brand conhecida, herda o valor do dia anterior mais recente
+          for (const brand of Array.from(brandsSet)) {
+            const prev = chartData
+              .filter(d => d.date < key)
+              .sort((a, b) => b.date.localeCompare(a.date))[0];
+            entry[brand] = prev ? ((prev[brand] as number) || 0) : 0;
+          }
+          chartData.push(entry);
+        }
+        cur.setDate(cur.getDate() + 1);
+      }
+
+      // Re-ordena após inserir dias vazios
+      chartData.sort((a, b) => a.date.localeCompare(b.date));
+
       return { chartData, brands };
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
