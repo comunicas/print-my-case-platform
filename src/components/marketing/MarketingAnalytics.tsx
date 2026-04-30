@@ -48,18 +48,18 @@ export function MarketingAnalytics({ selectedPdvId }: MarketingAnalyticsProps) {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {isLoading ? (
-          Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 rounded-lg" />
-          ))
-        ) : (
-          <>
-            <KPICard title="Total de Leads" value={String(totalLeads)} icon={Users} />
-            <KPICard title="Total de Cliques" value={String(totalClicks)} icon={MousePointerClick} />
-            <KPICard title="Taxa de Conversão" value={`${conversionRate.toFixed(1)}%`} icon={Percent} />
-            <KPICard title="Média Diária" value={avgLeadsPerDay.toFixed(1)} icon={TrendingUp} />
-          </>
-        )}
+        <div className={isLoading ? "opacity-50 animate-pulse" : ""}>
+          <KPICard title="Total de Leads" value={isLoading ? "…" : String(totalLeads)} icon={Users} />
+        </div>
+        <div className={isLoading ? "opacity-50 animate-pulse" : ""}>
+          <KPICard title="Total de Cliques" value={isLoading ? "…" : String(totalClicks)} icon={MousePointerClick} />
+        </div>
+        <div className={isLoading ? "opacity-50 animate-pulse" : ""}>
+          <KPICard title="Taxa de Conversão" value={isLoading ? "…" : `${conversionRate.toFixed(1)}%`} icon={Percent} />
+        </div>
+        <div className={isLoading ? "opacity-50 animate-pulse" : ""}>
+          <KPICard title="Média Diária" value={isLoading ? "…" : avgLeadsPerDay.toFixed(1)} icon={TrendingUp} />
+        </div>
       </div>
 
       {/* Charts */}
