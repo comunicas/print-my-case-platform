@@ -24,12 +24,12 @@ export function QuickActions({ onSelect, disabled }: Props) {
           <Button
             key={a.label}
             variant="outline"
-            className="justify-start h-auto py-3 text-left"
+            className="justify-start h-auto min-h-[44px] py-2.5 px-3 text-left whitespace-normal"
             onClick={() => onSelect(a.prompt)}
             disabled={disabled}
           >
             <Icon className="h-4 w-4 mr-2 flex-shrink-0 text-primary" />
-            <span className="text-sm">{a.label}</span>
+            <span className="text-sm leading-snug break-words">{a.label}</span>
           </Button>
         );
       })}

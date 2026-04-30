@@ -11,7 +11,12 @@ interface Props {
 export function MessageBubble({ message }: Props) {
   const isUser = message.role === "user";
   return (
-    <div className={cn("flex gap-3", isUser ? "justify-end" : "justify-start")}>
+    <div
+      className={cn(
+        "flex gap-2 sm:gap-3 w-full min-w-0",
+        isUser ? "justify-end" : "justify-start",
+      )}
+    >
       {!isUser && (
         <div className="flex-shrink-0 h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
           <Sparkles className="h-4 w-4" />
@@ -19,20 +24,50 @@ export function MessageBubble({ message }: Props) {
       )}
       <div
         className={cn(
-          "rounded-2xl px-4 py-3 max-w-[85%] md:max-w-[75%] text-sm",
+          "rounded-2xl px-3 py-2 sm:px-4 sm:py-3 text-sm min-w-0 overflow-hidden",
           isUser
-            ? "bg-primary text-primary-foreground"
-            : "bg-muted text-foreground",
+            ? "max-w-[calc(100%-2.75rem)] sm:max-w-[80%] md:max-w-[75%] bg-primary text-primary-foreground"
+            : "max-w-[calc(100%-2.75rem)] sm:max-w-[85%] md:max-w-[80%] bg-muted text-foreground",
         )}
       >
         {isUser ? (
           <p className="whitespace-pre-wrap break-words">{message.content}</p>
         ) : (
-          <div className="prose prose-sm max-w-none dark:prose-invert prose-table:text-xs prose-th:px-2 prose-td:px-2 prose-headings:mt-2 prose-headings:mb-1 prose-p:my-1">
+          <div
+            className={cn(
+              "prose prose-sm max-w-none dark:prose-invert",
+              "prose-headings:mt-2 prose-headings:mb-1 prose-p:my-1",
+              "prose-pre:my-2 prose-pre:overflow-x-auto prose-pre:text-xs",
+              "prose-code:break-words prose-code:text-[12px]",
+              "prose-a:break-all",
+              "[&_p]:break-words [&_li]:break-words [&_h1]:break-words [&_h2]:break-words [&_h3]:break-words",
+            )}
+          >
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               skipHtml
               disallowedElements={["script", "iframe", "style", "object", "embed"]}
+              components={{
+                table: ({ node, ...props }) => (
+                  <div className="my-2 -mx-1 max-w-full overflow-x-auto rounded-md border border-border/50">
+                    <table {...props} className="min-w-full text-xs" />
+                  </div>
+                ),
+                th: ({ node, ...props }) => (
+                  <th {...props} className="whitespace-nowrap px-2 py-1 text-left font-medium" />
+                ),
+                td: ({ node, ...props }) => (
+                  <td {...props} className="whitespace-nowrap px-2 py-1 align-top" />
+                ),
+                pre: ({ node, ...props }) => (
+                  <pre {...props} className="overflow-x-auto rounded-md bg-background/60 p-2 text-xs" />
+                ),
+                code: ({ node, className, children, ...props }) => (
+                  <code {...props} className={cn(className, "break-words")}>
+                    {children}
+                  </code>
+                ),
+              }}
             >
               {message.content || "_(sem conteúdo)_"}
             </ReactMarkdown>
