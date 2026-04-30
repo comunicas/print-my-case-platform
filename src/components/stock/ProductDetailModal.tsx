@@ -81,9 +81,23 @@ export function ProductDetailModal({ productName, isOpen, onClose, pdvId }: Prod
   // Filtra e agrega dados do produto usando productKey para comparação consistente
   const productData = useMemo(() => {
     if (!productName) return null;
-    
+
+    // Em modo multi-PDV ("Todos os PDVs"), o productKey vem no formato
+    // "BRAND:model|{pdvId}". Extraímos o nome limpo e o pdvId implícito.
+    const cleanProductName = productName.includes('|')
+      ? productName.split('|')[0]
+      : productName;
+    const impliedPdvId = productName.includes('|')
+      ? productName.split('|')[1]
+      : undefined;
+    const effectivePdvId = pdvId || impliedPdvId;
+
     // Usa getExactProductKey para comparar - productName aqui é o productKey normalizado
-    const productSlots = slots.filter(s => getExactProductKey(s.productName) === productName);
+    const productSlots = slots.filter(s => {
+      const keyMatch = getExactProductKey(s.productName) === cleanProductName;
+      if (!effectivePdvId || effectivePdvId === 'all') return keyMatch;
+      return keyMatch && s.pdvId === effectivePdvId;
+    });
     if (productSlots.length === 0) return null;
     
     // Extrai brand e model do primeiro slot (dados originais)
@@ -105,7 +119,7 @@ export function ProductDetailModal({ productName, isOpen, onClose, pdvId }: Prod
       status,
       slots: productSlots,
     };
-  }, [productName, slots]);
+  }, [productName, slots, pdvId]);
 
   // Mostra skeleton enquanto carrega os slots
   if (slotsLoading && isOpen && productName) {
