@@ -114,7 +114,7 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
       case 'Enter':
         if (focusedIndex >= 0 && focusedIndex <= maxIndex) {
           const product = paginatedProducts[focusedIndex];
-          openProductModal(product.productKey, selectedPdv !== 'all' ? selectedPdv : undefined);
+          openProductModalForRow(product.productKey);
         }
         break;
       case 'Escape':
@@ -160,7 +160,7 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
             <Card
               key={product.productKey}
               className="overflow-hidden active:bg-muted/50 transition-colors"
-              onClick={() => openProductModal(product.productKey, selectedPdv !== 'all' ? selectedPdv : undefined)}
+              onClick={() => openProductModalForRow(product.productKey)}
             >
               <CardContent className="p-3">
                 {/* Line 1: Slot + Product + Status */}
@@ -197,7 +197,7 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                     <Progress value={(product.totalQuantity / product.maxCapacity) * 100} className="h-1.5 flex-1" />
                     <span className="text-xs font-medium shrink-0">{product.totalQuantity}/{product.maxCapacity}</span>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={(e) => { e.stopPropagation(); openProductModal(product.productKey, selectedPdv !== 'all' ? selectedPdv : undefined); }}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={(e) => { e.stopPropagation(); openProductModalForRow(product.productKey); }}>
                     <Eye className="h-3.5 w-3.5" />
                   </Button>
                 </div>
@@ -276,7 +276,7 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
-                        onClick={() => openProductModal(product.productKey, selectedPdv !== 'all' ? selectedPdv : undefined)}
+                        onClick={() => openProductModalForRow(product.productKey)}
                         className="text-left text-primary hover:underline cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
                         data-testid="product-name"
                       >
@@ -345,7 +345,7 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                 <TableCell>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" onClick={() => openProductModal(product.productKey, selectedPdv !== 'all' ? selectedPdv : undefined)} data-testid="product-detail-button">
+                      <Button variant="ghost" size="icon" onClick={() => openProductModalForRow(product.productKey)} data-testid="product-detail-button">
                         <Eye className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
