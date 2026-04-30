@@ -27,6 +27,8 @@ import {
 import { Key, Plus, Copy, Check, Trash2, Ban, Loader2, Info } from "lucide-react";
 import { useApiKeys } from "@/hooks/useApiKeys";
 import { useProfile } from "@/hooks/useProfile";
+import { useRole } from "@/contexts/ProfileContext";
+import { AiAgentSettings } from "@/components/settings/AiAgentSettings";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -34,6 +36,7 @@ import { ptBR } from "date-fns/locale";
 
 export function IntegrationsSettings() {
   const { isAdmin } = useProfile();
+  const { isSuperAdmin } = useRole();
   const { apiKeys, isLoading, createKey, revokeKey, deleteKey, isAllOrgs } = useApiKeys();
   const [newKeyName, setNewKeyName] = useState("");
   const [createdKey, setCreatedKey] = useState<string | null>(null);
@@ -71,6 +74,9 @@ export function IntegrationsSettings() {
 
   return (
     <div className="space-y-6">
+      {/* Agente IA — super admin only */}
+      {isSuperAdmin && <AiAgentSettings />}
+
       {/* API Keys — admin only */}
       {isAdmin && <Card>
         {isAllOrgs ? (
