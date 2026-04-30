@@ -41,7 +41,7 @@ export function ProductSlotsList({ slots, status, isLoading }: ProductSlotsListP
       <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
         <div>
           <p className="text-sm text-muted-foreground">Status Geral</p>
-          <p className="font-medium">{slots.length} slots ativos</p>
+          <p className="font-medium">{slots.length} {slots.length === 1 ? 'slot ativo' : 'slots ativos'}</p>
         </div>
         <Badge variant="outline" className={productActionColors[status]}>
           {productActionLabels[status]}
