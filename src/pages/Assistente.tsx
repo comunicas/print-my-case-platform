@@ -23,12 +23,12 @@ export default function Assistente() {
 
   return (
     <AppLayout>
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-primary" />
-          <h1 className="text-2xl font-bold">Assistente IA</h1>
+          <Sparkles className="h-5 w-5 text-primary flex-shrink-0" />
+          <h1 className="text-xl sm:text-2xl font-bold">Assistente IA</h1>
         </div>
-        <p className="text-sm text-muted-foreground">
+        <p className="hidden sm:block text-sm text-muted-foreground">
           Pergunte sobre estoque, vendas, faturamento e otimização de PDVs com base nos seus dados em tempo real.
         </p>
         <AgentChatPanel />
