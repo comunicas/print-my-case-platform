@@ -76,6 +76,7 @@ export function SalesRecordsTab({ pdvs, onUploadClick, canUpload }: Props) {
   const {
     records,
     isLoading,
+    error,
     totalCount,
     pagination,
     createRecord,
@@ -107,14 +108,6 @@ export function SalesRecordsTab({ pdvs, onUploadClick, canUpload }: Props) {
       onSuccess: () => { setDeleteDialogOpen(false); setDeletingId(null); },
     });
   };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">
@@ -184,14 +177,29 @@ export function SalesRecordsTab({ pdvs, onUploadClick, canUpload }: Props) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {records.length === 0 && (
+            {isLoading && (
+              <TableRow>
+                <TableCell colSpan={isAdmin ? 9 : 8} className="text-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mx-auto" />
+                </TableCell>
+              </TableRow>
+            )}
+            {!isLoading && error && (
+              <TableRow>
+                <TableCell colSpan={isAdmin ? 9 : 8} className="text-center py-8">
+                  <p className="text-sm text-destructive">Erro ao carregar vendas.</p>
+                  <p className="text-xs text-muted-foreground mt-1">{error.message}</p>
+                </TableCell>
+              </TableRow>
+            )}
+            {!isLoading && !error && records.length === 0 && (
               <TableRow>
                 <TableCell colSpan={isAdmin ? 9 : 8} className="text-center py-8 text-muted-foreground">
                   Nenhum registro encontrado
                 </TableCell>
               </TableRow>
             )}
-            {records.map((r) => (
+            {!isLoading && !error && records.map((r) => (
               <TableRow key={r.id}>
                 <TableCell className="font-mono text-xs">{r.order_number}</TableCell>
                 <TableCell className="max-w-[200px] truncate">{r.product_name}</TableCell>

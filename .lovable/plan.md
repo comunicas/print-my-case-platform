@@ -1,109 +1,87 @@
-## Implementar RPC de métricas globais do super_admin e remover HEAD counts do dashboard
+## Corrigir spinner infinito da aba Vendas no Marketing
 
 ### Diagnóstico
 
-`src/hooks/useDashboard.ts` (linhas 196–199) faz dois `HEAD count: "exact"` em `organizations` e `pdvs` que retornam 503. As policies SELECT cobrem super_admin corretamente (`is_super_admin(auth.uid())`) — o 503 é timeout do PostgREST, não bloqueio de RLS: o COUNT respeitando RLS varre todas as linhas executando `is_super_admin()` por linha e estoura `statement_timeout`. O `try/catch` silencia o erro e o card "Visão Consolidada" mostra 0.
+`useSalesRecords.ts` (linha 72) faz embed PostgREST `pdvs(name)`, mas `sales_records` **não tem foreign key declarada** para `pdvs.id` (confirmado no schema). Sem FK, o embed retorna erro de relação. O React Query faz 3 retries com backoff exponencial — durante esse tempo `isLoading` permanece `true`, dando a aparência de "spinner infinito". O early-return em `SalesRecordsTab` linha 111 (`if (isLoading) return <Loader/>`) impede ver qualquer outro estado.
+
+Não é problema de timeout por falta de filtro de PDV — `filterPdv` default `"all"` é tratado corretamente (apenas omite o `.eq` em vez de gerar query inválida). O problema raiz é a relação inexistente.
 
 ### Correção
 
-Substituir os 3 fetches paralelos do bloco `if (isSuperAdmin)` por uma única RPC `SECURITY DEFINER` que retorna métricas globais agregadas em uma round-trip.
+Duas mudanças mínimas:
+
+1. **Migration**: adicionar a FK `sales_records.pdv_id → pdvs.id` (consistente com o schema lógico do app — todo registro de venda já referencia um PDV via `pdv_id uuid NOT NULL`).
+2. **`SalesRecordsTab.tsx`**: trocar o early-return do spinner por overlay/skeleton dentro do layout, para que filtros e botão "Nova Venda" continuem visíveis durante o loading. Também tratar erro do `useQuery` para mostrar mensagem em vez de spinner eterno.
 
 ### 1. Migration SQL
 
 ```sql
-CREATE OR REPLACE FUNCTION public.get_super_admin_global_metrics(
-  p_start_date timestamptz,
-  p_end_date timestamptz
-)
-RETURNS TABLE (
-  total_organizations bigint,
-  total_pdvs_global bigint,
-  total_revenue_global numeric,
-  total_transactions_global bigint,
-  total_refunds_global numeric,
-  avg_ticket_global numeric
-)
-LANGUAGE plpgsql
-STABLE SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_total_revenue numeric := 0;
-  v_total_refunds numeric := 0;
-  v_total_tx bigint := 0;
-BEGIN
-  IF NOT is_super_admin(auth.uid()) THEN
-    RAISE EXCEPTION 'Access denied: super_admin required';
-  END IF;
+-- Garantir integridade: remover órfãos (defensivo, idealmente 0)
+DELETE FROM public.sales_records sr
+WHERE NOT EXISTS (SELECT 1 FROM public.pdvs p WHERE p.id = sr.pdv_id);
 
-  SELECT
-    COALESCE(SUM(amount), 0),
-    COALESCE(SUM(COALESCE(refund_amount, 0)), 0),
-    COUNT(*)
-  INTO v_total_revenue, v_total_refunds, v_total_tx
-  FROM sales_records
-  WHERE payment_date >= p_start_date
-    AND payment_date <= p_end_date
-    AND status = 'Concluído';
+ALTER TABLE public.sales_records
+  ADD CONSTRAINT sales_records_pdv_id_fkey
+  FOREIGN KEY (pdv_id) REFERENCES public.pdvs(id) ON DELETE CASCADE;
 
-  RETURN QUERY SELECT
-    (SELECT COUNT(*) FROM organizations)::bigint,
-    (SELECT COUNT(*) FROM pdvs WHERE status = 'active')::bigint,
-    v_total_revenue,
-    v_total_tx,
-    v_total_refunds,
-    CASE WHEN v_total_tx > 0 THEN v_total_revenue / v_total_tx ELSE 0 END::numeric;
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.get_super_admin_global_metrics(timestamptz, timestamptz) TO authenticated;
+-- Index para suportar a FK (já costuma existir, mas garantimos)
+CREATE INDEX IF NOT EXISTS idx_sales_records_pdv_id ON public.sales_records(pdv_id);
 ```
 
-### 2. Refactor `src/hooks/useDashboard.ts` (linhas 192–225)
+### 2. Refactor `useSalesRecords.ts`
 
-Remover os 3 fetches HEAD/SELECT e o `try/catch` silencioso. Substituir por:
+Expor `error` no retorno do hook:
 
 ```ts
-let globalMetrics: DashboardData["globalMetrics"] = undefined;
-if (isSuperAdmin) {
-  const { data, error } = await supabase.rpc("get_super_admin_global_metrics", {
-    p_start_date: startDate.toISOString(),
-    p_end_date: endDate.toISOString(),
-  });
-  if (!error && data?.[0]) {
-    const row = data[0];
-    globalMetrics = {
-      totalOrganizations: Number(row.total_organizations) || 0,
-      totalPdvsGlobal: Number(row.total_pdvs_global) || 0,
-      totalRevenueGlobal: Number(row.total_revenue_global) || 0,
-      totalTransactionsGlobal: Number(row.total_transactions_global) || 0,
-      totalRefundsGlobal: Number(row.total_refunds_global) || 0,
-      avgTicketGlobal: Number(row.avg_ticket_global) || 0,
-    };
-  }
-}
+const { data, isLoading, error } = useQuery({ ... });
+// ...
+return { records, isLoading, error, totalCount, ... };
 ```
 
-### 3. Memória
+### 3. Refactor `SalesRecordsTab.tsx` (linha 111)
 
-Atualizar `mem://features/super-admin-consolidated-dashboard-metrics` registrando que métricas globais são obtidas via RPC `get_super_admin_global_metrics`, não HEAD counts.
+Substituir o early-return por um estado dentro do layout:
+
+```tsx
+const { records, isLoading, error, totalCount, ... } = useSalesRecords(...);
+
+// remover o bloco `if (isLoading) return <Loader/>`
+
+// dentro do return, após os filtros:
+{error ? (
+  <div className="flex flex-col items-center justify-center py-12 text-center">
+    <p className="text-sm text-destructive">Erro ao carregar vendas.</p>
+    <p className="text-xs text-muted-foreground mt-1">{error.message}</p>
+  </div>
+) : isLoading ? (
+  <div className="flex items-center justify-center py-12">
+    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+  </div>
+) : records.length === 0 ? (
+  <div className="text-center py-12 text-muted-foreground">
+    <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 opacity-50" />
+    <h3 className="text-lg font-medium">Nenhuma venda encontrada</h3>
+  </div>
+) : (
+  /* tabela existente */
+)}
+```
 
 ### Validação
 
-- Network sem HEAD em `/organizations` ou `/pdvs` no dashboard.
-- Apenas um `POST /rpc/get_super_admin_global_metrics` retornando 200.
-- Card "Visão Consolidada" mostra contagens reais.
-- Login não-super_admin invocando a RPC manualmente recebe erro de permissão.
-- `supabase--linter` sem novos warnings.
-
-### Riscos
-
-- Nenhuma mudança de RLS — segurança preservada via check no corpo da função.
-- Mais rápido e estável que 3 fetches paralelos.
-- Fallback gracioso: erro mantém `globalMetrics` undefined e o card não renderiza (mesmo comportamento atual).
+- Network: `GET /rest/v1/sales_records?...&select=...,pdvs(name)` retorna 200 com array de objetos contendo `pdvs: { name: ... }`.
+- Aba Vendas em Marketing carrega registros (1741 no total) paginados.
+- Filtros e botão continuam visíveis durante loading.
+- Erro de rede mostra mensagem clara em vez de spinner eterno.
+- Aba Vendas em Uploads continua funcionando (mesmo componente).
 
 ### Arquivos afetados
 
 - Nova migration em `supabase/migrations/`.
-- `src/hooks/useDashboard.ts` (substituir bloco `if (isSuperAdmin)`).
-- `mem://features/super-admin-consolidated-dashboard-metrics` + `mem://index.md`.
+- `src/hooks/useSalesRecords.ts` — expor `error`.
+- `src/components/upload/SalesRecordsTab.tsx` — remover early-return, adicionar empty/error states inline.
+
+### Riscos
+
+- FK com `ON DELETE CASCADE`: se um PDV for deletado, suas vendas vão junto. Já é o comportamento esperado (vendas sem PDV não fazem sentido). RLS de `sales_records` já assume `pdv_id IN pdvs`.
+- Migration roda `DELETE` defensivo de órfãos antes de criar a FK — risco mínimo se 0 órfãos (validar antes via `read_query`).
