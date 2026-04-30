@@ -18,10 +18,17 @@ export function AgentChatPanel() {
   const { send, isSending } = useAiChat();
   const [input, setInput] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    const viewport = scrollAreaRef.current?.querySelector<HTMLDivElement>(
+      "[data-radix-scroll-area-viewport]",
+    );
+    if (!viewport) return;
+    // Use rAF to ensure DOM has painted new messages before measuring scrollHeight
+    requestAnimationFrame(() => {
+      viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
+    });
   }, [messages, isSending]);
 
   const handleSend = async (override?: string) => {
@@ -45,7 +52,7 @@ export function AgentChatPanel() {
     (activeId ? "Conversa" : "Nova conversa");
 
   return (
-    <div className="relative grid grid-cols-1 md:grid-cols-[260px_1fr] xl:grid-cols-[300px_1fr] gap-0 h-[calc(100dvh-9rem)] md:h-[calc(100dvh-10rem)] min-h-[420px] border rounded-lg overflow-hidden bg-card z-0">
+    <div className="relative grid grid-cols-1 md:grid-cols-[280px_1fr] xl:grid-cols-[320px_1fr] gap-0 flex-1 min-h-0 border rounded-lg overflow-hidden bg-card z-0">
       {/* Sidebar (desktop/tablet) */}
       <aside className="hidden md:flex border-r bg-muted/20 min-w-0 overflow-hidden">
         <ConversationList
@@ -58,9 +65,9 @@ export function AgentChatPanel() {
       </aside>
 
       {/* Chat */}
-      <div className="flex flex-col min-w-0">
+      <div className="flex flex-col min-w-0 min-h-0">
         {/* Mobile header: history + new conversation */}
-        <div className="flex md:hidden items-center justify-between gap-2 px-2 py-2 border-b bg-background">
+        <div className="flex md:hidden items-center justify-between gap-2 px-2 py-2 border-b bg-background shrink-0">
           <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
             <SheetTrigger asChild>
               <Button
@@ -87,22 +94,26 @@ export function AgentChatPanel() {
               </div>
             </SheetContent>
           </Sheet>
-          <p className="flex-1 text-sm font-medium truncate text-center px-1 min-w-0">
+          <p className="flex-1 min-w-0 text-sm font-medium truncate px-1">
             {activeTitle}
           </p>
           <Button
-            variant="ghost"
-            size="icon"
-            className="h-11 w-11"
+            variant="default"
+            size="sm"
+            className="h-11 min-w-[44px] gap-1.5 px-2 min-[360px]:px-3"
             onClick={() => handleSelect(null)}
             aria-label="Nova conversa"
           >
-            <Plus className="h-5 w-5" />
+            <Plus className="h-4 w-4" />
+            <span className="hidden min-[360px]:inline text-sm">Novo</span>
           </Button>
         </div>
 
-        <div className="flex-1 overflow-hidden min-h-0" ref={scrollRef}>
-          <ScrollArea className="h-full w-full [&_[data-radix-scroll-area-viewport]>div]:!block [&_[data-radix-scroll-area-viewport]>div]:!w-full">
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <ScrollArea
+            ref={scrollAreaRef}
+            className="h-full w-full [&_[data-radix-scroll-area-viewport]>div]:!block [&_[data-radix-scroll-area-viewport]>div]:!w-full"
+          >
             <div className="p-3 sm:p-4 md:p-6 space-y-4 max-w-3xl mx-auto w-full min-w-0">
               {!activeId && messages.length === 0 && (
                 <div className="text-center py-6 sm:py-8">

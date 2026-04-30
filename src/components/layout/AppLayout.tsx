@@ -68,12 +68,12 @@ export function AppLayout({ children }: AppLayoutProps) {
         />
       )}
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
         <AppHeader
           isMobile={isMobile}
           onMenuClick={() => setMobileMenuOpen(true)}
         />
-        <main className="flex-1 p-4 md:p-5 lg:p-6 overflow-auto">
+        <main className="flex-1 flex flex-col min-h-0 p-4 md:p-5 lg:p-6 overflow-auto">
           <ErrorBoundary fallback={<PageErrorFallback />}>
             {children}
           </ErrorBoundary>

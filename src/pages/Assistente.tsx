@@ -23,8 +23,8 @@ export default function Assistente() {
 
   return (
     <AppLayout>
-      <div className="flex flex-col gap-2 sm:gap-3 h-full">
-        <div className="flex items-baseline justify-between gap-2">
+      <div className="flex flex-col gap-2 sm:gap-3 flex-1 min-h-0 h-full">
+        <div className="flex items-baseline justify-between gap-2 shrink-0">
           <h1 className="text-xl sm:text-2xl font-bold">Assistente IA</h1>
           <p className="hidden md:block text-xs text-muted-foreground truncate">
             Pergunte sobre estoque, vendas e otimização de PDVs.
