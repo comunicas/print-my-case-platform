@@ -42,6 +42,17 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
   const rowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
   const isGlobalView = !selectedPdv || selectedPdv === 'all';
 
+  // Em "Todos os PDVs", productKey vem como "BRAND:model|{pdvId}".
+  // Removemos o sufixo e abrimos sem pdvId para a modal agregar TODOS os PDVs.
+  const openProductModalForRow = useCallback((productKey: string) => {
+    if (isGlobalView) {
+      const cleanKey = productKey.includes('|') ? productKey.split('|')[0] : productKey;
+      openProductModal(cleanKey);
+    } else {
+      openProductModal(productKey, selectedPdv);
+    }
+  }, [openProductModal, isGlobalView, selectedPdv]);
+
   const sortedProducts = useMemo(() => {
     const sorted = [...products].sort((a, b) => {
       let comparison = 0;
@@ -129,7 +140,7 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
         setFocusedIndex(maxIndex);
         break;
     }
-  }, [focusedIndex, paginatedProducts, openProductModal, selectedPdv]);
+  }, [focusedIndex, paginatedProducts, openProductModalForRow]);
 
   // Mover foco para linha quando índice muda
   useEffect(() => {
