@@ -247,7 +247,7 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
       }));
 
       // Calculate chart data using dashboardUtils functions
-      const salesByDay = getSalesByDay(salesRecordsForCharts);
+      const salesByDay = getSalesByDay(salesRecordsForCharts, startDate, endDate);
       const salesByHourAndDay = getSalesByHourAndDay(salesRecordsForCharts);
       const topProductsChart = getTopProducts(salesRecordsForCharts, 10);
       const quickStats = getQuickStats(salesRecordsForCharts);
