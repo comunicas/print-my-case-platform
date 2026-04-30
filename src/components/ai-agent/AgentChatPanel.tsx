@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sparkles, Loader2, PanelLeft, Plus } from "lucide-react";
+import { Sparkles, Loader2, PanelLeft, PanelLeftOpen, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
 import { useAiConversations } from "@/hooks/useAiConversations";
 import { useAiMessages } from "@/hooks/useAiMessages";
 import { useAiChat } from "@/hooks/useAiChat";
@@ -18,7 +19,16 @@ export function AgentChatPanel() {
   const { send, isSending } = useAiChat();
   const [input, setInput] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("ai-agent.sidebar-collapsed") === "1";
+  });
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("ai-agent.sidebar-collapsed", sidebarCollapsed ? "1" : "0");
+  }, [sidebarCollapsed]);
 
   useEffect(() => {
     const viewport = scrollAreaRef.current?.querySelector<HTMLDivElement>(
@@ -54,18 +64,57 @@ export function AgentChatPanel() {
   return (
     <div className="relative flex flex-1 min-h-0 border rounded-lg overflow-hidden bg-card z-0">
       {/* Sidebar (desktop/tablet) — fixed width, never shrinks */}
-      <aside className="hidden md:flex shrink-0 w-[280px] xl:w-[320px] border-r bg-muted/20 overflow-hidden">
-        <ConversationList
-          conversations={conversations}
-          activeId={activeId}
-          onSelect={handleSelect}
-          onDelete={remove}
-          isLoading={convLoading}
-        />
+      <aside
+        className={cn(
+          "hidden md:flex shrink-0 border-r bg-muted/20 overflow-hidden transition-[width] duration-200",
+          sidebarCollapsed ? "w-0 border-r-0" : "w-[280px] xl:w-[320px]",
+        )}
+        aria-hidden={sidebarCollapsed}
+      >
+        {!sidebarCollapsed && (
+          <ConversationList
+            conversations={conversations}
+            activeId={activeId}
+            onSelect={handleSelect}
+            onDelete={remove}
+            isLoading={convLoading}
+          />
+        )}
       </aside>
 
       {/* Chat — fills remaining space */}
       <div className="flex flex-col flex-1 min-w-0 min-h-0">
+        {/* Desktop header: toggle sidebar + title + (Novo when collapsed) */}
+        <div className="hidden md:flex items-center gap-2 px-3 py-2 border-b bg-background shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 shrink-0"
+            onClick={() => setSidebarCollapsed((v) => !v)}
+            aria-label={sidebarCollapsed ? "Mostrar histórico" : "Ocultar histórico"}
+            title={sidebarCollapsed ? "Mostrar histórico" : "Ocultar histórico"}
+          >
+            {sidebarCollapsed ? (
+              <PanelLeftOpen className="h-4 w-4" />
+            ) : (
+              <PanelLeft className="h-4 w-4" />
+            )}
+          </Button>
+          <p className="flex-1 min-w-0 text-sm font-medium truncate">{activeTitle}</p>
+          {sidebarCollapsed && (
+            <Button
+              variant="default"
+              size="sm"
+              className="h-9 gap-1.5 shrink-0"
+              onClick={() => handleSelect(null)}
+              aria-label="Nova conversa"
+            >
+              <Plus className="h-4 w-4" />
+              <span className="text-sm">Novo</span>
+            </Button>
+          )}
+        </div>
+
         {/* Mobile header: history + new conversation */}
         <div className="flex md:hidden items-center justify-between gap-2 px-2 py-2 border-b bg-background shrink-0">
           <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
@@ -150,12 +199,14 @@ export function AgentChatPanel() {
           </ScrollArea>
         </div>
 
-        <ChatInput
-          value={input}
-          onChange={setInput}
-          onSend={() => handleSend()}
-          isSending={isSending}
-        />
+        <div className="shrink-0">
+          <ChatInput
+            value={input}
+            onChange={setInput}
+            onSend={() => handleSend()}
+            isSending={isSending}
+          />
+        </div>
       </div>
     </div>
   );
