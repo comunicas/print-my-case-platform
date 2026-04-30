@@ -52,9 +52,9 @@ export function AgentChatPanel() {
     (activeId ? "Conversa" : "Nova conversa");
 
   return (
-    <div className="relative grid grid-cols-1 md:grid-cols-[280px_1fr] xl:grid-cols-[320px_1fr] gap-0 flex-1 min-h-0 border rounded-lg overflow-hidden bg-card z-0">
-      {/* Sidebar (desktop/tablet) */}
-      <aside className="hidden md:flex border-r bg-muted/20 min-w-0 overflow-hidden">
+    <div className="relative flex flex-1 min-h-0 border rounded-lg overflow-hidden bg-card z-0">
+      {/* Sidebar (desktop/tablet) — fixed width, never shrinks */}
+      <aside className="hidden md:flex shrink-0 w-[280px] xl:w-[320px] border-r bg-muted/20 overflow-hidden">
         <ConversationList
           conversations={conversations}
           activeId={activeId}
@@ -64,8 +64,8 @@ export function AgentChatPanel() {
         />
       </aside>
 
-      {/* Chat */}
-      <div className="flex flex-col min-w-0 min-h-0">
+      {/* Chat — fills remaining space */}
+      <div className="flex flex-col flex-1 min-w-0 min-h-0">
         {/* Mobile header: history + new conversation */}
         <div className="flex md:hidden items-center justify-between gap-2 px-2 py-2 border-b bg-background shrink-0">
           <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
