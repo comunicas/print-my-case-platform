@@ -24,6 +24,8 @@ export function AgentChatPanel() {
     return localStorage.getItem("ai-agent.sidebar-collapsed") === "1";
   });
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const prevConvIdRef = useRef<string | null>(activeId);
+  const prevLenRef = useRef<number>(0);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -35,11 +37,21 @@ export function AgentChatPanel() {
       "[data-radix-scroll-area-viewport]",
     );
     if (!viewport) return;
-    // Use rAF to ensure DOM has painted new messages before measuring scrollHeight
-    requestAnimationFrame(() => {
-      viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
-    });
-  }, [messages, isSending]);
+
+    const convChanged = prevConvIdRef.current !== activeId;
+    const grew = messages.length > prevLenRef.current;
+    const behavior: ScrollBehavior = convChanged ? "auto" : "smooth";
+
+    // Only scroll on conversation switch, message growth, or while sending.
+    if (convChanged || grew || isSending) {
+      requestAnimationFrame(() => {
+        viewport.scrollTo({ top: viewport.scrollHeight, behavior });
+      });
+    }
+
+    prevConvIdRef.current = activeId;
+    prevLenRef.current = messages.length;
+  }, [activeId, messages, isSending]);
 
   const handleSend = async (override?: string) => {
     const text = (override ?? input).trim();
@@ -66,7 +78,7 @@ export function AgentChatPanel() {
       {/* Sidebar (desktop/tablet) — fixed width, never shrinks */}
       <aside
         className={cn(
-          "hidden md:flex shrink-0 border-r bg-muted/20 overflow-hidden transition-[width] duration-200",
+          "hidden md:flex shrink-0 border-r bg-muted/20 overflow-visible transition-[width] duration-200",
           sidebarCollapsed ? "w-0 border-r-0" : "w-[280px] xl:w-[320px]",
         )}
         aria-hidden={sidebarCollapsed}
