@@ -1,125 +1,127 @@
 # Print My Case Platform
 
-Plataforma web para operação de PDVs (pontos de venda) com foco em:
-- ingestão e consolidação de estoque/vendas,
-- dashboards operacionais e financeiros,
-- gestão de organização, equipe e integrações.
+Aplicação web para operação de PDVs da Print My Case, com catálogo público,
+gestão de estoque e vendas, uploads de planilhas, marketing, financeiro, equipe
+e integrações via Supabase.
 
-## Arquitetura
+URL pública: https://printmycase.comunicas.com.br/
 
-### Visão geral
-- **Frontend SPA**: React + Vite + TypeScript (pasta `src/`).
-- **Dados e autenticação**: Supabase (Postgres + Auth + RLS).
-- **Back-end serverless**: Supabase Edge Functions (pasta `supabase/functions/`).
+## Stack
 
-### Componentes principais
-- **Camada de UI**: `src/components/*` com shadcn/ui e Tailwind.
-- **Páginas e rotas**: `src/pages/*` e definição de rotas em `src/App.tsx`.
-- **Estado assíncrono**: TanStack Query para cache e sincronização.
-- **Contextos de negócio**: autenticação, perfil, organização ativa e modal de produto.
-- **Edge Functions**:
-  - `ingest-stock`: endpoint ativo para ingestão de estoque.
-  - `ingest-revenue`: endpoint oficialmente desativado por feature flag (ver seção de flags).
-  - demais funções utilitárias (OTP, redirecionamento, usuário, processamento).
-
-### Fluxo de dados (resumo)
-1. Usuário autentica via Supabase Auth.
-2. Frontend consulta dados no Supabase com políticas RLS.
-3. Integrações externas enviam dados para Edge Functions (quando habilitadas).
-4. Dashboards consomem tabelas/funções SQL consolidadas.
-
-## Stack e padrão oficial de ferramentas
-
-- **Runtime local**: Node.js 20+
-- **Package manager oficial**: **npm**
-- **Build**: Vite
-- **Testes**: Vitest e Playwright
-
-> Decisão registrada em `docs/adr/0001-package-manager-and-scripts.md`.
-
-## Variáveis de ambiente
-
-### Frontend (`.env`)
-| Variável | Obrigatória | Descrição |
-|---|---:|---|
-| `VITE_SUPABASE_URL` | Sim | URL do projeto Supabase. |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Sim | Chave pública (anon/publishable) do Supabase. |
-| `VITE_FEATURE_INGEST_REVENUE_ENABLED` | Não (default `false`) | Exibe/oculta o endpoint de ingestão de receita na UI e sinaliza status da feature. |
-
-### Edge Functions (Supabase secrets)
-| Variável | Obrigatória | Uso |
-|---|---:|---|
-| `SUPABASE_URL` | Sim | Cliente server-side das funções. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Sim | Operações privilegiadas nas funções. |
-| `SUPABASE_ANON_KEY` | Depende da função | Chamadas públicas específicas. |
-| `TWILIO_ACCOUNT_SID` | Apenas OTP | Integração de envio de SMS/OTP. |
-| `TWILIO_AUTH_TOKEN` | Apenas OTP | Credencial da API Twilio. |
-| `TWILIO_PHONE_NUMBER` | Apenas OTP | Número emissor do SMS. |
-| `INGEST_REVENUE_ENABLED` | Não (default `false`) | Habilita/desabilita o endpoint `ingest-revenue` no backend. |
+- Frontend: React 18, Vite, TypeScript, Tailwind CSS e shadcn/ui.
+- Estado e dados: TanStack Query, Context API e Supabase JS.
+- Backend: Supabase Auth, Postgres, RLS, Storage e Edge Functions.
+- Testes: Vitest para unidade/componentes e Playwright para e2e.
+- Package manager oficial: npm, com `package-lock.json` versionado.
 
 ## Setup local
+
+Requisitos:
+
+- Node.js 20 ou superior.
+- npm 10 ou superior.
+- Acesso ao projeto Supabase e às variáveis de ambiente.
 
 ```bash
 npm ci
 npm run dev
 ```
 
-Build de produção:
+Comandos principais:
 
 ```bash
 npm run build
 npm run preview
-```
-
-Lint:
-
-```bash
 npm run lint
+npm run test
 ```
 
-## Deploy (fluxo recomendado)
+O servidor de desenvolvimento usa a porta `8080`, conforme `vite.config.ts`.
 
-### 1) Banco e funções Supabase
-1. Aplicar migrações no ambiente alvo.
+## Variáveis de ambiente
+
+Frontend (`.env`):
+
+| Variável | Obrigatória | Descrição |
+|---|---:|---|
+| `VITE_SUPABASE_URL` | Sim | URL do projeto Supabase usado pelo frontend. |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Sim | Chave pública anon/publishable do Supabase. |
+| `VITE_FEATURE_INGEST_REVENUE_ENABLED` | Não | Habilita a exposição da ingestão de receita quando o backend também estiver habilitado. Default: `false`. |
+
+Supabase Edge Functions:
+
+| Variável | Obrigatória | Uso |
+|---|---:|---|
+| `SUPABASE_URL` | Sim | URL do projeto Supabase. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Sim | Operações server-side privilegiadas. |
+| `SUPABASE_ANON_KEY` | Depende da função | Chamadas públicas específicas. |
+| `TWILIO_ACCOUNT_SID` | Apenas OTP | Envio de SMS. |
+| `TWILIO_AUTH_TOKEN` | Apenas OTP | Autenticação Twilio. |
+| `TWILIO_PHONE_NUMBER` | Apenas OTP | Número emissor de SMS. |
+| `INGEST_REVENUE_ENABLED` | Não | Libera a função `ingest-revenue`. Default: `false`. |
+
+Nunca versionar `.env`, secrets Supabase, service role keys, tokens, OTPs ou chaves
+de API.
+
+## Mapa da aplicação
+
+Rotas públicas:
+
+- `/catalogo/:orgSlug`: catálogo público de produtos por organização/PDV.
+- `/s/:code`: redirecionamento de link curto para catálogo ou destino configurado.
+
+Rotas autenticadas:
+
+- `/auth`: login, cadastro, recuperação e troca de senha.
+- `/`: dashboard operacional e financeiro.
+- `/uploads` e `/uploads/:id`: envio, listagem e análise de planilhas.
+- `/estoque`, `/estoque/tabela`, `/estoque/compras`: visão de estoque, tabela/mapa de slots e pré-estoque.
+- `/marketing`: cupons, mídias, catálogos, pedidos, vendas, leads e analytics.
+- `/financeiro`: resumo financeiro, DRE, despesas e comparações entre PDVs.
+- `/settings`: perfil, preferências, organização, PDVs, equipe e integrações.
+- `/organizations`: administração de organizações para super admins.
+
+Rotas legadas mantidas como redirecionamento:
+
+- `/reports` -> `/estoque`
+- `/vitrine` -> `/marketing?tab=midias`
+- `/pdvs` -> `/settings?tab=pdvs`
+- `/team` -> `/settings?tab=team`
+
+## Documentação
+
+- Arquitetura: `docs/architecture.md`
+- Guia de produto: `docs/product-guide.md`
+- Deploy: `docs/deployment.md`
+- Runbook operacional: `docs/operations/runbook.md`
+- Status de features: `docs/operations/feature-status.md`
+- Logs e dados sensíveis: `docs/operations/log-review-report.md`
+- CI: `docs/ci.md`
+- ADR de package manager: `docs/adr/0001-package-manager-and-scripts.md`
+
+## Deploy resumido
+
+1. Aplicar migrations Supabase no ambiente alvo.
 2. Publicar Edge Functions necessárias.
-3. Configurar/validar secrets por ambiente.
+3. Configurar secrets Supabase e variáveis `VITE_*`.
+4. Rodar `npm ci`, `npm run test`, `npm run lint` e `npm run build`.
+5. Publicar `dist/` no provedor web.
+6. Validar login, dashboard, catálogo público, upload, integrações e logs.
 
-### 2) Frontend
-1. Definir variáveis `VITE_*` do ambiente.
-2. Executar `npm run build`.
-3. Publicar artefatos (`dist/`) no provedor web.
-
-### 3) Pós-deploy (checklist)
-- Login e navegação básica.
-- Dashboard principal carregando sem erro de query.
-- Página de integrações respeitando flags de feature.
-- Saúde dos endpoints ativos de integração.
+Detalhes completos em `docs/deployment.md`.
 
 ## Operação
 
-- Matriz de status de features e responsáveis: `docs/operations/feature-status.md`.
-- Integridade de API Keys de integração é gerenciada em **Configurações > Integrações**.
-- Para mudanças estruturais, criar ADR em `docs/adr/`.
+- API keys de integração são gerenciadas em **Configurações > Integrações**.
+- Logs frontend devem passar por `clientLog`.
+- Logs de Edge Functions devem usar JSON estruturado e mascarar campos sensíveis.
+- `ingest-stock` está ativa; `ingest-revenue` permanece desativada por feature flag.
+- Alterações estruturais devem ser registradas em ADR.
 
-## Troubleshooting
+## Troubleshooting rápido
 
-### Front não sobe em desenvolvimento
-- Verifique versão do Node (20+).
-- Remova `node_modules` e rode `npm ci` novamente.
-- Confirme variáveis `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`.
-
-### Erro de autenticação/consulta no Supabase
-- Validar sessão do usuário e organização ativa.
-- Conferir políticas RLS/tabelas usadas pela tela.
-- Inspecionar logs no navegador e no painel do Supabase.
-
-### Edge Function retorna 401
-- Confirmar header `Authorization: Bearer <api_key>`.
-- Verificar se API key está ativa na organização correta.
-
-### `ingest-revenue` indisponível
-- Comportamento esperado quando a feature está desativada.
-- Para habilitar temporariamente:
-  - frontend: `VITE_FEATURE_INGEST_REVENUE_ENABLED=true`
-  - backend: secret `INGEST_REVENUE_ENABLED=true`
-- Habilitação deve ser acompanhada por responsável técnico e monitoramento.
+- Front não sobe: conferir Node 20+, `npm ci` e variáveis `VITE_*`.
+- Usuário não acessa: validar sessão Supabase, perfil, role e organização ativa.
+- Dashboard sem dados: verificar PDV ativo, uploads processados, RLS e período filtrado.
+- Edge Function retorna 401: conferir `Authorization: Bearer <api_key>` e status da chave.
+- Catálogo público não abre: validar slug, status do catálogo, dados de estoque e rota `/catalogo/:orgSlug`.
