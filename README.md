@@ -38,6 +38,23 @@ npm run test
 
 O servidor de desenvolvimento usa a porta `8080`, conforme `vite.config.ts`.
 
+### Testes E2E (Playwright)
+
+Os testes em `e2e/` rodam contra o build de preview local e exigem credenciais
+de um usuário de teste autorizado:
+
+```bash
+export TEST_USER_EMAIL="usuario-de-teste@exemplo.com"
+export TEST_USER_PASSWORD="senha-do-usuario-de-teste"
+npm run build
+npx playwright install --with-deps   # primeira execução apenas
+npx playwright test                  # todos os specs
+npx playwright test e2e/legacy-redirects.spec.ts   # apenas redirects legados
+```
+
+Nunca commitar `TEST_USER_EMAIL` ou `TEST_USER_PASSWORD`. Use uma conta
+descartável de teste, sem dados sensíveis.
+
 ## Variáveis de ambiente
 
 Frontend (`.env`):
