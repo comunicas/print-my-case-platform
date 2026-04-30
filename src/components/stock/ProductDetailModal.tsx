@@ -204,6 +204,9 @@ export function ProductDetailModal({ productName, isOpen, onClose, pdvId }: Prod
               stockPercentage={percentage}
               isLoading={analyticsLoading}
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              * Totais de todo o histórico disponível
+            </p>
 
             {/* Barra de estoque */}
             <div className="p-4 bg-muted/30 rounded-lg space-y-2">
