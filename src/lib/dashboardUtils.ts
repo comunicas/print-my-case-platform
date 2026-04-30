@@ -113,7 +113,11 @@ const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 /**
  * Agrupa vendas por dia
  */
-export function getSalesByDay(sales: SaleRecord[]): SalesByDayData[] {
+export function getSalesByDay(
+  sales: SaleRecord[],
+  startDate?: Date,
+  endDate?: Date,
+): SalesByDayData[] {
   const byDay = new Map<string, { revenue: number; count: number }>();
   
   for (const sale of sales) {
@@ -124,7 +128,19 @@ export function getSalesByDay(sales: SaleRecord[]): SalesByDayData[] {
     current.count += 1;
     byDay.set(date, current);
   }
-  
+
+  // Preenche dias ausentes dentro do intervalo com zeros
+  if (startDate && endDate) {
+    const current = new Date(startDate);
+    while (current <= endDate) {
+      const key = format(current, 'yyyy-MM-dd');
+      if (!byDay.has(key)) {
+        byDay.set(key, { revenue: 0, count: 0 });
+      }
+      current.setDate(current.getDate() + 1);
+    }
+  }
+
   return Array.from(byDay.entries())
     .map(([date, data]) => ({
       date,
