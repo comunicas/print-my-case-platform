@@ -10,7 +10,7 @@ UI (/assistente) → useAiChat → edge function `ai-agent`
                                   ├─ rate limit (20 msgs / 10 min / usuário)
                                   ├─ persiste user message em ai_messages
                                   ├─ monta prompt: SKILL_CORE + histórico (12) + pergunta
-                                  ├─ chama Lovable AI (openai/gpt-5-mini) com tools
+                                   ├─ chama OpenAI direta (gpt-5-mini) com tools
                                   ├─ loop tool-calling (até 5 iterações):
                                   │     RPCs SECURITY DEFINER no banco (RLS por auth.uid())
                                   ├─ persiste assistant message
@@ -19,8 +19,10 @@ UI (/assistente) → useAiChat → edge function `ai-agent`
 
 ## Variáveis / secrets
 
-- `LOVABLE_API_KEY` — provisionada automaticamente pelo Lovable AI Gateway.
+- `OPENAI_API_KEY` — chave da API da OpenAI (https://platform.openai.com/api-keys). Configurada nas secrets do Lovable Cloud.
 - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` — já existentes.
+
+Para rotacionar a chave: Lovable Cloud → Secrets → atualizar `OPENAI_API_KEY`. O edge function passa a usá-la na próxima chamada (sem redeploy).
 
 ## RPCs disponíveis (todas SECURITY DEFINER + auth.uid())
 
@@ -60,19 +62,21 @@ v1 entrega skill_core estática inline em `supabase/functions/ai-agent/skill.ts`
 ## Troubleshooting
 
 - **429 do front**: usuário enviou >20 msgs/10min. Aguardar.
-- **402**: créditos esgotados — adicionar em Settings → Workspace → Usage.
+- **402 / "Saldo/cota da OpenAI esgotado"**: adicionar saldo em https://platform.openai.com/account/billing.
+- **"Chave da OpenAI inválida"**: regenerar a key em platform.openai.com e atualizar a secret `OPENAI_API_KEY`.
+- **429 sem ser quota**: rate-limit da sua conta OpenAI; aguardar ou solicitar aumento de tier.
 - **403**: usuário não é admin.
 - **"Não consegui finalizar a análise"**: hit em `MAX_TOOL_ITERATIONS=5`. Reformular pergunta.
 - **Tool retorna vazio**: verificar PDVs do usuário (`user_pdvs`) e se há dados no período.
 
 ## Trocar provider
 
-Editar a constante `MODEL` em `supabase/functions/ai-agent/index.ts` e ajustar URL/headers se sair do Lovable AI Gateway.
+Para mudar de modelo: edite `MODEL` em `supabase/functions/ai-agent/index.ts` (`gpt-5-mini`, `gpt-5`, `gpt-5-nano`). Para voltar ao Lovable AI Gateway: trocar `OPENAI_CHAT_URL` para `https://ai.gateway.lovable.dev/v1/chat/completions`, prefixar o modelo com `openai/` e usar `LOVABLE_API_KEY`.
 
 ## Checklist de deploy
 
 - [x] Migration aplicada (tabelas, RPCs, RLS).
-- [x] `LOVABLE_API_KEY` provisionado.
+- [x] `OPENAI_API_KEY` configurada nas secrets.
 - [x] `ai-agent` registrada com `verify_jwt = true`.
 - [x] Item "Assistente IA" no AppSidebar e MobileSidebar (admins only).
 - [x] Rota `/assistente` protegida.
