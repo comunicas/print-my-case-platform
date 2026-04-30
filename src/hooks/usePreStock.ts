@@ -171,7 +171,7 @@ export function usePreStock(options: UsePreStockOptions = {}) {
 
       const { error } = await supabase
         .from("pre_stock")
-        .update(updateData)
+        .update(updateData as never)
         .eq("id", input.id);
 
       if (error) throw error;

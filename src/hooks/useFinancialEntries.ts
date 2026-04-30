@@ -100,7 +100,7 @@ export function useFinancialEntries({ referenceMonth, category, pdvId }: UseFina
     mutationFn: async ({ id, ...updates }: { id: string; [key: string]: unknown }) => {
       const { data, error } = await supabase
         .from("financial_entries")
-        .update(updates)
+        .update(updates as never)
         .eq("id", id)
         .select()
         .single();

@@ -188,7 +188,7 @@ export function useOrgDetailActions(
       if (newOrgId && newOrgId !== organizationId) {
         updatePayload.organization_id = newOrgId;
       }
-      const { error } = await supabase.from("pdvs").update(updatePayload).eq("id", id);
+      const { error } = await supabase.from("pdvs").update(updatePayload as never).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
