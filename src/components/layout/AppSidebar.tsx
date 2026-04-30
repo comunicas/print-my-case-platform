@@ -102,7 +102,7 @@ export function AppSidebar({
               <Icon className="h-5 w-5 flex-shrink-0" />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="right" className="font-medium">
+          <TooltipContent side="right" sideOffset={8} className="font-medium z-50">
             {item.label}
           </TooltipContent>
         </Tooltip>
@@ -167,7 +167,7 @@ export function AppSidebar({
     <TooltipProvider delayDuration={0}>
       <aside
         className={cn(
-          "sticky top-0 h-screen bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300 flex-shrink-0 overflow-hidden",
+          "sticky top-0 h-screen bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300 flex-shrink-0 overflow-visible z-30",
           collapsed ? "w-16" : "w-64"
         )}
       >
@@ -207,7 +207,7 @@ export function AppSidebar({
                   <ChevronLeft className="h-4 w-4 rotate-180" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="right" className="font-medium">
+              <TooltipContent side="right" sideOffset={8} className="font-medium z-50">
                 Expandir
               </TooltipContent>
             </Tooltip>
