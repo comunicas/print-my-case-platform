@@ -17,6 +17,37 @@ UI (/assistente) → useAiChat → edge function `ai-agent`
                                   └─ grava ai_runs + ai_tool_calls (auditoria)
 ```
 
+## UI / UX
+
+- Página `/assistente` renderiza dentro de `AppLayout fullHeight` — o `<main>` fica em
+  `overflow-hidden` e o painel gerencia seu próprio scroll, mantendo o `ChatInput`
+  fixo no rodapé do viewport em qualquer dispositivo.
+- Em md+ (≥768px) o layout é de duas colunas: histórico (`w-[280px]` / `xl:w-[320px]`)
+  + chat (`flex-1`). O usuário pode colapsar o histórico via botão `PanelLeft`; o
+  estado é persistido em `localStorage` (`ai-agent.sidebar-collapsed`).
+- Em mobile (<768px) o histórico é acessado por um `Sheet` lateral aberto pelo botão
+  `PanelLeft` no header do painel. Touch targets ≥ 44px.
+- Exclusão de conversa é feita pelo ícone de lixeira na lista, com confirmação via
+  `AlertDialog`. Em desktop o ícone aparece no hover; em mobile fica sempre visível.
+- Auto-scroll: comportamento `smooth` quando chegam novas mensagens ou enquanto
+  o assistente responde; `auto` (instantâneo) ao trocar de conversa, evitando flicker.
+- A renderização markdown da resposta usa `react-markdown` + `remark-gfm` com
+  `skipHtml` e lista de elementos perigosos bloqueada (`script`, `iframe`, etc.).
+
+## Componentes do front
+
+| Arquivo | Responsabilidade |
+|---|---|
+| `src/pages/Assistente.tsx` | Guard de role (`super_admin` / `org_admin`) e mount do painel em `AppLayout fullHeight`. |
+| `src/components/ai-agent/AgentChatPanel.tsx` | Orquestração: estado da conversa ativa, sidebar colapsável, header, scroll. |
+| `src/components/ai-agent/ConversationList.tsx` | Lista agrupada por data, botão "Novo", exclusão com `AlertDialog`. |
+| `src/components/ai-agent/ChatInput.tsx` | Textarea auto-grow, envio com Enter (desktop) / Ctrl+Enter (mobile), `safe-area-inset`. |
+| `src/components/ai-agent/MessageBubble.tsx` | Bubble user/assistant, markdown sanitizado. |
+| `src/components/ai-agent/QuickActions.tsx` | Sugestões de prompts iniciais. |
+| `src/hooks/useAiChat.ts` | `invoke('ai-agent')`, mapeia 402/403/429 para toasts, invalida queries. |
+| `src/hooks/useAiConversations.ts` | Listagem e exclusão de conversas (sem renomear; ver Limitações). |
+| `src/hooks/useAiMessages.ts` | Mensagens de uma conversa (filtra `user`/`assistant`). |
+
 ## Variáveis / secrets
 
 - `OPENAI_API_KEY` — chave da API da OpenAI (https://platform.openai.com/api-keys). Configurada nas secrets do Lovable Cloud.
@@ -69,6 +100,16 @@ v1 entrega skill_core estática inline em `supabase/functions/ai-agent/skill.ts`
 - **"Não consegui finalizar a análise"**: hit em `MAX_TOOL_ITERATIONS=5`. Reformular pergunta.
 - **Tool retorna vazio**: verificar PDVs do usuário (`user_pdvs`) e se há dados no período.
 
+## Limitações conhecidas
+
+- O título de uma conversa recém-criada só aparece no header após o `invalidateQueries`
+  da lista resolver (~200–500ms). Durante esse intervalo é exibido "Conversa".
+- Não há UI para renomear conversa — a mutation `rename` foi removida do hook
+  `useAiConversations` por estar sem consumidor. Reintroduzir junto com a tela
+  quando houver demanda.
+- Sem streaming de tokens: a resposta chega após o loop de tool-calling concluir.
+- Sem cancelamento de requisição em andamento.
+
 ## Trocar provider
 
 Para mudar de modelo: edite `MODEL` em `supabase/functions/ai-agent/index.ts` (`gpt-5-mini`, `gpt-5`, `gpt-5-nano`). Para voltar ao Lovable AI Gateway: trocar `OPENAI_CHAT_URL` para `https://ai.gateway.lovable.dev/v1/chat/completions`, prefixar o modelo com `openai/` e usar `LOVABLE_API_KEY`.
@@ -80,3 +121,6 @@ Para mudar de modelo: edite `MODEL` em `supabase/functions/ai-agent/index.ts` (`
 - [x] `ai-agent` registrada com `verify_jwt = true`.
 - [x] Item "Assistente IA" no AppSidebar e MobileSidebar (admins only).
 - [x] Rota `/assistente` protegida.
+- [x] UI responsiva (mobile / tablet / desktop) com sidebar colapsável.
+- [x] `ChatInput` fixo no rodapé via `AppLayout fullHeight`.
+- [x] Exclusão de conversa com confirmação (`AlertDialog`).
