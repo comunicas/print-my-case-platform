@@ -30,7 +30,10 @@ export function matchesSearchFilter(
   const termLower = term.toLowerCase().trim();
 
   if (exactModelMatch) {
-    return modelLower === termLower || productLower.includes(termLower);
+    // Match exato no modelo OU no productName completo (ou final)
+    return modelLower === termLower
+      || productLower === termLower
+      || productLower.endsWith(termLower);
   }
   return modelLower.includes(termLower) || productLower.includes(termLower);
 }
