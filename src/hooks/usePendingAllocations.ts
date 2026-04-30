@@ -112,7 +112,7 @@ export function usePendingAllocations() {
 
         const { error: updateError } = await supabase
           .from("pre_stock")
-          .update(updateData)
+          .update(updateData as never)
           .eq("id", allocation.pre_stock_id);
 
         if (updateError) throw updateError;
@@ -184,7 +184,7 @@ export function usePendingAllocations() {
 
           await supabase
             .from("pre_stock")
-            .update(updateData)
+            .update(updateData as never)
             .eq("id", allocation.pre_stock_id);
         }
 
