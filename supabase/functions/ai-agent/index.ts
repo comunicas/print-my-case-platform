@@ -384,7 +384,7 @@ Deno.serve(async (req) => {
           user_id: userId,
           organization_id: organizationId ?? userId,
           provider: PROVIDER,
-          model: MODEL,
+          model: agentCfg.model,
           input_tokens: totalInputTokens,
           output_tokens: totalOutputTokens,
           cached_tokens: cachedTokens,
