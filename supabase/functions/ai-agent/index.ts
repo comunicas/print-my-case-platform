@@ -12,7 +12,7 @@ const corsHeaders = {
 const MODEL = "gpt-5-mini";
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const PROVIDER = "openai";
-const MAX_TOOL_ITERATIONS = 5;
+const MAX_TOOL_ITERATIONS = 8;
 const RATE_LIMIT_PER_10_MIN = 20;
 const HISTORY_LIMIT = 12;
 
@@ -188,6 +188,9 @@ Deno.serve(async (req) => {
   // Executa as tools até o modelo dar resposta final OU atingir limite
   // Para a parte FINAL (sem tools restantes), fazemos streaming SSE para o cliente.
   for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
+    // Na última iteração, forçamos o modelo a responder em texto (sem mais tools)
+    // para garantir uma resposta útil ao usuário com os dados já coletados.
+    const isLastIteration = iter === MAX_TOOL_ITERATIONS - 1;
     const aiResp = await fetch(OPENAI_CHAT_URL, {
       method: "POST",
       headers: {
@@ -197,7 +200,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: MODEL,
         messages,
-        tools: TOOLS,
+        ...(isLastIteration ? { tool_choice: "none" } : { tools: TOOLS }),
         stream: false,
       }),
     });
@@ -345,9 +348,19 @@ Deno.serve(async (req) => {
     );
   }
 
-  // Atingiu MAX_TOOL_ITERATIONS sem resposta final
+  // Atingiu MAX_TOOL_ITERATIONS sem resposta final (não deve ocorrer com tool_choice=none na última)
   await logRun("error", "max_iterations", "Limite de iterações de tools atingido");
-  return jsonResponse({ error: "Não consegui finalizar a análise. Tente reformular a pergunta." }, 500, requestId);
+  const fallback =
+    "Reuni vários dados, mas não consegui consolidar uma resposta final. Tente reformular a pergunta de forma mais específica (por exemplo, focando em um PDV, produto ou período).";
+  await supabaseAdmin
+    .from("ai_messages")
+    .insert({
+      conversation_id: conversationId,
+      role: "assistant",
+      content: fallback,
+      status: "error",
+    });
+  return jsonResponse({ conversationId, requestId, message: fallback }, 200, requestId);
 
   // ----- helpers -----
   async function logRun(
