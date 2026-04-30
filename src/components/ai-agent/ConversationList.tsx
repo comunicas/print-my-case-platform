@@ -42,6 +42,11 @@ function groupByDate(items: AiConversation[]) {
   return { today, yesterday, week, older };
 }
 
+function truncateTitle(text: string, max = 42) {
+  if (text.length <= max) return text;
+  return text.slice(0, max - 1).trimEnd() + "…";
+}
+
 export function ConversationList({ conversations, activeId, onSelect, onDelete, isLoading }: Props) {
   const groups = groupByDate(conversations);
   const [pendingDelete, setPendingDelete] = useState<AiConversation | null>(null);
@@ -63,25 +68,25 @@ export function ConversationList({ conversations, activeId, onSelect, onDelete, 
             <div
               key={c.id}
               className={cn(
-                "group flex items-center gap-2 rounded-md pl-2 pr-1 py-2 text-[13px] cursor-pointer hover:bg-muted/70 border-l-2 border-transparent",
+                "group flex items-center gap-2 min-w-0 rounded-md pl-2 pr-1 py-2 text-[13px] cursor-pointer hover:bg-muted/70 border-l-2 border-transparent",
                 activeId === c.id && "bg-accent text-accent-foreground border-l-primary hover:bg-accent",
               )}
               onClick={() => onSelect(c.id)}
             >
               <MessageSquare className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
-              <span className="flex-1 truncate font-medium">{c.title || "Conversa sem título"}</span>
+              <span
+                className="flex-1 min-w-0 truncate font-medium"
+                title={c.title || "Conversa sem título"}
+              >
+                {truncateTitle(c.title || "Conversa sem título")}
+              </span>
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   setPendingDelete(c);
                 }}
-                className={cn(
-                  "shrink-0 inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors",
-                  // Sempre visível em telas touch; aparece no hover em desktop
-                  "opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100",
-                  activeId === c.id && "md:opacity-100",
-                )}
+                className="shrink-0 inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                 aria-label={`Excluir conversa ${c.title || ""}`.trim()}
                 title="Excluir conversa"
               >
