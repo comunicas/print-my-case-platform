@@ -14,6 +14,150 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_agent_config: {
+        Row: {
+          history_limit: number
+          id: string
+          max_message_chars: number
+          max_tool_iterations: number
+          model: string
+          provider: string
+          rate_limit_per_10min: number
+          reasoning_effort: string
+          singleton: boolean
+          system_prompt: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          history_limit?: number
+          id?: string
+          max_message_chars?: number
+          max_tool_iterations?: number
+          model?: string
+          provider?: string
+          rate_limit_per_10min?: number
+          reasoning_effort?: string
+          singleton?: boolean
+          system_prompt: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          history_limit?: number
+          id?: string
+          max_message_chars?: number
+          max_tool_iterations?: number
+          model?: string
+          provider?: string
+          rate_limit_per_10min?: number
+          reasoning_effort?: string
+          singleton?: boolean
+          system_prompt?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      ai_agent_config_history: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          changed_fields: string[]
+          entity: string
+          entity_key: string | null
+          id: string
+          payload: Json
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          changed_fields?: string[]
+          entity: string
+          entity_key?: string | null
+          id?: string
+          payload: Json
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          changed_fields?: string[]
+          entity?: string
+          entity_key?: string | null
+          id?: string
+          payload?: Json
+        }
+        Relationships: []
+      }
+      ai_agent_key_status: {
+        Row: {
+          id: string
+          key_prefix: string | null
+          last_test_message: string | null
+          last_test_status: string | null
+          last_tested_at: string | null
+          singleton: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          key_prefix?: string | null
+          last_test_message?: string | null
+          last_test_status?: string | null
+          last_tested_at?: string | null
+          singleton?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          key_prefix?: string | null
+          last_test_message?: string | null
+          last_test_status?: string | null
+          last_tested_at?: string | null
+          singleton?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      ai_agent_tools: {
+        Row: {
+          category: string
+          description: string
+          display_order: number
+          enabled: boolean
+          handler_name: string
+          name: string
+          parameters_schema: Json
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          category?: string
+          description: string
+          display_order?: number
+          enabled?: boolean
+          handler_name: string
+          name: string
+          parameters_schema?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          category?: string
+          description?: string
+          display_order?: number
+          enabled?: boolean
+          handler_name?: string
+          name?: string
+          parameters_schema?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       ai_conversations: {
         Row: {
           created_at: string
@@ -1806,6 +1950,12 @@ export type Database = {
         | "cross_org_access_granted"
         | "cross_org_access_revoked"
         | "cross_org_access_updated"
+        | "ai_agent_config_updated"
+        | "ai_agent_tool_updated"
+        | "ai_agent_tool_toggled"
+        | "ai_agent_config_rollback"
+        | "ai_agent_key_tested"
+        | "ai_agent_smoke_tested"
       member_status: "active" | "pending" | "inactive"
       pdv_status: "active" | "inactive"
       upload_status: "processing" | "ready" | "error"
@@ -1948,6 +2098,12 @@ export const Constants = {
         "cross_org_access_granted",
         "cross_org_access_revoked",
         "cross_org_access_updated",
+        "ai_agent_config_updated",
+        "ai_agent_tool_updated",
+        "ai_agent_tool_toggled",
+        "ai_agent_config_rollback",
+        "ai_agent_key_tested",
+        "ai_agent_smoke_tested",
       ],
       member_status: ["active", "pending", "inactive"],
       pdv_status: ["active", "inactive"],
