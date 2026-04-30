@@ -70,7 +70,7 @@ export function ConversationList({ conversations, activeId, onSelect, onDelete, 
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full w-full min-w-0">
       <div className="flex items-center justify-between px-3 py-2 border-b">
         <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Conversas
