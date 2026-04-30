@@ -105,7 +105,7 @@ export function AgentChatPanel() {
 
         <div className="flex-1 overflow-hidden min-h-0" ref={scrollRef}>
           <ScrollArea className="h-full">
-            <div className="p-3 sm:p-4 md:p-6 space-y-4 max-w-3xl mx-auto">
+            <div className="p-3 sm:p-4 md:p-6 space-y-4 max-w-3xl mx-auto w-full min-w-0">
               {!activeId && messages.length === 0 && (
                 <div className="text-center py-6 sm:py-8">
                   <div className="inline-flex h-12 w-12 rounded-full bg-primary/10 text-primary items-center justify-center mb-3">
