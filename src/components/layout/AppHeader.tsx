@@ -56,11 +56,14 @@ export function AppHeader({ isMobile, onMenuClick }: AppHeaderProps) {
           </Button>
         )}
 
-        <img
-          src="/icon-printmycase.png"
-          alt="PrintMyCase"
-          className="hidden md:block h-8 w-8 flex-shrink-0 object-contain"
-        />
+        {/* Mobile-only logo (desktop already shows it inside the sidebar) */}
+        {isMobile && (
+          <img
+            src="/icon-printmycase.png"
+            alt="PrintMyCase"
+            className="h-8 w-8 flex-shrink-0 object-contain"
+          />
+        )}
 
         {hasMultipleOrgs ? (
           <OrgSwitcher />
