@@ -21,14 +21,17 @@ export function ChatInput({ value, onChange, onSend, isSending }: Props) {
   }, [value]);
 
   const handleKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    // No mobile, Enter quebra linha; só envia com Ctrl/Cmd+Enter ou Shift+Enter mantém quebra
+    // Em desktop, Enter envia, Shift+Enter quebra
+    const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
+    if (e.key === "Enter" && !e.shiftKey && !isMobile) {
       e.preventDefault();
       if (!isSending && value.trim()) onSend();
     }
   };
 
   return (
-    <div className="flex items-end gap-2 p-3 border-t bg-background">
+    <div className="flex items-end gap-2 p-2 sm:p-3 border-t bg-background safe-area-inset-bottom">
       <Textarea
         ref={ref}
         value={value}
@@ -36,7 +39,7 @@ export function ChatInput({ value, onChange, onSend, isSending }: Props) {
         onKeyDown={handleKey}
         placeholder="Pergunte sobre estoque, vendas, redistribuição entre PDVs…"
         rows={1}
-        className="resize-none min-h-[44px] max-h-40 flex-1"
+        className="resize-none min-h-[44px] max-h-40 flex-1 text-base sm:text-sm"
         disabled={isSending}
       />
       <Button
@@ -45,7 +48,7 @@ export function ChatInput({ value, onChange, onSend, isSending }: Props) {
         className="h-11 w-11 flex-shrink-0"
         onClick={onSend}
         disabled={isSending || !value.trim()}
-        aria-label="Enviar"
+        aria-label="Enviar mensagem"
       >
         {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
       </Button>
