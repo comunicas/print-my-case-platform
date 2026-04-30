@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { SearchFilter } from "@/components/ui/SearchFilter";
 import { SelectFilter } from "@/components/ui/SelectFilter";
@@ -177,25 +178,29 @@ export function SalesRecordsTab({ pdvs, onUploadClick, canUpload }: Props) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && (
-              <TableRow>
-                <TableCell colSpan={isAdmin ? 9 : 8} className="text-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mx-auto" />
-                </TableCell>
-              </TableRow>
-            )}
+            {isLoading &&
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={`skeleton-${i}`}>
+                  {Array.from({ length: isAdmin ? 9 : 8 }).map((__, j) => (
+                    <TableCell key={j}>
+                      <Skeleton className="h-4 w-full" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
             {!isLoading && error && (
               <TableRow>
                 <TableCell colSpan={isAdmin ? 9 : 8} className="text-center py-8">
-                  <p className="text-sm text-destructive">Erro ao carregar vendas.</p>
+                  <p className="text-sm text-destructive">Não foi possível carregar as vendas.</p>
                   <p className="text-xs text-muted-foreground mt-1">{error.message}</p>
                 </TableCell>
               </TableRow>
             )}
             {!isLoading && !error && records.length === 0 && (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 9 : 8} className="text-center py-8 text-muted-foreground">
-                  Nenhum registro encontrado
+                <TableCell colSpan={isAdmin ? 9 : 8} className="text-center py-12 text-muted-foreground">
+                  <p className="text-sm font-medium">Nenhuma venda encontrada</p>
+                  <p className="text-xs mt-1">Ajuste os filtros ou cadastre uma nova venda.</p>
                 </TableCell>
               </TableRow>
             )}
