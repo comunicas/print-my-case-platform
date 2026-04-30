@@ -498,7 +498,10 @@ function mapStockRow(row: Record<string, unknown>, pdvId: string, uploadId: stri
         mapped[dbCol] = sanitizeString(value, FIELD_LIMITS.slot_number);
         break;
       case "product_name":
-        mapped[dbCol] = sanitizeString(value, FIELD_LIMITS.product_name);
+        {
+          const rawName = sanitizeString(value, FIELD_LIMITS.product_name);
+          mapped[dbCol] = rawName ? deduplicateBrandPrefix(rawName) : rawName;
+        }
         break;
       case "record_number":
         mapped[dbCol] = sanitizeString(value, FIELD_LIMITS.record_number);
@@ -507,6 +510,29 @@ function mapStockRow(row: Record<string, unknown>, pdvId: string, uploadId: stri
   }
   
   return mapped;
+}
+
+/**
+ * Removes duplicated brand prefixes like "XIAOMI Xiaomi Poco" → "Xiaomi Poco".
+ * Defensive normalization applied before persisting product_name.
+ */
+function deduplicateBrandPrefix(productName: string): string {
+  if (!productName) return productName;
+  const knownBrands = ['APPLE', 'SAMSUNG', 'XIAOMI', 'MOTOROLA', 'REALME'];
+  for (const brand of knownBrands) {
+    // Ex: "XIAOMI XIAOMI Poco" → "XIAOMI Poco"
+    const regex = new RegExp(`^${brand}\\s+${brand}\\s+`, 'i');
+    if (regex.test(productName)) {
+      return productName.replace(regex, brand + ' ');
+    }
+    // Ex: "MOTOROLA Motorola edge" → "Motorola edge"
+    const brandTitle = brand.charAt(0) + brand.slice(1).toLowerCase();
+    const regex2 = new RegExp(`^${brand}\\s+${brandTitle}\\s+`, 'i');
+    if (regex2.test(productName)) {
+      return productName.replace(regex2, brandTitle + ' ');
+    }
+  }
+  return productName;
 }
 
 Deno.serve(async (req) => {
