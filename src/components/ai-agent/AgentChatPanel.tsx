@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sparkles, Loader2, History, Plus } from "lucide-react";
+import { Sparkles, Loader2, PanelLeft, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAiConversations } from "@/hooks/useAiConversations";
@@ -45,9 +45,9 @@ export function AgentChatPanel() {
     (activeId ? "Conversa" : "Nova conversa");
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] lg:grid-cols-[280px_1fr] gap-0 h-[calc(100svh-13rem)] min-h-[480px] max-h-[calc(100svh-8rem)] border rounded-lg overflow-hidden bg-card">
+    <div className="relative grid grid-cols-1 md:grid-cols-[260px_1fr] xl:grid-cols-[300px_1fr] gap-0 h-[calc(100dvh-9rem)] md:h-[calc(100dvh-10rem)] min-h-[420px] border rounded-lg overflow-hidden bg-card z-0">
       {/* Sidebar (desktop/tablet) */}
-      <aside className="hidden md:flex border-r bg-muted/30 min-w-0">
+      <aside className="hidden md:flex border-r bg-muted/20 min-w-0 overflow-hidden">
         <ConversationList
           conversations={conversations}
           activeId={activeId}
@@ -58,19 +58,18 @@ export function AgentChatPanel() {
       </aside>
 
       {/* Chat */}
-      <div className="flex flex-col min-w-0 min-h-0">
+      <div className="flex flex-col min-w-0">
         {/* Mobile header: history + new conversation */}
         <div className="flex md:hidden items-center justify-between gap-2 px-2 py-2 border-b bg-background">
           <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
             <SheetTrigger asChild>
               <Button
                 variant="ghost"
-                size="sm"
-                className="h-10 px-2 gap-1.5 min-w-[44px]"
+                size="icon"
+                className="h-11 w-11"
                 aria-label="Abrir histórico de conversas"
               >
-                <History className="h-4 w-4" />
-                <span className="text-sm">Histórico</span>
+                <PanelLeft className="h-5 w-5" />
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="p-0 w-[85vw] max-w-xs flex flex-col">
@@ -93,13 +92,12 @@ export function AgentChatPanel() {
           </p>
           <Button
             variant="ghost"
-            size="sm"
-            className="h-10 px-2 gap-1.5 min-w-[44px]"
+            size="icon"
+            className="h-11 w-11"
             onClick={() => handleSelect(null)}
             aria-label="Nova conversa"
           >
-            <Plus className="h-4 w-4" />
-            <span className="text-sm sr-only sm:not-sr-only">Nova</span>
+            <Plus className="h-5 w-5" />
           </Button>
         </div>
 

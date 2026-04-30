@@ -31,7 +31,10 @@ export function ChatInput({ value, onChange, onSend, isSending }: Props) {
   };
 
   return (
-    <div className="flex items-end gap-2 p-2 sm:p-3 border-t bg-background safe-area-inset-bottom">
+    <div
+      className="flex items-end gap-2 p-2 sm:p-3 border-t bg-background"
+      style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
+    >
       <Textarea
         ref={ref}
         value={value}
@@ -45,7 +48,7 @@ export function ChatInput({ value, onChange, onSend, isSending }: Props) {
       <Button
         type="button"
         size="icon"
-        className="h-11 w-11 flex-shrink-0"
+        className="h-11 w-11 flex-shrink-0 self-end"
         onClick={onSend}
         disabled={isSending || !value.trim()}
         aria-label="Enviar mensagem"
