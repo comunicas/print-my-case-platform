@@ -82,6 +82,18 @@ async function loadAgentConfig(supabaseAdmin: ReturnType<typeof createClient>): 
   }
 }
 
+
+function normalizeProductNames(value: unknown): { values: string[]; valid: boolean } {
+  if (!Array.isArray(value)) return { values: [], valid: false };
+  const normalized = value
+    .filter((item): item is string => typeof item === "string")
+    .map((name) => name.trim())
+    .filter((name) => name.length > 0);
+
+  const uniqueExactOrder = Array.from(new Set(normalized));
+  return { values: uniqueExactOrder, valid: uniqueExactOrder.length > 0 };
+}
+
 function logEvent(event: string, fields: Record<string, unknown>) {
   console.log(JSON.stringify({ event, ts: new Date().toISOString(), ...fields }));
 }
@@ -352,11 +364,47 @@ Deno.serve(async (req) => {
         let toolStatus: "ok" | "error" = "ok";
         let toolErr: string | null = null;
 
+        const argsSanitized: Record<string, unknown> = { ...args };
+        const requiresProductNames = toolName === "analyze_restock_targets";
+        const supportsOptionalProductNames = toolName === "get_purchases_summary";
+        if (requiresProductNames || supportsOptionalProductNames) {
+          const hasProductNames = Object.hasOwn(args, "product_names");
+
+          if (hasProductNames) {
+            const normalizedProducts = normalizeProductNames(args.product_names);
+            argsSanitized.product_names = normalizedProducts.values;
+            args.product_names = normalizedProducts.values;
+
+            if (!normalizedProducts.valid) {
+              toolStatus = "error";
+              toolErr = "product_names_empty_or_invalid";
+              resultStr = JSON.stringify({
+                error: "invalid_product_names",
+                user_message:
+                  "Não consegui mapear os nomes dos produtos da etapa anterior; vou listar novamente os faltantes e reanalisar com os nomes exatos.",
+                recovery_instruction:
+                  "Reliste os produtos faltantes com os nomes exatos e execute novamente a análise de reposição.",
+              });
+            }
+          } else if (requiresProductNames) {
+            argsSanitized.product_names = [];
+            toolStatus = "error";
+            toolErr = "product_names_empty_or_invalid";
+            resultStr = JSON.stringify({
+              error: "invalid_product_names",
+              user_message:
+                "Não consegui mapear os nomes dos produtos da etapa anterior; vou listar novamente os faltantes e reanalisar com os nomes exatos.",
+              recovery_instruction:
+                "Reliste os produtos faltantes com os nomes exatos e execute novamente a análise de reposição.",
+            });
+          }
+        }
+
         if (!mapping) {
           toolStatus = "error";
           toolErr = `Tool desconhecida: ${toolName}`;
           resultStr = JSON.stringify({ error: "tool_unavailable", user_message: "Esta consulta não está disponível no momento." });
-        } else {
+        } else if (!resultStr) {
           const rpcParams = mapping.mapParams(args);
           const { data, error } = await supabaseUser.rpc(mapping.rpc, rpcParams as never);
           if (error) {
@@ -381,7 +429,7 @@ Deno.serve(async (req) => {
 
         toolCallLogs.push({
           tool_name: toolName,
-          params_sanitized: args,
+          params_sanitized: argsSanitized,
           rows_returned: rowsReturned,
           duration_ms: Date.now() - tStart,
           status: toolStatus,
