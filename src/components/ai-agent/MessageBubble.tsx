@@ -213,10 +213,16 @@ export function MessageBubble({ message, conversationId }: Props) {
                   </div>
                 ),
                 th: ({ node, ...props }) => (
-                  <th {...props} className="whitespace-nowrap px-2 py-1 text-left font-medium" />
+                  <th
+                    {...props}
+                    className="px-2 py-1 text-left font-medium whitespace-normal break-words [&:has(code)]:whitespace-nowrap [&:has(code)]:font-mono [&:has(code)]:text-[11px] [&:has(code)]:tracking-tight"
+                  />
                 ),
                 td: ({ node, ...props }) => (
-                  <td {...props} className="whitespace-nowrap px-2 py-1 align-top" />
+                  <td
+                    {...props}
+                    className="px-2 py-1 align-top whitespace-normal break-words [&:has(code)]:whitespace-nowrap [&:has(code)]:font-mono [&:has(code)]:tabular-nums [&:has(code)]:text-[11px]"
+                  />
                 ),
                 pre: ({ node, ...props }) => (
                   <pre {...props} className="overflow-x-auto rounded-md bg-background/60 p-2 text-xs" />
