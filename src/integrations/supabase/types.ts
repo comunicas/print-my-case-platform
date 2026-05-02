@@ -1695,6 +1695,14 @@ export type Database = {
           ticket_medio: number
         }[]
       }
+      ai_get_pdv_list: {
+        Args: never
+        Returns: {
+          is_active: boolean
+          pdv_id: string
+          pdv_name: string
+        }[]
+      }
       ai_get_purchases_summary:
         | {
             Args: { _end?: string; _limit?: number; _start?: string }
@@ -1728,7 +1736,7 @@ export type Database = {
         }[]
       }
       ai_get_stock_overview: {
-        Args: { _limit?: number; _pdv_ids?: string[]; _product_name?: string }
+        Args: { _limit?: number; _pdv_ids?: string[] }
         Returns: {
           pdv_id: string
           pdv_name: string
