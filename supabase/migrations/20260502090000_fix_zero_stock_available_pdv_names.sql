@@ -1,5 +1,7 @@
 -- Expose source PDV names with available stock for zero-stock analysis
+-- Return signature changed (new `available_in` column), so we must drop first.
 DROP FUNCTION IF EXISTS public.ai_get_zero_stock_items(uuid[], integer);
+DROP FUNCTION IF EXISTS public.ai_get_zero_stock_items(uuid[], int);
 
 CREATE FUNCTION public.ai_get_zero_stock_items(
   _pdv_ids uuid[] DEFAULT NULL,
