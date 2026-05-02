@@ -369,9 +369,17 @@ Deno.serve(async (req) => {
         const supportsOptionalProductNames = toolName === "get_purchases_summary";
         if (requiresProductNames || supportsOptionalProductNames) {
           const hasProductNames = Object.hasOwn(args, "product_names");
+          const productNamesValue = args.product_names;
 
+ codex/fix-high-priority-bug-in-ai-agent
           if (hasProductNames) {
             const normalizedProducts = normalizeProductNames(args.product_names);
+=======
+          if (hasProductNames && Array.isArray(productNamesValue)) {
+            const normalizedProducts = normalizeProductNames(productNamesValue);
+            argsSanitized.product_names = normalizedProducts.values;
+            args.product_names = normalizedProducts.values;
+ codex/update-ai-agent-function-to-handle-product-extraction
 
             if (normalizedProducts.valid) {
               argsSanitized.product_names = normalizedProducts.values;
@@ -403,6 +411,9 @@ Deno.serve(async (req) => {
               recovery_instruction:
                 "Reliste os produtos faltantes com os nomes exatos e execute novamente a análise de reposição.",
             });
+          } else {
+            delete args.product_names;
+            delete argsSanitized.product_names;
           }
         }
 
