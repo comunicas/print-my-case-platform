@@ -1,10 +1,11 @@
--- 1. ai_get_stock_overview: add pdv_id and slot_numbers
+-- 1. ai_get_stock_overview: add pdv_id and structured slots
 DROP FUNCTION IF EXISTS public.ai_get_stock_overview(uuid[], integer, text);
 DROP FUNCTION IF EXISTS public.ai_get_stock_overview(uuid[], integer);
 
 CREATE OR REPLACE FUNCTION public.ai_get_stock_overview(
   _pdv_ids uuid[] DEFAULT NULL,
-  _limit int DEFAULT 100
+  _limit int DEFAULT 100,
+  _product_name text DEFAULT NULL
 )
 RETURNS TABLE(
   product_name text,
@@ -12,7 +13,7 @@ RETURNS TABLE(
   pdv_name text,
   total_quantity bigint,
   slot_count bigint,
-  slot_numbers text
+  slots jsonb
 )
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = public
@@ -23,19 +24,77 @@ AS $$
     p.name AS pdv_name,
     SUM(sr.quantity)::bigint AS total_quantity,
     COUNT(*)::bigint AS slot_count,
-    STRING_AGG(sr.slot_number::text, ', ' ORDER BY sr.slot_number) AS slot_numbers
+    COALESCE(
+      JSONB_AGG(
+        JSONB_BUILD_OBJECT(
+          'slot_number', sr.slot_number,
+          'quantity', sr.quantity
+        )
+        ORDER BY sr.slot_number
+      ),
+      '[]'::jsonb
+    ) AS slots
   FROM public.stock_records sr
   JOIN public.pdvs p ON p.id = sr.pdv_id
   WHERE sr.is_active = true
     AND user_can_access_pdv(auth.uid(), sr.pdv_id)
     AND (_pdv_ids IS NULL OR sr.pdv_id = ANY(_pdv_ids))
+    AND (_product_name IS NULL OR sr.product_name ILIKE '%' || _product_name || '%')
   GROUP BY sr.product_name, sr.pdv_id, p.name
   ORDER BY sr.product_name, p.name
   LIMIT _limit
 $$;
 
+REVOKE EXECUTE ON FUNCTION public.ai_get_stock_overview(uuid[], int, text) FROM anon, public;
 REVOKE EXECUTE ON FUNCTION public.ai_get_stock_overview(uuid[], int) FROM anon, public;
-GRANT EXECUTE ON FUNCTION public.ai_get_stock_overview(uuid[], int) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.ai_get_stock_overview(uuid[], int, text) TO authenticated;
+
+-- 1b. ai_get_pdv_slot_inventory: granularidade por slot para um/múltiplos PDVs
+CREATE OR REPLACE FUNCTION public.ai_get_pdv_slot_inventory(
+  _pdv_ids uuid[] DEFAULT NULL,
+  _limit int DEFAULT 200,
+  _product_name text DEFAULT NULL
+)
+RETURNS TABLE(
+  product_name text,
+  pdv_id uuid,
+  pdv_name text,
+  total_quantity bigint,
+  slot_count bigint,
+  slots jsonb
+)
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    sr.product_name,
+    sr.pdv_id,
+    p.name AS pdv_name,
+    SUM(sr.quantity)::bigint AS total_quantity,
+    COUNT(*)::bigint AS slot_count,
+    COALESCE(
+      JSONB_AGG(
+        JSONB_BUILD_OBJECT(
+          'slot_number', sr.slot_number,
+          'quantity', sr.quantity
+        )
+        ORDER BY sr.slot_number
+      ),
+      '[]'::jsonb
+    ) AS slots
+  FROM public.stock_records sr
+  JOIN public.pdvs p ON p.id = sr.pdv_id
+  WHERE sr.is_active = true
+    AND user_can_access_pdv(auth.uid(), sr.pdv_id)
+    AND (_pdv_ids IS NULL OR sr.pdv_id = ANY(_pdv_ids))
+    AND (_product_name IS NULL OR sr.product_name ILIKE '%' || _product_name || '%')
+  GROUP BY sr.product_name, sr.pdv_id, p.name
+  ORDER BY sr.product_name, p.name
+  LIMIT _limit
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.ai_get_pdv_slot_inventory(uuid[], int, text) FROM anon, public;
+GRANT EXECUTE ON FUNCTION public.ai_get_pdv_slot_inventory(uuid[], int, text) TO authenticated;
 
 -- 2. ai_get_zero_stock_items: add slot_numbers + GREATEST() guard
 CREATE OR REPLACE FUNCTION public.ai_get_zero_stock_items(
