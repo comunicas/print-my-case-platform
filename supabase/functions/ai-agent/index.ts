@@ -415,6 +415,8 @@ Deno.serve(async (req) => {
               error: "tool_failed",
               user_message:
                 "Não consegui executar essa consulta agora. Informe ao usuário de forma genérica que a análise falhou e sugira refinar a pergunta ou tentar novamente. Não mencione detalhes técnicos.",
+              recovery_hint:
+                "Se citou PDV por nome, confirme o nome exato. Se parecer instabilidade momentânea, tente novamente em instantes.",
             });
           } else {
             const arr = Array.isArray(data) ? data : data ? [data] : [];

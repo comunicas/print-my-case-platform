@@ -110,6 +110,10 @@ export function MessageBubble({ message, conversationId }: Props) {
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<1 | -1 | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const shouldUseFriendlyFallback = !isUser && message.status !== "ok" && (message.content ?? "").trim().length < 20;
+  const assistantContent = shouldUseFriendlyFallback
+    ? "Não consegui concluir esta resposta agora. Se você citou um PDV, informe o nome exato do PDV. Se for instabilidade temporária, tente novamente em instantes."
+    : (message.content || "_(sem conteúdo)_");
 
   const handleCopy = async () => {
     const text = isUser
@@ -234,7 +238,7 @@ export function MessageBubble({ message, conversationId }: Props) {
                 ),
               }}
             >
-              {normalizeMarkdownTables(message.content || "_(sem conteúdo)_")}
+              {normalizeMarkdownTables(assistantContent)}
             </ReactMarkdown>
           </div>
         )}
@@ -243,7 +247,7 @@ export function MessageBubble({ message, conversationId }: Props) {
             {message.status === "aborted" ? "Resposta interrompida" : "Falha na resposta"}
           </p>
         )}
-        {!isUser && message.content && message.status === "ok" && (
+        {!isUser && !shouldUseFriendlyFallback && message.content && message.status === "ok" && (
           <div
             className={cn(
               "mt-1.5 flex items-center justify-end gap-1",

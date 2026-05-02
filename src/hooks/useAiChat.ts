@@ -13,6 +13,20 @@ interface SendResult {
   message: string;
 }
 
+function buildUserErrorGuidance(rawMessage: string) {
+  const normalized = rawMessage.toLowerCase();
+  const hints: string[] = [];
+
+  const isPdvQuery = /(\bpdv\b|ponto\s+de\s+venda|loja|store)/i.test(normalized);
+  const isTemporaryError = /(timeout|tempor|indispon|unavailable|network|429|5\d\d|limite|rate)/i.test(normalized);
+
+  if (isPdvQuery) hints.push("Se a consulta envolver PDV, informe o nome exato do PDV.");
+  if (isTemporaryError) hints.push("Parece um erro temporário, tente novamente em instantes.");
+
+  return hints.join(" ");
+}
+
+
 export function useAiChat() {
   const [isSending, setIsSending] = useState(false);
   const queryClient = useQueryClient();
@@ -30,7 +44,12 @@ export function useAiChat() {
         if (status === 429) toast.error("Você enviou muitas mensagens. Aguarde um instante.");
         else if (status === 402) toast.error("Créditos de IA esgotados. Adicione créditos no workspace.");
         else if (status === 403) toast.error("Acesso restrito a administradores.");
-        else toast.error("Erro ao consultar o assistente", { description: error.message });
+        else {
+          const guidance = buildUserErrorGuidance(error.message ?? "");
+          toast.error("Erro ao consultar o assistente", {
+            description: [error.message, guidance].filter(Boolean).join(" "),
+          });
+        }
         return null;
       }
 
@@ -45,7 +64,10 @@ export function useAiChat() {
       return { conversationId: data.conversationId, message: data.message };
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Erro desconhecido";
-      toast.error("Erro ao consultar o assistente", { description: msg });
+      const guidance = buildUserErrorGuidance(msg);
+      toast.error("Erro ao consultar o assistente", {
+        description: [msg, guidance].filter(Boolean).join(" "),
+      });
       return null;
     } finally {
       setIsSending(false);
