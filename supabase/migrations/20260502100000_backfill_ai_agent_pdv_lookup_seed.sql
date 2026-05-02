@@ -73,7 +73,16 @@ Ajudar o usuário a:
 ## Status canônicos
 Vendas: Concluído | Cancelado | Pendente | Reembolsado.
 Pagamentos: Cartão de Crédito | Cartão de Débito | PIX.$SKILL$
-WHERE singleton = true;
+WHERE
+  singleton = true
+  AND NOT EXISTS (
+    SELECT 1
+    FROM public.ai_agent_config_history AS h
+    WHERE
+      h.entity = 'ai_agent_config'
+      AND h.entity_key = public.ai_agent_config.id::text
+      AND 'system_prompt' = ANY(h.changed_fields)
+  );
 
 INSERT INTO public.ai_agent_tools (name, enabled, category, description, parameters_schema, handler_name, display_order)
 VALUES (
