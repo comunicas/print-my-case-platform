@@ -2,18 +2,22 @@ import { useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
-import { Sparkles, User, Copy, Check } from "lucide-react";
+import { Sparkles, User, Copy, Check, ThumbsUp, ThumbsDown } from "lucide-react";
 import type { AiMessage } from "@/hooks/useAiMessages";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   message: AiMessage;
+  conversationId?: string | null;
 }
 
-export function MessageBubble({ message }: Props) {
+export function MessageBubble({ message, conversationId }: Props) {
   const isUser = message.role === "user";
   const contentRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
+  const [feedback, setFeedback] = useState<1 | -1 | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const handleCopy = async () => {
     const text = isUser
@@ -25,6 +29,27 @@ export function MessageBubble({ message }: Props) {
       setTimeout(() => setCopied(false), 2000);
     } catch {
       // ignore
+    }
+  };
+
+  const handleFeedback = async (rating: 1 | -1) => {
+    if (feedback !== null || submitting || !conversationId) return;
+    setSubmitting(true);
+    setFeedback(rating); // optimistic — não permitimos desfazer
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const uid = userData.user?.id;
+      if (!uid) return;
+      await supabase.from("ai_message_feedback").insert({
+        message_id: message.id,
+        conversation_id: conversationId,
+        user_id: uid,
+        rating,
+      });
+    } catch {
+      // falha silenciosa — feedback é opcional
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -119,6 +144,69 @@ export function MessageBubble({ message }: Props) {
           <p className="text-xs opacity-70 mt-1">
             {message.status === "aborted" ? "Resposta interrompida" : "Falha na resposta"}
           </p>
+        )}
+        {!isUser && message.content && message.status === "ok" && (
+          <div
+            className={cn(
+              "mt-1.5 flex items-center justify-end gap-1",
+              feedback === null
+                ? "opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
+                : "opacity-100",
+            )}
+          >
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => handleFeedback(1)}
+                    disabled={feedback !== null || submitting}
+                    aria-label="Resposta útil"
+                    aria-pressed={feedback === 1}
+                    className={cn(
+                      "h-7 w-7 inline-flex items-center justify-center rounded-md transition-colors",
+                      "hover:bg-background/60 disabled:cursor-default",
+                      feedback === 1
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-muted-foreground hover:text-foreground",
+                      feedback === -1 && "opacity-30",
+                    )}
+                  >
+                    <ThumbsUp
+                      className="h-3.5 w-3.5"
+                      fill={feedback === 1 ? "currentColor" : "none"}
+                    />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top">Resposta útil</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => handleFeedback(-1)}
+                    disabled={feedback !== null || submitting}
+                    aria-label="Resposta ruim"
+                    aria-pressed={feedback === -1}
+                    className={cn(
+                      "h-7 w-7 inline-flex items-center justify-center rounded-md transition-colors",
+                      "hover:bg-background/60 disabled:cursor-default",
+                      feedback === -1
+                        ? "text-red-600 dark:text-red-400"
+                        : "text-muted-foreground hover:text-foreground",
+                      feedback === 1 && "opacity-30",
+                    )}
+                  >
+                    <ThumbsDown
+                      className="h-3.5 w-3.5"
+                      fill={feedback === -1 ? "currentColor" : "none"}
+                    />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top">Resposta ruim</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         )}
       </div>
       {isUser && (
