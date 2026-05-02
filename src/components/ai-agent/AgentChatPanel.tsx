@@ -12,9 +12,14 @@ import { MessageBubble } from "./MessageBubble";
 import { ChatInput } from "./ChatInput";
 import { QuickActions } from "./QuickActions";
 
+const ACTIVE_CONV_KEY = "ai_current_conversation_id";
+
 export function AgentChatPanel() {
   const { conversations, isLoading: convLoading, remove } = useAiConversations();
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(ACTIVE_CONV_KEY);
+  });
   const { data: messages = [], isLoading: msgsLoading } = useAiMessages(activeId);
   const { send, isSending } = useAiChat();
   const [input, setInput] = useState("");
@@ -31,6 +36,21 @@ export function AgentChatPanel() {
     if (typeof window === "undefined") return;
     localStorage.setItem("ai-agent.sidebar-collapsed", sidebarCollapsed ? "1" : "0");
   }, [sidebarCollapsed]);
+
+  // Persiste a conversa ativa entre reloads
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (activeId) localStorage.setItem(ACTIVE_CONV_KEY, activeId);
+    else localStorage.removeItem(ACTIVE_CONV_KEY);
+  }, [activeId]);
+
+  // Se a conversa salva não existe mais (foi excluída), limpa
+  useEffect(() => {
+    if (!activeId || convLoading) return;
+    if (conversations.length > 0 && !conversations.some((c) => c.id === activeId)) {
+      setActiveId(null);
+    }
+  }, [activeId, conversations, convLoading]);
 
   useEffect(() => {
     const viewport = scrollAreaRef.current?.querySelector<HTMLDivElement>(
