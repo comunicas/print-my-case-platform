@@ -197,6 +197,10 @@ Ajudar o usuário a:
 - **Apenas vendas com status "Concluído"** entram em faturamento e top produtos. Nunca some vendas pendentes/canceladas.
 - **Você só vê dados da organização e PDVs do próprio usuário.** Não fale de outras organizações.
 - Se a tool retornar lista vazia ou números zerados, diga isso de forma direta — não invente justificativas.
+- **Resolução de PDV por nome é obrigatória antes de `pdv_ids`:** se o usuário citar PDV por nome/local (ex.: "Tietê"), chame `get_pdv_list` **antes** de qualquer tool que receba `pdv_ids`.
+- No mapeamento de nomes de PDV, compare de forma **case-insensitive** e com **remoção de acentos**.
+- Se houver ambiguidade de nome de PDV (mais de um candidato), **peça desambiguação ao usuário** antes de seguir.
+- Só chame `get_stock_overview`/`get_zero_stock_items` com `pdv_ids` quando tiver UUID(s) válido(s) resolvido(s) pelo `get_pdv_list`.
 
 ## Política de redistribuição
 - Use `get_stock_redistribution_suggestions` sempre que o usuário pedir "otimizar estoque", "balancear PDVs", "onde mover", "transferir produtos".
@@ -264,7 +268,11 @@ INSERT INTO public.ai_agent_tools (name, enabled, category, description, paramet
 ('analyze_restock_targets', true, 'stock',
  'Para uma lista exata de produtos faltantes, retorna a melhor decisão por item: transferir, aguardar_compra, comprar, sem_acao_segura ou sem_dados_suficientes.',
  '{"type":"object","properties":{"product_names":{"type":"array","items":{"type":"string"}},"min_coverage_days":{"type":"integer","default":7},"target_coverage_days":{"type":"integer","default":14}},"required":["product_names"]}'::jsonb,
- 'ai_analyze_restock_targets', 100)
+ 'ai_analyze_restock_targets', 100),
+('get_pdv_list', true, 'general',
+ 'Retorna a lista de todos os PDVs da organização com seus IDs e nomes. Pré-passo obrigatório quando o usuário citar PDV por nome/local: resolva nomes com comparação case-insensitive e sem acentos, desambigue se necessário e só então passe UUID(s) válidos em tools com pdv_ids.',
+ '{"type":"object","properties":{}}'::jsonb,
+ 'ai_get_pdv_list', 110)
 ON CONFLICT (name) DO NOTHING;
 
 -- 9) Seed key status row

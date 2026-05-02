@@ -157,7 +157,7 @@ export const TOOLS = [
     type: "function",
     function: {
       name: "get_pdv_list",
-      description: "Retorna a lista de todos os PDVs da organização com seus IDs e nomes. Use antes de qualquer tool que aceite pdv_ids quando o usuário especificar PDVs por nome.",
+      description: "Retorna a lista de todos os PDVs da organização com seus IDs e nomes. Pré-passo obrigatório quando o usuário citar PDV por nome/local: resolva nomes com comparação case-insensitive e sem acentos, desambigue se necessário e só então passe UUID(s) válidos em tools com pdv_ids.",
       parameters: {
         type: "object",
         properties: {},
