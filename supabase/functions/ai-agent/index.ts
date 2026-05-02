@@ -371,12 +371,21 @@ Deno.serve(async (req) => {
           const hasProductNames = Object.hasOwn(args, "product_names");
           const productNamesValue = args.product_names;
 
+ codex/fix-high-priority-bug-in-ai-agent
+          if (hasProductNames) {
+            const normalizedProducts = normalizeProductNames(args.product_names);
+=======
           if (hasProductNames && Array.isArray(productNamesValue)) {
             const normalizedProducts = normalizeProductNames(productNamesValue);
             argsSanitized.product_names = normalizedProducts.values;
             args.product_names = normalizedProducts.values;
+ codex/update-ai-agent-function-to-handle-product-extraction
 
-            if (!normalizedProducts.valid) {
+            if (normalizedProducts.valid) {
+              argsSanitized.product_names = normalizedProducts.values;
+              args.product_names = normalizedProducts.values;
+            } else if (requiresProductNames) {
+              argsSanitized.product_names = normalizedProducts.values;
               toolStatus = "error";
               toolErr = "product_names_empty_or_invalid";
               resultStr = JSON.stringify({
@@ -386,6 +395,10 @@ Deno.serve(async (req) => {
                 recovery_instruction:
                   "Reliste os produtos faltantes com os nomes exatos e execute novamente a análise de reposição.",
               });
+            } else {
+              // `get_purchases_summary` accepts omitted product_names to summarize all pending purchases.
+              delete args.product_names;
+              delete argsSanitized.product_names;
             }
           } else if (requiresProductNames) {
             argsSanitized.product_names = [];
