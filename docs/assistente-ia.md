@@ -124,3 +124,41 @@ Para mudar de modelo: edite `MODEL` em `supabase/functions/ai-agent/index.ts` (`
 - [x] UI responsiva (mobile / tablet / desktop) com sidebar colapsável.
 - [x] `ChatInput` fixo no rodapé via `AppLayout fullHeight`.
 - [x] Exclusão de conversa com confirmação (`AlertDialog`).
+
+
+## Checklist operacional
+
+### 1) Formato obrigatório de saída para análises tabulares
+
+- [ ] Sempre responder análises com dados estruturados em tabela Markdown quando houver comparação entre itens, PDVs, períodos ou status.
+- [ ] Incluir cabeçalho mínimo por linha: **item**, **PDV**, **métrica principal**, **status/recomendação**.
+- [ ] Quando houver totais, adicionar linha de **Total** no fim da tabela.
+- [ ] Evitar texto corrido para resultados numéricos que possam ser tabulados.
+
+### 2) Continuidade entre turnos para referências tipo “itens acima”
+
+- [ ] Tratar referências anafóricas (ex.: “itens acima”, “esses produtos”, “os mesmos PDVs”) como continuação direta do contexto da conversa ativa.
+- [ ] Reusar explicitamente os mesmos itens citados no turno anterior antes de expandir a análise.
+- [ ] Se houver ambiguidade real (ex.: duas listas diferentes no contexto recente), desambiguar citando as opções de forma objetiva na própria resposta.
+
+### 3) Regra de não expor erro técnico de tool ao usuário
+
+- [ ] Nunca exibir stack trace, nome interno de função, payload bruto de tool, erro SQL, timeout interno ou detalhes de infraestrutura.
+- [ ] Converter falha técnica em mensagem funcional e acionável para usuário final (ex.: indisponibilidade temporária, falta de dados no período, necessidade de refinar filtro).
+- [ ] Registrar detalhe técnico apenas em observabilidade (`ai_runs`/`ai_tool_calls`), mantendo a resposta final limpa.
+
+### 4) Obrigatoriedade de separar recomendação por tipo
+
+- [ ] Toda recomendação operacional deve ser agrupada em blocos separados e nomeados exatamente como:
+  - **transferir**
+  - **aguardar compra**
+  - **comprar**
+- [ ] Não mesclar categorias no mesmo bloco.
+- [ ] Se uma categoria não tiver itens, retornar explicitamente “sem itens” naquela categoria para manter consistência do formato.
+
+### 5) Critério de aceite visual no `/assistente` (desktop e mobile) para mensagens de estoque/PDV
+
+- [ ] Em desktop (≥768px), tabelas e blocos de recomendação devem ficar legíveis sem sobreposição com header fixo, input fixo ou sidebar.
+- [ ] Em mobile (<768px), conteúdo deve quebrar linha corretamente, sem overflow horizontal persistente e sem cortar colunas essenciais de estoque/PDV.
+- [ ] Mensagens com tabela devem manter contraste, espaçamento e hierarquia visual entre cabeçalho, linhas e blocos de recomendação.
+- [ ] O usuário deve conseguir ler início, meio e fim da análise com scroll contínuo do chat, mantendo o campo de entrada acessível no rodapé.
