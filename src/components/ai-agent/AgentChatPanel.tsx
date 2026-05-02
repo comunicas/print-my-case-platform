@@ -198,7 +198,7 @@ export function AgentChatPanel() {
               )}
 
               {messages.map((m) => (
-                <MessageBubble key={m.id} message={m} />
+                <MessageBubble key={m.id} message={m} conversationId={activeId} />
               ))}
 
               {isSending && (
