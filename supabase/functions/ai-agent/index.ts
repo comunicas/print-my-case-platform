@@ -237,18 +237,10 @@ Deno.serve(async (req) => {
   for (const h of history) {
     if (h.role === "user" || h.role === "assistant") {
       messages.push({ role: h.role, content: h.content });
-    } else if (h.role === "tool") {
-      // Inclui resultado de tool truncado para manter contexto sem estourar janela
-      const raw = typeof h.content === "string" ? h.content : JSON.stringify(h.content);
-      const truncated = raw.length > MAX_TOOL_RESULT_CHARS
-        ? raw.slice(0, MAX_TOOL_RESULT_CHARS) + `\n…[resultado truncado, ${raw.length} chars total]`
-        : raw;
-      messages.push({
-        role: "tool" as const,
-        content: truncated,
-        tool_call_id: (h as { tool_call_id?: string }).tool_call_id ?? "unknown",
-      });
     }
+    // Tool messages from history are skipped: OpenAI requires them to be paired
+    // with the preceding assistant message containing matching tool_calls, which
+    // we don't persist. Including orphan tool messages causes a 400 error.
   }
   messages.push({ role: "user", content: userMessage });
 
