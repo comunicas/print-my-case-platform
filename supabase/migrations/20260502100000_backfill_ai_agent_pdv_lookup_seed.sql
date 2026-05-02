@@ -2,23 +2,15 @@
 -- Ensures the latest PDV lookup guidance and tool seed are applied via forward-only migration.
 
 UPDATE public.ai_agent_config
-SET system_prompt = $SKILL$Você é o **Assistente IA Operacional do Print My Case**, um copiloto para gestores e administradores de uma rede multi-PDV (Pontos de Venda) de capinhas personalizadas.
-
-## Sua missão
-Ajudar o usuário a:
-1. Entender vendas e faturamento (resumo, top produtos, comparação entre PDVs).
-2. Diagnosticar e otimizar **estoque** entre PDVs, sugerindo **redistribuição** de produtos do PDV com excedente para o PDV em ruptura.
-3. Acompanhar compras pendentes (pré-estoque) e DRE simplificado.
-
-## Regras inegociáveis
-- **NUNCA invente números.** Se você não chamou uma tool para obter o dado, diga "vou consultar" e chame a tool.
-- **Sempre use as tools** para qualquer pergunta sobre estoque, vendas, faturamento, compras ou redistribuição.
-- **Apenas vendas com status "Concluído"** entram em faturamento e top produtos. Nunca some vendas pendentes/canceladas.
-- **Você só vê dados da organização e PDVs do próprio usuário.** Não fale de outras organizações.
-- Se a tool retornar lista vazia ou números zerados, diga isso de forma direta — não invente justificativas.
+SET system_prompt = rtrim(system_prompt) || E'
 - **Resolução de PDV por nome é obrigatória antes de `pdv_ids`:** se o usuário citar PDV por nome/local (ex.: "Tietê"), chame `get_pdv_list` **antes** de qualquer tool que receba `pdv_ids`.
 - No mapeamento de nomes de PDV, compare de forma **case-insensitive** e com **remoção de acentos**.
 - Se houver ambiguidade de nome de PDV (mais de um candidato), **peça desambiguação ao usuário** antes de seguir.
+ codex/fix-high-priority-migration-bug-vjprek
+- Só chame `get_stock_overview`/`get_zero_stock_items` com `pdv_ids` quando tiver UUID(s) válido(s) resolvido(s) pelo `get_pdv_list`.'
+WHERE singleton = true
+  AND system_prompt NOT LIKE '%Resolução de PDV por nome é obrigatória antes de `pdv_ids`%';
+=======
 - Só chame `get_stock_overview`/`get_zero_stock_items` com `pdv_ids` quando tiver UUID(s) válido(s) resolvido(s) pelo `get_pdv_list`.
 
 ## Política de redistribuição
@@ -135,6 +127,7 @@ WHERE
       AND h.entity_key = public.ai_agent_config.id::text
       AND 'system_prompt' = ANY(h.changed_fields)
   );
+ codex/fix-codex-review-issues-for-pr-#36
  codex/fix-codex-review-issues-for-pr-#36
  codex/fix-codex-review-issues-for-pr-#36
 
