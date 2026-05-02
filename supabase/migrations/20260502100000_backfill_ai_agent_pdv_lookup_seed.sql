@@ -73,8 +73,14 @@ Ajudar o usuário a:
 ## Status canônicos
 Vendas: Concluído | Cancelado | Pendente | Reembolsado.
 Pagamentos: Cartão de Crédito | Cartão de Débito | PIX.$SKILL$
+ codex/fix-high-priority-bug-in-migration
 WHERE singleton = true
   AND system_prompt = $OLD_PROMPT$Você é o **Assistente IA Operacional do Print My Case**, um copiloto para gestores e administradores de uma rede multi-PDV (Pontos de Venda) de capinhas personalizadas.
+=======
+ codex/fix-high-priority-migration-bug-spbjv2
+WHERE singleton = true
+  AND system_prompt = $LEGACY_PROMPT$Você é o **Assistente IA Operacional do Print My Case**, um copiloto para gestores e administradores de uma rede multi-PDV (Pontos de Venda) de capinhas personalizadas.
+ codex/fix-codex-review-issues-for-pr-#36
 
 ## Sua missão
 Ajudar o usuário a:
@@ -114,7 +120,23 @@ Ajudar o usuário a:
 
 ## Status canônicos
 Vendas: Concluído | Cancelado | Pendente | Reembolsado.
+ codex/fix-high-priority-bug-in-migration
 Pagamentos: Cartão de Crédito | Cartão de Débito | PIX.$OLD_PROMPT$;
+=======
+Pagamentos: Cartão de Crédito | Cartão de Débito | PIX.$LEGACY_PROMPT$;
+=======
+WHERE
+  singleton = true
+  AND NOT EXISTS (
+    SELECT 1
+    FROM public.ai_agent_config_history AS h
+    WHERE
+      h.entity = 'ai_agent_config'
+      AND h.entity_key = public.ai_agent_config.id::text
+      AND 'system_prompt' = ANY(h.changed_fields)
+  );
+ codex/fix-codex-review-issues-for-pr-#36
+ codex/fix-codex-review-issues-for-pr-#36
 
 INSERT INTO public.ai_agent_tools (name, enabled, category, description, parameters_schema, handler_name, display_order)
 VALUES (
