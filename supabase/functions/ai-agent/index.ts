@@ -372,10 +372,12 @@ Deno.serve(async (req) => {
 
           if (hasProductNames) {
             const normalizedProducts = normalizeProductNames(args.product_names);
-            argsSanitized.product_names = normalizedProducts.values;
-            args.product_names = normalizedProducts.values;
 
-            if (!normalizedProducts.valid) {
+            if (normalizedProducts.valid) {
+              argsSanitized.product_names = normalizedProducts.values;
+              args.product_names = normalizedProducts.values;
+            } else if (requiresProductNames) {
+              argsSanitized.product_names = normalizedProducts.values;
               toolStatus = "error";
               toolErr = "product_names_empty_or_invalid";
               resultStr = JSON.stringify({
@@ -385,6 +387,9 @@ Deno.serve(async (req) => {
                 recovery_instruction:
                   "Reliste os produtos faltantes com os nomes exatos e execute novamente a análise de reposição.",
               });
+            } else {
+              delete args.product_names;
+              argsSanitized.product_names = null;
             }
           } else if (requiresProductNames) {
             argsSanitized.product_names = [];
