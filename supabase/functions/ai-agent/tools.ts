@@ -127,7 +127,7 @@ export const TOOLS = [
     type: "function",
     function: {
       name: "get_zero_stock_items",
-      description: "Lista produtos com estoque ZERADO em algum PDV. Diferencia 'zerado neste PDV mas com saldo em outro' (zero_in_pdv_only) de 'zerado em toda a rede' (zero_in_network). Use quando o usuário perguntar sobre produtos zerados, em ruptura ou faltantes.",
+      description: "Lista produtos com estoque ZERADO em algum PDV. Diferencia 'zerado neste PDV mas com saldo em outro' (zero_in_pdv_only) de 'zerado em toda a rede' (zero_in_network), incluindo em `available_in` os nomes dos PDVs com saldo disponível para transferência. Use quando o usuário perguntar sobre produtos zerados, em ruptura ou faltantes.",
       parameters: {
         type: "object",
         properties: {
