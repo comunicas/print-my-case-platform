@@ -15,6 +15,22 @@ export const TOOLS = [
       },
     },
   },
+
+  {
+    type: "function",
+    function: {
+      name: "get_pdv_slot_inventory",
+      description: "Retorna estoque por produto e PDV com granularidade por slot (JSON com slot_number + quantity). Use quando o usuário pedir estoque total de cada PDV ou quantidade em cada slot.",
+      parameters: {
+        type: "object",
+        properties: {
+          pdv_ids: { type: "array", items: { type: "string" }, description: "Filtrar por PDVs específicos (UUIDs). Omitir = todos os PDVs do usuário." },
+          product_name: { type: "string", description: "Filtro opcional por nome de produto (ILIKE %x%)." },
+          limit: { type: "integer", default: 200, maximum: 400 },
+        },
+      },
+    },
+  },
   {
     type: "function",
     function: {
@@ -171,6 +187,11 @@ export const TOOL_TO_RPC: Record<string, { rpc: string; mapParams: (p: Record<st
   get_stock_overview: {
     rpc: "ai_get_stock_overview",
     mapParams: (p) => ({ _pdv_ids: p.pdv_ids ?? null, _limit: p.limit ?? 100, _product_name: p.product_name ?? null }),
+  },
+
+  get_pdv_slot_inventory: {
+    rpc: "ai_get_pdv_slot_inventory",
+    mapParams: (p) => ({ _pdv_ids: p.pdv_ids ?? null, _product_name: p.product_name ?? null, _limit: p.limit ?? 200 }),
   },
   get_stock_redistribution_suggestions: {
     rpc: "ai_get_stock_redistribution_suggestions",
