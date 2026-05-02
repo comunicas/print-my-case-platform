@@ -232,6 +232,7 @@ export type Database = {
           id: string
           role: string
           status: string
+          tool_call_id: string | null
           tool_calls: Json | null
           tool_results: Json | null
         }
@@ -242,6 +243,7 @@ export type Database = {
           id?: string
           role: string
           status?: string
+          tool_call_id?: string | null
           tool_calls?: Json | null
           tool_results?: Json | null
         }
@@ -252,6 +254,7 @@ export type Database = {
           id?: string
           role?: string
           status?: string
+          tool_call_id?: string | null
           tool_calls?: Json | null
           tool_results?: Json | null
         }
