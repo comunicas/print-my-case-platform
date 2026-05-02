@@ -39,18 +39,39 @@ const countTableCells = (line: string) => {
 
 const hasClearTablePattern = (lines: string[]) => {
   if (lines.length < 2) return false;
-  if (isMarkdownSeparatorLine(lines[1])) return false;
-
-  const candidateLines = lines.filter((line) => line.includes("|"));
+  const candidateLines = lines
+    .map((line, index) => ({ line, index }))
+    .filter(({ line }) => line.includes("|"));
   if (candidateLines.length < 2) return false;
 
-  const cellCounts = candidateLines.map(countTableCells);
+  const cellCounts = candidateLines.map(({ line }) => countTableCells(line));
   const headerCellCount = cellCounts[0];
 
   if (headerCellCount < 2) return false;
   if (!cellCounts.every((count) => count === headerCellCount)) return false;
+  if (isMarkdownSeparatorLine(candidateLines[1].line)) return false;
 
-  return true;
+  return {
+    hasPattern: true,
+    headerIndex: candidateLines[0].index,
+    headerCellCount,
+  };
+};
+
+const isFencedCodeBlock = (block: string) => {
+  const trimmed = block.trim();
+  if (!trimmed) return false;
+
+  const lines = trimmed.split("\n");
+  if (lines.length < 2) return false;
+
+  const firstLine = lines[0].trim();
+  const lastLine = lines[lines.length - 1].trim();
+  const fenceMatch = firstLine.match(/^(```+|~~~+)/);
+  if (!fenceMatch) return false;
+
+  const fence = fenceMatch[1];
+  return lastLine.startsWith(fence);
 };
 
 const normalizeMarkdownTables = (content: string) => {
@@ -59,13 +80,20 @@ const normalizeMarkdownTables = (content: string) => {
   const blocks = content.split(/\n\s*\n/);
 
   const normalizedBlocks = blocks.map((block) => {
-    const lines = block.split("\n");
-    if (!hasClearTablePattern(lines)) return block;
+    if (isFencedCodeBlock(block)) return block;
 
-    const headerCellCount = countTableCells(lines[0]);
+    const lines = block.split("\n");
+    const tablePattern = hasClearTablePattern(lines);
+    if (!tablePattern) return block;
+
+    const { headerCellCount, headerIndex } = tablePattern;
     const separator = `|${Array(headerCellCount).fill(TABLE_SEPARATOR_CELL).join("|")}|`;
 
-    return [lines[0], separator, ...lines.slice(1)].join("\n");
+    return [
+      ...lines.slice(0, headerIndex + 1),
+      separator,
+      ...lines.slice(headerIndex + 1),
+    ].join("\n");
   });
 
   return normalizedBlocks.join("\n\n");
