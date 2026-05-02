@@ -1846,6 +1846,7 @@ export type Database = {
       ai_get_zero_stock_items: {
         Args: { _limit?: number; _pdv_ids?: string[] }
         Returns: {
+          available_in: string
           network_total_quantity: number
           pdv_id: string
           pdv_name: string
