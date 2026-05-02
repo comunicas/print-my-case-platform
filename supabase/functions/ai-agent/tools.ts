@@ -4,33 +4,17 @@ export const TOOLS = [
     type: "function",
     function: {
       name: "get_stock_overview",
-      description: "Retorna visão geral do estoque agregada por produto e PDV. Use quando o usuário pergunta 'como está o estoque', 'quanto tenho de X'.",
+      description: "Retorna visão geral do estoque agregada por produto e PDV. Use quando o usuário pergunta 'como está o estoque'. Para focar em um produto específico, prefira `get_zero_stock_items` (mostra ruptura por PDV) e filtre o nome no texto da resposta.",
       parameters: {
         type: "object",
         properties: {
           pdv_ids: { type: "array", items: { type: "string" }, description: "Filtrar por PDVs específicos (UUIDs). Omitir = todos os PDVs do usuário." },
           limit: { type: "integer", default: 100, maximum: 200 },
-          product_name: { type: "string", description: "Filtro opcional por nome de produto (ILIKE %x%). Use para focar em SKUs específicos." },
         },
       },
     },
   },
 
-  {
-    type: "function",
-    function: {
-      name: "get_pdv_slot_inventory",
-      description: "Retorna estoque por produto e PDV com granularidade por slot (JSON com slot_number + quantity). Use quando o usuário pedir estoque total de cada PDV ou quantidade em cada slot.",
-      parameters: {
-        type: "object",
-        properties: {
-          pdv_ids: { type: "array", items: { type: "string" }, description: "Filtrar por PDVs específicos (UUIDs). Omitir = todos os PDVs do usuário." },
-          product_name: { type: "string", description: "Filtro opcional por nome de produto (ILIKE %x%)." },
-          limit: { type: "integer", default: 200, maximum: 400 },
-        },
-      },
-    },
-  },
   {
     type: "function",
     function: {
@@ -169,30 +153,16 @@ export const TOOLS = [
       },
     },
   },
-  {
-    type: "function",
-    function: {
-      name: "get_pdv_list",
-      description: "Retorna a lista de todos os PDVs da organização com seus IDs e nomes. Pré-passo obrigatório quando o usuário citar PDV por nome/local: resolva nomes com comparação case-insensitive e sem acentos, desambigue se necessário e só então passe UUID(s) válidos em tools com pdv_ids.",
-      parameters: {
-        type: "object",
-        properties: {},
-      },
-    },
-  },
 ];
 
 // Mapeamento tool_name → RPC do banco
 export const TOOL_TO_RPC: Record<string, { rpc: string; mapParams: (p: Record<string, unknown>) => Record<string, unknown> }> = {
   get_stock_overview: {
     rpc: "ai_get_stock_overview",
-    mapParams: (p) => ({ _pdv_ids: p.pdv_ids ?? null, _limit: p.limit ?? 100, _product_name: p.product_name ?? null }),
+    // RPC real só aceita (_pdv_ids, _limit). Ignoramos product_name silenciosamente.
+    mapParams: (p) => ({ _pdv_ids: p.pdv_ids ?? null, _limit: p.limit ?? 100 }),
   },
 
-  get_pdv_slot_inventory: {
-    rpc: "ai_get_pdv_slot_inventory",
-    mapParams: (p) => ({ _pdv_ids: p.pdv_ids ?? null, _product_name: p.product_name ?? null, _limit: p.limit ?? 200 }),
-  },
   get_stock_redistribution_suggestions: {
     rpc: "ai_get_stock_redistribution_suggestions",
     mapParams: (p) => ({ _min_coverage_days: p.min_coverage_days ?? 7, _limit: p.limit ?? 20, _product_name: p.product_name ?? null }),
@@ -232,9 +202,5 @@ export const TOOL_TO_RPC: Record<string, { rpc: string; mapParams: (p: Record<st
       _min_coverage_days: p.min_coverage_days ?? 7,
       _target_coverage_days: p.target_coverage_days ?? 14,
     }),
-  },
-  get_pdv_list: {
-    rpc: "ai_get_pdv_list",
-    mapParams: (_p) => ({}),
   },
 };
