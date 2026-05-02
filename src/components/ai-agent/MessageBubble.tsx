@@ -1,8 +1,10 @@
+import { useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
-import { Sparkles, User } from "lucide-react";
+import { Sparkles, User, Copy, Check } from "lucide-react";
 import type { AiMessage } from "@/hooks/useAiMessages";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Props {
   message: AiMessage;
@@ -10,6 +12,22 @@ interface Props {
 
 export function MessageBubble({ message }: Props) {
   const isUser = message.role === "user";
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    const text = isUser
+      ? message.content
+      : (contentRef.current?.innerText ?? message.content);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // ignore
+    }
+  };
+
   return (
     <div
       className={cn(
@@ -24,16 +42,40 @@ export function MessageBubble({ message }: Props) {
       )}
       <div
         className={cn(
-          "rounded-2xl px-3 py-2 sm:px-4 sm:py-3 text-sm min-w-0 overflow-hidden",
+          "group relative rounded-2xl px-3 py-2 sm:px-4 sm:py-3 text-sm min-w-0 overflow-hidden",
           isUser
             ? "max-w-[calc(100%-2.75rem)] sm:max-w-[80%] md:max-w-[75%] bg-primary text-primary-foreground"
             : "max-w-[calc(100%-2.75rem)] sm:max-w-[85%] md:max-w-[80%] bg-muted text-foreground",
         )}
       >
+        {!isUser && message.content && (
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  aria-label={copied ? "Copiado" : "Copiar mensagem"}
+                  className={cn(
+                    "absolute top-1.5 right-1.5 h-7 w-7 inline-flex items-center justify-center rounded-md",
+                    "bg-transparent text-muted-foreground hover:text-foreground hover:bg-background/60",
+                    "opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity",
+                  )}
+                >
+                  {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                {copied ? "Copiado!" : "Copiar"}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
         {isUser ? (
           <p className="whitespace-pre-wrap break-words">{message.content}</p>
         ) : (
           <div
+            ref={contentRef}
             className={cn(
               "prose prose-sm max-w-none dark:prose-invert",
               "prose-headings:mt-2 prose-headings:mb-1 prose-p:my-1",
