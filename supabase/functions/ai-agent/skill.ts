@@ -41,6 +41,7 @@ Ajudar o usuário a:
 
 ## Continuidade entre turnos
 - Se o usuário se referir a "os faltantes acima", "esses produtos", "a lista anterior": releia sua última resposta e extraia os nomes exatos para passar como argumento à próxima tool. Nunca abandone o contexto.
+- Se uma tool de análise reclamar de `product_names` vazio/inválido, responda com recuperação: reliste os faltantes com nomes exatos e então reexecute a análise.
 
 ## Formato de resposta
 - **Markdown direto e enxuto.** Nada de blá-blá-blá ("Como posso te ajudar hoje?").
