@@ -63,8 +63,7 @@ SELECT
   tc.created_at,
   tc.params_sanitized,
   CASE
-    WHEN tc.params_sanitized ? 'product_names'
-      AND jsonb_typeof(tc.params_sanitized->'product_names') = 'array' THEN
+    WHEN jsonb_typeof(tc.params_sanitized->'product_names') = 'array' THEN
       jsonb_array_length(tc.params_sanitized->'product_names')
     ELSE NULL
   END AS product_names_count,
@@ -82,11 +81,15 @@ SELECT
     THEN true ELSE false
   END AS rpc_failure_signal,
   CASE
-    WHEN tc.params_sanitized ? 'product_names'
-      AND jsonb_typeof(tc.params_sanitized->'product_names') = 'array'
+    WHEN jsonb_typeof(tc.params_sanitized->'product_names') = 'array'
       AND jsonb_array_length(tc.params_sanitized->'product_names') = 0
     THEN true ELSE false
-  END AS empty_product_names_signal
+  END AS empty_product_names_signal,
+  CASE
+    WHEN tc.params_sanitized ? 'product_names'
+      AND jsonb_typeof(tc.params_sanitized->'product_names') <> 'array'
+    THEN true ELSE false
+  END AS malformed_product_names_signal
 FROM run_tool_calls tc
 ORDER BY tc.created_at ASC;
 
