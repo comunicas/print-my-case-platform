@@ -63,12 +63,17 @@ SELECT
   tc.created_at,
   tc.params_sanitized,
   CASE
+ codex/fix-sql-script-issues-from-codex-review-ugsvek
+    WHEN jsonb_typeof(tc.params_sanitized->'product_names') = 'array' THEN
+      jsonb_array_length(tc.params_sanitized->'product_names')
+
     WHEN tc.params_sanitized ? 'product_names' THEN
       CASE
         WHEN jsonb_typeof(tc.params_sanitized->'product_names') = 'array' THEN
           jsonb_array_length(tc.params_sanitized->'product_names')
         ELSE NULL
       END
+ codex/investigate-ai_run-errors-for-conversation_id
     ELSE NULL
   END AS product_names_count,
   CASE
@@ -85,6 +90,17 @@ SELECT
     THEN true ELSE false
   END AS rpc_failure_signal,
   CASE
+ codex/fix-sql-script-issues-from-codex-review-ugsvek
+    WHEN jsonb_typeof(tc.params_sanitized->'product_names') = 'array'
+      AND jsonb_array_length(tc.params_sanitized->'product_names') = 0
+    THEN true ELSE false
+  END AS empty_product_names_signal,
+  CASE
+    WHEN tc.params_sanitized ? 'product_names'
+      AND jsonb_typeof(tc.params_sanitized->'product_names') <> 'array'
+    THEN true ELSE false
+  END AS malformed_product_names_signal
+
     WHEN tc.params_sanitized ? 'product_names' THEN
       CASE
         WHEN jsonb_typeof(tc.params_sanitized->'product_names') = 'array'
@@ -93,6 +109,7 @@ SELECT
       END
     ELSE false
   END AS empty_product_names_signal
+ codex/investigate-ai_run-errors-for-conversation_id
 FROM run_tool_calls tc
 ORDER BY tc.created_at ASC;
 
