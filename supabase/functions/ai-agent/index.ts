@@ -365,13 +365,29 @@ Deno.serve(async (req) => {
         let toolErr: string | null = null;
 
         const argsSanitized: Record<string, unknown> = { ...args };
-        const acceptsProductNames = toolName === "analyze_restock_targets" || toolName === "get_purchases_summary";
-        if (acceptsProductNames) {
-          const normalizedProducts = normalizeProductNames(args.product_names);
-          argsSanitized.product_names = normalizedProducts.values;
-          args.product_names = normalizedProducts.values;
+        const requiresProductNames = toolName === "analyze_restock_targets";
+        const supportsOptionalProductNames = toolName === "get_purchases_summary";
+        if (requiresProductNames || supportsOptionalProductNames) {
+          const hasProductNames = Object.hasOwn(args, "product_names");
 
-          if (!normalizedProducts.valid) {
+          if (hasProductNames) {
+            const normalizedProducts = normalizeProductNames(args.product_names);
+            argsSanitized.product_names = normalizedProducts.values;
+            args.product_names = normalizedProducts.values;
+
+            if (!normalizedProducts.valid) {
+              toolStatus = "error";
+              toolErr = "product_names_empty_or_invalid";
+              resultStr = JSON.stringify({
+                error: "invalid_product_names",
+                user_message:
+                  "Não consegui mapear os nomes dos produtos da etapa anterior; vou listar novamente os faltantes e reanalisar com os nomes exatos.",
+                recovery_instruction:
+                  "Reliste os produtos faltantes com os nomes exatos e execute novamente a análise de reposição.",
+              });
+            }
+          } else if (requiresProductNames) {
+            argsSanitized.product_names = [];
             toolStatus = "error";
             toolErr = "product_names_empty_or_invalid";
             resultStr = JSON.stringify({
