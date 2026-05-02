@@ -17,6 +17,7 @@ const DEFAULT_RATE_LIMIT_PER_10_MIN = 20;
 const DEFAULT_HISTORY_LIMIT = 12;
 const DEFAULT_MAX_MESSAGE_CHARS = 4000;
 const CONFIG_CACHE_TTL_MS = 60 * 1000;
+const MAX_TOOL_RESULT_CHARS = 6000; // ~1.5k tokens — evita overflow de contexto
 
 type AgentConfig = {
   model: string;
@@ -211,7 +212,7 @@ Deno.serve(async (req) => {
   // 6. Histórico
   const { data: historyRows } = await supabaseAdmin
     .from("ai_messages")
-    .select("role, content, tool_calls, tool_results")
+    .select("role, content, tool_calls, tool_results, tool_call_id")
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: false })
     .limit(agentCfg.history_limit);
@@ -236,6 +237,17 @@ Deno.serve(async (req) => {
   for (const h of history) {
     if (h.role === "user" || h.role === "assistant") {
       messages.push({ role: h.role, content: h.content });
+    } else if (h.role === "tool") {
+      // Inclui resultado de tool truncado para manter contexto sem estourar janela
+      const raw = typeof h.content === "string" ? h.content : JSON.stringify(h.content);
+      const truncated = raw.length > MAX_TOOL_RESULT_CHARS
+        ? raw.slice(0, MAX_TOOL_RESULT_CHARS) + `\n…[resultado truncado, ${raw.length} chars total]`
+        : raw;
+      messages.push({
+        role: "tool" as const,
+        content: truncated,
+        tool_call_id: (h as { tool_call_id?: string }).tool_call_id ?? "unknown",
+      });
     }
   }
   messages.push({ role: "user", content: userMessage });
@@ -367,14 +379,11 @@ Deno.serve(async (req) => {
           } else {
             const arr = Array.isArray(data) ? data : data ? [data] : [];
             rowsReturned = arr.length;
-            resultStr = JSON.stringify(arr);
-            if (resultStr.length > 30000) {
-              resultStr = JSON.stringify({
-                truncated: true,
-                note: "Resultado muito grande; mostrando apenas os primeiros 50 itens.",
-                data: arr.slice(0, 50),
-              });
-            }
+            const rawResult = JSON.stringify(arr);
+            resultStr = rawResult.length > MAX_TOOL_RESULT_CHARS
+              ? rawResult.slice(0, MAX_TOOL_RESULT_CHARS) +
+                `\n…[${arr.length} registros, resultado truncado por tamanho]`
+              : rawResult;
           }
         }
 
@@ -391,6 +400,15 @@ Deno.serve(async (req) => {
           role: "tool",
           tool_call_id: tc.id,
           content: resultStr,
+        });
+
+        // Persiste o resultado da tool no histórico para iterações futuras
+        await supabaseAdmin.from("ai_messages").insert({
+          conversation_id: conversationId,
+          role: "tool",
+          content: resultStr,
+          tool_call_id: tc.id,
+          status: toolStatus === "ok" ? "ok" : "failed",
         });
       }
       continue; // próxima iteração: o modelo agora vê o resultado
