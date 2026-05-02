@@ -374,11 +374,14 @@ Deno.serve(async (req) => {
  codex/fix-high-priority-bug-in-ai-agent
           if (hasProductNames) {
             const normalizedProducts = normalizeProductNames(args.product_names);
+ codex/fix-codex-review-issues-for-pr-#27
+=======
 =======
           if (hasProductNames && Array.isArray(productNamesValue)) {
             const normalizedProducts = normalizeProductNames(productNamesValue);
             argsSanitized.product_names = normalizedProducts.values;
             args.product_names = normalizedProducts.values;
+ codex/update-ai-agent-function-to-handle-product-extraction
  codex/update-ai-agent-function-to-handle-product-extraction
 
             if (normalizedProducts.valid) {
@@ -396,9 +399,14 @@ Deno.serve(async (req) => {
                   "Reliste os produtos faltantes com os nomes exatos e execute novamente a análise de reposição.",
               });
             } else {
+ codex/fix-codex-review-issues-for-pr-#27
+              delete args.product_names;
+              argsSanitized.product_names = null;
+=======
               // `get_purchases_summary` accepts omitted product_names to summarize all pending purchases.
               delete args.product_names;
               delete argsSanitized.product_names;
+ codex/update-ai-agent-function-to-handle-product-extraction
             }
           } else if (requiresProductNames) {
             argsSanitized.product_names = [];
