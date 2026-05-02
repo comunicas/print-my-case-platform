@@ -1727,29 +1727,17 @@ export type Database = {
           ticket_medio: number
         }[]
       }
-      ai_get_stock_overview:
-        | {
-            Args: { _limit?: number; _pdv_ids?: string[] }
-            Returns: {
-              pdv_name: string
-              product_name: string
-              slot_count: number
-              total_quantity: number
-            }[]
-          }
-        | {
-            Args: {
-              _limit?: number
-              _pdv_ids?: string[]
-              _product_name?: string
-            }
-            Returns: {
-              pdv_name: string
-              product_name: string
-              slot_count: number
-              total_quantity: number
-            }[]
-          }
+      ai_get_stock_overview: {
+        Args: { _limit?: number; _pdv_ids?: string[]; _product_name?: string }
+        Returns: {
+          pdv_id: string
+          pdv_name: string
+          product_name: string
+          slot_count: number
+          slot_numbers: string
+          total_quantity: number
+        }[]
+      }
       ai_get_stock_redistribution_suggestions:
         | {
             Args: { _limit?: number; _min_coverage_days?: number }
@@ -1810,6 +1798,7 @@ export type Database = {
           pdv_name: string
           product_name: string
           slot_count: number
+          slot_numbers: string
           stock_in_other_pdvs: number
           total_quantity: number
           zero_scope: string
