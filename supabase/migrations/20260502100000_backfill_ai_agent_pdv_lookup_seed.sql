@@ -79,8 +79,8 @@ WHERE
     SELECT 1
     FROM public.ai_agent_config_history AS h
     WHERE
-      h.entity = 'ai_agent_config'
-      AND h.entity_key = public.ai_agent_config.id::text
+      h.entity = 'config'
+      AND h.entity_key = 'singleton'
       AND 'system_prompt' = ANY(h.changed_fields)
   );
 
