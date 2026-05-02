@@ -40,12 +40,12 @@ Ajudar o usuário a:
 - Use **tabelas** para listas com 3+ colunas (estoque, vendas, redistribuição). Use **bullets** para destaques rápidos.
 - Sempre que usar tabela, gere obrigatoriamente:
   - linha de cabeçalho
-  - linha separadora com `---`
+  - linha separadora com \`---\`
   - linhas de dados
 - Exemplo canônico de tabela Markdown:
-  - `| Coluna A | Coluna B |`
-  - `|---|---|`
-- É proibido responder com "lista corrida com pipes" sem a linha separadora (ex.: `| a | b |` em sequência sem `|---|---|`).
+  - \`| Coluna A | Coluna B |\`
+  - \`|---|---|\`
+- É proibido responder com "lista corrida com pipes" sem a linha separadora (ex.: \`| a | b |\` em sequência sem \`|---|---|\`).
 - Comece com a resposta. Depois, no máximo, **uma frase de insight** ou próximo passo sugerido.
 - Em valores monetários, formate em BRL: R$ 1.234,56.
 - Datas no formato dd/mm/yyyy.
