@@ -59,12 +59,13 @@ SELECT
   tc.run_id,
   tc.tool_name,
   tc.status,
-  tc.error,
+  tc.error_message,
   tc.created_at,
   tc.params_sanitized,
   CASE
-    WHEN tc.params_sanitized ? 'product_names' THEN
-      jsonb_array_length(COALESCE(tc.params_sanitized->'product_names', '[]'::jsonb))
+    WHEN tc.params_sanitized ? 'product_names'
+      AND jsonb_typeof(tc.params_sanitized->'product_names') = 'array' THEN
+      jsonb_array_length(tc.params_sanitized->'product_names')
     ELSE NULL
   END AS product_names_count,
   CASE
@@ -74,9 +75,9 @@ SELECT
   CASE
     WHEN tc.status = 'tool_failed'
       AND (
-        COALESCE(tc.error, '') ILIKE '%rpc%'
-        OR COALESCE(tc.error, '') ILIKE '%function%'
-        OR COALESCE(tc.error, '') ILIKE '%postgres%'
+        COALESCE(tc.error_message, '') ILIKE '%rpc%'
+        OR COALESCE(tc.error_message, '') ILIKE '%function%'
+        OR COALESCE(tc.error_message, '') ILIKE '%postgres%'
       )
     THEN true ELSE false
   END AS rpc_failure_signal,
