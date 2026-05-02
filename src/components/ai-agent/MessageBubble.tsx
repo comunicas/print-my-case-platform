@@ -7,6 +7,70 @@ import type { AiMessage } from "@/hooks/useAiMessages";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 
+
+const TABLE_SEPARATOR_CELL = "---";
+
+const isMarkdownSeparatorLine = (line: string) => {
+  const trimmed = line.trim();
+  if (!trimmed.includes("|")) return false;
+
+  const cells = trimmed
+    .split("|")
+    .map((cell) => cell.trim())
+    .filter(Boolean);
+
+  return cells.length > 0 && cells.every((cell) => /^:?-{3,}:?$/.test(cell));
+};
+
+const countTableCells = (line: string) => {
+  const trimmed = line.trim();
+  const hasLeadingPipe = trimmed.startsWith("|");
+  const hasTrailingPipe = trimmed.endsWith("|");
+
+  return trimmed
+    .split("|")
+    .map((cell, index, arr) => {
+      if (index === 0 && hasLeadingPipe) return "";
+      if (index === arr.length - 1 && hasTrailingPipe) return "";
+      return cell.trim();
+    })
+    .filter((cell) => cell.length > 0).length;
+};
+
+const hasClearTablePattern = (lines: string[]) => {
+  if (lines.length < 2) return false;
+  if (isMarkdownSeparatorLine(lines[1])) return false;
+
+  const candidateLines = lines.filter((line) => line.includes("|"));
+  if (candidateLines.length < 2) return false;
+
+  const cellCounts = candidateLines.map(countTableCells);
+  const headerCellCount = cellCounts[0];
+
+  if (headerCellCount < 2) return false;
+  if (!cellCounts.every((count) => count === headerCellCount)) return false;
+
+  return true;
+};
+
+const normalizeMarkdownTables = (content: string) => {
+  if (!content.includes("|")) return content;
+
+  const blocks = content.split(/\n\s*\n/);
+
+  const normalizedBlocks = blocks.map((block) => {
+    const lines = block.split("\n");
+    if (!hasClearTablePattern(lines)) return block;
+
+    const headerCellCount = countTableCells(lines[0]);
+    const separator = `|${Array(headerCellCount).fill(TABLE_SEPARATOR_CELL).join("|")}|`;
+
+    return [lines[0], separator, ...lines.slice(1)].join("\n");
+  });
+
+  return normalizedBlocks.join("\n\n");
+};
+
 interface Props {
   message: AiMessage;
   conversationId?: string | null;
@@ -136,7 +200,7 @@ export function MessageBubble({ message, conversationId }: Props) {
                 ),
               }}
             >
-              {message.content || "_(sem conteúdo)_"}
+              {normalizeMarkdownTables(message.content || "_(sem conteúdo)_")}
             </ReactMarkdown>
           </div>
         )}
