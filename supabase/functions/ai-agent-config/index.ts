@@ -150,10 +150,6 @@ Deno.serve(async (req) => {
         if (!ALLOWED_MODELS.includes(payload.model as never)) return json({ error: "Modelo inválido." }, 400);
         updates.model = payload.model;
       }
-      if (typeof payload.reasoning_effort === "string") {
-        if (!ALLOWED_REASONING.includes(payload.reasoning_effort as never)) return json({ error: "Reasoning inválido." }, 400);
-        updates.reasoning_effort = payload.reasoning_effort;
-      }
       if (typeof payload.system_prompt === "string") {
         const sp = payload.system_prompt.trim();
         if (sp.length < 50) return json({ error: "Prompt muito curto (mín. 50 chars)." }, 400);
@@ -260,7 +256,6 @@ Deno.serve(async (req) => {
           .update({
             model: old.model,
             system_prompt: old.system_prompt,
-            reasoning_effort: old.reasoning_effort,
             max_tool_iterations: old.max_tool_iterations,
             history_limit: old.history_limit,
             rate_limit_per_10min: old.rate_limit_per_10min,
