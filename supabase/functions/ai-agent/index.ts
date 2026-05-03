@@ -283,22 +283,39 @@ Deno.serve(async (req) => {
   // Executa as tools até o modelo dar resposta final OU atingir limite
   // Para a parte FINAL (sem tools restantes), fazemos streaming SSE para o cliente.
   for (let iter = 0; iter < agentCfg.max_tool_iterations; iter++) {
+    if (Date.now() - startedAt > OVERALL_BUDGET_MS) {
+      logEvent("ai_agent_budget_exceeded", { request_id: requestId, iter });
+      break;
+    }
     // Na última iteração, forçamos o modelo a responder em texto (sem mais tools)
     // para garantir uma resposta útil ao usuário com os dados já coletados.
     const isLastIteration = iter === agentCfg.max_tool_iterations - 1;
-    const aiResp = await fetch(OPENAI_CHAT_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: agentCfg.model,
-        messages,
-        ...(isLastIteration ? { tool_choice: "none" } : { tools: agentCfg.tools }),
-        stream: false,
-      }),
-    });
+    const aiCtrl = new AbortController();
+    const aiTimer = setTimeout(() => aiCtrl.abort(), OPENAI_REQUEST_TIMEOUT_MS);
+    let aiResp: Response;
+    try {
+      aiResp = await fetch(OPENAI_CHAT_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: agentCfg.model,
+          messages,
+          ...(isLastIteration ? { tool_choice: "none" } : { tools: agentCfg.tools }),
+          stream: false,
+        }),
+        signal: aiCtrl.signal,
+      });
+    } catch (e) {
+      clearTimeout(aiTimer);
+      await logRun("error", "provider_timeout", String(e).slice(0, 500));
+      logEvent("ai_agent_provider_timeout", { request_id: requestId, iter, error: String(e) });
+      return jsonResponse({ error: "Tempo esgotado ao consultar o modelo. Tente novamente." }, 504, requestId);
+    } finally {
+      clearTimeout(aiTimer);
+    }
 
     if (aiResp.status === 401) {
       await logRun("error", "unauthorized", "OpenAI API key inválida");
