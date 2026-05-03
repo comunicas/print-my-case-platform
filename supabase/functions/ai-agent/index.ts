@@ -28,11 +28,20 @@ type AgentConfig = {
 };
 
 let cachedConfig: { value: AgentConfig; ts: number } | null = null;
+let configLoadPromise: Promise<AgentConfig> | null = null;
 
 async function loadAgentConfig(supabaseAdmin: ReturnType<typeof createClient>): Promise<AgentConfig> {
   const now = Date.now();
   if (cachedConfig && now - cachedConfig.ts < CONFIG_CACHE_TTL_MS) return cachedConfig.value;
+  if (configLoadPromise) return configLoadPromise;
+  configLoadPromise = _doLoadAgentConfig(supabaseAdmin).finally(() => {
+    configLoadPromise = null;
+  });
+  return configLoadPromise;
+}
 
+async function _doLoadAgentConfig(supabaseAdmin: ReturnType<typeof createClient>): Promise<AgentConfig> {
+  const now = Date.now();
   const fallback: AgentConfig = {
     model: DEFAULT_MODEL,
     system_prompt: DEFAULT_SKILL_CORE,
