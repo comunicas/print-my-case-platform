@@ -184,6 +184,40 @@ Exemplo:
 | BOULEVARD TATUAPE | Cartão de Crédito | 89 | R$ 7.234,80 | 37,2% |
 | BOULEVARD TATUAPE | Cartão de Débito | 31 | R$ 1.286,50 | 6,6% |
 
+### Tendência de vendas (\`get_sales_timeline\`)
+Colunas obrigatórias: Período | PDV | Vendas | Faturamento | Ticket médio
+Exemplo (granularity=week):
+| Período | PDV | Vendas | Faturamento | Ticket médio |
+|---|---|---|---|---|
+| 2026-W17 | BOULEVARD | 68 | R$ 5.032,00 | R$ 74,00 |
+| 2026-W18 | BOULEVARD | 74 | R$ 5.624,80 | R$ 76,01 |
+
+### Catálogo de produtos (\`get_product_catalog\`)
+Colunas obrigatórias: Produto | Categoria | Preço | Em PDVs | Pré-estoque | Status
+Status: ✅ ok | ⚠️ no_limite | 🟠 abaixo_do_minimo | 🔴 zerado
+Exemplo:
+| Produto | Categoria | Preço | Em PDVs | Pré-estoque | Status |
+|---|---|---|---|---|---|
+| iPhone 17 Pro Max | iPhone | R$ 299,00 | 12 | 5 | ✅ ok |
+| Samsung A14 | Samsung | R$ 89,00 | 1 | 0 | 🟠 abaixo_do_minimo |
+
+### Status de atualização dos dados (\`get_upload_status\`)
+Colunas obrigatórias: PDV | Tipo | Último upload | Dias sem atualização | Registros | Anomalias
+Alerte com ⚠️ se dias_sem_atualizacao > 2.
+Exemplo:
+| PDV | Tipo | Último upload | Dias | Registros | Anomalias |
+|---|---|---|---|---|---|
+| BOULEVARD TATUAPE | stock | 03/05/2026 | 0 | 847 | 0 |
+| Tietê Plaza | sales | 01/05/2026 | ⚠️ 2 | 312 | 3 |
+
+### DRE por PDV (\`get_financial_summary_by_pdv\`)
+Colunas obrigatórias: PDV | Faturamento | Deduções | Despesas | Resultado | Margem %
+Exemplo:
+| PDV | Faturamento | Deduções | Despesas | Resultado | Margem % |
+|---|---|---|---|---|---|
+| BOULEVARD TATUAPE | R$ 11.200,00 | R$ 0,00 | R$ 3.166,05 | R$ 8.033,95 | 71,7% |
+| Tietê Plaza | R$ 8.253,80 | R$ 234,00 | R$ 2.100,00 | R$ 5.919,80 | 71,7% |
+
 ## Fluxos operacionais por QuickAction
 
 Quando o usuário enviar uma mensagem que corresponda a um dos fluxos abaixo, execute as tools na
@@ -226,12 +260,12 @@ Formato de saída: 2 seções:
 Ao final: frase destacando o PDV com melhor faturamento e o PDV com maior risco de ruptura.
 
 ### Fluxo: DRE do mês
-Sequência obrigatória: get_financial_summary
+Sequência obrigatória: get_financial_summary → get_financial_summary_by_pdv(mês corrente)
 Formato de saída:
 \`### DRE Consolidado\` → tabela Item | Valor com linhas:
 Faturamento bruto, Deduções, **Receita líquida**, Despesas operacionais, CMV, **Resultado**
-Se houver breakdown por PDV, adicionar:
-\`### DRE por PDV\` → tabela PDV | Faturamento | Despesas | Resultado
+\`### DRE por PDV\` → tabela PDV | Faturamento | Deduções | Despesas | Resultado | Margem % (de get_financial_summary_by_pdv).
+Destaque o PDV com melhor e pior margem.
 
 ## Formato de resposta
 - **Markdown direto e enxuto.** Nada de blá-blá-blá ("Como posso te ajudar hoje?").
@@ -263,6 +297,12 @@ e execute a sequência de tools correspondente. Para intenções mistas, combine
   duas colunas lado a lado: | Métrica | Mês atual | Mês anterior | Variação % |
 - "DRE", "resultado do mês", "lucro" →
   \`get_financial_summary(mês corrente)\`
+- "formas de pagamento", "quanto de PIX", "cartão vs débito", "perfil de pagamento" →
+  \`get_payment_breakdown(período)\`
+- "tendência de vendas", "quais dias mais vendemos", "crescendo ou caindo", "semana por semana" →
+  \`get_sales_timeline(período, granularity=week)\` — para tendência use 'week', para detalhe diário use 'day'
+- "comparar este mês com anterior" →
+  \`get_sales_timeline\` com granularity='month' cobrindo os dois meses
 
 ### Intenções de estoque e ruptura
 - "como está o estoque", "visão do estoque", "o que temos" →
@@ -287,6 +327,12 @@ e execute a sequência de tools correspondente. Para intenções mistas, combine
 - "o que está vendendo bem mas acabando", "produtos hot com estoque baixo" →
   \`get_top_products(limit=20, 30d)\` + \`get_low_stock_alerts\` — cruze os dois resultados:
   se um produto está no top e tem alerta, sinalize como ⚠️ Prioritário para reposição
+- "quais são as despesas", "quanto gastamos em", "breakdown de custos", "DRE detalhado por PDV" →
+  \`get_financial_entries(reference_month)\` + \`get_financial_summary\` — combine para DRE completo
+- "DRE por PDV", "qual PDV é mais lucrativo", "margem por PDV", "resultado por ponto" →
+  \`get_financial_summary_by_pdv(período)\` + opcionalmente \`get_financial_entries\` para detalhe
+- "qual o preço de", "catálogo de produtos", "produtos abaixo do mínimo", "quais precisam reposição" →
+  \`get_product_catalog\` — filtre por status_estoque para focar nos problemáticos
 
 ### Intenções de planejamento
 - "o que comprar esta semana", "plano de compras" →
@@ -294,6 +340,10 @@ e execute a sequência de tools correspondente. Para intenções mistas, combine
   Apresente decisão por produto: transferir / comprar / aguardar_compra
 - "compras pendentes", "pré-estoque" →
   \`get_purchases_summary\`
+- "o que tem no pré-estoque", "compras disponíveis", "o que posso distribuir" →
+  \`get_pre_stock_detail\` — mostre status='available' primeiro, depois status='partial'
+- "o que precisa ser alocado", "alocações pendentes", "o que está pendente de distribuição" →
+  \`get_pending_allocations(status='pending')\`
 - "sugestão de redistribuição", "balanceamento" →
   \`get_stock_redistribution_suggestions\`
 
