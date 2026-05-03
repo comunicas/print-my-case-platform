@@ -1,38 +1,41 @@
 ## Objetivo
-Tornar cada QuickAction do Assistente IA um workflow operacional completo: cada botão envia um prompt detalhado ao agente, e o system prompt ensina o modelo a executar a sequência correta de tools e produzir o formato exato.
+Melhorar a orquestração do Assistente IA para consultas de texto livre, ensinando o modelo a mapear intenções → sequência de tools, cruzar resultados multi-tool e tratar corretamente colunas opcionais (ex.: "Valor acumulado" em top produtos).
 
-## Etapa 1 — Atualizar prompts das QuickActions
+## Arquivo único a editar
+`supabase/functions/ai-agent/skill.ts` — apenas a constante `SKILL_CORE`. Nenhum outro arquivo é tocado. A edge function `ai-agent` será redeployada automaticamente.
 
-**Arquivo:** `src/components/ai-agent/QuickActions.tsx` (não `AgentChatPanel.tsx` — o array `ACTIONS` vive aqui).
+## Mudança A — Substituir a seção "Quando o usuário for vago"
+Remover o bloco atual (3 bullets triviais) e colocar no mesmo lugar a nova seção `## Mapeamento de intenções — consultas de texto livre`, com 5 subseções:
+- Vendas e faturamento (resumo, top produtos, evolução mês a mês, DRE)
+- Estoque e ruptura (overview, zerados, baixo estoque, comprar, transferir)
+- Diagnósticas e comparativas (PDV pior, visão geral, ranking, hot+baixo)
+- Planejamento (plano de compras, pendentes, redistribuição)
+- Fallback para intenção indefinida (pedir esclarecimento, não chamar tools às cegas)
 
-Substituir apenas o campo `prompt` de cada um dos 6 itens em `ACTIONS`, preservando `label`, `icon` e a ordem. Os 6 novos prompts (multi-linha) seguem exatamente o texto fornecido pelo usuário:
+Texto literal conforme fornecido pelo usuário.
 
-1. **Otimizar estoque entre PDVs** → sequência `get_zero_stock_items` → `get_stock_overview`, saída por PDV com tabela `Slot | Produto | Qtd atual | Disponível em`.
-2. **Resumo dos últimos 30 dias** → `get_sales_summary` → `get_pdv_comparison` → `get_top_products(limit=10)`, 3 seções.
-3. **Produtos em ruptura** → `get_low_stock_alerts(threshold=3)`, por PDV com Status (🔴/🟠/🟡).
-4. **Top produtos vendidos** → `get_top_products(limit=15)` → `get_sales_summary`, tabela única com linha TOTAL.
-5. **Comparar PDVs** → `get_pdv_comparison` → `get_stock_overview`, 2 seções + destaque final.
-6. **DRE do mês** → `get_financial_summary`, tabela DRE + opcional por PDV.
+## Mudança B — Adicionar seção "Orquestração multi-tool"
+Inserir nova seção `## Orquestração multi-tool` **após** `## Continuidade entre turnos` e **antes** de `## Formatos canônicos por tipo de resposta`. Conteúdo:
+- Quando chamar múltiplas tools (encadeamento natural, máx. 3 em diagnósticos)
+- Como cruzar resultados (seções distintas, tratar contradições, marcar produto top + alerta com ⚠️)
+- Agregações a partir de `get_stock_overview` (agrupar por `pdv_name`, contar zerados/críticos)
+- Regra de "Valor acumulado" em top produtos (só incluir se a tool retornar receita; senão `—`, nunca inventar)
 
-Preservar `handleSend`, `onSelect`, `disabled={isSending}` (já vivem em `AgentChatPanel.tsx` e não mudam).
+Texto literal conforme fornecido.
 
-## Etapa 2 — Adicionar seção "Fluxos operacionais por QuickAction" em skill.ts
+## Mudança C — Atualizar exemplo de `get_top_products`
+Dentro de `## Formatos canônicos por tipo de resposta`, substituir a subseção `### Top produtos` para:
+- Documentar colunas base (# | Produto | Vendas (un)) + opcionais (Valor acumulado, % do total) condicionadas à disponibilidade do dado
+- Mostrar dois exemplos: com receita e sem receita
+- Manter a regra de proibição de colunas Slot/PDV/Disponível em
 
-**Arquivo:** `supabase/functions/ai-agent/skill.ts`
+## Preservação
+Todo o restante de `SKILL_CORE` permanece intacto: missão, regras inegociáveis, política de redistribuição, zerados/análise de reposição, tratamento de erros, continuidade, demais formatos canônicos, fluxos de QuickAction, formato de resposta, status canônicos.
 
-Inserir uma nova seção `## Fluxos operacionais por QuickAction` na constante `SKILL_CORE`, posicionada **após** `## Formatos canônicos por tipo de resposta` e **antes** de `## Formato de resposta`.
-
-Conteúdo da seção: 6 sub-blocos (`### Fluxo: ...`) — um por QuickAction — descrevendo:
-- sequência obrigatória de tools
-- headings e tabelas exatas (colunas, fallbacks)
-- regras de cálculo (ex.: % do total, linha TOTAL, status por faixa de quantidade)
-
-Texto literal conforme o prompt do usuário. Todo o restante de `SKILL_CORE` permanece intacto.
-
-## Deploy
-A edge function `ai-agent` será redeployada automaticamente após a alteração de `skill.ts`.
-
-## Validação
-- Clicar cada QuickAction e confirmar que o agente chama a sequência correta de tools e retorna o formato especificado (headings por PDV, colunas certas, sem mistura de tipos).
-- Em "Top produtos vendidos", verificar a linha **TOTAL top 15** com soma de unidades, % e valor.
-- Em "Produtos em ruptura", verificar emojis de status por faixa.
+## Validação manual após deploy
+- "como está a operação?" → 3 seções (vendas, alertas, zerados)
+- "qual PDV está pior?" → cruza `get_pdv_comparison` + `get_low_stock_alerts`
+- "preciso comprar?" → `get_zero_stock_items` → `analyze_restock_targets`
+- "top produtos" → tabela sem coluna "Valor acumulado" inventada (usa `—` se a tool não retornar receita)
+- "Comparar PDVs" (QuickAction) → contagem de zerados/críticos consistente por PDV
+- Pergunta totalmente fora do escopo → pede esclarecimento, não chama tool aleatória
