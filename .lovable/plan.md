@@ -1,28 +1,38 @@
-## Bug
-`AgentChatPanel.tsx` mantém `activeId` obsoleto vindo do `localStorage` quando a lista de conversas está vazia (ex.: após logout/login, enquanto `profile` ainda não carregou e `useAiConversations` está desabilitado). Isso faz o frontend enviar `conversationId` inválido para a Edge Function `ai-agent`, retornando 404 mascarado como "Edge Function returned a non-2xx status code".
+## Objetivo
+Tornar cada QuickAction do Assistente IA um workflow operacional completo: cada botão envia um prompt detalhado ao agente, e o system prompt ensina o modelo a executar a sequência correta de tools e produzir o formato exato.
 
-## Causa
-O `useEffect` de limpeza tem a guarda `conversations.length > 0`, que nunca é satisfeita quando a query está desabilitada (`conversations = []`, `convLoading = false`).
+## Etapa 1 — Atualizar prompts das QuickActions
 
-## Mudança (1 arquivo)
+**Arquivo:** `src/components/ai-agent/QuickActions.tsx` (não `AgentChatPanel.tsx` — o array `ACTIONS` vive aqui).
 
-**`src/components/ai-agent/AgentChatPanel.tsx`** — remover a guarda `conversations.length > 0` e também limpar o `localStorage` ao detectar ID obsoleto:
+Substituir apenas o campo `prompt` de cada um dos 6 itens em `ACTIONS`, preservando `label`, `icon` e a ordem. Os 6 novos prompts (multi-linha) seguem exatamente o texto fornecido pelo usuário:
 
-```ts
-useEffect(() => {
-  if (!activeId || convLoading) return;
-  // Limpa ID obsoleto mesmo quando a lista está vazia (ex.: profile ainda não
-  // carregou e useAiConversations está desabilitado).
-  if (!conversations.some((c) => c.id === activeId)) {
-    setActiveId(null);
-    localStorage.removeItem(ACTIVE_CONV_KEY);
-  }
-}, [activeId, conversations, convLoading]);
-```
+1. **Otimizar estoque entre PDVs** → sequência `get_zero_stock_items` → `get_stock_overview`, saída por PDV com tabela `Slot | Produto | Qtd atual | Disponível em`.
+2. **Resumo dos últimos 30 dias** → `get_sales_summary` → `get_pdv_comparison` → `get_top_products(limit=10)`, 3 seções.
+3. **Produtos em ruptura** → `get_low_stock_alerts(threshold=3)`, por PDV com Status (🔴/🟠/🟡).
+4. **Top produtos vendidos** → `get_top_products(limit=15)` → `get_sales_summary`, tabela única com linha TOTAL.
+5. **Comparar PDVs** → `get_pdv_comparison` → `get_stock_overview`, 2 seções + destaque final.
+6. **DRE do mês** → `get_financial_summary`, tabela DRE + opcional por PDV.
 
-Restante do componente preservado (inicialização via `useState`, persistência no `setActiveId`, reset existente).
+Preservar `handleSend`, `onSelect`, `disabled={isSending}` (já vivem em `AgentChatPanel.tsx` e não mudam).
 
-## Resultado esperado
-- Após logout/login ou troca de organização, o painel inicia em "Nova conversa".
-- Nenhuma mensagem é enviada com `conversationId` inválido → fim do 404 mascarado.
-- Sem regressão na persistência da conversa ativa entre reloads do mesmo usuário (o ID só é limpo quando comprovadamente não pertence à lista atual e a query já resolveu).
+## Etapa 2 — Adicionar seção "Fluxos operacionais por QuickAction" em skill.ts
+
+**Arquivo:** `supabase/functions/ai-agent/skill.ts`
+
+Inserir uma nova seção `## Fluxos operacionais por QuickAction` na constante `SKILL_CORE`, posicionada **após** `## Formatos canônicos por tipo de resposta` e **antes** de `## Formato de resposta`.
+
+Conteúdo da seção: 6 sub-blocos (`### Fluxo: ...`) — um por QuickAction — descrevendo:
+- sequência obrigatória de tools
+- headings e tabelas exatas (colunas, fallbacks)
+- regras de cálculo (ex.: % do total, linha TOTAL, status por faixa de quantidade)
+
+Texto literal conforme o prompt do usuário. Todo o restante de `SKILL_CORE` permanece intacto.
+
+## Deploy
+A edge function `ai-agent` será redeployada automaticamente após a alteração de `skill.ts`.
+
+## Validação
+- Clicar cada QuickAction e confirmar que o agente chama a sequência correta de tools e retorna o formato especificado (headings por PDV, colunas certas, sem mistura de tipos).
+- Em "Top produtos vendidos", verificar a linha **TOTAL top 15** com soma de unidades, % e valor.
+- Em "Produtos em ruptura", verificar emojis de status por faixa.
