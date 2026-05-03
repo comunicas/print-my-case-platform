@@ -17,8 +17,6 @@ const DEFAULT_RATE_LIMIT_PER_10_MIN = 20;
 const DEFAULT_HISTORY_LIMIT = 12;
 const DEFAULT_MAX_MESSAGE_CHARS = 4000;
 const CONFIG_CACHE_TTL_MS = 60 * 1000;
-const MAX_TOOL_RESULT_CHARS = 6000; // ~1.5k tokens — evita overflow de contexto
-
 type AgentConfig = {
   model: string;
   system_prompt: string;
@@ -421,11 +419,16 @@ Deno.serve(async (req) => {
           } else {
             const arr = Array.isArray(data) ? data : data ? [data] : [];
             rowsReturned = arr.length;
-            const rawResult = JSON.stringify(arr);
-            resultStr = rawResult.length > MAX_TOOL_RESULT_CHARS
-              ? rawResult.slice(0, MAX_TOOL_RESULT_CHARS) +
-                `\n…[${arr.length} registros, resultado truncado por tamanho]`
-              : rawResult;
+            // Trunca em nível de array para garantir JSON sempre válido ao modelo
+            const MAX_TOOL_RESULT_ROWS = 80;
+            if (arr.length > MAX_TOOL_RESULT_ROWS) {
+              const truncated = arr.slice(0, MAX_TOOL_RESULT_ROWS);
+              resultStr =
+                JSON.stringify(truncated) +
+                `\n…[exibindo ${MAX_TOOL_RESULT_ROWS} de ${arr.length} registros]`;
+            } else {
+              resultStr = JSON.stringify(arr);
+            }
           }
         }
 
