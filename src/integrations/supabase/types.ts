@@ -1714,7 +1714,11 @@ export type Database = {
         }[]
       }
       ai_get_financial_entries: {
-        Args: { _limit?: number; _pdv_id?: string; _reference_month?: string }
+        Args: {
+          _limit?: number
+          _pdv_ids?: string[]
+          _reference_month?: string
+        }
         Returns: {
           categoria: string
           descricoes: string
@@ -1745,7 +1749,7 @@ export type Database = {
         }[]
       }
       ai_get_low_stock_alerts: {
-        Args: { _limit?: number; _threshold?: number }
+        Args: { _limit?: number; _pdv_ids?: string[]; _threshold?: number }
         Returns: {
           pdv_name: string
           product_name: string
@@ -1764,7 +1768,7 @@ export type Database = {
         }[]
       }
       ai_get_pdv_comparison: {
-        Args: { _end: string; _start: string }
+        Args: { _end: string; _pdv_ids?: string[]; _start: string }
         Returns: {
           pdv_name: string
           revenue: number
