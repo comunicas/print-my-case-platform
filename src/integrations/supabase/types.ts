@@ -1733,6 +1733,17 @@ export type Database = {
           resultado: number
         }[]
       }
+      ai_get_financial_summary_by_pdv: {
+        Args: { _end: string; _start: string }
+        Returns: {
+          deducoes: number
+          despesas: number
+          faturamento: number
+          margem_pct: number
+          pdv_nome: string
+          resultado: number
+        }[]
+      }
       ai_get_low_stock_alerts: {
         Args: { _limit?: number; _threshold?: number }
         Returns: {
@@ -1769,6 +1780,17 @@ export type Database = {
           pdv_name: string
         }[]
       }
+      ai_get_pending_allocations: {
+        Args: { _limit?: number; _status?: string }
+        Returns: {
+          data_criacao: string
+          data_resolucao: string
+          pdv_destino: string
+          produto: string
+          qtd_sugerida: number
+          status: string
+        }[]
+      }
       ai_get_pre_stock_detail: {
         Args: { _limit?: number; _status?: string }
         Returns: {
@@ -1781,6 +1803,18 @@ export type Database = {
           total_comprado: number
           total_disponivel: number
           ultima_entrada: string
+        }[]
+      }
+      ai_get_product_catalog: {
+        Args: { _category?: string; _limit?: number }
+        Returns: {
+          category: string
+          min_stock: number
+          price: number
+          product_name: string
+          status_estoque: string
+          total_em_pdvs: number
+          total_pre_stock: number
         }[]
       }
       ai_get_purchases_summary:
@@ -1812,6 +1846,21 @@ export type Database = {
           deducoes: number
           faturamento: number
           sales_count: number
+          ticket_medio: number
+        }[]
+      }
+      ai_get_sales_timeline: {
+        Args: {
+          _end: string
+          _granularity?: string
+          _pdv_ids?: string[]
+          _start: string
+        }
+        Returns: {
+          faturamento: number
+          num_vendas: number
+          pdv_nome: string
+          periodo: string
           ticket_medio: number
         }[]
       }
@@ -1876,6 +1925,18 @@ export type Database = {
           product_name: string
           revenue: number
           sales_count: number
+        }[]
+      }
+      ai_get_upload_status: {
+        Args: never
+        Returns: {
+          anomalias: number
+          dias_sem_atualizacao: number
+          pdv_nome: string
+          registros: number
+          status_upload: string
+          tipo_upload: string
+          ultimo_upload: string
         }[]
       }
       ai_get_zero_stock_items: {
