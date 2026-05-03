@@ -28,11 +28,20 @@ type AgentConfig = {
 };
 
 let cachedConfig: { value: AgentConfig; ts: number } | null = null;
+let configLoadPromise: Promise<AgentConfig> | null = null;
 
 async function loadAgentConfig(supabaseAdmin: ReturnType<typeof createClient>): Promise<AgentConfig> {
   const now = Date.now();
   if (cachedConfig && now - cachedConfig.ts < CONFIG_CACHE_TTL_MS) return cachedConfig.value;
+  if (configLoadPromise) return configLoadPromise;
+  configLoadPromise = _doLoadAgentConfig(supabaseAdmin).finally(() => {
+    configLoadPromise = null;
+  });
+  return configLoadPromise;
+}
 
+async function _doLoadAgentConfig(supabaseAdmin: ReturnType<typeof createClient>): Promise<AgentConfig> {
+  const now = Date.now();
   const fallback: AgentConfig = {
     model: DEFAULT_MODEL,
     system_prompt: DEFAULT_SKILL_CORE,
@@ -126,12 +135,11 @@ Deno.serve(async (req) => {
   // Cliente service-role (para ler role/org de forma confiável e gravar logs)
   const supabaseAdmin = createClient(supabaseUrl, serviceKey);
 
-  const token = authHeader.replace("Bearer ", "");
-  const { data: claimsData, error: claimsErr } = await supabaseUser.auth.getClaims(token);
-  if (claimsErr || !claimsData?.claims) {
+  const { data: { user }, error: claimsErr } = await supabaseUser.auth.getUser();
+  if (claimsErr || !user) {
     return jsonResponse({ error: "Sessão inválida." }, 401, requestId);
   }
-  const userId = claimsData.claims.sub as string;
+  const userId = user.id;
 
   const agentCfg = await loadAgentConfig(supabaseAdmin);
 
