@@ -54,12 +54,10 @@ Deno.serve(async (req) => {
     });
     const supabaseAdmin = createClient(supabaseUrl, serviceKey);
 
-    const { data: claimsData, error: claimsErr } = await supabaseUser.auth.getClaims(
-      authHeader.replace("Bearer ", ""),
-    );
-    if (claimsErr || !claimsData?.claims) return json({ error: "Sessão inválida." }, 401);
-    const userId = claimsData.claims.sub as string;
-    const userEmail = (claimsData.claims.email as string | undefined) ?? null;
+    const { data: { user }, error: claimsErr } = await supabaseUser.auth.getUser();
+    if (claimsErr || !user) return json({ error: "Sessão inválida." }, 401);
+    const userId = user.id;
+    const userEmail = user.email ?? null;
 
     const { data: roleRows } = await supabaseAdmin
       .from("user_roles")
