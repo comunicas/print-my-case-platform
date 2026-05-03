@@ -305,6 +305,7 @@ Deno.serve(async (req) => {
           messages,
           ...(isLastIteration ? { tool_choice: "none" } : { tools: agentCfg.tools }),
           stream: false,
+        reasoning_effort: "minimal",
         }),
         signal: aiCtrl.signal,
       });
