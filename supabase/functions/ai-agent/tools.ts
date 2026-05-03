@@ -177,7 +177,7 @@ export const TOOL_TO_RPC: Record<string, { rpc: string; mapParams: (p: Record<st
   },
   get_low_stock_alerts: {
     rpc: "ai_get_low_stock_alerts",
-    mapParams: (p) => ({ _threshold: p.threshold ?? 5, _limit: p.limit ?? 50 }),
+    mapParams: (p) => ({ _threshold: p.threshold ?? 2, _limit: p.limit ?? 50 }),
   },
   get_pdv_comparison: {
     rpc: "ai_get_pdv_comparison",
