@@ -19,6 +19,7 @@ const DEFAULT_RATE_LIMIT_PER_10_MIN = 20;
 const DEFAULT_HISTORY_LIMIT = 20;
 const DEFAULT_MAX_MESSAGE_CHARS = 4000;
 const CONFIG_CACHE_TTL_MS = 60 * 1000;
+const MAX_TOOL_RESULT_ROWS = 80; // Truncagem de linhas por tool result. Aumentar aqui se catálogos grandes forem necessários.
 type AgentConfig = {
   model: string;
   system_prompt: string;
@@ -448,7 +449,6 @@ Deno.serve(async (req) => {
             const arr = Array.isArray(data) ? data : data ? [data] : [];
             rowsReturned = arr.length;
             // Trunca em nível de array para garantir JSON sempre válido ao modelo
-            const MAX_TOOL_RESULT_ROWS = 80;
             if (arr.length > MAX_TOOL_RESULT_ROWS) {
               const truncated = arr.slice(0, MAX_TOOL_RESULT_ROWS);
               resultStr =

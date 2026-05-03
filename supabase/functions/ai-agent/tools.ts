@@ -78,11 +78,11 @@ export const TOOLS = [
     type: "function",
     function: {
       name: "get_low_stock_alerts",
-      description: "Lista produtos com estoque ≤ threshold E demanda > 0 (exclui produtos estagnados).",
+      description: "Lista produtos com estoque ≤ threshold E demanda > 0 (exclui estagnados). Retorna product_name, pdv_name, total_quantity e vendas_30d. Use para 'estoque baixo', 'risco de zerar', 'próximo de acabar' — NÃO para produtos zerados (use get_zero_stock_items para zerados). Aceita filtro por PDV via pdv_ids.",
       parameters: {
         type: "object",
         properties: {
-          threshold: { type: "integer", default: 2 },
+          threshold: { type: "integer", default: 2, description: "Alerta para estoque ≤ threshold. Default: 2." },
           limit: { type: "integer", default: 50, maximum: 100 },
           pdv_ids: { type: "array", items: { type: "string" }, description: "Filtrar por PDVs específicos (UUIDs). Omitir = todos." },
         },
@@ -93,7 +93,7 @@ export const TOOLS = [
     type: "function",
     function: {
       name: "get_pdv_comparison",
-      description: "Compara faturamento, vendas e ticket médio por PDV em um período.",
+      description: "Compara faturamento, contagem de vendas e ticket médio por PDV em um período. Use para ranking de PDVs, identificar o melhor e pior desempenho, ou analisar um subset de PDVs. Combine com get_stock_overview para diagnóstico completo.",
       parameters: {
         type: "object",
         properties: {
@@ -109,7 +109,7 @@ export const TOOLS = [
     type: "function",
     function: {
       name: "get_purchases_summary",
-      description: "Resumo de compras pendentes (pré-estoque ainda não alocado). Útil para planejar reposição.",
+      description: "Resumo de compras abertas (pré-estoque não totalmente alocado). Use para 'há compra pendente para X?', 'quanto está em pré-estoque no total?'. DIFERENTE de get_pre_stock_detail (que mostra detalhe do que chegou) e get_pending_allocations (que mostra tarefas de distribuição física). Use product_names para verificar compras de SKUs específicos.",
       parameters: {
         type: "object",
         properties: {
@@ -125,7 +125,7 @@ export const TOOLS = [
     type: "function",
     function: {
       name: "get_financial_summary",
-      description: "DRE simplificado: faturamento - deduções - despesas = resultado.",
+      description: "DRE CONSOLIDADO da organização inteira: faturamento - deduções - despesas = resultado. NÃO retorna por PDV individual — para DRE por PDV use get_financial_summary_by_pdv. Combine as duas para o DRE completo.",
       parameters: {
         type: "object",
         properties: {
