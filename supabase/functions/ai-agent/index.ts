@@ -135,12 +135,11 @@ Deno.serve(async (req) => {
   // Cliente service-role (para ler role/org de forma confiável e gravar logs)
   const supabaseAdmin = createClient(supabaseUrl, serviceKey);
 
-  const token = authHeader.replace("Bearer ", "");
-  const { data: claimsData, error: claimsErr } = await supabaseUser.auth.getClaims(token);
-  if (claimsErr || !claimsData?.claims) {
+  const { data: { user }, error: claimsErr } = await supabaseUser.auth.getUser();
+  if (claimsErr || !user) {
     return jsonResponse({ error: "Sessão inválida." }, 401, requestId);
   }
-  const userId = claimsData.claims.sub as string;
+  const userId = user.id;
 
   const agentCfg = await loadAgentConfig(supabaseAdmin);
 
