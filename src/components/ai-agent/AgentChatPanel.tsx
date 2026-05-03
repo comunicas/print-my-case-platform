@@ -74,6 +74,7 @@ export function AgentChatPanel() {
   }, [activeId, messages, isSending]);
 
   const handleSend = async (override?: string) => {
+    if (isSending) return;
     const text = (override ?? input).trim();
     if (!text) return;
     setInput("");
