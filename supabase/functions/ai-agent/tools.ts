@@ -222,6 +222,89 @@ export const TOOLS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "get_sales_timeline",
+      description: "Agrega vendas por período (dia, semana ou mês) para análise de tendência. Retorna faturamento e contagem por período e PDV. Use para responder 'a venda está crescendo?', 'qual semana foi melhor?', 'quais os dias que mais vendemos?', ou comparar períodos dentro de um range.",
+      parameters: {
+        type: "object",
+        properties: {
+          start:       { type: "string", format: "date-time" },
+          end:         { type: "string", format: "date-time" },
+          granularity: {
+            type: "string",
+            enum: ["day", "week", "month"],
+            default: "day",
+            description: "'day' para diário, 'week' para semanal, 'month' para mensal.",
+          },
+          pdv_ids: { type: "array", items: { type: "string" }, description: "Filtrar por PDVs. Omitir = todos." },
+        },
+        required: ["start", "end"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_product_catalog",
+      description: "Catálogo de produtos com preço, categoria, estoque mínimo configurado, quantidade atual em PDVs, quantidade em pré-estoque e status (ok / no_limite / abaixo_do_minimo / zerado). Use para responder 'qual o preço de X', 'quais produtos estão abaixo do mínimo', 'me mostre o catálogo', ou para cruzar com análises de venda e reposição.",
+      parameters: {
+        type: "object",
+        properties: {
+          category: {
+            type: "string",
+            description: "Filtrar por categoria de produto. Omitir = todas.",
+          },
+          limit: { type: "integer", default: 150, maximum: 300 },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_pending_allocations",
+      description: "Lista alocações de pré-estoque pendentes — produtos que precisam ser fisicamente movidos do pré-estoque para um PDV específico. Use quando o usuário perguntar 'o que precisa ser alocado?', 'o que está pendente de distribuição?', ou no planejamento semanal de distribuição.",
+      parameters: {
+        type: "object",
+        properties: {
+          status: {
+            type: "string",
+            description: "Status das alocações. Default: 'pending'. Outros: 'resolved', null para todas.",
+            default: "pending",
+          },
+          limit: { type: "integer", default: 50, maximum: 100 },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_upload_status",
+      description: "Mostra quando cada PDV teve seus dados (estoque e vendas) atualizados pela última vez, quantos registros foram importados e quantas anomalias foram detectadas. Use quando o usuário questionar a atualidade dos dados, quando dados parecerem inconsistentes, ou como verificação de saúde dos dados antes de análises críticas.",
+      parameters: {
+        type: "object",
+        properties: {},
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_financial_summary_by_pdv",
+      description: "DRE simplificado por PDV: faturamento, deduções (devoluções + descontos), despesas lançadas e resultado líquido com margem %. Use para responder 'qual PDV é mais lucrativo?', 'DRE por PDV', 'qual a margem de cada ponto?'. Combine com get_financial_entries para detalhar as categorias de despesa.",
+      parameters: {
+        type: "object",
+        properties: {
+          start: { type: "string", format: "date-time" },
+          end:   { type: "string", format: "date-time" },
+        },
+        required: ["start", "end"],
+      },
+    },
+  },
 ];
 
 // Mapeamento tool_name → RPC do banco
@@ -297,6 +380,40 @@ export const TOOL_TO_RPC: Record<string, { rpc: string; mapParams: (p: Record<st
       _start: p.start,
       _end: p.end,
       _pdv_ids: p.pdv_ids ?? null,
+    }),
+  },
+  get_sales_timeline: {
+    rpc: "ai_get_sales_timeline",
+    mapParams: (p) => ({
+      _start:       p.start,
+      _end:         p.end,
+      _granularity: p.granularity ?? "day",
+      _pdv_ids:     p.pdv_ids ?? null,
+    }),
+  },
+  get_product_catalog: {
+    rpc: "ai_get_product_catalog",
+    mapParams: (p) => ({
+      _category: p.category ?? null,
+      _limit:    p.limit ?? 150,
+    }),
+  },
+  get_pending_allocations: {
+    rpc: "ai_get_pending_allocations",
+    mapParams: (p) => ({
+      _status: p.status ?? "pending",
+      _limit:  p.limit ?? 50,
+    }),
+  },
+  get_upload_status: {
+    rpc: "ai_get_upload_status",
+    mapParams: (_p) => ({}),
+  },
+  get_financial_summary_by_pdv: {
+    rpc: "ai_get_financial_summary_by_pdv",
+    mapParams: (p) => ({
+      _start: p.start,
+      _end:   p.end,
     }),
   },
 };
