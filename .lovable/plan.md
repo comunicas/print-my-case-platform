@@ -1,48 +1,46 @@
-## Objetivo
-Adicionar 4 novas capacidades ao Agente IA cobrindo gaps operacionais: listagem de PDVs, pré-estoque detalhado, despesas por PDV/categoria e breakdown por forma de pagamento.
+## Etapa 1 — Adicionar filtro `_pdv_ids` em 3 RPCs do agente IA
 
-## Arquivos a editar/criar
+### Arquivos
 
-1. **`supabase/functions/ai-agent/tools.ts`** — adicionar 4 entradas em `TOOLS` + 4 em `TOOL_TO_RPC`, e corrigir a description de `get_top_products`.
-2. **`supabase/functions/ai-agent/skill.ts`** — atualizar `SKILL_CORE` com novas intenções e formatos canônicos.
-3. **3 novas migrations SQL** em `supabase/migrations/`:
-   - `add_ai_get_pre_stock_detail.sql`
-   - `add_ai_get_financial_entries.sql`
-   - `add_ai_get_payment_breakdown.sql`
+**Novo:** `supabase/migrations/{timestamp}_fix_ai_rpcs_pdv_filter.sql`
 
-(A função `ai_get_pdv_list` já existe no banco — só precisa ser exposta em `tools.ts`.)
+**Editar:** `supabase/functions/ai-agent/tools.ts` (expor o novo parâmetro nas 3 tools).
 
-## Etapa 1 — Wire-up `ai_get_pdv_list` + correção `get_top_products`
-Em `tools.ts`:
-- Inserir tool `get_pdv_list` (sem parâmetros) → RPC `ai_get_pdv_list` com `mapParams: () => ({})`.
-- Substituir a description de `get_top_products` para deixar explícito que retorna `sales_count` e `revenue` (habilitando coluna "Valor acumulado").
+---
 
-## Etapa 2 — `ai_get_pre_stock_detail`
-- Migration cria função `SECURITY DEFINER` agregando `pre_stock` por `product_name + status`, com totais comprado/disponível, custo unit/total, PDV alocado e observações; filtro por `organization_id = get_user_org_id(auth.uid())`. REVOKE de anon/public, GRANT a authenticated.
-- Tool `get_pre_stock_detail(status?, limit?)` → RPC `ai_get_pre_stock_detail`.
-- `skill.ts`: nova intenção em "Planejamento" + formato canônico (Produto | Status | Disponível | Comprado | Custo unit. | Custo total).
+### 1) Migration SQL
 
-## Etapa 3 — `ai_get_financial_entries`
-- Migration cria função agregando `financial_entries` por PDV/categoria/mês com `LEFT JOIN pdvs` (mostrando "Geral / Sem PDV" quando `pdv_id IS NULL`). Parâmetros: `_reference_month text` (YYYY-MM), `_pdv_id uuid`, `_limit int`. Acesso por org via `get_user_org_id(auth.uid())`.
-- Tool `get_financial_entries(reference_month?, pdv_id?, limit?)` → RPC `ai_get_financial_entries`.
-- `skill.ts`: intenção em "Diagnósticas e comparativas" combinando com `get_financial_summary` para DRE por PDV + formato canônico.
+Para cada função: `DROP FUNCTION` da assinatura antiga, recriar com `_pdv_ids uuid[] DEFAULT NULL` e o novo predicado `AND (_pdv_ids IS NULL OR <campo>.pdv_id = ANY(_pdv_ids))`. Mantém `LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public'`, todos os helpers (`user_can_access_pdv`, `get_user_org_id`) e o `RETURNS TABLE` original. Reaplicar `REVOKE` de `anon, public` e `GRANT EXECUTE` para `authenticated`.
 
-## Etapa 4 — `ai_get_payment_breakdown`
-- Migration cria função com CTE `pdv_totais` para calcular `pct_do_pdv`, agrupando `sales_records` por PDV + `payment_method`, filtrando `status = 'Concluído'` e `order_time BETWEEN _start AND _end`. Acesso via `user_can_access_pdv(auth.uid(), pdv_id)` + filtro opcional `_pdv_ids uuid[]`.
-- Tool `get_payment_breakdown(start, end, pdv_ids?)` → RPC `ai_get_payment_breakdown`.
-- `skill.ts`: intenção em "Vendas e faturamento" + formato canônico (PDV | Forma | Vendas | Faturamento | %).
+**1.a `ai_get_low_stock_alerts(_threshold, _limit, _pdv_ids)`** — `RETURNS TABLE(product_name text, pdv_name text, total_quantity bigint, vendas_30d bigint)` (mantém `bigint`, já que é o tipo atual no banco; o prompt pediu `numeric` mas alterar isso quebraria callers — confirmo `bigint`). Adiciona o filtro em **ambas** CTEs (`stock_agg` no `sr.pdv_id` e `sales_agg` no `s.pdv_id`) para que o resultado fique coerente.
 
-## Padrões aplicados em todas as migrations
-- `LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public'`.
-- `REVOKE EXECUTE ... FROM anon, public; GRANT EXECUTE ... TO authenticated;`.
-- Acesso isolado por org/PDV via helpers existentes (`get_user_org_id`, `user_can_access_pdv`) — RLS-equivalente.
+**1.b `ai_get_pdv_comparison(_start, _end, _pdv_ids)`** — `RETURNS TABLE(pdv_name text, sales_count bigint, revenue numeric, ticket_medio numeric)` (ordem real do banco; o prompt invertia revenue/sales_count — mantenho a ordem existente para não quebrar consumidores). Filtro adicionado no `WHERE` ao lado de `s.status = 'Concluído'`.
 
-## Deploy
-A edge function `ai-agent` será redeployada automaticamente após as edições em `tools.ts` e `skill.ts`. Migrations rodam via fluxo de aprovação.
+**1.c `ai_get_financial_entries(_reference_month, _pdv_ids, _limit)`** — substitui `_pdv_id uuid` por `_pdv_ids uuid[]`. Troca `(_pdv_id IS NULL OR fe.pdv_id = _pdv_id)` por `(_pdv_ids IS NULL OR fe.pdv_id = ANY(_pdv_ids))`. Demais SQL (joins, group by, order by, limit) permanece idêntico.
 
-## Validação manual após deploy
-- "quais PDVs temos ativos?" → lista com status.
-- "top 5 produtos com valor acumulado" → coluna "Valor acumulado" preenchida em R$.
-- "o que temos disponível no pré-estoque?" → tabela com colunas obrigatórias.
-- "quais foram as despesas de maio de 2026?" → breakdown por PDV/categoria.
-- "breakdown de formas de pagamento últimos 30 dias" → tabela PIX vs cartão por PDV com %.
+---
+
+### 2) `supabase/functions/ai-agent/tools.ts`
+
+- **`get_low_stock_alerts`**: adicionar em `parameters.properties`:
+  ```
+  pdv_ids: { type: "array", items: { type: "string" }, description: "Filtrar por PDVs específicos (UUIDs). Omitir = todos." }
+  ```
+  e em `TOOL_TO_RPC.get_low_stock_alerts.mapParams`: incluir `_pdv_ids: p.pdv_ids ?? null`.
+
+- **`get_pdv_comparison`**: mesma adição de `pdv_ids` nas properties; `mapParams` passa a enviar `_pdv_ids: p.pdv_ids ?? null`.
+
+- **`get_financial_entries`**: renomear o campo `pdv_id` (string) para `pdv_ids` (array of string) nas properties, atualizar a description ("Lista de UUIDs de PDV para filtrar"), e em `mapParams` enviar `_pdv_ids: p.pdv_ids ?? null` em vez de `_pdv_id`.
+
+---
+
+### 3) Sem alterações em `skill.ts`
+
+Os formatos canônicos e intenções já existentes continuam válidos — apenas ganham capacidade de filtro por PDV via parâmetro. Documentação de skill pode ser ajustada num passo futuro se necessário.
+
+### Validação manual após deploy
+
+- "alertas de baixo estoque no PDV X" → resposta limitada ao PDV.
+- "compare os PDVs A e B em abril" → tabela só com A e B.
+- "despesas de maio nos PDVs A e B" → entries filtradas por array.
+- Chamadas sem `pdv_ids` continuam funcionando (default `NULL` = todos).
