@@ -13,8 +13,8 @@ const DEFAULT_MODEL = "gpt-5-mini";
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const PROVIDER = "openai";
 const DEFAULT_MAX_TOOL_ITERATIONS = 5;
-const OPENAI_REQUEST_TIMEOUT_MS = 45_000;
-const OVERALL_BUDGET_MS = 130_000;
+const OPENAI_REQUEST_TIMEOUT_MS = 90_000;
+const OVERALL_BUDGET_MS = 140_000;
 const DEFAULT_RATE_LIMIT_PER_10_MIN = 20;
 const DEFAULT_HISTORY_LIMIT = 20;
 const DEFAULT_MAX_MESSAGE_CHARS = 4000;
@@ -305,6 +305,7 @@ Deno.serve(async (req) => {
           messages,
           ...(isLastIteration ? { tool_choice: "none" } : { tools: agentCfg.tools }),
           stream: false,
+        reasoning_effort: "minimal",
         }),
         signal: aiCtrl.signal,
       });
