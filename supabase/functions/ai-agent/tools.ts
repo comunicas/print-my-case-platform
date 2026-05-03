@@ -84,6 +84,7 @@ export const TOOLS = [
         properties: {
           threshold: { type: "integer", default: 2 },
           limit: { type: "integer", default: 50, maximum: 100 },
+          pdv_ids: { type: "array", items: { type: "string" }, description: "Filtrar por PDVs específicos (UUIDs). Omitir = todos." },
         },
       },
     },
@@ -98,6 +99,7 @@ export const TOOLS = [
         properties: {
           start: { type: "string", format: "date-time" },
           end: { type: "string", format: "date-time" },
+          pdv_ids: { type: "array", items: { type: "string" }, description: "Filtrar por PDVs específicos (UUIDs). Omitir = todos." },
         },
         required: ["start", "end"],
       },
@@ -193,9 +195,10 @@ export const TOOLS = [
             type: "string",
             description: "Mês no formato YYYY-MM (ex: '2026-05'). Omitir = todos os meses disponíveis.",
           },
-          pdv_id: {
-            type: "string",
-            description: "UUID do PDV para filtrar. Omitir = todos os PDVs.",
+          pdv_ids: {
+            type: "array",
+            items: { type: "string" },
+            description: "Lista de UUIDs de PDV para filtrar. Omitir = todos os PDVs.",
           },
           limit: { type: "integer", default: 100, maximum: 200 },
         },
@@ -333,11 +336,11 @@ export const TOOL_TO_RPC: Record<string, { rpc: string; mapParams: (p: Record<st
   },
   get_low_stock_alerts: {
     rpc: "ai_get_low_stock_alerts",
-    mapParams: (p) => ({ _threshold: p.threshold ?? 2, _limit: p.limit ?? 50 }),
+    mapParams: (p) => ({ _threshold: p.threshold ?? 2, _limit: p.limit ?? 50, _pdv_ids: p.pdv_ids ?? null }),
   },
   get_pdv_comparison: {
     rpc: "ai_get_pdv_comparison",
-    mapParams: (p) => ({ _start: p.start, _end: p.end }),
+    mapParams: (p) => ({ _start: p.start, _end: p.end, _pdv_ids: p.pdv_ids ?? null }),
   },
   get_purchases_summary: {
     rpc: "ai_get_purchases_summary",
@@ -370,7 +373,7 @@ export const TOOL_TO_RPC: Record<string, { rpc: string; mapParams: (p: Record<st
     rpc: "ai_get_financial_entries",
     mapParams: (p) => ({
       _reference_month: p.reference_month ?? null,
-      _pdv_id: p.pdv_id ?? null,
+      _pdv_ids: p.pdv_ids ?? null,
       _limit: p.limit ?? 100,
     }),
   },
