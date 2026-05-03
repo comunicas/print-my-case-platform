@@ -143,7 +143,8 @@ export function MessageBubble({ message, conversationId }: Props) {
         rating,
       });
     } catch {
-      // falha silenciosa — feedback é opcional
+      // Reverte estado otimista se o insert falhou
+      setFeedback(null);
     } finally {
       setSubmitting(false);
     }
