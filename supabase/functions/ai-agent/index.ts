@@ -372,7 +372,7 @@ Deno.serve(async (req) => {
         tool_calls: toolCalls,
       });
 
-      for (const tc of toolCalls) {
+      const toolResults = await Promise.all(toolCalls.map(async (tc: any) => {
         const toolName = tc.function?.name;
         const argsRaw = tc.function?.arguments ?? "{}";
         let args: Record<string, unknown> = {};
@@ -468,21 +468,22 @@ Deno.serve(async (req) => {
           error_message: toolErr,
         });
 
-        messages.push({
-          role: "tool",
-          tool_call_id: tc.id,
-          content: resultStr,
-        });
+        return { tc, resultStr, toolStatus };
+      }));
 
-        // Persiste o resultado da tool no histórico para iterações futuras
-        await supabaseAdmin.from("ai_messages").insert({
+      for (const { tc, resultStr } of toolResults) {
+        messages.push({ role: "tool", tool_call_id: tc.id, content: resultStr });
+      }
+      // Persiste resultados em paralelo (não bloqueia a próxima iteração se falhar)
+      await Promise.all(toolResults.map(({ tc, resultStr, toolStatus }) =>
+        supabaseAdmin.from("ai_messages").insert({
           conversation_id: conversationId,
           role: "tool",
           content: resultStr,
           tool_call_id: tc.id,
           status: toolStatus === "ok" ? "ok" : "failed",
-        });
-      }
+        })
+      ));
       continue; // próxima iteração: o modelo agora vê o resultado
     }
 
