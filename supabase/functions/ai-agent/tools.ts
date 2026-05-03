@@ -61,7 +61,7 @@ export const TOOLS = [
     type: "function",
     function: {
       name: "get_top_products",
-      description: "Top produtos mais vendidos em um período. Retorna product_name, sales_count (unidades) e revenue (faturamento em R$). Apenas vendas Concluído. Use para ranking, % do total e valor acumulado por produto.",
+      description: "Lista os produtos mais vendidos. Retorna product_name, sales_count e revenue — onde revenue é a receita INDIVIDUAL gerada por aquele produto, não uma soma acumulada. Use para ranking de produtos por faturamento.",
       parameters: {
         type: "object",
         properties: {
