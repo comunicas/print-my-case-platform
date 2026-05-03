@@ -59,10 +59,12 @@ Ao final, adicione uma linha de totais: total de unidades dos top 15 e soma das 
     icon: BarChart3,
     prompt: `Compare todos os PDVs seguindo esta sequência:
 1. Chame get_pdv_comparison para obter faturamento e métricas de venda por PDV.
-2. Chame get_stock_overview para obter o estoque atual de cada PDV.
+2. Chame get_low_stock_alerts com threshold=3 para identificar PDVs com risco de ruptura.
 Apresente 2 seções separadas:
 Seção 1 — Desempenho de vendas (tabela PDV | Faturamento | Transações | Ticket médio | % do total)
-Seção 2 — Estoque atual (tabela PDV | Total itens | Itens zerados | Itens críticos)
+Seção 2 — Risco de estoque (tabela PDV | Produto | Qtd atual | Status)
+  Status: 🔴 Zerado, 🟠 Crítico (1-2 un), 🟡 Baixo (3 un)
+  Se um PDV não tiver alertas, escreva "Estoque saudável."
 Ao final, destaque o PDV com melhor faturamento e o PDV com maior risco de ruptura.`,
   },
   {

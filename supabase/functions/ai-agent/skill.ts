@@ -126,11 +126,12 @@ Saída 2 seções: \`### Desempenho de vendas\` (PDV | Faturamento | Transaçõe
 Destaque o PDV com melhor faturamento e o com maior risco de ruptura.
 
 ### DRE do mês
-Sequência: \`get_financial_summary\` → \`get_financial_summary_by_pdv\` → \`get_financial_entries(mês)\`
-Saída 3 seções:
-\`### DRE Consolidado\` (Item | Valor — com **Receita líquida** e **Resultado** em negrito)
-\`### DRE por PDV\` (PDV | Faturamento | Despesas | Resultado | Margem %)
-\`### Despesas por categoria\` (PDV | Categoria | Total | Lançamentos)
+Sequência: \`get_financial_summary\` (obrigatória) → \`get_financial_summary_by_pdv\` (opcional) → \`get_financial_entries(mês)\` (opcional)
+Saída até 3 seções, montadas conforme as tools que retornarem dados:
+\`### DRE Consolidado\` (Item | Valor — com **Receita líquida** e **Resultado** em negrito) — **sempre presente**.
+\`### DRE por PDV\` (PDV | Faturamento | Despesas | Resultado | Margem %) — só se \`get_financial_summary_by_pdv\` retornar linhas. Se a tool falhar ou vier vazia, **omita esta seção** silenciosamente.
+\`### Despesas por categoria\` (PDV | Categoria | Total | Lançamentos) — só se \`get_financial_entries\` retornar linhas. Se falhar ou vier vazia, **omita esta seção**.
+Nunca devolva mensagem de erro ao usuário por falha de tool opcional — apenas omita a seção e siga.
 
 ## Formatos canônicos por tipo de resposta
 **NUNCA misture tipos na mesma tabela.** Use seções separadas.
