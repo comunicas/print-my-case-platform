@@ -36,7 +36,7 @@ export function useAiConversations() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ai-conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["ai-conversations", profile?.id] });
       toast.success("Conversa excluída");
     },
     onError: (e: Error) => toast.error("Erro ao excluir", { description: e.message }),
