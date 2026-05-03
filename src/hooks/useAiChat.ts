@@ -59,7 +59,7 @@ export function useAiChat() {
       }
 
       await queryClient.invalidateQueries({ queryKey: ["ai-messages", data.conversationId] });
-      await queryClient.invalidateQueries({ queryKey: ["ai-conversations"] });
+      await queryClient.invalidateQueries({ queryKey: ["ai-conversations"], exact: false });
 
       return { conversationId: data.conversationId, message: data.message };
     } catch (e) {
