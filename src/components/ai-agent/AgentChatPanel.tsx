@@ -47,8 +47,13 @@ export function AgentChatPanel() {
   // Se a conversa salva não existe mais (foi excluída), limpa
   useEffect(() => {
     if (!activeId || convLoading) return;
-    if (conversations.length > 0 && !conversations.some((c) => c.id === activeId)) {
+    // Limpa ID obsoleto mesmo quando a lista está vazia (ex.: profile ainda não
+    // carregou e useAiConversations está desabilitado — conversations = [],
+    // convLoading = false). Sem isso, um conversationId antigo do localStorage
+    // pode ser enviado à edge function e gerar 404.
+    if (!conversations.some((c) => c.id === activeId)) {
       setActiveId(null);
+      localStorage.removeItem(ACTIVE_CONV_KEY);
     }
   }, [activeId, conversations, convLoading]);
 
