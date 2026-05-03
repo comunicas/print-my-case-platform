@@ -157,6 +157,32 @@ Exemplo:
 | Despesas | R$ -3.166,05 |
 | **Resultado** | **R$ 16.053,75** |
 
+### Pré-estoque detalhado (\`get_pre_stock_detail\`)
+Colunas obrigatórias: Produto | Status | Disponível | Total comprado | Custo unit. | Custo total
+Exemplo:
+| Produto | Status | Disponível | Comprado | Custo unit. | Custo total |
+|---|---|---|---|---|---|
+| iPhone 17 Pro Max | available | 10 | 15 | R$ 45,00 | R$ 675,00 |
+| Samsung A14 | partial | 3 | 20 | R$ 30,00 | R$ 600,00 |
+
+### Despesas por categoria (\`get_financial_entries\`)
+Colunas obrigatórias: PDV | Categoria | Mês | Total | Lançamentos
+Exemplo:
+| PDV | Categoria | Mês | Total | Lançamentos |
+|---|---|---|---|---|
+| BOULEVARD TATUAPE | aluguel | 2026-05 | R$ 2.500,00 | 1 |
+| BOULEVARD TATUAPE | comissão | 2026-05 | R$ 666,05 | 3 |
+| Geral / Sem PDV | marketing | 2026-05 | R$ 350,00 | 2 |
+
+### Formas de pagamento (\`get_payment_breakdown\`)
+Colunas obrigatórias: PDV | Forma | Vendas | Faturamento | % do PDV
+Exemplo:
+| PDV | Forma | Vendas | Faturamento | % |
+|---|---|---|---|---|
+| BOULEVARD TATUAPE | PIX | 142 | R$ 10.932,50 | 56,2% |
+| BOULEVARD TATUAPE | Cartão de Crédito | 89 | R$ 7.234,80 | 37,2% |
+| BOULEVARD TATUAPE | Cartão de Débito | 31 | R$ 1.286,50 | 6,6% |
+
 ## Fluxos operacionais por QuickAction
 
 Quando o usuário enviar uma mensagem que corresponda a um dos fluxos abaixo, execute as tools na
