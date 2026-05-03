@@ -9,6 +9,9 @@ const corsHeaders = {
   "Access-Control-Expose-Headers": "x-request-id",
 };
 
+// FALLBACK apenas quando o banco está inacessível.
+// O modelo real vem de ai_agent_config.model — configure lá o model string correto da API.
+// Ex: "gpt-4o-mini", "gpt-4o", etc. Este valor só é usado se _doLoadAgentConfig() falhar.
 const DEFAULT_MODEL = "gpt-5-mini";
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const PROVIDER = "openai";
@@ -291,32 +294,52 @@ Deno.serve(async (req) => {
     // Na última iteração, forçamos o modelo a responder em texto (sem mais tools)
     // para garantir uma resposta útil ao usuário com os dados já coletados.
     const isLastIteration = iter === agentCfg.max_tool_iterations - 1;
-    const aiCtrl = new AbortController();
-    const aiTimer = setTimeout(() => aiCtrl.abort(), OPENAI_REQUEST_TIMEOUT_MS);
-    let aiResp: Response;
-    try {
-      aiResp = await fetch(OPENAI_CHAT_URL, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: agentCfg.model,
-          messages,
-          ...(isLastIteration ? { tool_choice: "none" } : { tools: agentCfg.tools }),
-          stream: false,
-        reasoning_effort: "minimal",
-        }),
-        signal: aiCtrl.signal,
-      });
-    } catch (e) {
-      clearTimeout(aiTimer);
-      await logRun("error", "provider_timeout", String(e).slice(0, 500));
-      logEvent("ai_agent_provider_timeout", { request_id: requestId, iter, error: String(e) });
+    // Retry único para 503 e timeout transiente
+    let aiResp!: Response;
+    let lastErr: unknown = null;
+    for (let attempt = 0; attempt <= 1; attempt++) {
+      const aiCtrl = new AbortController();
+      const aiTimer = setTimeout(() => aiCtrl.abort(), OPENAI_REQUEST_TIMEOUT_MS);
+      try {
+        aiResp = await fetch(OPENAI_CHAT_URL, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${OPENAI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: agentCfg.model,
+            messages,
+            ...(isLastIteration ? { tool_choice: "none" } : { tools: agentCfg.tools }),
+            stream: false,
+            reasoning_effort: "minimal",
+          }),
+          signal: aiCtrl.signal,
+        });
+        clearTimeout(aiTimer);
+        if (aiResp.status === 503 && attempt === 0) {
+          logEvent("ai_agent_provider_retry", { request_id: requestId, iter, attempt, reason: "503" });
+          await new Promise((r) => setTimeout(r, 1200));
+          continue;
+        }
+        lastErr = null;
+        break;
+      } catch (e) {
+        clearTimeout(aiTimer);
+        lastErr = e;
+        if (attempt === 0 && (e as Error).name === "AbortError") {
+          logEvent("ai_agent_provider_timeout", { request_id: requestId, iter, attempt });
+          await new Promise((r) => setTimeout(r, 1200));
+          continue;
+        }
+        await logRun("error", "provider_timeout", String(e).slice(0, 500));
+        logEvent("ai_agent_provider_timeout", { request_id: requestId, iter, error: String(e) });
+        return jsonResponse({ error: "Tempo esgotado ao consultar o modelo. Tente novamente." }, 504, requestId);
+      }
+    }
+    if (lastErr) {
+      await logRun("error", "provider_timeout", String(lastErr).slice(0, 500));
       return jsonResponse({ error: "Tempo esgotado ao consultar o modelo. Tente novamente." }, 504, requestId);
-    } finally {
-      clearTimeout(aiTimer);
     }
 
     if (aiResp.status === 401) {
@@ -475,8 +498,8 @@ Deno.serve(async (req) => {
       for (const { tc, resultStr } of toolResults) {
         messages.push({ role: "tool", tool_call_id: tc.id, content: resultStr });
       }
-      // Persiste resultados em paralelo (não bloqueia a próxima iteração se falhar)
-      await Promise.all(toolResults.map(({ tc, resultStr, toolStatus }) =>
+      // Escrita intermediária não bloqueia a próxima iteração (fire-and-forget)
+      Promise.all(toolResults.map(({ tc, resultStr, toolStatus }) =>
         supabaseAdmin.from("ai_messages").insert({
           conversation_id: conversationId,
           role: "tool",
@@ -484,7 +507,7 @@ Deno.serve(async (req) => {
           tool_call_id: tc.id,
           status: toolStatus === "ok" ? "ok" : "failed",
         })
-      ));
+      )).catch((e) => logEvent("ai_agent_tool_write_failed", { error: String(e), request_id: requestId }));
       continue; // próxima iteração: o modelo agora vê o resultado
     }
 
