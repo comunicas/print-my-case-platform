@@ -1713,6 +1713,17 @@ export type Database = {
           vendas_30d_destino: number
         }[]
       }
+      ai_get_financial_entries: {
+        Args: { _limit?: number; _pdv_id?: string; _reference_month?: string }
+        Returns: {
+          categoria: string
+          descricoes: string
+          mes_referencia: string
+          num_lancamentos: number
+          pdv_nome: string
+          total: number
+        }[]
+      }
       ai_get_financial_summary: {
         Args: { _end: string; _start: string }
         Returns: {
@@ -1731,6 +1742,16 @@ export type Database = {
           vendas_30d: number
         }[]
       }
+      ai_get_payment_breakdown: {
+        Args: { _end: string; _pdv_ids?: string[]; _start: string }
+        Returns: {
+          faturamento: number
+          forma_pagamento: string
+          num_vendas: number
+          pct_do_pdv: number
+          pdv_nome: string
+        }[]
+      }
       ai_get_pdv_comparison: {
         Args: { _end: string; _start: string }
         Returns: {
@@ -1746,6 +1767,20 @@ export type Database = {
           is_active: boolean
           pdv_id: string
           pdv_name: string
+        }[]
+      }
+      ai_get_pre_stock_detail: {
+        Args: { _limit?: number; _status?: string }
+        Returns: {
+          custo_total: number
+          custo_unitario: number
+          observacoes: string
+          pdv_alocado: string
+          product_name: string
+          status: string
+          total_comprado: number
+          total_disponivel: number
+          ultima_entrada: string
         }[]
       }
       ai_get_purchases_summary:

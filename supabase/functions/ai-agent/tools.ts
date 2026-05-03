@@ -3,6 +3,17 @@ export const TOOLS = [
   {
     type: "function",
     function: {
+      name: "get_pdv_list",
+      description: "Lista todos os PDVs do usuário com nome e status ativo/inativo. Use quando precisar conhecer os PDVs disponíveis, resolver ambiguidade de nome, ou verificar quais PDVs estão ativos antes de filtrar outra tool por pdv_ids.",
+      parameters: {
+        type: "object",
+        properties: {},
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "get_stock_overview",
       description: "Retorna visão geral do estoque agregada por produto e PDV. Use quando o usuário pergunta 'como está o estoque'. Para focar em um produto específico, prefira `get_zero_stock_items` (mostra ruptura por PDV) e filtre o nome no texto da resposta.",
       parameters: {
@@ -50,7 +61,7 @@ export const TOOLS = [
     type: "function",
     function: {
       name: "get_top_products",
-      description: "Top produtos mais vendidos por contagem em um período. Apenas vendas Concluído.",
+      description: "Top produtos mais vendidos em um período. Retorna product_name, sales_count (unidades) e revenue (faturamento em R$). Apenas vendas Concluído. Use para ranking, % do total e valor acumulado por produto.",
       parameters: {
         type: "object",
         properties: {
@@ -153,10 +164,72 @@ export const TOOLS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "get_pre_stock_detail",
+      description: "Detalha o pré-estoque (compras recebidas ainda não distribuídas nos PDVs). Retorna por produto e status: total comprado, quantidade disponível para distribuir, custo unitário, custo total investido e PDV alocado. Use quando o usuário perguntar sobre pré-estoque, compras disponíveis, o que tem para distribuir, ou quais produtos aguardam alocação. Status comuns: 'available' (disponível), 'allocated' (alocado a PDV), 'partial' (parcialmente distribuído), 'depleted' (esgotado).",
+      parameters: {
+        type: "object",
+        properties: {
+          status: {
+            type: "string",
+            description: "Filtrar por status. Omitir = todos. Valores: 'available', 'allocated', 'partial', 'depleted'.",
+          },
+          limit: { type: "integer", default: 100, maximum: 200 },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_financial_entries",
+      description: "Lista as despesas operacionais lançadas por PDV e categoria. Use para detalhar o DRE (quais categorias de despesa existem, qual PDV tem mais despesas), responder 'quais são as despesas do mês', 'quanto gastamos em X categoria', ou montar DRE individualizado por PDV combinando com get_financial_summary.",
+      parameters: {
+        type: "object",
+        properties: {
+          reference_month: {
+            type: "string",
+            description: "Mês no formato YYYY-MM (ex: '2026-05'). Omitir = todos os meses disponíveis.",
+          },
+          pdv_id: {
+            type: "string",
+            description: "UUID do PDV para filtrar. Omitir = todos os PDVs.",
+          },
+          limit: { type: "integer", default: 100, maximum: 200 },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_payment_breakdown",
+      description: "Breakdown de vendas por forma de pagamento (PIX, Cartão de Crédito, Cartão de Débito, etc.) por PDV em um período. Retorna contagem, faturamento e % do total do PDV por método. Use quando o usuário perguntar sobre formas de pagamento, 'quanto veio de PIX', 'percentual de cartão', ou quiser entender o perfil de pagamento.",
+      parameters: {
+        type: "object",
+        properties: {
+          start: { type: "string", format: "date-time" },
+          end:   { type: "string", format: "date-time" },
+          pdv_ids: {
+            type: "array",
+            items: { type: "string" },
+            description: "Filtrar por PDVs específicos (UUIDs). Omitir = todos.",
+          },
+        },
+        required: ["start", "end"],
+      },
+    },
+  },
 ];
 
 // Mapeamento tool_name → RPC do banco
 export const TOOL_TO_RPC: Record<string, { rpc: string; mapParams: (p: Record<string, unknown>) => Record<string, unknown> }> = {
+  get_pdv_list: {
+    rpc: "ai_get_pdv_list",
+    mapParams: (_p) => ({}),
+  },
   get_stock_overview: {
     rpc: "ai_get_stock_overview",
     // RPC real só aceita (_pdv_ids, _limit). Ignoramos product_name silenciosamente.
@@ -201,6 +274,29 @@ export const TOOL_TO_RPC: Record<string, { rpc: string; mapParams: (p: Record<st
       _product_names: p.product_names ?? [],
       _min_coverage_days: p.min_coverage_days ?? 7,
       _target_coverage_days: p.target_coverage_days ?? 14,
+    }),
+  },
+  get_pre_stock_detail: {
+    rpc: "ai_get_pre_stock_detail",
+    mapParams: (p) => ({
+      _status: p.status ?? null,
+      _limit: p.limit ?? 100,
+    }),
+  },
+  get_financial_entries: {
+    rpc: "ai_get_financial_entries",
+    mapParams: (p) => ({
+      _reference_month: p.reference_month ?? null,
+      _pdv_id: p.pdv_id ?? null,
+      _limit: p.limit ?? 100,
+    }),
+  },
+  get_payment_breakdown: {
+    rpc: "ai_get_payment_breakdown",
+    mapParams: (p) => ({
+      _start: p.start,
+      _end: p.end,
+      _pdv_ids: p.pdv_ids ?? null,
     }),
   },
 };
