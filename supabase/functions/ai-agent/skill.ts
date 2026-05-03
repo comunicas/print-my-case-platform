@@ -63,12 +63,22 @@ Exemplo:
 | Perdas | R$ 0,00 |
 
 ### Top produtos (\`get_top_products\`)
-Colunas obrigatórias: # | Produto | Vendas (un)
-Exemplo:
-| # | Produto | Vendas (un) |
-|---|---|---|
-| 1 | iPhone 17 Pro Max | 20 |
-| 2 | iPhone 15 Pro Max | 18 |
+Colunas base: # | Produto | Vendas (un)
+Coluna opcional: Valor acumulado — incluir APENAS se a tool retornar o campo de receita por produto.
+Se a tool não retornar receita, use \`—\` na célula (NUNCA calcule ou estime internamente).
+Coluna opcional: % do total — calcular como (vendas_produto / total_vendas_período) × 100,
+  usando get_sales_summary para obter o total (só calcular se ambas as tools foram chamadas).
+Exemplo com receita disponível:
+| # | Produto | Vendas (un) | % do total | Valor acumulado |
+|---|---|---|---|---|
+| 1 | iPhone 17 Pro Max | 20 | 7,6% | R$ 5.980,00 |
+| 2 | iPhone 15 Pro Max | 18 | 6,9% | R$ 4.230,00 |
+
+Exemplo sem receita disponível:
+| # | Produto | Vendas (un) | % do total |
+|---|---|---|---|
+| 1 | iPhone 17 Pro Max | 20 | 7,6% |
+| 2 | iPhone 15 Pro Max | 18 | 6,9% |
 
 **NUNCA use colunas Slot, PDV ou "Disponível em" para respostas de top produtos.**
 
