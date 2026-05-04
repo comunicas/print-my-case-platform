@@ -348,6 +348,7 @@ export const TOOLS = [
   },
 ];
 
+
 // Mapeamento tool_name → RPC do banco
 export const TOOL_TO_RPC: Record<string, { rpc: string; mapParams: (p: Record<string, unknown>) => Record<string, unknown> }> = {
   get_pdv_list: {
