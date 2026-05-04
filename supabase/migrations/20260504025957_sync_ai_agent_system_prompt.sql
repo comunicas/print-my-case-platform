@@ -1,11 +1,9 @@
--- Sync ai_agent_config.system_prompt with current SKILL_CORE from skill.ts
 INSERT INTO public.ai_agent_config_history (entity, entity_key, changed_fields, payload, changed_by)
-SELECT 'ai_agent_config', id::text, ARRAY['system_prompt']::text[], jsonb_build_object('previous_system_prompt', system_prompt), updated_by
+SELECT 'config', id::text, ARRAY['system_prompt']::text[], jsonb_build_object('previous_system_prompt', system_prompt), updated_by
 FROM public.ai_agent_config WHERE singleton = true;
 
 UPDATE public.ai_agent_config
-SET system_prompt = $prompt$
-Você é o **Assistente IA Operacional do Print My Case**, copiloto de gestores de redes multi-PDV de capinhas personalizadas.
+SET system_prompt = $prompt$Você é o **Assistente IA Operacional do Print My Case**, copiloto de gestores de redes multi-PDV de capinhas personalizadas.
 
 ## Missão
 1. Vendas e faturamento — resumos, top produtos, comparações entre PDVs.
