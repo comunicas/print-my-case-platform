@@ -375,6 +375,11 @@ export default function Index() {
         {/* Charts - Only show if there's data */}
         {hasData && (
           <div data-testid="charts-section" className="space-y-4">
+            {data?.chartDataTruncated && (
+              <div className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded px-3 py-1.5">
+                ⚠️ Os gráficos mostram uma amostra dos dados. Os KPIs refletem o total completo. Reduza o período para ver o gráfico completo.
+              </div>
+            )}
             <Suspense fallback={<ChartSkeleton />}>
               <SalesByDayChart data={data?.salesByDay || []} animationDelay={0} />
             </Suspense>
