@@ -1,103 +1,67 @@
+## Objetivo
 
-## Resumo da verificação
+Permitir que o agente IA responda perguntas de projeção e meta reversa do tipo "para faturar líquido R$ X em cada PDV, quanto preciso vender este mês?". Hoje falha porque faltam dados consolidados (ticket médio, taxa de dedução, despesas mensais) e instruções de raciocínio.
 
-Rodei contra o banco real e contra o código:
+## Etapas
 
-| Audit alegou | Realidade | Conclusão |
-|---|---|---|
-| `pre_stock.allocated_pdv_id` não existe | Coluna existe (`\d pre_stock`) | Audit errado |
-| `sales_records.refund_amount` / `discount_amount` não existem | Ambas existem | Audit errado |
-| `ai_get_pre_stock_detail` crasha | `SELECT * FROM ai_get_pre_stock_detail(NULL,5)` retorna sem erro | Audit errado |
-| `ai_get_financial_summary_by_pdv` crasha | Executa sem erro (0 linhas) | Audit errado |
-| Novas tools podem não estar em `ai_agent_tools` | DB tem 10 tools; **faltam 9** das 19 esperadas | **Root cause real** |
-| `get_stock_overview` virou `slots jsonb` pesado | Verdadeiro; risco de payload grande em paralelo | Mitigação útil |
-| SKILL_CORE não prioriza SEDE | Já implementado em correção anterior | Já feito |
+### Etapa 1 — RPC `ai_get_pdv_metrics` (migration SQL)
 
-**Diagnóstico:** o motivo de "Otimizar estoque", "DRE", "Comparar PDVs" caírem em fallback genérico não é SQL quebrado — é que as 9 tools novas (`get_pre_stock_detail`, `get_financial_summary_by_pdv`, `get_financial_entries`, `get_payment_breakdown`, `get_sales_timeline`, `get_product_catalog`, `get_pending_allocations`, `get_upload_status`, `get_pdv_list`) **não estão registradas em `ai_agent_tools`**. O `index.ts` (linha 88) usa o DB como fonte de verdade quando há ≥1 linha — então o modelo recebe apenas as 10 tools antigas e nem enxerga as novas, mesmo que existam em `tools.ts` e como RPC no Postgres.
+Cria função `public.ai_get_pdv_metrics(_days integer DEFAULT 90)` que retorna por PDV:
+- `pdv_nome`, `dias_analisados`, `total_vendas`, `faturamento_total`
+- `ticket_medio`, `vendas_por_dia`, `faturamento_por_dia`
+- `taxa_deducao_pct` (calc: 100 * SUM(refund+discount) / SUM(amount))
+- `despesas_mes_medio` (de `financial_entries`, normalizado para mês)
 
----
+Filtros: apenas vendas `status='Concluído'`, respeitando `user_can_access_pdv` e `get_user_org_id`. SECURITY DEFINER, search_path=public, REVOKE de anon/public, GRANT a authenticated.
 
-## Plano dividido em 4 etapas pequenas e independentes
+### Etapa 2 — RPC `ai_get_sales_projection` (migration SQL)
 
-Cada etapa é deployável e testável isoladamente. Ordem recomendada: 1 → 2 → 3 → 4.
+Cria função que calcula:
+- Projeção do mês corrente: `faturamento_atual` + (`vendas_por_dia` * dias_restantes)
+- Meta reversa: `meta_bruta = (meta_liquida + despesas_mes_medio) / (1 - taxa_deducao_pct/100)`
+- `vendas_necessarias = meta_bruta / ticket_medio`
+- `vendas_por_dia_necessarias = vendas_necessarias / dias_restantes_no_mes`
+- `gap_vs_ritmo_atual = vendas_por_dia_necessarias - vendas_por_dia`
 
-### Etapa 1 — Registrar as 9 tools faltantes em `ai_agent_tools` (FIX PRINCIPAL)
+Parâmetros: `_meta_liquida_por_pdv numeric`, `_days_baseline integer DEFAULT 90`. Mesmas regras de segurança.
 
-**Objetivo:** desbloquear DRE, Otimizar estoque, e qualquer fluxo que dependa das tools novas.
+### Etapa 3 — Registrar tools em `tools.ts` e `ai_agent_tools`
 
-**Ação:** uma migration SQL nova com 9 INSERTs idempotentes (`ON CONFLICT (name) DO UPDATE`). Cada INSERT espelha exatamente a definição em `supabase/functions/ai-agent/tools.ts` (já verificado):
+Em `supabase/functions/ai-agent/tools.ts`:
+- Adicionar entradas `get_pdv_metrics` e `get_sales_projection` em `TOOLS` com schemas adequados.
+- Adicionar mapeamentos em `TOOL_TO_RPC` para os RPCs criados.
 
-| name | handler_name (RPC) | parameters_schema (resumido) |
-|---|---|---|
-| `get_pdv_list` | `ai_get_pdv_list` | `{}` |
-| `get_pre_stock_detail` | `ai_get_pre_stock_detail` | `status?: string`, `limit?: int` |
-| `get_financial_summary_by_pdv` | `ai_get_financial_summary_by_pdv` | `start, end` (required) |
-| `get_financial_entries` | `ai_get_financial_entries` | `reference_month?, pdv_ids?, limit?` |
-| `get_payment_breakdown` | `ai_get_payment_breakdown` | `start, end` (required), `pdv_ids?` |
-| `get_sales_timeline` | `ai_get_sales_timeline` | `start, end` (req), `granularity?, pdv_ids?` |
-| `get_product_catalog` | `ai_get_product_catalog` | `category?, limit?` |
-| `get_pending_allocations` | `ai_get_pending_allocations` | `status?, limit?` |
-| `get_upload_status` | `ai_get_upload_status` | `{}` |
+Migration SQL adicional: INSERT idempotente (`ON CONFLICT (name) DO UPDATE`) em `ai_agent_tools` para as 2 novas tools com `enabled=true`, categoria `analytics`, descrição e `parameters_schema` consistentes.
 
-`enabled=true`, `category` agrupada (`stock`, `financial`, `sales`, `meta`), `display_order` 11..19, `description` copiada literalmente de `tools.ts` (mantém consistência semântica para o modelo).
+### Etapa 4 — Expandir `skill.ts` com fluxo de projeção/meta
 
-**Validação:** após apply, `SELECT count(*) FROM ai_agent_tools` = 19. Aguardar 60s (TTL de cache do edge function) ou aguardar próxima invocação após esse intervalo. Testar botão "DRE do mês" — deve aparecer chamada a `get_financial_summary_by_pdv` em `ai_tool_calls`.
+Em `supabase/functions/ai-agent/skill.ts`, adicionar bloco `SKILL_CORE` para perguntas de "meta", "projeção", "para faturar X líquido":
+1. Chamar `get_pdv_metrics(90)` para baseline.
+2. Se a pergunta for meta reversa, chamar `get_sales_projection(meta_liquida)`.
+3. Resposta deve mostrar por PDV: ritmo atual, meta bruta calculada, vendas necessárias/dia, gap. Tabela markdown.
+4. Explicitar a fórmula usada: `meta_bruta = (meta_liquida + despesas) / (1 - taxa_deducao)`.
 
----
+### Etapa 5 — Corrigir model padrão em `index.ts`
 
-### Etapa 2 — Aliviar payload de "Comparar PDVs"
+Em `supabase/functions/ai-agent/index.ts`, trocar fallback `DEFAULT_MODEL = "gpt-5-mini"` por modelo válido suportado pelo Lovable AI Gateway. **Confirmar antes de aplicar**: validar qual modelo está em `ai_agent_config.model` em produção e qual está realmente disponível. Candidatos: `google/gemini-2.5-flash` (rápido/barato) ou `openai/gpt-5-mini` (se prefixo openai/ estiver correto). Não aplicar a troca para `gpt-4o-mini` cega — esse modelo não está na lista de suportados do Lovable AI.
 
-**Objetivo:** eliminar o risco de context_length_exceeded quando `get_stock_overview` (que agora retorna `slots jsonb` pesado) roda em paralelo com `get_pdv_comparison`.
+### Etapa 6 — Deploy e verificação
 
-**Ação:** editar `src/components/ai-agent/QuickActions.tsx`, botão "Comparar PDVs". Substituir `get_stock_overview` por `get_low_stock_alerts(threshold=3)`:
+- Deploy de `ai-agent` edge function.
+- Verificar via `supabase--read_query`:
+  - `ai_agent_tools` contém 21 entradas habilitadas.
+  - `ai_get_pdv_metrics()` e `ai_get_sales_projection(5000)` retornam linhas para org de teste.
+- Smoke test no chat: "para faturar líquido 5 mil por PDV este mês, quanto preciso vender?" deve produzir tabela com meta bruta, vendas/dia e gap.
 
-- Seção 1 — Desempenho de vendas: `PDV | Faturamento | Transações | Ticket médio | % do total` (de `get_pdv_comparison`)
-- Seção 2 — Risco de estoque: `PDV | Produto | Qtd atual | Status` com 🔴 Zerado / 🟠 1-2 un / 🟡 3 un. Se PDV sem alertas: "Estoque saudável."
-- Encerrar destacando PDV de melhor faturamento e maior risco.
+## Notas técnicas
 
-Preservar ícone, label, ordem dos demais botões e estrutura do componente.
+- `financial_entries.reference_month` é `date` (sempre dia 1 do mês). O cálculo `despesas_mes_medio` divide pelo número de meses no janela (`_days/30`), não pelo número de entries.
+- `taxa_deducao_pct` usa `NULLIF(SUM(amount),0)` para evitar divisão por zero — retorna NULL → COALESCE para 0.
+- `dias_restantes_no_mes` em `ai_get_sales_projection`: `EXTRACT(DAY FROM (date_trunc('month', now()) + interval '1 month' - interval '1 day')) - EXTRACT(DAY FROM now()) + 1`.
+- Filtro `WHERE v.total_vendas IS NOT NULL` no `ai_get_pdv_metrics` exclui PDVs sem vendas no período (evita ruído).
+- Cache de config do agente é 60s — após deploy, mudanças em `ai_agent_tools` levam até 1min para propagar.
 
-**Validação:** clicar "Comparar PDVs" em `/assistente` → resposta com 2 seções, sem erro genérico.
+## Riscos
 
----
-
-### Etapa 3 — Tolerância a falha no fluxo DRE do SKILL_CORE
-
-**Objetivo:** garantir que, mesmo se uma das 3 tools de finanças falhar pontualmente (timeout, RLS, etc.), o DRE consolidado sempre saia.
-
-**Ação:** em `supabase/functions/ai-agent/skill.ts`, na sub-seção "### DRE do mês":
-
-- `get_financial_summary` permanece **obrigatória** (sem ela não há DRE).
-- `get_financial_summary_by_pdv` e `get_financial_entries` ficam marcadas como **opcionais**: "se o resultado da tool indicar erro, **omita a seção correspondente** e prossiga com as demais — não devolva mensagem de erro ao usuário".
-
-Demais regras (formato de tabelas, negrito em Receita líquida e Resultado) preservadas.
-
-**Validação:** após Etapa 1 + Etapa 3, "DRE do mês" entrega DRE Consolidado mesmo se as 2 tools auxiliares estiverem indisponíveis. Cache de SKILL_CORE leva até 60s.
-
----
-
-### Etapa 4 — Verificação pós-deploy (sem código)
-
-Checklist executado contra produção:
-
-1. `SELECT name, enabled FROM ai_agent_tools ORDER BY display_order` → 19 linhas, todas `enabled=true`.
-2. Botão "DRE do mês" → `ai_tool_calls` mostra `get_financial_summary` (+ `get_financial_summary_by_pdv` e `get_financial_entries` quando há dados).
-3. Botão "Otimizar estoque entre PDVs" → `ai_tool_calls` mostra `get_pre_stock_detail` (status='available').
-4. Botão "Comparar PDVs" → não aparece mais `get_stock_overview` nas tool_calls; aparece `get_low_stock_alerts`.
-5. Texto livre "DRE" → mesmo comportamento do botão.
-
-Se algo falhar, inspecionar `supabase--edge_function_logs ai-agent`.
-
----
-
-## O que **não** será feito (e por quê)
-
-- **Não recriar** `ai_get_pre_stock_detail` nem `ai_get_financial_summary_by_pdv`. Audit identificou colunas erradas como inexistentes — verificação direta confirma que existem e as funções rodam.
-- **Não alterar** `index.ts` — toda a lógica de retry/timeout/loop foi refatorada nas etapas 1-3 anteriores e está estável.
-- **Não tocar** na seção "Política de redistribuição" do SKILL_CORE — prioridade SEDE já está implementada via prompt do botão "Otimizar estoque".
-
-## Detalhes técnicos
-
-- A migration da Etapa 1 deve usar `ON CONFLICT (name) DO UPDATE SET description=EXCLUDED.description, parameters_schema=EXCLUDED.parameters_schema, handler_name=EXCLUDED.handler_name, enabled=true` para ser segura em re-runs e atualizar metadados se já houver registro parcial.
-- Cache de tools no edge function: `CONFIG_CACHE_TTL = 60s`. Não precisa redeploy do edge function após a migration.
-- Etapa 2 e Etapa 3 são puramente front/skill — nenhuma migration.
+- **Modelo inválido (Etapa 5)**: aplicar nome errado quebra todas as conversas. Verificar config atual antes da troca; se incerto, abrir questão ao usuário em vez de aplicar.
+- **RLS em `financial_entries`**: o RPC usa `get_user_org_id(auth.uid())` no WHERE, garantindo isolamento mesmo com SECURITY DEFINER.
