@@ -1,52 +1,27 @@
-## Etapa 2 — RPC `ai_get_sales_projection` (versão expandida)
+## Etapa 3 — Status: parcialmente concluída
 
-Substituir a função `ai_get_sales_projection(numeric, integer)` criada na Etapa anterior por uma versão mais rica e tornar o parâmetro de meta opcional.
+As duas tools `get_pdv_metrics` e `get_sales_projection` **já existem** em `supabase/functions/ai-agent/tools.ts`:
 
-### Mudanças no banco
+- Foram adicionadas nas Etapas 1 e 2 (linhas 311–337 do array `TOOLS`).
+- O mapeamento RPC já está em `TOOL_TO_RPC` (linhas 449–459) com exatamente os parâmetros pedidos:
+  - `get_pdv_metrics` → `ai_get_pdv_metrics({ _days })`
+  - `get_sales_projection` → `ai_get_sales_projection({ _target_net_per_pdv, _days_baseline })`
 
-**Função `public.ai_get_sales_projection(_target_net_per_pdv numeric DEFAULT NULL, _days_baseline integer DEFAULT 90)`** — `CREATE OR REPLACE`, `SECURITY DEFINER`, `search_path=public`.
+A única divergência em relação ao texto desta Etapa 3 é a **redação das `description`** (estão mais curtas que a spec).
 
-Retorna por PDV:
-- Situação atual: `faturamento_ate_hoje`, `vendas_ate_hoje`, `dias_corridos`, `dias_restantes`.
-- Projeção: `projecao_mes` = faturamento até hoje + `fat_por_dia × dias_restantes`.
-- `projecao_liquida` = projeção × (1 − taxa_dedução) − despesas do mês.
-- Quando `_target_net_per_pdv` for informado: `meta_bruta_necessaria`, `vendas_necessarias` (CEIL), `vendas_por_dia_necessarias`, `gap_projecao_vs_meta`, `status_meta` ∈ {`no_ritmo`, `abaixo_do_ritmo`, `sem_meta_definida`}.
+## Mudança proposta
 
-Fontes:
-- Baseline: `sales_records` últimos `_days_baseline` dias (`status='Concluído'`).
-- Mês atual: `sales_records` desde `date_trunc('month', now())`.
-- Despesas: `financial_entries` do mês corrente, isoladas por `get_user_org_id(auth.uid())`.
-- Acesso por PDV via `user_can_access_pdv(auth.uid(), pdv_id)`.
+Atualizar APENAS as `description` das duas tools no array `TOOLS` para o texto exato fornecido na spec da Etapa 3, mantendo o resto (parameters, defaults, mapParams) intacto:
 
-`REVOKE EXECUTE … FROM anon, public; GRANT EXECUTE … TO authenticated;`.
+1. `get_pdv_metrics.description` → texto completo da spec ("Métricas consolidadas por PDV baseadas nos últimos N dias: ticket médio, vendas por dia, faturamento por dia, taxa de dedução histórica… Chamar este tool antes de get_sales_projection para ter o contexto completo.")
+2. `get_sales_projection.description` → texto completo da spec (incluindo os exemplos de pergunta: "quanto preciso vender para lucrar R$X?", "vou bater a meta?", etc.)
 
-### Atualização de metadados da tool
+## Detalhes técnicos
 
-`UPDATE public.ai_agent_tools` para `name='get_sales_projection'`:
-- Tornar `target_net_per_pdv` opcional no `parameters_schema` (sem `required`).
-- Atualizar `description` explicando os dois modos (com e sem meta) e o significado de `status_meta`.
+- Arquivo: `supabase/functions/ai-agent/tools.ts` (apenas substituição de strings nas linhas ~315 e ~328).
+- Não mexer em `parameters`, `TOOL_TO_RPC`, nem em qualquer migration — já estão corretos.
+- Após a edição, redeploy de `ai-agent` via `supabase--deploy_edge_functions` para que o modelo veja as descriptions atualizadas (descriptions afetam o tool routing do LLM).
 
-### Mudanças em `tools.ts`
+## Por que isso importa
 
-Em `TOOLS`: ajustar a definição da tool `get_sales_projection`:
-- Remover `required: ["meta_liquida_por_pdv"]`.
-- Renomear o parâmetro para `target_net_per_pdv` (alinhar com o RPC) e atualizar a description para refletir que ele é opcional.
-
-Em `TOOL_TO_RPC`: ajustar `mapParams` para passar `_target_net_per_pdv: p.target_net_per_pdv ?? null` e `_days_baseline: p.days_baseline ?? 90`.
-
-### Pequena atualização em `skill.ts`
-
-No bloco "Projeção e meta reversa":
-- Sem meta informada: chamar `get_sales_projection()` direto para ver projeção e `status_meta='sem_meta_definida'`.
-- Com meta: chamar `get_sales_projection(target_net_per_pdv=X)`.
-- Mostrar `status_meta` (✅ no ritmo / ⚠️ abaixo do ritmo) na tabela de meta.
-
-### Deploy
-
-Após migration aprovada, redeploy de `ai-agent` para refletir mudanças em `tools.ts`/`skill.ts`. Cache de config do agente (60s) propaga as mudanças em `ai_agent_tools` automaticamente.
-
-## Notas
-
-- Substitui silenciosamente a versão criada na Etapa 1 anterior (mesma assinatura `(numeric, integer)`), então não há risco de coexistência de duas versões.
-- `dm.restantes` pode ser 0 no último dia do mês — todas as divisões usam `NULLIF` para evitar erro.
-- `gap_projecao_vs_meta` é positivo quando a projeção supera a meta, negativo quando falta.
+Descriptions mais ricas (com exemplos de perguntas e a dica "chamar get_pdv_metrics antes") melhoram o tool selection do modelo, especialmente para perguntas tipo "quanto preciso vender para lucrar R$5k?" — que é exatamente o caso que originou esta sequência de batches.
