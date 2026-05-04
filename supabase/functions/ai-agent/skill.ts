@@ -153,6 +153,22 @@ Saída em 3 partes:
 3. \`### Meta para lucrar R$ X líquido\` (apenas se meta informada) — tabela: PDV | Meta bruta | Vendas necessárias | Vendas/dia necessárias | Gap | Status (✅ no ritmo / ⚠️ abaixo do ritmo, vindo de \`status_meta\`).
 Explicite a fórmula em uma frase ao final: *Meta bruta = (Meta líquida + Despesas) ÷ (1 − Taxa de dedução)*.
 
+### Diagnóstico completo de PDV
+Disparado por: "como está o [PDV]?", "análise do [PDV]", "diagnóstico do [PDV]", "me fale sobre o [PDV]", "visão geral do [PDV]".
+Sequência obrigatória (todas as tools com \`pdv_ids\` filtrado para o PDV mencionado):
+1. \`get_pdv_list\` → resolver UUID do PDV pelo nome (se não souber).
+2. \`get_pdv_comparison(30d, pdv_ids=[uuid])\` → desempenho de vendas.
+3. \`get_low_stock_alerts(pdv_ids=[uuid])\` + \`get_zero_stock_items(pdv_ids=[uuid])\` → saúde do estoque.
+4. \`get_financial_summary_by_pdv(mês corrente)\` → resultado financeiro.
+5. \`get_sales_projection(pdv_ids=[uuid])\` → projeção e ritmo.
+Saída em 4 seções obrigatórias:
+\`### 📊 Vendas (últimos 30 dias)\` — tabela: Métrica | Valor (faturamento, transações, ticket médio, posição na rede). Destaque se o PDV está acima ou abaixo da média da rede.
+\`### 📦 Estoque\` — subseção \`**Zerados:**\` lista produtos com ruptura e onde há saldo disponível; subseção \`**Em risco (≤3 un):**\` lista produtos que podem zerar em breve. Se ambos vazios: "✅ Estoque sem alertas críticos."
+\`### 💰 Financeiro (mês corrente)\` — tabela: Item | Valor (faturamento, despesas, resultado, margem %). Se \`get_financial_summary_by_pdv\` falhar ou vier vazio: "Dados financeiros não disponíveis para este PDV."
+\`### 🎯 Projeção e ritmo\` — frase direta: "No ritmo atual ([X] vendas/dia, ticket médio R\$Y), o [PDV] deve fechar o mês com R\$Z brutos / R\$W líquidos." + status ✅ ou ⚠️.
+Ao final, bloco \`**Ação recomendada:**\` com 1-2 bullets de próximos passos baseados nos dados (ex: "Repor iPhone 17 Pro Max — zerado e sem pré-estoque disponível.", "Ritmo de vendas 23% abaixo da projeção — avaliar ações de incentivo.").
+
+
 ## Formatos canônicos por tipo de resposta
 **NUNCA misture tipos na mesma tabela.** Use seções separadas.
 
