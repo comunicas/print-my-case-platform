@@ -346,6 +346,21 @@ export const TOOLS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "get_pdv_benchmark",
+      description: "Compara cada PDV contra a média da rede: faturamento, ticket médio e ranking. Retorna % acima/abaixo da média e posição no ranking. Use quando o usuário quiser saber se um PDV está bem ou mal em relação aos outros, 'qual o melhor PDV?', 'o BOULEVARD está acima da média?', ou para qualquer análise comparativa entre PDVs com contexto de rede.",
+      parameters: {
+        type: "object",
+        properties: {
+          start: { type: "string", format: "date-time" },
+          end:   { type: "string", format: "date-time" },
+        },
+        required: ["start", "end"],
+      },
+    },
+  },
 ];
 
 
