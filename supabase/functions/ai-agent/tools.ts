@@ -484,4 +484,11 @@ export const TOOL_TO_RPC: Record<string, { rpc: string; mapParams: (p: Record<st
       _days_baseline: p.days_baseline ?? 90,
     }),
   },
+  get_pdv_benchmark: {
+    rpc: "ai_get_pdv_benchmark",
+    mapParams: (p) => ({
+      _start: p.start,
+      _end:   p.end,
+    }),
+  },
 };
