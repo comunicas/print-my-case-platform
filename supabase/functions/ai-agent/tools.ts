@@ -312,11 +312,15 @@ export const TOOLS = [
     type: "function",
     function: {
       name: "get_pdv_metrics",
-      description: "Métricas consolidadas por PDV em uma janela de dias (default 90): ticket médio, vendas/dia, faturamento/dia, taxa de dedução (%) e despesas mensais médias. Use SEMPRE como base para perguntas de projeção, meta, 'quanto precisamos vender', 'ritmo atual', 'quanto cada PDV produz por dia'.",
+      description: "Métricas consolidadas por PDV baseadas nos últimos N dias: ticket médio, vendas por dia, faturamento por dia, taxa de dedução histórica (devoluções + descontos) e despesas mensais médias. Use como base para projeções, cálculo de metas e análises de ritmo de vendas. Chamar este tool antes de get_sales_projection para ter o contexto completo.",
       parameters: {
         type: "object",
         properties: {
-          days: { type: "integer", default: 90, description: "Janela em dias para baseline (30, 60, 90)." },
+          days: {
+            type: "integer",
+            default: 90,
+            description: "Janela histórica em dias para calcular as médias (padrão: 90 dias).",
+          },
         },
       },
     },
@@ -325,12 +329,19 @@ export const TOOLS = [
     type: "function",
     function: {
       name: "get_sales_projection",
-      description: "Projeta o fechamento do mês corrente por PDV (faturamento até hoje + ritmo dos dias restantes) e, se uma meta líquida por PDV for informada, calcula meta bruta = (meta_liquida + despesas_do_mês) / (1 - taxa_dedução), vendas necessárias, vendas/dia necessárias, gap e status_meta (no_ritmo / abaixo_do_ritmo / sem_meta_definida). Sem meta, retorna apenas projeção e projeção líquida.",
+      description: "Projeção de vendas e faturamento para o mês corrente e cálculo de meta reversa. Se target_net_per_pdv for informado, calcula quanto cada PDV precisa faturar (bruto) para atingir aquele lucro líquido, quantas vendas são necessárias e qual o ritmo diário restante. Use para: 'quanto preciso vender para lucrar R$X?', 'vou bater a meta?', 'qual a projeção do mês?', 'estamos no ritmo?', 'quantas vendas por dia preciso fazer?'.",
       parameters: {
         type: "object",
         properties: {
-          target_net_per_pdv: { type: "number", description: "Meta de lucro LÍQUIDO mensal por PDV (R$). Omitir = só projeção, sem meta reversa." },
-          days_baseline: { type: "integer", default: 90, description: "Janela em dias para ticket médio, ritmo e taxa de dedução." },
+          target_net_per_pdv: {
+            type: "number",
+            description: "Meta de lucro líquido desejado por PDV em R$ (ex: 5000 para R$5.000). Omitir = só projeção, sem meta reversa.",
+          },
+          days_baseline: {
+            type: "integer",
+            default: 90,
+            description: "Janela histórica para calcular médias (padrão: 90 dias).",
+          },
         },
       },
     },
