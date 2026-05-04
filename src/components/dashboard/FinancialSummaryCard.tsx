@@ -9,6 +9,7 @@ interface FinancialSummaryCardProps {
   custoporMaquina: number; // currency
   taxaPerda: number; // percentage
   isLoading?: boolean;
+  referenceMonth?: Date;
 }
 
 function getMarginColor(value: number) {
@@ -28,6 +29,7 @@ export function FinancialSummaryCard({
   custoporMaquina,
   taxaPerda,
   isLoading,
+  referenceMonth,
 }: FinancialSummaryCardProps) {
   if (isLoading) {
     return (
@@ -49,6 +51,10 @@ export function FinancialSummaryCard({
     );
   }
 
+  const periodoLabel = referenceMonth
+    ? `Período: ${referenceMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`
+    : 'Período: mês corrente';
+
   const indicators = [
     {
       label: "Margem Operacional",
@@ -57,7 +63,7 @@ export function FinancialSummaryCard({
       colorClass: getMarginColor(margemOperacional),
       bgClass: "bg-primary/10",
       iconColor: "text-primary",
-      tooltip: "Resultado Operacional ÷ Receita Líquida × 100\nVerde ≥ 20% · Amarelo ≥ 10% · Vermelho < 10%",
+      tooltip: `Resultado Operacional ÷ Receita Líquida × 100\n${periodoLabel}\nVerde ≥ 20% · Amarelo ≥ 10% · Vermelho < 10%`,
     },
     {
       label: "Custo por Máquina",
@@ -66,7 +72,7 @@ export function FinancialSummaryCard({
       colorClass: "text-foreground",
       bgClass: "bg-secondary",
       iconColor: "text-muted-foreground",
-      tooltip: "(CMV + Taxas + Despesas Fixas) ÷ Nº de PDVs ativos",
+      tooltip: `(CMV + Taxas + Despesas Fixas) ÷ Nº de PDVs ativos\n${periodoLabel}`,
     },
     {
       label: "Taxa de Perda",

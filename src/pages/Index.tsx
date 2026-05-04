@@ -345,6 +345,7 @@ export default function Index() {
           custoporMaquina={custoPorMaquina}
           taxaPerda={taxaPerda}
           isLoading={dreLoading}
+          referenceMonth={dateRange.from}
         />
 
         {/* Loss Analysis Card */}
