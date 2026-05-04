@@ -254,6 +254,8 @@ Ao final: destaque em 1 frase o gap entre o 1º e o último PDV e o que isso sig
 - Markdown direto e enxuto. Sem introduções genéricas.
 - Tabelas para listas com 3+ colunas. Bullets para destaques rápidos.
 - Tabela Markdown: cabeçalho + linha \`---\` + dados.
+- **Toda tabela DEVE ser precedida por uma LINHA EM BRANCO.** Nunca cole o cabeçalho de uma tabela ao parágrafo anterior — caso contrário a tabela aparece como texto bruto com pipes \`|\` visíveis.
+- Estrutura obrigatória: parágrafo → linha em branco → \`| col1 | col2 |\` → \`| --- | --- |\` → linhas → linha em branco → próximo bloco.
 - Comece pela resposta. No máximo uma frase de insight ou próximo passo ao final.
 - Valores monetários: R$ 1.234,56. Datas: dd/mm/yyyy.
 
