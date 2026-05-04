@@ -1,38 +1,27 @@
-## ETAPA 2 — Adicionar fluxo "Briefing semanal" ao agente
+## Objetivo
 
-### Objetivo
-Permitir que o agente responda perguntas como "como foi a semana?" com um relatório executivo completo em 4 seções (vendas, PDVs, alertas, ritmo) + foco da semana, sem exigir múltiplas perguntas.
+Reaplicar a Etapa 1: garantir que o RPC `ai_get_payment_breakdown` use `payment_date` (e não `order_time`) tanto no CTE `pdv_totais` quanto na query principal, para alinhar os totais do agente IA aos KPIs do dashboard.
 
-### Mudanças
+## Mudança
 
-**1. `supabase/functions/ai-agent/skill.ts`**
-- Inserir uma nova subseção `### Briefing semanal` dentro de `## Fluxos operacionais por QuickAction`, logo após o bloco `### Diagnóstico completo de PDV` (após a linha 169, antes da seção `## Formatos canônicos`).
-- Conteúdo idêntico ao especificado pelo usuário:
-  - Triggers: "como foi a semana?", "briefing da semana", "resumo semanal", "o que aconteceu essa semana?", "relatório da semana".
-  - Sequência obrigatória de 4 chamadas de tools (período = últimos 7 dias):
-    1. `get_sales_summary(7d)` + `get_pdv_comparison(7d)`
-    2. `get_sales_timeline(7d, granularity=day)`
-    3. `get_zero_stock_items` + `get_low_stock_alerts`
-    4. `get_sales_projection()`
-  - Saída em 4 seções obrigatórias com emojis:
-    - `### 📈 Semana em números` (tabela com comparação semana anterior, omitindo coluna se indisponível)
-    - `### 🏪 Performance por PDV` (tabela: PDV | Faturamento | Transações | Ticket médio | Participação %)
-    - `### ⚠️ Alertas operacionais` (zerados sem alternativa 🔴, críticos com alta saída 🟠, ou ✅ se nenhum)
-    - `### 🎯 Ritmo do mês` (uma linha por PDV vs. meta, ou orientação se meta não definida)
-  - Bloco final `**Foco desta semana:**` com 2-3 bullets de ação prioritária baseados estritamente nos dados retornados (não inventar).
+Criar nova migration SQL com `CREATE OR REPLACE FUNCTION public.ai_get_payment_breakdown(...)` idêntica ao spec fornecido:
 
-**2. Sincronização do `system_prompt` no banco**
-- Após editar `skill.ts`, o conteúdo precisa ser propagado para `ai_agent_config.system_prompt` (caso contrário o runtime continua usando a versão da Etapa 1).
-- Criar migração SQL que faz `UPDATE public.ai_agent_config SET system_prompt = $prompt$...$prompt$` com o conteúdo novo completo do `SKILL_CORE`.
-- Inserir registro em `ai_agent_config_history` para auditoria da mudança.
+- Filtro de data: `sr.payment_date BETWEEN _start AND _end` (em ambos: CTE `pdv_totais` e SELECT principal).
+- Mantém `status = 'Concluído'`, `user_can_access_pdv(auth.uid(), sr.pdv_id)` e filtro opcional `_pdv_ids`.
+- Retorna: `pdv_nome`, `forma_pagamento`, `num_vendas`, `faturamento`, `pct_do_pdv` (com `ROUND` em 2 e 1 casas).
+- `REVOKE EXECUTE ... FROM anon, public` e `GRANT EXECUTE ... TO authenticated`.
 
-**3. Redeploy do edge function**
-- Redeploy de `ai-agent` para garantir que a constante `SKILL_CORE` atualizada esteja em produção (o fallback usado quando o DB estiver indisponível também passa a refletir o briefing).
+A operação é idempotente (`CREATE OR REPLACE`), então pode ser aplicada com segurança mesmo já tendo sido feita antes.
 
-### Validação pós-implementação
-- Confirmar via `read_query` que o `length(system_prompt)` cresceu em relação à versão da Etapa 1 e contém a string `Briefing semanal`.
-- Testar no chat do agente: "como foi a semana?" → deve retornar as 4 seções na ordem especificada + bloco Foco.
+## Arquivo
 
-### Fora de escopo
-- Nenhuma mudança em `tools.ts` (todas as tools necessárias já existem desde o Nível 1).
-- Nenhuma mudança em `index.ts`.
+- Nova migration em `supabase/migrations/` com o SQL acima.
+
+## Validação
+
+- Após apply, executar `SELECT pg_get_functiondef('public.ai_get_payment_breakdown'::regproc);` mentalmente via tool de query para confirmar `payment_date`.
+- No agente: "breakdown de pagamentos últimos 30 dias" deve bater com KPI de Receita do dashboard para o mesmo período.
+
+## Fora de escopo
+
+- Etapas 2–6 (já aplicadas anteriormente).
