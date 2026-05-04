@@ -214,7 +214,12 @@ export default function Index() {
                   <CardTitle className="flex items-center justify-between text-base md:text-lg">
                     <div className="flex items-center gap-2">
                       <Building2 className="h-5 w-5 text-primary" />
-                      Visão Consolidada
+                      <div>
+                        <span>Visão Consolidada</span>
+                        <p className="text-xs font-normal text-muted-foreground mt-0.5">
+                          Todas as organizações · Os KPIs abaixo mostram apenas a organização selecionada
+                        </p>
+                      </div>
                     </div>
                     <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${consolidatedOpen ? 'rotate-180' : ''}`} />
                   </CardTitle>
