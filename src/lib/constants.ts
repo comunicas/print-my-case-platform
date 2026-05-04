@@ -20,7 +20,7 @@ export const NOTIFICATIONS_POLL_INTERVAL = 60 * 1000; // 1 minuto
 export const NOTIFICATIONS_STALE_TIME = 30 * 1000; // 30 segundos
 
 // ===== Query Limits =====
-export const DASHBOARD_SALES_LIMIT = 5000; // Limite para queries de vendas no dashboard
+export const DASHBOARD_SALES_LIMIT = 15000; // Limite para queries de vendas no dashboard
 export const PRODUCT_STOCK_SALES_LIMIT = 3000; // Limite para queries de vendas no estoque
 
 // ===== Domínio =====

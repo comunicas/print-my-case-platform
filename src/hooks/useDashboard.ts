@@ -55,6 +55,7 @@ export interface DashboardData {
   topProductsChart: TopProductData[];
   quickStats: QuickStatsData;
   lossesByDay: LossesByDayData[];
+  chartDataTruncated: boolean;
 }
 
 interface UseDashboardParams {
@@ -236,6 +237,7 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
 
       // Process full sales records for charts
       const salesRecordsRaw = fullSalesRecordsResult.data || [];
+      const chartDataTruncated = salesRecordsRaw.length >= DASHBOARD_SALES_LIMIT;
       const salesRecordsForCharts: SaleRecord[] = salesRecordsRaw.map((r) => ({
         id: r.id,
         payment_date: r.payment_date,
@@ -286,6 +288,7 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
         topProductsChart,
         quickStats,
         lossesByDay,
+        chartDataTruncated,
       };
     },
     enabled: !!profile?.id || isSuperAdmin,
