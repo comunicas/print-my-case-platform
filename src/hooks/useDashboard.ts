@@ -107,20 +107,14 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
         }
       }
 
-      // Build base queries - only include successful sales (canonical PT-BR status)
-      let currentSalesQuery = supabase
-        .from("sales_records")
-        .select("amount, refund_amount")
-        .gte("payment_date", startDate.toISOString())
-        .lte("payment_date", endDate.toISOString())
-        .eq("status", "Concluído");
-
-      let previousSalesQuery = supabase
-        .from("sales_records")
-        .select("amount, refund_amount")
-        .gte("payment_date", previousStartDate.toISOString())
-        .lte("payment_date", previousEndDate.toISOString())
-        .eq("status", "Concluído");
+      // KPIs reais (sem cap de 1000 linhas) — RPC consolidada
+      const kpisRpc = supabase.rpc("get_dashboard_kpis", {
+        p_start_date: startDate.toISOString(),
+        p_end_date: endDate.toISOString(),
+        p_prev_start: previousStartDate.toISOString(),
+        p_prev_end: previousEndDate.toISOString(),
+        p_pdv_ids: pdvIds,
+      });
 
       // Query for full sales records (for charts) - limit to prevent performance issues
       let fullSalesRecordsQuery = supabase
@@ -137,7 +131,7 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
         .select("id")
         .eq("status", "active");
 
-      // Queries for cancelled transactions (canonical PT-BR status)
+      // Cancellations apenas para a série diária (LossesByDayChart)
       let currentCancellationsQuery = supabase
         .from("sales_records")
         .select("amount, payment_date")
@@ -145,21 +139,11 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
         .lte("payment_date", endDate.toISOString())
         .eq("status", "Cancelado");
 
-      let previousCancellationsQuery = supabase
-        .from("sales_records")
-        .select("amount")
-        .gte("payment_date", previousStartDate.toISOString())
-        .lte("payment_date", previousEndDate.toISOString())
-        .eq("status", "Cancelado");
-
       // Apply PDV filter if needed
       if (pdvIds !== null) {
         const filterIds = pdvIds.length > 0 ? pdvIds : ["no-match"];
-        currentSalesQuery = currentSalesQuery.in("pdv_id", filterIds);
-        previousSalesQuery = previousSalesQuery.in("pdv_id", filterIds);
         fullSalesRecordsQuery = fullSalesRecordsQuery.in("pdv_id", filterIds);
         currentCancellationsQuery = currentCancellationsQuery.in("pdv_id", filterIds);
-        previousCancellationsQuery = previousCancellationsQuery.in("pdv_id", filterIds);
       }
 
       // Apply organization filter for PDVs count
@@ -174,19 +158,15 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
 
       // Fetch all data in parallel
       const [
-        currentSalesResult,
-        previousSalesResult,
+        kpisResult,
         fullSalesRecordsResult,
         activePdvsResult,
         currentCancellationsResult,
-        previousCancellationsResult,
       ] = await Promise.all([
-        currentSalesQuery,
-        previousSalesQuery,
+        kpisRpc,
         fullSalesRecordsQuery,
         activePdvsQuery,
         currentCancellationsQuery,
-        previousCancellationsQuery,
       ]);
 
       // Fetch global metrics for super_admin via SECURITY DEFINER RPC
@@ -213,31 +193,56 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
         }
       }
 
-      // Calculate KPIs using utility functions
-      const currentSales = currentSalesResult.data || [];
-      const previousSales = previousSalesResult.data || [];
-      const kpis = calculateKPIs(currentSales, previousSales);
+      // KPIs vindos da RPC (totais reais do período, sem cap de 1000 linhas)
+      const kpiRow = (kpisResult.data?.[0] ?? null) as {
+        gross_revenue: number | string;
+        total_refunds: number | string;
+        refunded_transactions: number | string;
+        transactions: number | string;
+        card_revenue: number | string;
+        total_cancellations: number | string;
+        cancelled_transactions: number | string;
+        prev_gross_revenue: number | string;
+        prev_total_refunds: number | string;
+        prev_transactions: number | string;
+        prev_total_cancellations: number | string;
+      } | null;
+
+      const grossRevenue = Number(kpiRow?.gross_revenue ?? 0);
+      const totalRefunds = Number(kpiRow?.total_refunds ?? 0);
+      const refundedTransactions = Number(kpiRow?.refunded_transactions ?? 0);
+      const transactions = Number(kpiRow?.transactions ?? 0);
+      const totalRevenue = grossRevenue - totalRefunds;
+      const avgTicket = transactions > 0 ? totalRevenue / transactions : 0;
+
+      const previousRevenue = Number(kpiRow?.prev_gross_revenue ?? 0) - Number(kpiRow?.prev_total_refunds ?? 0);
+      const previousTransactions = Number(kpiRow?.prev_transactions ?? 0);
+      const previousAvgTicket = previousTransactions > 0 ? previousRevenue / previousTransactions : 0;
+      const previousRefunds = Number(kpiRow?.prev_total_refunds ?? 0);
+
+      const totalCancellations = Number(kpiRow?.total_cancellations ?? 0);
+      const cancelledTransactions = Number(kpiRow?.cancelled_transactions ?? 0);
+      const previousCancellationsTotal = Number(kpiRow?.prev_total_cancellations ?? 0);
+
+      const kpis = {
+        totalRevenue,
+        grossRevenue,
+        totalRefunds,
+        refundedTransactions,
+        transactions,
+        avgTicket,
+        previousRevenue,
+        previousTransactions,
+        previousAvgTicket,
+      };
+
       const activePdvs = activePdvsResult.data?.length || 0;
-
-      // Calculate cancellation metrics
       const currentCancellations = currentCancellationsResult.data || [];
-      const previousCancellations = previousCancellationsResult.data || [];
-      
-      const totalCancellations = currentCancellations.reduce(
-        (sum, record) => sum + Number(record.amount || 0), 0
-      );
-      const cancelledTransactions = currentCancellations.length;
-      
-      const previousCancellationsTotal = previousCancellations.reduce(
-        (sum, record) => sum + Number(record.amount || 0), 0
-      );
-      
+      const hasData = transactions > 0;
 
-      const hasData = currentSales.length > 0;
-
-      // Process full sales records for charts
+      // Process full sales records for charts (apenas séries visuais)
       const salesRecordsRaw = fullSalesRecordsResult.data || [];
-      const chartDataTruncated = salesRecordsRaw.length >= DASHBOARD_SALES_LIMIT;
+      const chartDataTruncated = transactions > DASHBOARD_SALES_LIMIT;
       const salesRecordsForCharts: SaleRecord[] = salesRecordsRaw.map((r) => ({
         id: r.id,
         payment_date: r.payment_date,
@@ -264,11 +269,6 @@ export function useDashboard({ selectedOrganizationId, selectedPdvId, dateRange 
         cancellationsForChart,
         startDate,
         endDate,
-      );
-
-      const previousRefunds = previousSales.reduce(
-        (sum, record) => sum + Number(record.refund_amount || 0),
-        0
       );
 
       return {
