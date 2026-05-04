@@ -12,7 +12,7 @@ const corsHeaders = {
 // FALLBACK apenas quando o banco está inacessível.
 // O modelo real vem de ai_agent_config.model — configure lá o model string correto da API.
 // Ex: "gpt-4o-mini", "gpt-4o", etc. Este valor só é usado se _doLoadAgentConfig() falhar.
-const DEFAULT_MODEL = "gpt-5-mini";
+const DEFAULT_MODEL = "gpt-4o-mini";
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const PROVIDER = "openai";
 const DEFAULT_MAX_TOOL_ITERATIONS = 5;
