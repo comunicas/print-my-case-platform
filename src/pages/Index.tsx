@@ -130,7 +130,7 @@ export default function Index() {
 
   // DRE data for financial indices (current month)
   const { dre, isLoading: dreLoading } = useDRE({
-    referenceMonth: new Date(),
+    referenceMonth: dateRange.from,
     pdvId: effectivePdvId,
   });
 
