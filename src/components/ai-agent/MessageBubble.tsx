@@ -77,7 +77,22 @@ const isFencedCodeBlock = (block: string) => {
 const normalizeMarkdownTables = (content: string) => {
   if (!content.includes("|")) return content;
 
-  const blocks = content.split(/\n\s*\n/);
+  // Pré-passo: se uma linha começa com "|" mas a anterior não tem "|" e não está vazia,
+  // injeta linha em branco para isolar o bloco de tabela. Cobre o caso "parágrafo\n| h1 | h2 |".
+  const rawLines = content.split("\n");
+  const isolated: string[] = [];
+  for (let i = 0; i < rawLines.length; i++) {
+    const cur = rawLines[i];
+    const prev = isolated[isolated.length - 1];
+    const curStartsTable = /^\s*\|.+\|\s*$/.test(cur) && countTableCells(cur) >= 2;
+    const prevHasContent = prev !== undefined && prev.trim().length > 0;
+    const prevHasPipe = prev !== undefined && prev.includes("|");
+    if (curStartsTable && prevHasContent && !prevHasPipe) {
+      isolated.push("");
+    }
+    isolated.push(cur);
+  }
+  const blocks = isolated.join("\n").split(/\n\s*\n/);
 
   const normalizedBlocks = blocks.map((block) => {
     if (isFencedCodeBlock(block)) return block;
