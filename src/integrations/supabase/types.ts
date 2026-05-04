@@ -1767,6 +1767,22 @@ export type Database = {
           pdv_nome: string
         }[]
       }
+      ai_get_pdv_benchmark: {
+        Args: { _end: string; _start: string }
+        Returns: {
+          faturamento: number
+          media_rede_fat: number
+          media_rede_ticket: number
+          media_rede_vendas: number
+          num_vendas: number
+          pct_vs_media_fat: number
+          pct_vs_media_ticket: number
+          pdv_nome: string
+          ranking: number
+          ticket_medio: number
+          total_pdvs: number
+        }[]
+      }
       ai_get_pdv_comparison: {
         Args: { _end: string; _pdv_ids?: string[]; _start: string }
         Returns: {
