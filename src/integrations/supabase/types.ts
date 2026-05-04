@@ -1858,22 +1858,19 @@ export type Database = {
             }[]
           }
       ai_get_sales_projection: {
-        Args: { _days_baseline?: number; _meta_liquida_por_pdv: number }
+        Args: { _days_baseline?: number; _target_net_per_pdv?: number }
         Returns: {
-          despesas_mes_medio: number
-          dias_decorridos_mes: number
-          dias_restantes_mes: number
-          faturamento_mes_atual: number
-          faturamento_restante_necessario: number
-          gap_vendas_por_dia: number
+          dias_corridos: number
+          dias_restantes: number
+          faturamento_ate_hoje: number
+          gap_projecao_vs_meta: number
           meta_bruta_necessaria: number
-          meta_liquida: number
           pdv_nome: string
-          projecao_fim_mes: number
-          taxa_deducao_pct: number
-          ticket_medio: number
-          vendas_necessarias_restantes: number
-          vendas_por_dia_atual: number
+          projecao_liquida: number
+          projecao_mes: number
+          status_meta: string
+          vendas_ate_hoje: number
+          vendas_necessarias: number
           vendas_por_dia_necessarias: number
         }[]
       }
