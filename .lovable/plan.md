@@ -1,48 +1,120 @@
+## Diagnóstico confirmado
 
-# Republicar e Revalidar Correções de Consistência
+Identifiquei 4 causas reais ainda abertas:
 
-## Contexto
+1. **Frontend publicado ainda está com lógica antiga de amostragem**
+   - O print com **1.000 transações** e **R$ 72.530,09** bate exatamente com uma amostra limitada de 1000 linhas.
+   - No banco, para o mesmo recorte, existem **1.185 vendas concluídas** e **R$ 85.572,34** líquidos.
+   - Isso indica que o ambiente publicado ainda não está refletindo integralmente o código esperado do dashboard.
 
-As 6 etapas de correção já estão implementadas no código (verificado em mensagens anteriores):
-- Etapas 1 e 2: RPCs `ai_get_payment_breakdown` e `ai_get_financial_summary_by_pdv` usando `payment_date`
-- Etapa 3: `useDRE` recebe `dateRange.from` em `Index.tsx`
-- Etapa 4: Label "Visão Consolidada" clarificada para super_admin
-- Etapa 5: `DASHBOARD_SALES_LIMIT = 15000` + aviso de truncamento
-- Etapa 6: Tooltip de período no `FinancialSummaryCard`
+2. **O agente IA ainda expõe tools legadas baseadas em `order_time`**
+   - `ai_get_pdv_metrics`
+   - `ai_get_sales_projection`
+   - `ai_get_pdv_benchmark`
+   
+   Essas funções continuam ativas e podem responder diferente do dashboard, que usa `payment_date`.
 
-Backend (RPCs/migrations) já foi deployado automaticamente. Falta publicar o frontend para produção (`printmycase.comunicas.com.br`).
+3. **Há divergência de fórmula entre IA e dashboard no DRE por PDV**
+   - `ai_get_financial_summary_by_pdv` soma **`refund_amount + discount_amount`** em deduções.
+   - O dashboard financeiro principal usa outra base e não segue exatamente essa mesma regra.
+   - Resultado: margem, resultado e deduções podem divergir mesmo no mesmo período.
 
-## Importante: Limitação Técnica
+4. **Os cards financeiros do dashboard ainda são mensais, não do período filtrado**
+   - `FinancialSummaryCard` recebe dados de `useDRE({ referenceMonth: dateRange.from })`.
+   - Então, no filtro “Total” ou multi-mês, os KPIs financeiros não representam o período completo — apenas o mês inicial do filtro.
 
-Não tenho permissão para clicar no botão **Publish** automaticamente — essa ação precisa ser feita por você. O que posso fazer é validar o estado atual e, após você publicar, rodar a revalidação completa.
+## Plano
 
-## Plano de Execução
+### 1. Unificar a fonte canônica dos números do dashboard
+- Centralizar os agregados do dashboard em uma camada única de backend para evitar drift entre:
+  - cards KPI
+  - gráficos
+  - análise de perdas
+  - visão consolidada
+- Garantir que todos usem o mesmo critério:
+  - `payment_date`
+  - status canônicos
+  - mesma janela de período
+  - mesmas regras de receita líquida / perdas
+- Remover qualquer dependência de amostra limitada como fonte de verdade dos cards.
 
-### Passo 1 — Você publica o frontend
-- **Desktop**: botão **Publish** no canto superior direito → **Update**
-- **Mobile**: botão `...` no canto inferior direito (modo Preview) → **Publish** → **Update**
+### 2. Corrigir definitivamente a lógica de gráficos e truncamento
+- Refatorar `useDashboard` para separar claramente:
+  - **totais verdadeiros** do período
+  - **séries para visualização**
+  - **flag de truncamento real** baseada em contagem total vs limite
+- Se houver limite para performance, ele deve afetar **somente a série visual**, nunca os KPIs.
+- Exibir aviso de amostragem apenas quando houver truncamento de fato.
 
-### Passo 2 — Validação do backend (eu executo)
-Confirmar via SQL no banco de produção:
-- `ai_get_payment_breakdown` filtrando por `payment_date` (não `order_time`)
-- `ai_get_financial_summary_by_pdv` filtrando por `payment_date`
-- Comparar totais retornados pelos RPCs do agente vs. queries diretas do dashboard para o mesmo período
+### 3. Refatorar os cards financeiros para o período filtrado
+- Substituir o uso mensal de `useDRE` no dashboard por um resumo financeiro **por período selecionado**.
+- Fazer com que:
+  - Margem Operacional
+  - Custo por Máquina
+  - Taxa de Perda
+  reflitam exatamente o intervalo ativo no filtro.
+- Manter o DRE mensal apenas onde ele faz sentido estruturalmente.
 
-### Passo 3 — Validação do frontend em produção (eu executo)
-Abrir `https://printmycase.comunicas.com.br` em browser headless e checar:
-1. **Etapa 3**: filtrar período "últimos 30 dias" → verificar que Margem Operacional não exibe valores absurdos (-309%, -512%) para períodos amplos
-2. **Etapa 4**: logar como super_admin → confirmar que o card "Visão Consolidada" mostra o subtítulo "Todas as organizações · Os KPIs abaixo mostram apenas a organização selecionada"
-3. **Etapa 5**: filtrar período longo → confirmar `DASHBOARD_SALES_LIMIT=15000` ativo e aviso amarelo aparece se truncar
-4. **Etapa 6**: hover nos KPIs Margem Operacional / Custo por Máquina → tooltip mostra mês de referência correto
+### 4. Limpar legados do agente IA
+- Reescrever ou substituir as functions do agente ainda baseadas em `order_time` para usar `payment_date`.
+- Revisar e alinhar estas tools:
+  - `get_pdv_metrics`
+  - `get_sales_projection`
+  - `get_pdv_benchmark`
+- Atualizar prompts/skill do agente para não incentivar caminhos legados.
+- Se alguma análise precisar mesmo de “hora real do pedido”, isso deve ficar explícito e separado da lógica financeira.
 
-### Passo 4 — Validação do agente IA (eu executo)
-Fazer 2 perguntas-teste ao agente e comparar com KPIs do dashboard no mesmo período:
-- "Qual o faturamento por método de pagamento nos últimos 30 dias?" → deve bater com o dashboard
-- "Mostre o DRE por PDV deste mês" → faturamento por PDV deve bater com o card de Receita do dashboard
+### 5. Padronizar fórmulas de dedução e perdas
+- Definir uma regra única para todo o produto:
+  - o que entra em **deduções**
+  - o que entra em **perdas**
+  - quando `discount_amount` entra ou não entra
+  - quando `refund_amount` entra ou não entra
+- Aplicar essa mesma regra no:
+  - dashboard
+  - cards financeiros
+  - LossAnalysisCard
+  - agente IA
+  - RPCs financeiras
 
-### Passo 5 — Relatório final
-Tabela comparativa Dashboard vs Agente IA, marcando ✅/❌ por etapa. Se algo divergir, abro um diagnóstico imediato.
+### 6. Excluir legados e reduzir superfícies de bug
+- Remover caminhos antigos que mantêm dupla interpretação dos mesmos dados.
+- Revisar referências restantes a:
+  - `order_time` em análises financeiras/comparativas
+  - status legados em inglês como `Completed`
+  - cálculos duplicados no cliente e no backend para a mesma métrica
+- Manter `order_time` apenas em casos explicitamente operacionais, como análise horária, se ainda necessário.
 
-## Próxima ação esperada
+### 7. Revalidação ponta a ponta
+- Rodar uma matriz de comparação entre:
+  - banco
+  - dashboard
+  - agente IA
+- Validar pelo menos:
+  - Receita
+  - Transações
+  - Ticket Médio
+  - Perdas
+  - Margem Operacional
+  - Top produtos
+  - série diária
+- Depois abrir o app logado e conferir visualmente preview/publicado.
 
-Confirme nesta conversa assim que clicar em **Publish → Update**, e eu inicio os passos 2 a 5.
+## Detalhes técnicos
+- Arquivos principais envolvidos:
+  - `src/hooks/useDashboard.ts`
+  - `src/pages/Index.tsx`
+  - `src/hooks/useDRE.ts`
+  - `src/components/dashboard/FinancialSummaryCard.tsx`
+  - `supabase/functions/ai-agent/skill.ts`
+  - `supabase/functions/ai-agent/tools.ts`
+  - migrations SQL das RPCs financeiras e comparativas
+- Mudanças de backend devem virar migrations.
+- A validação visual final do publicado exige sessão autenticada; no momento o site publicado abre tela de login no navegador de teste.
+
+## Resultado esperado
+Após essa limpeza:
+- cards e gráficos passam a bater com o banco no mesmo período;
+- o agente IA passa a responder com o mesmo critério do dashboard;
+- o filtro “Total” deixa de mostrar card financeiro mensal disfarçado de período;
+- os caminhos legados que hoje reintroduzem inconsistência deixam de existir.

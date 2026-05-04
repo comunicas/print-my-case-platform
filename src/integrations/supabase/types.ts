@@ -2048,6 +2048,28 @@ export type Database = {
           sales_count: number
         }[]
       }
+      get_dashboard_kpis: {
+        Args: {
+          p_end_date: string
+          p_pdv_ids?: string[]
+          p_prev_end: string
+          p_prev_start: string
+          p_start_date: string
+        }
+        Returns: {
+          cancelled_transactions: number
+          card_revenue: number
+          gross_revenue: number
+          prev_gross_revenue: number
+          prev_total_cancellations: number
+          prev_total_refunds: number
+          prev_transactions: number
+          refunded_transactions: number
+          total_cancellations: number
+          total_refunds: number
+          transactions: number
+        }[]
+      }
       get_dre_sales_summary: {
         Args: { p_end_date: string; p_pdv_ids: string[]; p_start_date: string }
         Returns: {
