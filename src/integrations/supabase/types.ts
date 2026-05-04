@@ -2048,6 +2048,10 @@ export type Database = {
           sales_count: number
         }[]
       }
+      get_dashboard_charts: {
+        Args: { p_end_date: string; p_pdv_ids?: string[]; p_start_date: string }
+        Returns: Json
+      }
       get_dashboard_kpis: {
         Args: {
           p_end_date: string
