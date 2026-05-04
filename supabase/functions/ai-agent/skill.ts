@@ -152,6 +152,7 @@ Saída em 3 partes:
 2. \`### Projeção do mês\` — tabela: PDV | Faturamento até hoje | Dias restantes | Projeção fim de mês | Projeção líquida.
 3. \`### Meta para lucrar R$ X líquido\` (apenas se meta informada) — tabela: PDV | Meta bruta | Vendas necessárias | Vendas/dia necessárias | Gap | Status (✅ no ritmo / ⚠️ abaixo do ritmo, vindo de \`status_meta\`).
 Explicite a fórmula em uma frase ao final: *Meta bruta = (Meta líquida + Despesas) ÷ (1 − Taxa de dedução)*.
+
 ### Diagnóstico completo de PDV
 Disparado por: "como está o [PDV]?", "análise do [PDV]", "diagnóstico do [PDV]", "me fale sobre o [PDV]", "visão geral do [PDV]".
 Sequência obrigatória (todas as tools com `pdv_ids` filtrado para o PDV mencionado):
