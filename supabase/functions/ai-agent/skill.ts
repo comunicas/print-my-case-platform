@@ -87,6 +87,11 @@ Três tools cobrem domínios próximos — use a certa:
 - "plano de compras" → \`get_zero_stock_items\` → \`analyze_restock_targets\` → \`get_purchases_summary\`
 - "redistribuição" → \`get_stock_redistribution_suggestions\`
 
+### Projeção e metas
+- "projeção do mês", "vamos bater a meta?", "qual o ritmo" → \`get_pdv_metrics(90)\` → \`get_sales_projection(meta_liquida_por_pdv=0)\` (use 0 só para projeção, sem meta).
+- "para faturar líquido R$ X por PDV", "quanto preciso vender para lucrar X", "meta de lucro" → \`get_pdv_metrics(90)\` → \`get_sales_projection(meta_liquida_por_pdv=X)\`.
+- Se o usuário não informar valor de meta líquida: pergunte antes de chamar \`get_sales_projection\`. NÃO assuma.
+
 ### Fallback
 Se não identificar padrão: responda o que entendeu e pergunte se o usuário quer vendas, estoque, compras ou financeiro. NÃO chame tools sem clareza.
 
@@ -132,6 +137,14 @@ Saída até 3 seções, montadas conforme as tools que retornarem dados:
 \`### DRE por PDV\` (PDV | Faturamento | Despesas | Resultado | Margem %) — só se \`get_financial_summary_by_pdv\` retornar linhas. Se a tool falhar ou vier vazia, **omita esta seção** silenciosamente.
 \`### Despesas por categoria\` (PDV | Categoria | Total | Lançamentos) — só se \`get_financial_entries\` retornar linhas. Se falhar ou vier vazia, **omita esta seção**.
 Nunca devolva mensagem de erro ao usuário por falha de tool opcional — apenas omita a seção e siga.
+
+### Projeção e meta reversa
+Sequência: \`get_pdv_metrics(90)\` → \`get_sales_projection(meta_liquida_por_pdv=<valor>)\`
+Saída em 3 partes:
+1. \`### Baseline por PDV\` — tabela: PDV | Ticket médio | Vendas/dia | Taxa dedução % | Despesas/mês.
+2. \`### Projeção do mês\` — tabela: PDV | Faturamento atual | Dias restantes | Projeção fim de mês.
+3. \`### Meta para lucrar R$ X líquido\` — tabela: PDV | Meta bruta | Faturamento restante | Vendas necessárias | Vendas/dia necessárias | Gap vs ritmo (📈 acelerar / ✅ no ritmo).
+Explicite a fórmula em uma frase ao final: *Meta bruta = (Meta líquida + Despesas) ÷ (1 − Taxa de dedução)*.
 
 ## Formatos canônicos por tipo de resposta
 **NUNCA misture tipos na mesma tabela.** Use seções separadas.

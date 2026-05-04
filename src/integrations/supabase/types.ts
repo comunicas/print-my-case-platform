@@ -1784,6 +1784,20 @@ export type Database = {
           pdv_name: string
         }[]
       }
+      ai_get_pdv_metrics: {
+        Args: { _days?: number }
+        Returns: {
+          despesas_mes_medio: number
+          dias_analisados: number
+          faturamento_por_dia: number
+          faturamento_total: number
+          pdv_nome: string
+          taxa_deducao_pct: number
+          ticket_medio: number
+          total_vendas: number
+          vendas_por_dia: number
+        }[]
+      }
       ai_get_pending_allocations: {
         Args: { _limit?: number; _status?: string }
         Returns: {
@@ -1843,6 +1857,26 @@ export type Database = {
               total_pending: number
             }[]
           }
+      ai_get_sales_projection: {
+        Args: { _days_baseline?: number; _meta_liquida_por_pdv: number }
+        Returns: {
+          despesas_mes_medio: number
+          dias_decorridos_mes: number
+          dias_restantes_mes: number
+          faturamento_mes_atual: number
+          faturamento_restante_necessario: number
+          gap_vendas_por_dia: number
+          meta_bruta_necessaria: number
+          meta_liquida: number
+          pdv_nome: string
+          projecao_fim_mes: number
+          taxa_deducao_pct: number
+          ticket_medio: number
+          vendas_necessarias_restantes: number
+          vendas_por_dia_atual: number
+          vendas_por_dia_necessarias: number
+        }[]
+      }
       ai_get_sales_summary: {
         Args: { _end: string; _pdv_ids?: string[]; _start: string }
         Returns: {
