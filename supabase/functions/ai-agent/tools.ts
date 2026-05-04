@@ -308,6 +308,34 @@ export const TOOLS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "get_pdv_metrics",
+      description: "Métricas consolidadas por PDV em uma janela de dias (default 90): ticket médio, vendas/dia, faturamento/dia, taxa de dedução (%) e despesas mensais médias. Use SEMPRE como base para perguntas de projeção, meta, 'quanto precisamos vender', 'ritmo atual', 'quanto cada PDV produz por dia'.",
+      parameters: {
+        type: "object",
+        properties: {
+          days: { type: "integer", default: 90, description: "Janela em dias para baseline (30, 60, 90)." },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_sales_projection",
+      description: "Projeta o fechamento do mês corrente por PDV e calcula meta reversa: dado um lucro LÍQUIDO mensal alvo por PDV, retorna meta bruta = (meta_liquida + despesas) / (1 - taxa_deducao), faturamento restante, vendas necessárias e vendas/dia necessárias para o restante do mês, com gap vs ritmo atual. Use para 'para faturar líquido R$ X por PDV este mês, quanto preciso vender?'.",
+      parameters: {
+        type: "object",
+        properties: {
+          meta_liquida_por_pdv: { type: "number", description: "Meta de lucro LÍQUIDO mensal por PDV em reais." },
+          days_baseline: { type: "integer", default: 90, description: "Janela em dias para ticket médio, ritmo e taxa de dedução." },
+        },
+        required: ["meta_liquida_por_pdv"],
+      },
+    },
+  },
 ];
 
 // Mapeamento tool_name → RPC do banco
@@ -417,6 +445,17 @@ export const TOOL_TO_RPC: Record<string, { rpc: string; mapParams: (p: Record<st
     mapParams: (p) => ({
       _start: p.start,
       _end:   p.end,
+    }),
+  },
+  get_pdv_metrics: {
+    rpc: "ai_get_pdv_metrics",
+    mapParams: (p) => ({ _days: p.days ?? 90 }),
+  },
+  get_sales_projection: {
+    rpc: "ai_get_sales_projection",
+    mapParams: (p) => ({
+      _meta_liquida_por_pdv: p.meta_liquida_por_pdv,
+      _days_baseline: p.days_baseline ?? 90,
     }),
   },
 };
