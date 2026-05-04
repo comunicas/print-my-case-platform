@@ -55,6 +55,7 @@ export interface DashboardData {
   topProductsChart: TopProductData[];
   quickStats: QuickStatsData;
   lossesByDay: LossesByDayData[];
+  chartDataTruncated: boolean;
 }
 
 interface UseDashboardParams {
