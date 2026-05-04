@@ -1,120 +1,78 @@
 ## Diagnóstico confirmado
 
-Identifiquei 4 causas reais ainda abertas:
+O problema **não é falta de dados na base** e **não é bloqueio de acesso**.
 
-1. **Frontend publicado ainda está com lógica antiga de amostragem**
-   - O print com **1.000 transações** e **R$ 72.530,09** bate exatamente com uma amostra limitada de 1000 linhas.
-   - No banco, para o mesmo recorte, existem **1.185 vendas concluídas** e **R$ 85.572,34** líquidos.
-   - Isso indica que o ambiente publicado ainda não está refletindo integralmente o código esperado do dashboard.
+O que encontrei:
 
-2. **O agente IA ainda expõe tools legadas baseadas em `order_time`**
-   - `ai_get_pdv_metrics`
-   - `ai_get_sales_projection`
-   - `ai_get_pdv_benchmark`
-   
-   Essas funções continuam ativas e podem responder diferente do dashboard, que usa `payment_date`.
+1. **No snapshot atual, o dashboard não estava consultando “Todos os PDVs” de fato**
+   - A requisição capturada para `sales_records` saiu com `pdv_id=in.(b2c3d4e5-f6a7-8901-bcde-f23456789012)`.
+   - Esse PDV é **Tietê Plaza Shopping**.
+   - Seu usuário está como **super_admin** e **não tem restrição por PDV**, então esse recorte não veio de permissão; veio de **estado de filtro/preferência aplicada na UI**.
+   - O hook `useDefaultPdvPreference` autoaplica `preferences.default_pdv` logo no carregamento. Isso pode fazer a tela parecer “consolidada”, mas a query sair filtrada em um único PDV.
 
-3. **Há divergência de fórmula entre IA e dashboard no DRE por PDV**
-   - `ai_get_financial_summary_by_pdv` soma **`refund_amount + discount_amount`** em deduções.
-   - O dashboard financeiro principal usa outra base e não segue exatamente essa mesma regra.
-   - Resultado: margem, resultado e deduções podem divergir mesmo no mesmo período.
+2. **Os gráficos ainda usam um caminho legado diferente dos cards/KPIs**
+   - Os **KPIs** usam a RPC `get_dashboard_kpis`, que calcula o total no backend.
+   - Os **gráficos** ainda fazem leitura bruta de `sales_records` no cliente e depois agregam em memória.
+   - Esse caminho ainda aplica `limit(DASHBOARD_SALES_LIMIT)` antes de montar:
+     - Vendas por Dia/Mês
+     - Heatmap por horário
+     - Top Produtos
+     - Quick Stats
+     - Perdas por dia
+   - Resultado: em períodos maiores ou no consolidado multi-PDV, os gráficos podem continuar **subamostrando** mesmo quando os cards estão corretos.
 
-4. **Os cards financeiros do dashboard ainda são mensais, não do período filtrado**
-   - `FinancialSummaryCard` recebe dados de `useDRE({ referenceMonth: dateRange.from })`.
-   - Então, no filtro “Total” ou multi-mês, os KPIs financeiros não representam o período completo — apenas o mês inicial do filtro.
+3. **A base tem dados completos para os 3 PDVs**
+   - `Concluído`: **1191 vendas** no total
+   - Distribuição:
+     - **Tietê Plaza Shopping**: 827
+     - **BOULEVARD TATUAPE**: 292
+     - **Extra Ricardo Jafet**: 72
+   - Ou seja: quando o consolidado não mostra tudo, o problema está na **consulta e agregação do dashboard**, não no banco.
 
-## Plano
+## Motivo principal da sua pergunta
 
-### 1. Unificar a fonte canônica dos números do dashboard
-- Centralizar os agregados do dashboard em uma camada única de backend para evitar drift entre:
-  - cards KPI
-  - gráficos
-  - análise de perdas
-  - visão consolidada
-- Garantir que todos usem o mesmo critério:
-  - `payment_date`
-  - status canônicos
-  - mesma janela de período
-  - mesmas regras de receita líquida / perdas
-- Remover qualquer dependência de amostra limitada como fonte de verdade dos cards.
+Quando você diz que “ao visualizar todos os PDVs juntos” os gráficos ainda faltam dados, hoje existem **duas causas possíveis**:
 
-### 2. Corrigir definitivamente a lógica de gráficos e truncamento
-- Refatorar `useDashboard` para separar claramente:
-  - **totais verdadeiros** do período
-  - **séries para visualização**
-  - **flag de truncamento real** baseada em contagem total vs limite
-- Se houver limite para performance, ele deve afetar **somente a série visual**, nunca os KPIs.
-- Exibir aviso de amostragem apenas quando houver truncamento de fato.
+- **Causa ativa agora no snapshot**: a tela **não estava realmente em todos os PDVs**, porque a query saiu filtrada para um PDV específico.
+- **Causa estrutural remanescente**: mesmo quando estiver em “Todos os PDVs” de verdade, os gráficos ainda dependem da query legada limitada e agregada no cliente.
 
-### 3. Refatorar os cards financeiros para o período filtrado
-- Substituir o uso mensal de `useDRE` no dashboard por um resumo financeiro **por período selecionado**.
-- Fazer com que:
-  - Margem Operacional
-  - Custo por Máquina
-  - Taxa de Perda
-  reflitam exatamente o intervalo ativo no filtro.
-- Manter o DRE mensal apenas onde ele faz sentido estruturalmente.
+## Plano de correção
 
-### 4. Limpar legados do agente IA
-- Reescrever ou substituir as functions do agente ainda baseadas em `order_time` para usar `payment_date`.
-- Revisar e alinhar estas tools:
-  - `get_pdv_metrics`
-  - `get_sales_projection`
-  - `get_pdv_benchmark`
-- Atualizar prompts/skill do agente para não incentivar caminhos legados.
-- Se alguma análise precisar mesmo de “hora real do pedido”, isso deve ficar explícito e separado da lógica financeira.
+1. **Eliminar o filtro silencioso de PDV no dashboard**
+   - Revisar a autoaplicação de `default_pdv` para não mascarar o modo consolidado.
+   - Garantir que “Todos os PDVs” seja estado explícito e persistente.
+   - Deixar a UI indicar sem ambiguidade quando há filtro automático.
 
-### 5. Padronizar fórmulas de dedução e perdas
-- Definir uma regra única para todo o produto:
-  - o que entra em **deduções**
-  - o que entra em **perdas**
-  - quando `discount_amount` entra ou não entra
-  - quando `refund_amount` entra ou não entra
-- Aplicar essa mesma regra no:
-  - dashboard
-  - cards financeiros
-  - LossAnalysisCard
-  - agente IA
-  - RPCs financeiras
+2. **Mover os gráficos para fonte canônica no backend**
+   - Criar RPCs agregadas para séries de vendas por dia/mês, heatmap, top produtos e quick stats.
+   - Remover a dependência de `sales_records` bruto + agregação client-side.
+   - Fazer cards e gráficos usarem a mesma base lógica e o mesmo recorte temporal.
 
-### 6. Excluir legados e reduzir superfícies de bug
-- Remover caminhos antigos que mantêm dupla interpretação dos mesmos dados.
-- Revisar referências restantes a:
-  - `order_time` em análises financeiras/comparativas
-  - status legados em inglês como `Completed`
-  - cálculos duplicados no cliente e no backend para a mesma métrica
-- Manter `order_time` apenas em casos explicitamente operacionais, como análise horária, se ainda necessário.
+3. **Remover o legado de truncamento dos gráficos**
+   - Tirar o `limit(...)` do caminho analítico principal.
+   - Se necessário, manter limite apenas para exports/listagens auxiliares, nunca para os dados dos gráficos principais.
 
-### 7. Revalidação ponta a ponta
-- Rodar uma matriz de comparação entre:
-  - banco
-  - dashboard
-  - agente IA
-- Validar pelo menos:
-  - Receita
-  - Transações
-  - Ticket Médio
-  - Perdas
-  - Margem Operacional
-  - Top produtos
-  - série diária
-- Depois abrir o app logado e conferir visualmente preview/publicado.
-
-## Detalhes técnicos
-- Arquivos principais envolvidos:
-  - `src/hooks/useDashboard.ts`
-  - `src/pages/Index.tsx`
-  - `src/hooks/useDRE.ts`
-  - `src/components/dashboard/FinancialSummaryCard.tsx`
-  - `supabase/functions/ai-agent/skill.ts`
-  - `supabase/functions/ai-agent/tools.ts`
-  - migrations SQL das RPCs financeiras e comparativas
-- Mudanças de backend devem virar migrations.
-- A validação visual final do publicado exige sessão autenticada; no momento o site publicado abre tela de login no navegador de teste.
+4. **Validar consolidado multi-PDV ponta a ponta**
+   - Comparar banco vs cards vs gráficos para:
+     - PDV individual
+     - Todos os PDVs
+     - período curto
+     - período total
+   - Confirmar que os totais mensais/diários batem com a soma dos 3 PDVs.
 
 ## Resultado esperado
-Após essa limpeza:
-- cards e gráficos passam a bater com o banco no mesmo período;
-- o agente IA passa a responder com o mesmo critério do dashboard;
-- o filtro “Total” deixa de mostrar card financeiro mensal disfarçado de período;
-- os caminhos legados que hoje reintroduzem inconsistência deixam de existir.
+
+Depois dessa correção:
+- “Todos os PDVs” vai realmente consultar o consolidado completo.
+- Cards e gráficos vão bater entre si.
+- Não haverá mais perda de dados visual por limite legado no dashboard.
+- A origem dos números ficará unificada e auditável.
+
+## Detalhe técnico
+
+Hoje o código está dividido assim:
+- **Correto/canônico**: `get_dashboard_kpis` para KPIs
+- **Ainda legado**: `useDashboard.ts` lendo `sales_records` com `limit(DASHBOARD_SALES_LIMIT)` e montando gráficos via `dashboardUtils`
+- **Possível causador do falso consolidado**: `useDefaultPdvPreference.ts`
+
+Se você aprovar, eu sigo exatamente nessa limpeza: **remover filtro silencioso + unificar gráficos no backend + excluir o caminho legado de agregação client-side**.
