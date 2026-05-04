@@ -1,38 +1,38 @@
-## Etapa 0 — Sincronizar `system_prompt` do banco com `skill.ts`
+## ETAPA 2 — Adicionar fluxo "Briefing semanal" ao agente
 
-### Diagnóstico confirmado
+### Objetivo
+Permitir que o agente responda perguntas como "como foi a semana?" com um relatório executivo completo em 4 seções (vendas, PDVs, alertas, ritmo) + foco da semana, sem exigir múltiplas perguntas.
 
-Consultei a tabela `ai_agent_config` e confirmei o problema:
+### Mudanças
 
-- **Banco** (`ai_agent_config.system_prompt`): 2.332 caracteres, começa com `<papel>Assistente de estoque do {empresa}…</papel>` — é uma versão **antiga** (placeholder genérico, em XML, sem nenhum dos formatos canônicos do Nível 1).
-- **Código** (`supabase/functions/ai-agent/skill.ts` → `SKILL_CORE`): 205 linhas com toda a lógica das Etapas 1–4 (meta reversa, formatos canônicos, mapeamento de intenções de projeção, etc.).
-- **`index.ts`** carrega o prompt do banco primeiro, então o `SKILL_CORE` do código é **ignorado em runtime**. Isso explica por que o agente continua usando o formato de estoque (`Slot | PDV | Produto | Qtd | Disponível em`) mesmo para perguntas de projeção.
+**1. `supabase/functions/ai-agent/skill.ts`**
+- Inserir uma nova subseção `### Briefing semanal` dentro de `## Fluxos operacionais por QuickAction`, logo após o bloco `### Diagnóstico completo de PDV` (após a linha 169, antes da seção `## Formatos canônicos`).
+- Conteúdo idêntico ao especificado pelo usuário:
+  - Triggers: "como foi a semana?", "briefing da semana", "resumo semanal", "o que aconteceu essa semana?", "relatório da semana".
+  - Sequência obrigatória de 4 chamadas de tools (período = últimos 7 dias):
+    1. `get_sales_summary(7d)` + `get_pdv_comparison(7d)`
+    2. `get_sales_timeline(7d, granularity=day)`
+    3. `get_zero_stock_items` + `get_low_stock_alerts`
+    4. `get_sales_projection()`
+  - Saída em 4 seções obrigatórias com emojis:
+    - `### 📈 Semana em números` (tabela com comparação semana anterior, omitindo coluna se indisponível)
+    - `### 🏪 Performance por PDV` (tabela: PDV | Faturamento | Transações | Ticket médio | Participação %)
+    - `### ⚠️ Alertas operacionais` (zerados sem alternativa 🔴, críticos com alta saída 🟠, ou ✅ se nenhum)
+    - `### 🎯 Ritmo do mês` (uma linha por PDV vs. meta, ou orientação se meta não definida)
+  - Bloco final `**Foco desta semana:**` com 2-3 bullets de ação prioritária baseados estritamente nos dados retornados (não inventar).
 
-### Mudança
+**2. Sincronização do `system_prompt` no banco**
+- Após editar `skill.ts`, o conteúdo precisa ser propagado para `ai_agent_config.system_prompt` (caso contrário o runtime continua usando a versão da Etapa 1).
+- Criar migração SQL que faz `UPDATE public.ai_agent_config SET system_prompt = $prompt$...$prompt$` com o conteúdo novo completo do `SKILL_CORE`.
+- Inserir registro em `ai_agent_config_history` para auditoria da mudança.
 
-Substituir o conteúdo de `ai_agent_config.system_prompt` pelo valor exato de `SKILL_CORE` (string atual de `supabase/functions/ai-agent/skill.ts`, sem as crases de template literal).
+**3. Redeploy do edge function**
+- Redeploy de `ai-agent` para garantir que a constante `SKILL_CORE` atualizada esteja em produção (o fallback usado quando o DB estiver indisponível também passa a refletir o briefing).
 
-A escrita será via migration `UPDATE` (única linha singleton — `singleton = true`). A migration também registra o histórico em `ai_agent_config_history` (entity = `ai_agent_config`, changed_fields = `{system_prompt}`) para manter o rastro de alteração que o painel admin já usa.
+### Validação pós-implementação
+- Confirmar via `read_query` que o `length(system_prompt)` cresceu em relação à versão da Etapa 1 e contém a string `Briefing semanal`.
+- Testar no chat do agente: "como foi a semana?" → deve retornar as 4 seções na ordem especificada + bloco Foco.
 
-```text
-ai_agent_config.system_prompt  ← SKILL_CORE (≈205 linhas)
-ai_agent_config.updated_at     ← now()
-ai_agent_config_history        ← INSERT com payload do prompt antigo
-```
-
-### Validação após aplicar
-
-1. `SELECT length(system_prompt) FROM ai_agent_config` deve retornar ~8–9 mil caracteres (e não 2.332).
-2. No `/assistente`, perguntar **"quais os top produtos vendidos?"** → resposta deve usar `# | Produto | Vendas (un) | % do total | Valor acumulado` e **NÃO** `Slot | PDV | Produto | Qtd | Disponível em`.
-3. Perguntar **"para lucrar R$5.000 líquido por PDV, quanto preciso vender?"** → resposta deve seguir o formato canônico de "Meta reversa" (3 blocos: Baseline · Projeção · Meta) com a fórmula `Meta bruta = (Meta líquida + Despesas) ÷ (1 − Taxa de dedução)` ao final.
-
-### Detalhes técnicos
-
-- **Arquivo de migration**: `supabase/migrations/<timestamp>_sync_ai_agent_system_prompt.sql`
-- **Origem da string**: lida diretamente de `supabase/functions/ai-agent/skill.ts` (constante `SKILL_CORE`) e embutida na migration com dollar-quoting (`$prompt$ … $prompt$`) para preservar acentos, crases e quebras de linha.
-- **Sem mudanças em código TS** — apenas dado. `index.ts`, `skill.ts` e `tools.ts` já estão corretos das etapas anteriores.
-- **Sem deploy de edge function** necessário (o agent lê o prompt do banco a cada request, ou no próximo cache miss).
-
-### Por que isso destrava o Nível 2
-
-Sem a Etapa 0, qualquer adição que fizermos a `skill.ts` nas Etapas 1, 2 e 5 continuará invisível para o modelo. Esta migration é **pré-requisito obrigatório** das próximas etapas do Nível 2.
+### Fora de escopo
+- Nenhuma mudança em `tools.ts` (todas as tools necessárias já existem desde o Nível 1).
+- Nenhuma mudança em `index.ts`.
