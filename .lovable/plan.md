@@ -1,27 +1,38 @@
-## Etapa 3 — Status: parcialmente concluída
+## Etapa 0 — Sincronizar `system_prompt` do banco com `skill.ts`
 
-As duas tools `get_pdv_metrics` e `get_sales_projection` **já existem** em `supabase/functions/ai-agent/tools.ts`:
+### Diagnóstico confirmado
 
-- Foram adicionadas nas Etapas 1 e 2 (linhas 311–337 do array `TOOLS`).
-- O mapeamento RPC já está em `TOOL_TO_RPC` (linhas 449–459) com exatamente os parâmetros pedidos:
-  - `get_pdv_metrics` → `ai_get_pdv_metrics({ _days })`
-  - `get_sales_projection` → `ai_get_sales_projection({ _target_net_per_pdv, _days_baseline })`
+Consultei a tabela `ai_agent_config` e confirmei o problema:
 
-A única divergência em relação ao texto desta Etapa 3 é a **redação das `description`** (estão mais curtas que a spec).
+- **Banco** (`ai_agent_config.system_prompt`): 2.332 caracteres, começa com `<papel>Assistente de estoque do {empresa}…</papel>` — é uma versão **antiga** (placeholder genérico, em XML, sem nenhum dos formatos canônicos do Nível 1).
+- **Código** (`supabase/functions/ai-agent/skill.ts` → `SKILL_CORE`): 205 linhas com toda a lógica das Etapas 1–4 (meta reversa, formatos canônicos, mapeamento de intenções de projeção, etc.).
+- **`index.ts`** carrega o prompt do banco primeiro, então o `SKILL_CORE` do código é **ignorado em runtime**. Isso explica por que o agente continua usando o formato de estoque (`Slot | PDV | Produto | Qtd | Disponível em`) mesmo para perguntas de projeção.
 
-## Mudança proposta
+### Mudança
 
-Atualizar APENAS as `description` das duas tools no array `TOOLS` para o texto exato fornecido na spec da Etapa 3, mantendo o resto (parameters, defaults, mapParams) intacto:
+Substituir o conteúdo de `ai_agent_config.system_prompt` pelo valor exato de `SKILL_CORE` (string atual de `supabase/functions/ai-agent/skill.ts`, sem as crases de template literal).
 
-1. `get_pdv_metrics.description` → texto completo da spec ("Métricas consolidadas por PDV baseadas nos últimos N dias: ticket médio, vendas por dia, faturamento por dia, taxa de dedução histórica… Chamar este tool antes de get_sales_projection para ter o contexto completo.")
-2. `get_sales_projection.description` → texto completo da spec (incluindo os exemplos de pergunta: "quanto preciso vender para lucrar R$X?", "vou bater a meta?", etc.)
+A escrita será via migration `UPDATE` (única linha singleton — `singleton = true`). A migration também registra o histórico em `ai_agent_config_history` (entity = `ai_agent_config`, changed_fields = `{system_prompt}`) para manter o rastro de alteração que o painel admin já usa.
 
-## Detalhes técnicos
+```text
+ai_agent_config.system_prompt  ← SKILL_CORE (≈205 linhas)
+ai_agent_config.updated_at     ← now()
+ai_agent_config_history        ← INSERT com payload do prompt antigo
+```
 
-- Arquivo: `supabase/functions/ai-agent/tools.ts` (apenas substituição de strings nas linhas ~315 e ~328).
-- Não mexer em `parameters`, `TOOL_TO_RPC`, nem em qualquer migration — já estão corretos.
-- Após a edição, redeploy de `ai-agent` via `supabase--deploy_edge_functions` para que o modelo veja as descriptions atualizadas (descriptions afetam o tool routing do LLM).
+### Validação após aplicar
 
-## Por que isso importa
+1. `SELECT length(system_prompt) FROM ai_agent_config` deve retornar ~8–9 mil caracteres (e não 2.332).
+2. No `/assistente`, perguntar **"quais os top produtos vendidos?"** → resposta deve usar `# | Produto | Vendas (un) | % do total | Valor acumulado` e **NÃO** `Slot | PDV | Produto | Qtd | Disponível em`.
+3. Perguntar **"para lucrar R$5.000 líquido por PDV, quanto preciso vender?"** → resposta deve seguir o formato canônico de "Meta reversa" (3 blocos: Baseline · Projeção · Meta) com a fórmula `Meta bruta = (Meta líquida + Despesas) ÷ (1 − Taxa de dedução)` ao final.
 
-Descriptions mais ricas (com exemplos de perguntas e a dica "chamar get_pdv_metrics antes") melhoram o tool selection do modelo, especialmente para perguntas tipo "quanto preciso vender para lucrar R$5k?" — que é exatamente o caso que originou esta sequência de batches.
+### Detalhes técnicos
+
+- **Arquivo de migration**: `supabase/migrations/<timestamp>_sync_ai_agent_system_prompt.sql`
+- **Origem da string**: lida diretamente de `supabase/functions/ai-agent/skill.ts` (constante `SKILL_CORE`) e embutida na migration com dollar-quoting (`$prompt$ … $prompt$`) para preservar acentos, crases e quebras de linha.
+- **Sem mudanças em código TS** — apenas dado. `index.ts`, `skill.ts` e `tools.ts` já estão corretos das etapas anteriores.
+- **Sem deploy de edge function** necessário (o agent lê o prompt do banco a cada request, ou no próximo cache miss).
+
+### Por que isso destrava o Nível 2
+
+Sem a Etapa 0, qualquer adição que fizermos a `skill.ts` nas Etapas 1, 2 e 5 continuará invisível para o modelo. Esta migration é **pré-requisito obrigatório** das próximas etapas do Nível 2.
