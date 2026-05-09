@@ -36,8 +36,10 @@ import {
   ExternalLink,
   Eye,
   AlertTriangle,
+  Cloud,
 } from "lucide-react";
 import { UploadDialog } from "@/components/upload/UploadDialog";
+import { ApiSyncDialog } from "@/components/upload/ApiSyncDialog";
 import {
   UploadType,
   UploadStatus,
@@ -69,6 +71,7 @@ export default function Uploads() {
   const [filterType, setFilterType] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [isApiSyncOpen, setIsApiSyncOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingUpload, setDeletingUpload] = useState<UploadListItem | null>(null);
 
@@ -187,7 +190,16 @@ export default function Uploads() {
         <div className="space-y-4">
             {/* Upload action button */}
             {canUpload && (
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  onClick={() => setIsApiSyncOpen(true)}
+                  disabled={activePdvs.length === 0}
+                >
+                  <Cloud className="h-4 w-4 mr-2" />
+                  Atualizar via API
+                </Button>
                 <Button 
                   className="w-full sm:w-auto" 
                   onClick={() => setIsUploadDialogOpen(true)}
@@ -429,6 +441,16 @@ export default function Uploads() {
         }))}
         onSubmit={handleUploadSubmit}
         isSubmitting={createUpload.isPending}
+      />
+
+      <ApiSyncDialog
+        open={isApiSyncOpen}
+        onOpenChange={setIsApiSyncOpen}
+        pdvs={activePdvs.map((p) => ({
+          id: p.id,
+          name: p.name,
+          machine_id: p.machine_id,
+        }))}
       />
 
       {/* Delete Dialog */}
