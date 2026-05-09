@@ -1,71 +1,68 @@
-# Plano para corrigir a sincronização via API
+# Plano para corrigir a atualização via API
 
-## O que aconteceu
-A falha de gravação por conflito já foi resolvida, mas o problema atual é **de mapeamento dos campos vindos da API**.
+## O que encontrei
+- O upload **2026-05** está trazendo registros que caem em **abril no horário de São Paulo**. Confirmei linhas do tipo `upload_period = 2026-05` com `dia_local` entre **2026-04-13 e 2026-04-30**.
+- A causa principal é o fluxo atual da função `ingest-revenue`: ela busca por mês na API, mas **não faz uma segunda validação local após o parse da data**. Como os timestamps vêm em UTC, parte dos pedidos vira “dia anterior” no Brasil.
+- Também há divergência entre o fluxo da API e o fluxo manual:
+  - o manual faz **deduplicação contra registros já existentes** na organização;
+  - a API hoje só faz **upsert entre registros `source='api'`**, então ela **não evita colisão com dados manuais/spreadsheet** já inseridos.
+- No banco, **não achei duplicatas internas de API** por `(order_number, pdv_id)` no dia analisado; o problema parece ser mais de **mês/timezone + coexistência com base manual** do que de repetição do mesmo pedido dentro da própria API.
+- Para **08/05**, no agrupamento por dia local, a base API atual mostra **11 vendas concluídas** entre os 3 PDVs (2 + 5 + 4). Então o “7 vendas” não está batendo com o que foi sincronizado hoje.
 
-### Evidências já confirmadas
-- O upload `42227c4f-be87-4b1b-82b1-5cfa7195947d` foi marcado como **ready**.
-- O card mostra **126 transações** e no banco existem **126 linhas** ligadas a esse upload.
-- O total gravado bate com o card: **R$ 5.692,40** e **3 reembolsos**.
-- Porém os dados detalhados vieram parcialmente errados:
-  - **126/126** registros com `payment_method = "Não informado"`
-  - **126/126** com `status` fora do padrão canônico (`3`, `4`, `5` em vez de `Concluído`, `Cancelado`, etc.)
-  - **126/126** sem `order_completion_time`
-  - amostra mostra `payment_date` muito próximo do horário da sincronização, indicando fallback para `new Date()` em vez da data real da venda
-  - **50** registros com `amount = 0`
+## O que vou implementar
 
-## Causa provável
-A API Kexiaozhan está retornando os pedidos em um formato diferente do mapeamento atual da função `ingest-revenue`.
-Hoje a função tenta ler campos como `payType`, `paymentTime`, `status`, `refundAmount`, mas o payload real parece usar outras chaves e/ou valores numéricos.
+### 1) Fechar o filtro pelo mês escolhido de forma robusta
+- Reescrever o parse de datas na `ingest-revenue` para usar parsing explícito e consistente.
+- Converter todas as datas relevantes para a referência local correta antes de decidir o mês.
+- Após mapear cada pedido, **descartar qualquer registro cuja data efetiva local não pertença ao mês selecionado**.
+- Definir uma regra única para qual campo de data manda no enquadramento do mês:
+  - priorizar `payment_date` para vendas pagas/concluídas;
+  - usar fallback controlado apenas quando isso já for compatível com a regra manual.
 
-Na prática:
-- a sincronização **não quebrou**
-- ela **salvou registros**, mas vários campos foram interpretados de forma errada
-- por isso o resumo do card pode parecer correto, enquanto a grade detalhada fica inconsistente
+### 2) Fazer a API seguir exatamente as regras do upload manual
+- Alinhar a normalização da API com a mesma lógica do `process-spreadsheet` para:
+  - status canônicos;
+  - formas de pagamento canônicas;
+  - datas válidas;
+  - campos monetários.
+- Garantir que os agregados continuem contando apenas os status válidos de venda concluída, como já ocorre nas regras atuais.
 
-## O que vou corrigir
-### 1. Ajustar o parser da API
-Atualizar o mapeamento da `ingest-revenue` para suportar o payload real da Kexiaozhan:
-- aliases adicionais de campos de valor, forma de pagamento, status e datas
-- tradução de códigos numéricos de status para os status canônicos do sistema
-- tradução de códigos numéricos/textuais de pagamento para os métodos canônicos
-- parse robusto de datas sem cair automaticamente no horário atual quando o campo real existir em outro formato
+### 3) Impedir duplicação com dados já existentes na aplicação
+- Adicionar uma etapa de deduplicação da API contra `sales_records` já gravados, reutilizando a lógica conceitual do upload manual.
+- A regra base será por `order_number`, respeitando o escopo organizacional/PDV já adotado no sistema.
+- Onde fizer sentido, a sincronização por API deve **atualizar o registro existente** em vez de criar um paralelo só porque a origem é diferente.
+- Se for necessário para manter consistência, vou ajustar a função RPC do banco para suportar essa estratégia sem quebrar o índice parcial atual.
 
-### 2. Adicionar diagnóstico seguro da resposta
-Melhorar a instrumentação para detectar payload incompatível sem perder privacidade:
-- salvar no resumo de sincronização contagens de campos não reconhecidos
-- registrar amostra sanitizada das chaves recebidas quando houver mismatch forte
-- destacar quando a sincronização terminou “ready”, mas com sinais de mapeamento suspeito
+### 4) Normalizar e higienizar os dados já sincronizados
+- Criar um passo de saneamento para os uploads via API já gerados do período afetado:
+  - remover ou desvincular registros fora do mês local correto;
+  - reprocessar com a nova regra;
+  - garantir que o card do upload mostre somente o recorte correto do mês.
+- Revisar especialmente os registros de **08/05** para reconciliar o total pago com a regra manual.
 
-### 3. Proteger contra “sucesso enganoso”
-Se a API responder com dados estruturalmente válidos porém semanticamente errados, a função não deve apenas marcar como `ready` silenciosamente.
-Vou adicionar validações de consistência, por exemplo:
-- percentual alto demais de `payment_method = Não informado`
-- percentual alto demais de status não mapeado
-- datas todas caindo no fallback
+### 5) Melhorar diagnóstico para próximas sincronizações
+- Registrar no `sync_summary`:
+  - quantos registros foram descartados por estarem fora do mês;
+  - quantos foram pulados por deduplicação com base existente;
+  - quantos foram atualizados vs inseridos;
+  - distribuição por status/pagamento após normalização.
+- Isso vai deixar claro, no próximo teste, se a API retornou mais coisa do que deveria ou se o filtro local excluiu corretamente.
 
-Quando isso acontecer, a sincronização deve registrar aviso claro no resumo e no erro exibido ao usuário.
+## Arquivos / áreas que devem ser ajustados
+- `supabase/functions/ingest-revenue/index.ts`
+- `supabase/migrations/...` para evoluir a RPC/estratégia de upsert e saneamento, se necessário
+- possivelmente a visualização do card/consulta do upload, **se** o resumo estiver confiando em contagem antiga em vez do recorte saneado
 
-### 4. Corrigir a visualização de status
-A tela de detalhes ainda colore status com base em `Pago` / `Completed`, mas o sistema usa canônico em PT-BR.
-Vou alinhar a UI para refletir corretamente os valores canônicos após o ajuste do parser.
-
-### 5. Reprocessar os uploads afetados
-Depois da correção, reexecutar a sincronização dos PDVs/períodos afetados para substituir os registros API incorretos pelos valores corretos.
-
-## Próximos passos práticos
-1. Revisar e ampliar o mapeamento da `ingest-revenue` para o payload real.
-2. Adicionar validações e resumo diagnóstico da sincronização.
-3. Ajustar a tela de detalhes para os status canônicos.
-4. Re-sincronizar os uploads API já afetados, começando pelo período **2026-05**.
-5. Validar amostras no banco e na tela antes de considerar a correção concluída.
-
-## Impacto esperado
-- O card continuará mostrando a contagem correta.
-- A tabela passará a exibir **valor, pagamento, status e datas reais**.
-- Os uploads API antigos com dados inconsistentes poderão ser normalizados por re-sincronização.
+## Resultado esperado
+- Ao escolher **2026-05**, o upload API mostrará **somente vendas pertencentes a maio na referência local correta**.
+- A sincronização deixará de criar sobreposição com dados já inseridos manualmente.
+- Os números de “pagos” e total diário passarão a seguir a **mesma regra do fluxo manual**, sem inflar por timezone ou por coexistência de origem.
+- Depois da limpeza, a atualização via API vira apenas um atalho operacional, sem mudar a regra de negócio.
 
 ## Detalhes técnicos
-- Arquivos principais: `supabase/functions/ingest-revenue/index.ts`, `src/pages/UploadDetails.tsx`
-- Sem troca de arquitetura: a RPC de upsert pode permanecer.
-- O foco agora é **compatibilidade com o payload real da API** e **reconciliação dos dados já gravados**.
+- O ponto crítico é que o banco e a API estão lidando com timestamps UTC, mas a leitura operacional do negócio é em **America/Sao_Paulo**.
+- A correção precisa acontecer em **duas camadas**:
+  1. **parse + filtro local** na função de ingestão;
+  2. **deduplicação/upsert compatível com a base manual existente**.
+- Hoje a RPC `upsert_api_sales_records` só resolve conflito para `source='api'`, então ela **não protege contra duplicação entre API e manual/spreadsheet**.
+- Também vou manter a auditoria no `sync_summary` para facilitar a validação com o teu caso de 08/05.
