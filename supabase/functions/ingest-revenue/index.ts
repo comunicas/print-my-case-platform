@@ -1,52 +1,525 @@
+// Sincronização de vendas via API Kexiaozhan
+// Acionada pela UI (/uploads → "Atualizar via API"). Requer JWT do usuário.
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-function isEnabled() {
-  return Deno.env.get("INGEST_REVENUE_ENABLED") === "true";
+const FIELD_LIMITS = {
+  merchant_id: 100,
+  device_id: 100,
+  order_number: 100,
+  product_name: 255,
+  transaction_number: 100,
+  payment_method: 50,
+  status: 50,
+};
+
+// --- Normalizadores canônicos (cópia de process-spreadsheet) ---
+const PAYMENT_METHOD_MAP: Record<string, string> = {
+  creditcard: "Cartão de Crédito",
+  credit_card: "Cartão de Crédito",
+  "cartão de crédito": "Cartão de Crédito",
+  crédito: "Cartão de Crédito",
+  credito: "Cartão de Crédito",
+  debitcard: "Cartão de Débito",
+  debit_card: "Cartão de Débito",
+  "cartão de débito": "Cartão de Débito",
+  débito: "Cartão de Débito",
+  debito: "Cartão de Débito",
+  pix: "PIX",
+  machinefree: "Cortesia",
+  cortesia: "Cortesia",
+  couponfree: "Cupom",
+  cupom: "Cupom",
+  coupon: "Cupom",
+};
+
+const STATUS_MAP: Record<string, string> = {
+  completed: "Concluído",
+  paid: "Concluído",
+  pago: "Concluído",
+  concluído: "Concluído",
+  concluido: "Concluído",
+  cancelled: "Cancelado",
+  canceled: "Cancelado",
+  cancelado: "Cancelado",
+  pending: "Pendente",
+  pendente: "Pendente",
+  refunded: "Reembolsado",
+  reembolsado: "Reembolsado",
+};
+
+function sanitize(value: unknown, max: number): string | null {
+  if (value === null || value === undefined || value === "") return null;
+  let s = String(value).trim();
+  s = [...s]
+    .filter((c) => {
+      const code = c.charCodeAt(0);
+      return !(code <= 8 || code === 11 || code === 12 || (code >= 14 && code <= 31) || code === 127);
+    })
+    .join("");
+  if (s.length > max) s = s.slice(0, max);
+  return s || null;
+}
+
+function normalizePaymentMethod(v: unknown): string {
+  if (v === null || v === undefined || String(v).trim() === "") return "Não informado";
+  const k = String(v).trim().toLowerCase();
+  return PAYMENT_METHOD_MAP[k] ?? sanitize(v, FIELD_LIMITS.payment_method) ?? "Não informado";
+}
+
+function normalizeStatus(v: unknown): string {
+  if (v === null || v === undefined || String(v).trim() === "") return "Concluído";
+  const k = String(v).trim().toLowerCase();
+  return STATUS_MAP[k] ?? sanitize(v, FIELD_LIMITS.status) ?? "Concluído";
+}
+
+function parseAmount(v: unknown): number {
+  if (v === null || v === undefined || v === "") return 0;
+  if (typeof v === "number") return Math.max(0, Math.min(10_000_000, v));
+  let s = String(v).replace(/[R$\s]/g, "").trim();
+  const hasComma = s.includes(",");
+  const hasDot = s.includes(".");
+  if (hasComma && hasDot) {
+    if (s.lastIndexOf(",") > s.lastIndexOf(".")) s = s.replace(/\./g, "").replace(",", ".");
+    else s = s.replace(/,/g, "");
+  } else if (hasComma) {
+    s = s.replace(",", ".");
+  }
+  const n = parseFloat(s);
+  if (isNaN(n)) return 0;
+  return Math.max(0, Math.min(10_000_000, n));
+}
+
+function parseDate(v: unknown): string | null {
+  if (!v) return null;
+  if (typeof v === "number") {
+    // assume epoch seconds or ms
+    const ms = v > 1e12 ? v : v * 1000;
+    const d = new Date(ms);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  }
+  const s = String(v).trim();
+  // "YYYY-MM-DD HH:mm:ss"
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (m) {
+    const [, y, mo, d, h, mi, se] = m;
+    return new Date(Date.UTC(+y, +mo - 1, +d, +h, +mi, +(se ?? "0"))).toISOString();
+  }
+  // "DD/MM/YYYY HH:mm"
+  const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);
+  if (br) {
+    const [, d, mo, y, h, mi] = br;
+    return new Date(+y, +mo - 1, +d, +h, +mi).toISOString();
+  }
+  const parsed = new Date(s);
+  return isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+// --- Cliente Kexiaozhan ---
+const KXZ_BASE = (Deno.env.get("KXZ_API_BASE") ?? "").replace(/\/+$/, "");
+const KXZ_USER = Deno.env.get("KXZ_USER") ?? "";
+const KXZ_PASS = Deno.env.get("KXZ_PASS") ?? "";
+
+async function kxzLogin(): Promise<string> {
+  const url = `${KXZ_BASE}/user/login`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: KXZ_USER, password: KXZ_PASS, account: KXZ_USER }),
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`Login Kexiaozhan falhou: ${res.status} ${text.slice(0, 200)}`);
+  let json: any;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error(`Resposta de login inválida: ${text.slice(0, 200)}`);
+  }
+  const token =
+    json?.data?.token ?? json?.token ?? json?.access_token ?? json?.data?.access_token;
+  if (!token) throw new Error(`Token ausente na resposta de login: ${text.slice(0, 200)}`);
+  return token;
+}
+
+interface KxzOrder {
+  orderNo?: string;
+  orderNumber?: string;
+  order_id?: string;
+  productName?: string;
+  product_name?: string;
+  goodsName?: string;
+  payAmount?: number | string;
+  amount?: number | string;
+  paymentAmount?: number | string;
+  payTime?: string | number;
+  paymentTime?: string | number;
+  payment_time?: string | number;
+  orderTime?: string | number;
+  payType?: string;
+  payMethod?: string;
+  payment_method?: string;
+  status?: string;
+  state?: string;
+  machineId?: string;
+  machine_id?: string;
+  deviceId?: string;
+  transactionId?: string;
+  transactionNumber?: string;
+  refundAmount?: number | string;
+  merchantId?: string;
+  merchant_id?: string;
+}
+
+async function kxzListOrders(
+  token: string,
+  machineId: string,
+  yearMonth: string,
+): Promise<KxzOrder[]> {
+  const all: KxzOrder[] = [];
+  const pageSize = 100;
+  let page = 1;
+  // Construir início/fim do mês para query
+  const [y, m] = yearMonth.split("-").map(Number);
+  const start = new Date(Date.UTC(y, m - 1, 1));
+  const end = new Date(Date.UTC(y, m, 1));
+  const startStr = start.toISOString().slice(0, 10) + " 00:00:00";
+  const endStr = new Date(end.getTime() - 1000).toISOString().slice(0, 10) + " 23:59:59";
+
+  while (page < 1000) {
+    const params = new URLSearchParams({
+      machineId,
+      type: "1",
+      page: String(page),
+      pageSize: String(pageSize),
+      startTime: startStr,
+      endTime: endStr,
+    });
+    const url = `${KXZ_BASE}/v1/orders?${params}`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}`, token, "Content-Type": "application/json" },
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      throw new Error(`Listagem de pedidos falhou (page ${page}): ${res.status} ${text.slice(0, 200)}`);
+    }
+    let json: any;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      throw new Error(`Resposta inválida ao listar pedidos: ${text.slice(0, 200)}`);
+    }
+    const list: KxzOrder[] =
+      json?.data?.records ?? json?.data?.list ?? json?.data ?? json?.records ?? [];
+    if (!Array.isArray(list) || list.length === 0) break;
+    all.push(...list);
+    if (list.length < pageSize) break;
+    page += 1;
+  }
+  return all;
+}
+
+function mapOrderToRecord(
+  o: KxzOrder,
+  pdvId: string,
+  uploadId: string,
+): Record<string, unknown> | null {
+  const orderNumber =
+    sanitize(o.orderNo ?? o.orderNumber ?? o.order_id, FIELD_LIMITS.order_number);
+  const productName =
+    sanitize(o.productName ?? o.product_name ?? o.goodsName, FIELD_LIMITS.product_name);
+  const deviceId =
+    sanitize(o.machineId ?? o.machine_id ?? o.deviceId, FIELD_LIMITS.device_id);
+  if (!orderNumber || !productName || !deviceId) return null;
+
+  const amount = parseAmount(o.payAmount ?? o.amount ?? o.paymentAmount);
+  const paymentDate =
+    parseDate(o.payTime ?? o.paymentTime ?? o.payment_time) ??
+    parseDate(o.orderTime) ??
+    new Date().toISOString();
+  const orderTime = parseDate(o.orderTime);
+
+  return {
+    pdv_id: pdvId,
+    upload_id: uploadId,
+    source: "api",
+    order_number: orderNumber,
+    product_name: productName,
+    device_id: deviceId,
+    merchant_id: sanitize(o.merchantId ?? o.merchant_id, FIELD_LIMITS.merchant_id),
+    transaction_number: sanitize(
+      o.transactionNumber ?? o.transactionId,
+      FIELD_LIMITS.transaction_number,
+    ),
+    amount,
+    payment_method: normalizePaymentMethod(o.payType ?? o.payMethod ?? o.payment_method),
+    status: normalizeStatus(o.status ?? o.state),
+    payment_date: paymentDate,
+    order_time: orderTime,
+    refund_amount: parseAmount(o.refundAmount),
+  };
+}
+
+interface PdvResult {
+  pdv_id: string;
+  pdv_name: string;
+  status: "ready" | "error";
+  inserted?: number;
+  updated?: number;
+  total?: number;
+  error?: string;
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const requestId = crypto.randomUUID();
-  const enabled = isEnabled();
 
-  if (!enabled) {
-    console.warn(
-      `[ingest-revenue] blocked_by_feature_flag request_id=${requestId} method=${req.method}`,
-    );
-
+  if (Deno.env.get("INGEST_REVENUE_ENABLED") === "false") {
     return new Response(
-      JSON.stringify({
-        error: "Endpoint desativado por feature flag.",
-        status: "disabled",
-        feature_flag: "INGEST_REVENUE_ENABLED",
-        request_id: requestId,
-      }),
-      {
-        status: 410,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
+      JSON.stringify({ error: "Endpoint desativado por feature flag.", request_id: requestId }),
+      { status: 410, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 
-  console.info(
-    `[ingest-revenue] enabled_but_not_implemented request_id=${requestId} method=${req.method}`,
-  );
+  if (!KXZ_BASE || !KXZ_USER || !KXZ_PASS) {
+    return new Response(
+      JSON.stringify({ error: "Credenciais Kexiaozhan não configuradas." }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
 
-  return new Response(
-    JSON.stringify({
-      error: "Endpoint habilitado, mas ainda sem implementação funcional.",
-      status: "not_implemented",
-      request_id: requestId,
-    }),
-    {
-      status: 501,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    },
-  );
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(token);
+    if (claimsErr || !claimsData?.claims?.sub) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const userId = claimsData.claims.sub as string;
+
+    // Parse body
+    const body = await req.json().catch(() => ({}));
+    const period: string = String(body?.period ?? "");
+    const requestedPdvIds: string[] | undefined = Array.isArray(body?.pdv_ids)
+      ? body.pdv_ids.map((x: unknown) => String(x))
+      : undefined;
+    if (!/^\d{4}-\d{2}$/.test(period)) {
+      return new Response(JSON.stringify({ error: "period inválido (YYYY-MM)" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const admin = createClient(supabaseUrl, serviceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    // Resolver organização do usuário (perfil pode estar em qualquer org; viewer barrado)
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("organization_id")
+      .eq("id", userId)
+      .maybeSingle();
+    const orgId = profile?.organization_id;
+    if (!orgId) {
+      return new Response(JSON.stringify({ error: "Usuário sem organização" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Bloquear viewers
+    const { data: roles } = await admin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    const isViewer =
+      Array.isArray(roles) &&
+      roles.length > 0 &&
+      roles.every((r: any) => r.role === "viewer");
+    if (isViewer) {
+      return new Response(JSON.stringify({ error: "Sem permissão" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // PDVs ativos da org, filtrados se vier lista
+    let pdvQuery = admin
+      .from("pdvs")
+      .select("id, name, machine_id")
+      .eq("organization_id", orgId)
+      .eq("status", "active");
+    if (requestedPdvIds && requestedPdvIds.length > 0) {
+      pdvQuery = pdvQuery.in("id", requestedPdvIds);
+    }
+    const { data: pdvs, error: pdvErr } = await pdvQuery;
+    if (pdvErr) throw pdvErr;
+    if (!pdvs || pdvs.length === 0) {
+      return new Response(JSON.stringify({ error: "Nenhum PDV ativo encontrado" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.info(`[ingest-revenue] start req=${requestId} org=${orgId} period=${period} pdvs=${pdvs.length}`);
+
+    let kxzToken: string | null = null;
+    const results: PdvResult[] = [];
+
+    for (const pdv of pdvs) {
+      const pdvName = (pdv as any).name as string;
+      const pdvId = (pdv as any).id as string;
+      const machineId = (pdv as any).machine_id as string;
+      const startedAt = new Date().toISOString();
+
+      // Upsert do card de upload
+      const fileName = `API Kexiaozhan - ${pdvName} - ${period}`;
+      const { data: existingCard } = await admin
+        .from("uploads")
+        .select("id")
+        .eq("pdv_id", pdvId)
+        .eq("type", "sales")
+        .eq("period", period)
+        .eq("source", "api")
+        .maybeSingle();
+
+      let uploadId: string;
+      if (existingCard) {
+        uploadId = (existingCard as any).id as string;
+        await admin
+          .from("uploads")
+          .update({
+            file_name: fileName,
+            status: "processing",
+            error_message: null,
+            sync_started_at: startedAt,
+            sync_finished_at: null,
+            sync_summary: null,
+            uploaded_by: userId,
+          })
+          .eq("id", uploadId);
+      } else {
+        const { data: created, error: createErr } = await admin
+          .from("uploads")
+          .insert({
+            pdv_id: pdvId,
+            type: "sales",
+            period,
+            file_name: fileName,
+            status: "processing",
+            source: "api",
+            uploaded_by: userId,
+            sync_started_at: startedAt,
+          })
+          .select("id")
+          .single();
+        if (createErr || !created) {
+          results.push({
+            pdv_id: pdvId,
+            pdv_name: pdvName,
+            status: "error",
+            error: `Falha ao criar card: ${createErr?.message ?? "desconhecido"}`,
+          });
+          continue;
+        }
+        uploadId = (created as any).id as string;
+      }
+
+      try {
+        if (!kxzToken) kxzToken = await kxzLogin();
+        const orders = await kxzListOrders(kxzToken, machineId, period);
+
+        const records = orders
+          .map((o) => mapOrderToRecord(o, pdvId, uploadId))
+          .filter((r): r is Record<string, unknown> => r !== null);
+
+        let inserted = 0;
+        if (records.length > 0) {
+          // Upsert em chunks usando o índice parcial (order_number, pdv_id) WHERE source='api'
+          const chunkSize = 500;
+          for (let i = 0; i < records.length; i += chunkSize) {
+            const chunk = records.slice(i, i + chunkSize);
+            const { error: upErr } = await admin
+              .from("sales_records")
+              .upsert(chunk, { onConflict: "order_number,pdv_id", ignoreDuplicates: false });
+            if (upErr) throw upErr;
+            inserted += chunk.length;
+          }
+        }
+
+        const finishedAt = new Date().toISOString();
+        const summary = { inserted, total_orders: orders.length, mapped: records.length };
+        await admin
+          .from("uploads")
+          .update({
+            status: "ready",
+            records_count: records.length,
+            processed_at: finishedAt,
+            sync_finished_at: finishedAt,
+            sync_summary: summary,
+            error_message: null,
+          })
+          .eq("id", uploadId);
+
+        results.push({
+          pdv_id: pdvId,
+          pdv_name: pdvName,
+          status: "ready",
+          inserted,
+          total: records.length,
+        });
+        console.info(
+          `[ingest-revenue] pdv=${pdvName} ok orders=${orders.length} mapped=${records.length}`,
+        );
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const finishedAt = new Date().toISOString();
+        await admin
+          .from("uploads")
+          .update({
+            status: "error",
+            error_message: msg.slice(0, 500),
+            sync_finished_at: finishedAt,
+            sync_summary: { error: msg.slice(0, 500) },
+          })
+          .eq("id", uploadId);
+        results.push({ pdv_id: pdvId, pdv_name: pdvName, status: "error", error: msg });
+        console.error(`[ingest-revenue] pdv=${pdvName} erro: ${msg}`);
+      }
+    }
+
+    return new Response(
+      JSON.stringify({ ok: true, request_id: requestId, results }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[ingest-revenue] erro fatal req=${requestId}: ${msg}`);
+    return new Response(
+      JSON.stringify({ error: msg, request_id: requestId }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
 });
