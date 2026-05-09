@@ -7,6 +7,44 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Serializa qualquer erro (Error, PostgrestError, objeto, string) preservando
+// mensagem real, code, details e hint quando disponíveis.
+function serializeError(e: unknown): {
+  message: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+  raw?: string;
+} {
+  if (e === null || e === undefined) return { message: "Erro desconhecido" };
+  if (e instanceof Error) {
+    return {
+      message: e.message || e.name || "Error",
+      code: e.name,
+      details: e.stack?.slice(0, 500),
+    };
+  }
+  if (typeof e === "string") return { message: e };
+  if (typeof e === "number" || typeof e === "boolean") return { message: String(e) };
+  if (typeof e === "object") {
+    const o = e as Record<string, unknown>;
+    const message =
+      (typeof o.message === "string" && o.message) ||
+      (typeof o.error_description === "string" && o.error_description) ||
+      (typeof o.error === "string" && o.error) ||
+      JSON.stringify(o).slice(0, 1000);
+    const out: { message: string; code?: string; details?: string; hint?: string; raw?: string } = {
+      message,
+    };
+    if (typeof o.code === "string") out.code = o.code;
+    if (typeof o.details === "string") out.details = o.details;
+    if (typeof o.hint === "string") out.hint = o.hint;
+    if (!o.message) out.raw = JSON.stringify(o).slice(0, 1000);
+    return out;
+  }
+  return { message: String(e) };
+}
+
 const FIELD_LIMITS = {
   merchant_id: 100,
   device_id: 100,
@@ -436,12 +474,20 @@ Deno.serve(async (req) => {
           .select("id")
           .single();
         if (createErr || !created) {
+          const cInfo = serializeError(createErr);
           results.push({
             pdv_id: pdvId,
             pdv_name: pdvName,
             status: "error",
-            error: `Falha ao criar card: ${createErr?.message ?? "desconhecido"}`,
+            error: `Falha ao criar card: ${cInfo.message}`,
+            code: cInfo.code,
+            details: cInfo.details,
+            hint: cInfo.hint,
           });
+          console.error(
+            `[ingest-revenue] pdv=${pdvName} falha ao criar card:`,
+            JSON.stringify(cInfo),
+          );
           continue;
         }
         uploadId = (created as any).id as string;
@@ -494,19 +540,36 @@ Deno.serve(async (req) => {
           `[ingest-revenue] pdv=${pdvName} ok orders=${orders.length} mapped=${records.length}`,
         );
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
+        const info = serializeError(err);
         const finishedAt = new Date().toISOString();
+        console.error(
+          `[ingest-revenue] pdv=${pdvName} erro detalhado:`,
+          JSON.stringify(info),
+        );
         await admin
           .from("uploads")
           .update({
             status: "error",
-            error_message: msg.slice(0, 500),
+            error_message: info.message.slice(0, 500),
             sync_finished_at: finishedAt,
-            sync_summary: { error: msg.slice(0, 500) },
+            sync_summary: {
+              error: info.message,
+              code: info.code,
+              details: info.details,
+              hint: info.hint,
+              raw: info.raw,
+            },
           })
           .eq("id", uploadId);
-        results.push({ pdv_id: pdvId, pdv_name: pdvName, status: "error", error: msg });
-        console.error(`[ingest-revenue] pdv=${pdvName} erro: ${msg}`);
+        results.push({
+          pdv_id: pdvId,
+          pdv_name: pdvName,
+          status: "error",
+          error: info.message,
+          code: info.code,
+          details: info.details,
+          hint: info.hint,
+        });
       }
     }
 
@@ -515,10 +578,19 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[ingest-revenue] erro fatal req=${requestId}: ${msg}`);
+    const info = serializeError(err);
+    console.error(
+      `[ingest-revenue] erro fatal req=${requestId}:`,
+      JSON.stringify(info),
+    );
     return new Response(
-      JSON.stringify({ error: msg, request_id: requestId }),
+      JSON.stringify({
+        error: info.message,
+        code: info.code,
+        details: info.details,
+        hint: info.hint,
+        request_id: requestId,
+      }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
