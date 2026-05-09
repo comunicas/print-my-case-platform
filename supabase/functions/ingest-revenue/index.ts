@@ -728,6 +728,13 @@ Deno.serve(async (req) => {
         const unknownPayment = recordsToUpsert.filter(
           (r) => r.payment_method === "Não informado",
         ).length;
+        const nonPaidFiltered = recordsToUpsert.filter(
+          (r) =>
+            r.status === "Pendente" &&
+            r.payment_method === "Não informado" &&
+            Number(r.amount) === 0 &&
+            (r.actual_paid_amount === null || Number(r.actual_paid_amount) === 0),
+        ).length;
         const canonical = new Set(["Concluído", "Cancelado", "Pendente", "Reembolsado"]);
         const nonCanonicalStatus = recordsToUpsert.filter(
           (r) => !canonical.has(String(r.status ?? "")),
@@ -781,6 +788,7 @@ Deno.serve(async (req) => {
           in_period: inPeriod.length,
           out_of_period: outOfPeriod,
           cross_source_skipped: crossSourceSkipped,
+          non_paid_filtered: nonPaidFiltered,
           quality: {
             zero_amount: zeroAmount,
             unknown_payment: unknownPayment,
