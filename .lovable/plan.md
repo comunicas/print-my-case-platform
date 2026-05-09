@@ -1,78 +1,77 @@
-## Diagnóstico confirmado
+## Resumo
 
-O problema **não é falta de dados na base** e **não é bloqueio de acesso**.
+Adicionar em `/uploads` um botão **Atualizar via API** que abre um modal para escolher mês e PDVs, busca pedidos da API Kexiaozhan e popula a estrutura ativa: `uploads` + `sales_records` (com `source='api'`). v1 sem n8n; tudo dentro do app via Supabase Edge Function. Agendamento automático fica como fase 2.
 
-O que encontrei:
+## Revisão exploratória do plano original
 
-1. **No snapshot atual, o dashboard não estava consultando “Todos os PDVs” de fato**
-   - A requisição capturada para `sales_records` saiu com `pdv_id=in.(b2c3d4e5-f6a7-8901-bcde-f23456789012)`.
-   - Esse PDV é **Tietê Plaza Shopping**.
-   - Seu usuário está como **super_admin** e **não tem restrição por PDV**, então esse recorte não veio de permissão; veio de **estado de filtro/preferência aplicada na UI**.
-   - O hook `useDefaultPdvPreference` autoaplica `preferences.default_pdv` logo no carregamento. Isso pode fazer a tela parecer “consolidada”, mas a query sair filtrada em um único PDV.
+Após inspecionar a base e o código, três pontos do plano anterior precisam mudar:
 
-2. **Os gráficos ainda usam um caminho legado diferente dos cards/KPIs**
-   - Os **KPIs** usam a RPC `get_dashboard_kpis`, que calcula o total no backend.
-   - Os **gráficos** ainda fazem leitura bruta de `sales_records` no cliente e depois agregam em memória.
-   - Esse caminho ainda aplica `limit(DASHBOARD_SALES_LIMIT)` antes de montar:
-     - Vendas por Dia/Mês
-     - Heatmap por horário
-     - Top Produtos
-     - Quick Stats
-     - Perdas por dia
-   - Resultado: em períodos maiores ou no consolidado multi-PDV, os gráficos podem continuar **subamostrando** mesmo quando os cards estão corretos.
+1. **`sales_records.source` já existe** com valores `'manual'`, `'spreadsheet'` e **já existe um UNIQUE INDEX parcial** `(order_number, pdv_id) WHERE source='api'`. Alguém já preparou o esquema para ingestão via API. Isso elimina a necessidade da RPC transacional `replace_api_sales_records` proposta — basta um `upsert` com `onConflict: 'order_number,pdv_id'` filtrando por `source='api'`. Atualizações idempotentes ficam triviais e seguras, sem tocar em registros manuais ou de planilha.
 
-3. **A base tem dados completos para os 3 PDVs**
-   - `Concluído`: **1191 vendas** no total
-   - Distribuição:
-     - **Tietê Plaza Shopping**: 827
-     - **BOULEVARD TATUAPE**: 292
-     - **Extra Ricardo Jafet**: 72
-   - Ou seja: quando o consolidado não mostra tudo, o problema está na **consulta e agregação do dashboard**, não no banco.
+2. **Já existe a Edge Function stub `ingest-revenue`** (retorna 501 + feature flag `INGEST_REVENUE_ENABLED`). Em vez de criar `sync-kex-orders`, devemos **implementar `ingest-revenue`** preservando a flag e o `request_id` que já usa. Mantém consistência com a infra existente e com o `.env` (`VITE_FEATURE_INGEST_REVENUE_ENABLED`).
 
-## Motivo principal da sua pergunta
+3. **Reaproveitar normalizadores do `process-spreadsheet`** (`normalizeStatus`, `normalizePaymentMethod`, `parseAmount`, `sanitizeOrderNumber`) por **cópia inline** na nova função (Edge Functions não compartilham módulos do `src/`). Isso garante que vendas via API caiam nos mesmos status canônicos ('Concluído', 'Cancelado', 'Pendente', 'Reembolsado') e métodos canônicos exigidos pelos KPIs/financeiro.
 
-Quando você diz que “ao visualizar todos os PDVs juntos” os gráficos ainda faltam dados, hoje existem **duas causas possíveis**:
+## Implementação
 
-- **Causa ativa agora no snapshot**: a tela **não estava realmente em todos os PDVs**, porque a query saiu filtrada para um PDV específico.
-- **Causa estrutural remanescente**: mesmo quando estiver em “Todos os PDVs” de verdade, os gráficos ainda dependem da query legada limitada e agregada no cliente.
+### 1. Banco (migration única)
+- `uploads`: adicionar `source text not null default 'manual'`, `sync_started_at timestamptz`, `sync_finished_at timestamptz`, `sync_summary jsonb`.
+- `uploads`: índice único parcial `(pdv_id, type, period) WHERE source='api'` para garantir um único card ativo por PDV/mês.
+- Backfill: `UPDATE uploads SET source='spreadsheet'` para registros existentes (mantém compat).
+- Não criar RPC nova — o upsert do edge function basta.
 
-## Plano de correção
+### 2. Secrets
+Pedir ao usuário via `add_secret`: `KXZ_USER`, `KXZ_PASS`, `KXZ_API_BASE`.
 
-1. **Eliminar o filtro silencioso de PDV no dashboard**
-   - Revisar a autoaplicação de `default_pdv` para não mascarar o modo consolidado.
-   - Garantir que “Todos os PDVs” seja estado explícito e persistente.
-   - Deixar a UI indicar sem ambiguidade quando há filtro automático.
+### 3. Edge Function `ingest-revenue` (substituir o stub)
+- Manter `verify_jwt = false` apenas se chamada por scheduler; para v1 mudar para `verify_jwt = true` no `config.toml` (acionada pelo usuário logado).
+- Body: `{ period: 'YYYY-MM', pdv_ids?: string[] }`.
+- Validar JWT, pegar `organization_id` do usuário, listar `pdvs` ativos da org filtrados por `pdv_ids`.
+- Para cada PDV:
+  - `upsert` em `uploads` por `(pdv_id, type='sales', period, source='api')` com `status='processing'`, `sync_started_at=now()`, `file_name='API Kexiaozhan - <PDV> - <period>'`.
+  - Login em `KXZ_API_BASE/user/login` (cache de token entre PDVs do mesmo run).
+  - Paginar `/v1/orders` com `machineId=pdv.machine_id`, mês, `type=1`.
+  - Mapear linhas usando os mesmos normalizadores canônicos do `process-spreadsheet`.
+  - `upsert` em `sales_records` com `onConflict: 'order_number,pdv_id'` (usa o índice parcial existente), todos com `source='api'` e `upload_id` apontando ao card.
+  - Atualizar `uploads`: `status='ready'`, `records_count`, `sync_finished_at`, `sync_summary={inserted, updated, skipped}`.
+  - Em erro: `status='error'`, `error_message`, registrar no `sync_summary`. Continuar para os próximos PDVs (sucesso parcial).
+- Resposta: `{ ok: true, results: [{pdv_id, status, count, error?}] }`.
+- Manter feature flag `INGEST_REVENUE_ENABLED` como kill-switch operacional.
 
-2. **Mover os gráficos para fonte canônica no backend**
-   - Criar RPCs agregadas para séries de vendas por dia/mês, heatmap, top produtos e quick stats.
-   - Remover a dependência de `sales_records` bruto + agregação client-side.
-   - Fazer cards e gráficos usarem a mesma base lógica e o mesmo recorte temporal.
+### 4. UI em `src/pages/Uploads.tsx`
+- Ao lado do botão **Novo Upload**, adicionar **Atualizar via API** (mesmo guard `canUpload`, escondido para viewer).
+- Novo componente `ApiSyncDialog`:
+  - Seletor de mês (default: mês atual).
+  - Multi-select de PDVs ativos (default: todos).
+  - Botão **Sincronizar** dispara `supabase.functions.invoke('ingest-revenue', { body })`.
+  - Lista de status por PDV durante a execução: pendente / processando / concluído / erro.
+- Após resposta, invalidar queries: `['uploads']`, `['dashboard']`, `['dashboard-data-range']`, `['financial-entries']`, `['sales-records']`.
+- No card existente, mostrar badge discreto "API" quando `source='api'` (consultar tipo gerado após migration).
 
-3. **Remover o legado de truncamento dos gráficos**
-   - Tirar o `limit(...)` do caminho analítico principal.
-   - Se necessário, manter limite apenas para exports/listagens auxiliares, nunca para os dados dos gráficos principais.
+## Comportamento
 
-4. **Validar consolidado multi-PDV ponta a ponta**
-   - Comparar banco vs cards vs gráficos para:
-     - PDV individual
-     - Todos os PDVs
-     - período curto
-     - período total
-   - Confirmar que os totais mensais/diários batem com a soma dos 3 PDVs.
+- Reexecutar para o mesmo mês/PDV apenas atualiza pedidos via `upsert` — nenhum registro duplicado, nenhum manual/planilha tocado.
+- Erro em um PDV não cancela os outros (sucesso parcial reportado).
+- Card único por (PDV, período, source='api') garantido pelo índice parcial.
+- Upload manual e planilha continuam intocados.
 
-## Resultado esperado
+## Testes
 
-Depois dessa correção:
-- “Todos os PDVs” vai realmente consultar o consolidado completo.
-- Cards e gráficos vão bater entre si.
-- Não haverá mais perda de dados visual por limite legado no dashboard.
-- A origem dos números ficará unificada e auditável.
+- PDV de teste `machine_id=1001543` com mês conhecido: card aparece em `/uploads` com badge "API".
+- Confirmar `sales_records.source='api'` e `upload_id` correto.
+- Rodar 2× o mesmo mês/PDV: contagem estável, sem duplicatas.
+- Credenciais inválidas: `status='error'` no card e `error_message` populado.
+- Viewer não vê o botão.
+- Vendas API entram nos KPIs/financeiro com os mesmos status canônicos das planilhas.
 
-## Detalhe técnico
+## Não-objetivos (fase 2)
 
-Hoje o código está dividido assim:
-- **Correto/canônico**: `get_dashboard_kpis` para KPIs
-- **Ainda legado**: `useDashboard.ts` lendo `sales_records` com `limit(DASHBOARD_SALES_LIMIT)` e montando gráficos via `dashboardUtils`
-- **Possível causador do falso consolidado**: `useDefaultPdvPreference.ts`
+- Agendamento automático (n8n / scheduled function).
+- Backfill histórico em massa (acima de 12 meses).
+- Sync de estoque via API (já existe `ingest-stock` separado).
 
-Se você aprovar, eu sigo exatamente nessa limpeza: **remover filtro silencioso + unificar gráficos no backend + excluir o caminho legado de agregação client-side**.
+## Assumptions
+
+- API Kexiaozhan retorna pedidos paginados por `machineId` + filtro de mês + `type=1` (conforme plano original).
+- `period` segue o formato livre já usado nos uploads manuais (compatível com `'YYYY-MM'`).
+- Usuário sincroniza interativamente em v1; flag `INGEST_REVENUE_ENABLED` deve ficar `true` apenas após validação.
