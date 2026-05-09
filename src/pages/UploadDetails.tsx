@@ -383,9 +383,15 @@ const UploadDetails = () => {
                             <Badge
                               variant="outline"
                               className={
-                                record.status === "Pago" || record.status === "Completed"
+                                record.status === "Concluído" ||
+                                record.status === "Pago" ||
+                                record.status === "Completed"
                                   ? "bg-green-500/10 text-green-600 border-green-500/20"
-                                  : "bg-orange-500/10 text-orange-600 border-orange-500/20"
+                                  : record.status === "Reembolsado"
+                                    ? "bg-red-500/10 text-red-600 border-red-500/20"
+                                    : record.status === "Cancelado"
+                                      ? "bg-gray-500/10 text-gray-600 border-gray-500/20"
+                                      : "bg-orange-500/10 text-orange-600 border-orange-500/20"
                               }
                             >
                               {record.status || "-"}
