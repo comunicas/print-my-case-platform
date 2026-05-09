@@ -72,8 +72,6 @@ const PAYMENT_METHOD_MAP: Record<string, string> = {
   debit: "Cartão de Débito",
   "2": "Cartão de Débito",
   pix: "PIX",
-  "3": "PIX",
-  "4": "PIX",
   machinefree: "Cortesia",
   cortesia: "Cortesia",
   free: "Cortesia",
@@ -265,6 +263,16 @@ interface KxzOrder {
   print_code?: string;
   goodsCode?: string;
   cargoCode?: string;
+  // Payload real Kexiaozhan
+  orderAmount?: number | string;
+  paymentInstrument?: string;
+  paymentMethod?: number | string;
+  ticketNo?: string;
+  outTradeNo?: string;
+  goodsId?: number | string;
+  shopId?: number | string;
+  type?: number | string;
+  finishTime?: string | number;
 }
 
 async function kxzListOrders(
@@ -329,7 +337,8 @@ function mapOrderToRecord(
   if (!orderNumber || !productName || !deviceId) return null;
 
   const amount = parseAmount(
-    o.payAmount ?? o.amount ?? o.paymentAmount ??
+    o.paymentAmount ?? o.payAmount ?? o.amount ??
+    o.orderAmount ??
     o.rmbAmount ?? o.money ?? o.totalPrice ?? o.total_price ??
     o.pay_money ?? o.payMoney ?? o.realAmount ?? o.realPayAmount,
   );
@@ -338,14 +347,17 @@ function mapOrderToRecord(
   );
   const discount = parseAmount(o.discountAmount ?? o.discount_amount);
   const completionTime =
-    parseDate(o.completeTime ?? o.completionTime ?? o.finishTime ?? o.paySuccessTime ?? o.successTime);
+    parseDate(o.finishTime ?? o.completeTime ?? o.completionTime ?? o.paySuccessTime ?? o.successTime);
   const paymentDate =
     parseDate(o.payTime ?? o.paymentTime ?? o.payment_time ?? o.paySuccessTime ?? o.successTime) ??
     completionTime ??
     parseDate(o.orderTime ?? o.createTime ?? o.create_time ?? o.created_at) ??
     new Date().toISOString();
   const orderTime = parseDate(o.orderTime ?? o.createTime ?? o.create_time ?? o.created_at);
-  const printCode = sanitize(o.printCode ?? o.print_code ?? o.goodsCode ?? o.cargoCode, 50);
+  const printCode = sanitize(
+    o.printCode ?? o.print_code ?? o.goodsCode ?? o.cargoCode ?? o.ticketNo,
+    50,
+  );
 
   return {
     pdv_id: pdvId,
@@ -356,14 +368,18 @@ function mapOrderToRecord(
     device_id: deviceId,
     merchant_id: sanitize(o.merchantId ?? o.merchant_id, FIELD_LIMITS.merchant_id),
     transaction_number: sanitize(
-      o.transactionNumber ?? o.transactionId,
+      o.transactionNumber ?? o.transactionId ?? o.outTradeNo,
       FIELD_LIMITS.transaction_number,
     ),
     amount,
     actual_paid_amount: actualPaid > 0 ? actualPaid : null,
     discount_amount: discount,
     payment_method: normalizePaymentMethod(
+      // paymentInstrument carrega o método real (creditCard/debitCard/pix);
+      // paymentMethod no payload Kexiaozhan é frequentemente 0 (desconhecido)
+      o.paymentInstrument ??
       o.payType ?? o.payMethod ?? o.payment_method ??
+      o.paymentMethod ??
       o.payWay ?? o.payChannel ?? o.paymentType ?? o.pay_type ?? o.payment_type,
     ),
     status: normalizeStatus(o.status ?? o.state ?? o.orderStatus ?? o.order_status),
