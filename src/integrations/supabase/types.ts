@@ -2157,6 +2157,7 @@ export type Database = {
         Args: { _target_user_id: string }
         Returns: boolean
       }
+      upsert_api_sales_records: { Args: { _records: Json }; Returns: number }
       user_can_access_pdv: {
         Args: { _pdv_id: string; _user_id: string }
         Returns: boolean

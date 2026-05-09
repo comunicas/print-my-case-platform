@@ -503,13 +503,13 @@ Deno.serve(async (req) => {
 
         let inserted = 0;
         if (records.length > 0) {
-          // Upsert em chunks usando o índice parcial (order_number, pdv_id) WHERE source='api'
+          // Upsert em chunks via RPC (índice parcial WHERE source='api' exige predicado em ON CONFLICT)
           const chunkSize = 500;
           for (let i = 0; i < records.length; i += chunkSize) {
             const chunk = records.slice(i, i + chunkSize);
-            const { error: upErr } = await admin
-              .from("sales_records")
-              .upsert(chunk, { onConflict: "order_number,pdv_id", ignoreDuplicates: false });
+            const { error: upErr } = await admin.rpc("upsert_api_sales_records", {
+              _records: chunk,
+            });
             if (upErr) throw upErr;
             inserted += chunk.length;
           }
