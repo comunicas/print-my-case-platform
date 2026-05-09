@@ -7,6 +7,44 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Serializa qualquer erro (Error, PostgrestError, objeto, string) preservando
+// mensagem real, code, details e hint quando disponíveis.
+function serializeError(e: unknown): {
+  message: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+  raw?: string;
+} {
+  if (e === null || e === undefined) return { message: "Erro desconhecido" };
+  if (e instanceof Error) {
+    return {
+      message: e.message || e.name || "Error",
+      code: e.name,
+      details: e.stack?.slice(0, 500),
+    };
+  }
+  if (typeof e === "string") return { message: e };
+  if (typeof e === "number" || typeof e === "boolean") return { message: String(e) };
+  if (typeof e === "object") {
+    const o = e as Record<string, unknown>;
+    const message =
+      (typeof o.message === "string" && o.message) ||
+      (typeof o.error_description === "string" && o.error_description) ||
+      (typeof o.error === "string" && o.error) ||
+      JSON.stringify(o).slice(0, 1000);
+    const out: { message: string; code?: string; details?: string; hint?: string; raw?: string } = {
+      message,
+    };
+    if (typeof o.code === "string") out.code = o.code;
+    if (typeof o.details === "string") out.details = o.details;
+    if (typeof o.hint === "string") out.hint = o.hint;
+    if (!o.message) out.raw = JSON.stringify(o).slice(0, 1000);
+    return out;
+  }
+  return { message: String(e) };
+}
+
 const FIELD_LIMITS = {
   merchant_id: 100,
   device_id: 100,
