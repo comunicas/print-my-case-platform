@@ -454,6 +454,133 @@ interface PdvResult {
   updated?: number;
   total?: number;
   error?: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+  verification?: VerificationReport;
+}
+
+interface StatusBucket {
+  count: number;
+  amount: number;
+}
+interface VerificationReport {
+  by_status_gateway: Record<string, StatusBucket>;
+  by_status_db: Record<string, StatusBucket>;
+  divergences: Array<{
+    status: string;
+    gateway_count: number;
+    db_count: number;
+    diff: number;
+  }>;
+  duplicates: {
+    count: number;
+    samples: Array<{ order_number: string; occurrences: number }>;
+  };
+  cross_source_skipped: number;
+  out_of_period: number;
+  ok: boolean;
+  warnings: string[];
+}
+
+const CANONICAL_STATUSES = ["Concluído", "Pendente", "Cancelado", "Reembolsado"] as const;
+
+function bucketize(records: Array<Record<string, unknown>>): Record<string, StatusBucket> {
+  const out: Record<string, StatusBucket> = {};
+  for (const s of CANONICAL_STATUSES) out[s] = { count: 0, amount: 0 };
+  for (const r of records) {
+    const st = String(r.status ?? "Pendente");
+    if (!out[st]) out[st] = { count: 0, amount: 0 };
+    out[st].count += 1;
+    out[st].amount += Number(r.amount ?? 0) || 0;
+  }
+  return out;
+}
+
+async function buildVerification(
+  admin: ReturnType<typeof createClient>,
+  pdvId: string,
+  period: string,
+  gatewayRecords: Array<Record<string, unknown>>,
+  outOfPeriod: number,
+  crossSourceSkipped: number,
+): Promise<VerificationReport> {
+  // janela do mês em America/Sao_Paulo
+  const [py, pm] = period.split("-").map(Number);
+  const periodStart = new Date(`${period}-01T00:00:00-03:00`).toISOString();
+  const nextMonth = pm === 12
+    ? `${py + 1}-01-01T00:00:00-03:00`
+    : `${py}-${String(pm + 1).padStart(2, "0")}-01T00:00:00-03:00`;
+  const periodEnd = new Date(nextMonth).toISOString();
+
+  const dbRows: Array<Record<string, unknown>> = [];
+  const pageSize = 1000;
+  let from = 0;
+  for (;;) {
+    const { data, error } = await admin
+      .from("sales_records")
+      .select("order_number, status, amount, source")
+      .eq("pdv_id", pdvId)
+      .gte("payment_date", periodStart)
+      .lt("payment_date", periodEnd)
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    const rows = (data ?? []) as Array<Record<string, unknown>>;
+    dbRows.push(...rows);
+    if (rows.length < pageSize) break;
+    from += pageSize;
+  }
+
+  const by_status_db = bucketize(dbRows);
+  const by_status_gateway = bucketize(gatewayRecords);
+
+  const divergences: VerificationReport["divergences"] = [];
+  const allStatuses = new Set<string>([
+    ...Object.keys(by_status_gateway),
+    ...Object.keys(by_status_db),
+  ]);
+  for (const st of allStatuses) {
+    const g = by_status_gateway[st]?.count ?? 0;
+    const d = by_status_db[st]?.count ?? 0;
+    // Concluído: depois de descartar cross-source, esperamos g==d-(existing_non_api_no_status)
+    // Para simplificar: divergência se diff != 0 (não considerando cross-source que é informativo)
+    const diff = d - g;
+    if (diff !== 0) divergences.push({ status: st, gateway_count: g, db_count: d, diff });
+  }
+
+  // Duplicidades: order_number repetido para o mesmo PDV no período
+  const orderCounts = new Map<string, number>();
+  for (const r of dbRows) {
+    const on = String(r.order_number ?? "");
+    if (!on) continue;
+    orderCounts.set(on, (orderCounts.get(on) ?? 0) + 1);
+  }
+  const dupes: Array<{ order_number: string; occurrences: number }> = [];
+  for (const [on, c] of orderCounts) {
+    if (c > 1) dupes.push({ order_number: on, occurrences: c });
+  }
+  dupes.sort((a, b) => b.occurrences - a.occurrences);
+
+  const warnings: string[] = [];
+  if (dupes.length > 0)
+    warnings.push(`${dupes.length} pedido(s) duplicado(s) no PDV/período`);
+  for (const d of divergences) {
+    if (Math.abs(d.diff) > 0)
+      warnings.push(
+        `${d.status}: gateway=${d.gateway_count} vs banco=${d.db_count} (diff ${d.diff > 0 ? "+" : ""}${d.diff})`,
+      );
+  }
+
+  return {
+    by_status_gateway,
+    by_status_db,
+    divergences,
+    duplicates: { count: dupes.length, samples: dupes.slice(0, 10) },
+    cross_source_skipped: crossSourceSkipped,
+    out_of_period: outOfPeriod,
+    ok: dupes.length === 0 && divergences.every((d) => d.diff === 0),
+    warnings,
+  };
 }
 
 Deno.serve(async (req) => {
