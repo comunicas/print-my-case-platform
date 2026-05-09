@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, RefreshCw, CheckCircle2, AlertCircle, Cloud } from "lucide-react";
+import { Loader2, RefreshCw, CheckCircle2, AlertCircle, Cloud, ShieldCheck, ShieldAlert } from "lucide-react";
 
 interface PdvOption {
   id: string;
@@ -37,6 +37,16 @@ interface PdvResult {
   inserted?: number;
   total?: number;
   error?: string;
+  verification?: {
+    ok: boolean;
+    warnings: string[];
+    by_status_gateway: Record<string, { count: number; amount: number }>;
+    by_status_db: Record<string, { count: number; amount: number }>;
+    divergences: Array<{ status: string; gateway_count: number; db_count: number; diff: number }>;
+    duplicates: { count: number; samples: Array<{ order_number: string; occurrences: number }> };
+    cross_source_skipped: number;
+    out_of_period: number;
+  };
 }
 
 function currentMonth(): string {
@@ -173,10 +183,15 @@ export function ApiSyncDialog({ open, onOpenChange, pdvs }: ApiSyncDialogProps) 
                         {r && (
                           <div className="mt-1">
                             {r.status === "ready" ? (
-                              <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 gap-1">
-                                <CheckCircle2 className="h-3 w-3" />
-                                {r.inserted ?? 0} pedidos
-                              </Badge>
+                              <div className="space-y-1">
+                                <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 gap-1">
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  {r.inserted ?? 0} pedidos
+                                </Badge>
+                                {r.verification && (
+                                  <VerificationBlock v={r.verification} />
+                                )}
+                              </div>
                             ) : (
                               <Badge className="bg-destructive/10 text-destructive gap-1">
                                 <AlertCircle className="h-3 w-3" />
@@ -218,5 +233,82 @@ export function ApiSyncDialog({ open, onOpenChange, pdvs }: ApiSyncDialogProps) 
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function VerificationBlock({ v }: { v: NonNullable<PdvResult["verification"]> }) {
+  const statuses = ["Concluído", "Pendente", "Cancelado", "Reembolsado"];
+  return (
+    <div className="rounded-md border bg-muted/30 p-2 text-xs space-y-1">
+      <div className="flex items-center gap-1 font-medium">
+        {v.ok ? (
+          <>
+            <ShieldCheck className="h-3 w-3 text-emerald-600" />
+            <span className="text-emerald-700 dark:text-emerald-400">
+              Verificação OK
+            </span>
+          </>
+        ) : (
+          <>
+            <ShieldAlert className="h-3 w-3 text-amber-600" />
+            <span className="text-amber-700 dark:text-amber-400">
+              Divergências detectadas
+            </span>
+          </>
+        )}
+      </div>
+      <table className="w-full text-[11px]">
+        <thead className="text-muted-foreground">
+          <tr>
+            <th className="text-left font-normal">Status</th>
+            <th className="text-right font-normal">Gateway</th>
+            <th className="text-right font-normal">Banco</th>
+            <th className="text-right font-normal">Δ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {statuses.map((s) => {
+            const g = v.by_status_gateway[s]?.count ?? 0;
+            const d = v.by_status_db[s]?.count ?? 0;
+            const diff = d - g;
+            return (
+              <tr key={s}>
+                <td>{s}</td>
+                <td className="text-right tabular-nums">{g}</td>
+                <td className="text-right tabular-nums">{d}</td>
+                <td
+                  className={`text-right tabular-nums ${
+                    diff === 0 ? "text-muted-foreground" : "text-amber-600 font-medium"
+                  }`}
+                >
+                  {diff > 0 ? `+${diff}` : diff}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {v.duplicates.count > 0 && (
+        <div className="text-amber-700 dark:text-amber-400">
+          {v.duplicates.count} pedido(s) duplicado(s):{" "}
+          {v.duplicates.samples
+            .slice(0, 3)
+            .map((s) => `${s.order_number}×${s.occurrences}`)
+            .join(", ")}
+          {v.duplicates.samples.length > 3 ? "…" : ""}
+        </div>
+      )}
+      {v.cross_source_skipped > 0 && (
+        <div className="text-muted-foreground">
+          {v.cross_source_skipped} pedido(s) já existiam via planilha/manual
+          (mantidos os originais)
+        </div>
+      )}
+      {v.out_of_period > 0 && (
+        <div className="text-muted-foreground">
+          {v.out_of_period} pedido(s) fora do mês (descartados)
+        </div>
+      )}
+    </div>
   );
 }
