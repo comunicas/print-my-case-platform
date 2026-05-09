@@ -1,45 +1,109 @@
-# Serialização robusta de erros na `ingest-revenue`
+# Corrigir upsert da `ingest-revenue` via RPC com índice parcial
 
-## Objetivo
-Substituir o atual `err instanceof Error ? err.message : String(err)` (que produz `"[object Object]"` para `PostgrestError` e respostas da API KXZ) por uma serialização que preserve **mensagem real, código e detalhes** tanto nos logs quanto em `uploads.error_message` e `uploads.sync_summary`.
+## Problema
+`upsert(..., { onConflict: "order_number,pdv_id" })` no supabase-js v2 não permite passar o predicado `WHERE source='api'`. O Postgres rejeita com `42P10` porque o único índice que casa com essa coluna é parcial.
+
+## Solução: RPC `upsert_api_sales_records`
+Criar função SQL `SECURITY DEFINER` que recebe um array JSONB de registros e executa um `INSERT ... ON CONFLICT (order_number, pdv_id) WHERE source='api' DO UPDATE` — atômico, server-side, mantém o índice parcial atual sem afetar `spreadsheet`/`manual`.
 
 ## Mudanças
 
-### 1. Helper `serializeError` (novo, no topo da função)
-Função pura que aceita `unknown` e retorna `{ message, code?, details?, hint?, raw? }`:
+### 1. Migration — função `public.upsert_api_sales_records`
+```sql
+CREATE OR REPLACE FUNCTION public.upsert_api_sales_records(_records jsonb)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  affected integer;
+BEGIN
+  -- Apenas service_role pode chamar (a Edge Function usa service role)
+  IF auth.role() <> 'service_role' THEN
+    RAISE EXCEPTION 'forbidden';
+  END IF;
 
-- `Error` → `{ message: e.message, code: e.name, details: e.stack?.slice(0, 500) }`
-- Objeto com `message` (caso de `PostgrestError`: `{ message, code, details, hint }`) → preservar todos os 4 campos
-- Objeto sem `message` → `JSON.stringify(e).slice(0, 1000)` como `message`, `raw` com payload truncado
-- String/number/boolean → `{ message: String(e) }`
-- `null`/`undefined` → `{ message: "Erro desconhecido" }`
+  INSERT INTO public.sales_records (
+    order_number, pdv_id, upload_id, source,
+    product_name, device_id, merchant_id,
+    transaction_number, payment_method, status,
+    amount, actual_paid_amount, discount_amount, refund_amount,
+    payment_date, order_time, order_completion_time,
+    payment_flow, print_code
+  )
+  SELECT
+    r->>'order_number', (r->>'pdv_id')::uuid, NULLIF(r->>'upload_id','')::uuid,
+    COALESCE(r->>'source','api'),
+    r->>'product_name', r->>'device_id', r->>'merchant_id',
+    r->>'transaction_number', r->>'payment_method', r->>'status',
+    (r->>'amount')::numeric,
+    NULLIF(r->>'actual_paid_amount','')::numeric,
+    COALESCE(NULLIF(r->>'discount_amount','')::numeric, 0),
+    COALESCE(NULLIF(r->>'refund_amount','')::numeric, 0),
+    NULLIF(r->>'payment_date','')::timestamptz,
+    NULLIF(r->>'order_time','')::timestamptz,
+    NULLIF(r->>'order_completion_time','')::timestamptz,
+    r->>'payment_flow', r->>'print_code'
+  FROM jsonb_array_elements(_records) r
+  ON CONFLICT (order_number, pdv_id) WHERE source='api' DO UPDATE SET
+    upload_id = EXCLUDED.upload_id,
+    product_name = EXCLUDED.product_name,
+    device_id = EXCLUDED.device_id,
+    merchant_id = EXCLUDED.merchant_id,
+    transaction_number = EXCLUDED.transaction_number,
+    payment_method = EXCLUDED.payment_method,
+    status = EXCLUDED.status,
+    amount = EXCLUDED.amount,
+    actual_paid_amount = EXCLUDED.actual_paid_amount,
+    discount_amount = EXCLUDED.discount_amount,
+    refund_amount = EXCLUDED.refund_amount,
+    payment_date = EXCLUDED.payment_date,
+    order_time = EXCLUDED.order_time,
+    order_completion_time = EXCLUDED.order_completion_time,
+    payment_flow = EXCLUDED.payment_flow,
+    print_code = EXCLUDED.print_code;
 
-### 2. Aplicar nos `catch`
-- **Per-PDV catch** (linha ~496): usar `serializeError(err)`; gravar `error_message = info.message.slice(0, 500)` e `sync_summary = { error: info.message, code: info.code, details: info.details, hint: info.hint }`. Incluir todos os campos no `results.push` e no `console.error` (com `JSON.stringify`).
-- **Catch fatal** (linha ~517): mesmo helper; resposta JSON inclui `code`/`details`.
-- **Branch `createErr` do upload** (linha ~443): também serializar com helper em vez de `createErr?.message`.
+  GET DIAGNOSTICS affected = ROW_COUNT;
+  RETURN affected;
+END;
+$$;
 
-### 3. Log estruturado antes do update no banco
-Antes do `update` em `uploads` no catch per-PDV, adicionar:
-```ts
-console.error(`[ingest-revenue] pdv=${pdvName} erro detalhado:`, JSON.stringify(info));
+REVOKE ALL ON FUNCTION public.upsert_api_sales_records(jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.upsert_api_sales_records(jsonb) TO service_role;
 ```
-Garante que mesmo se o update falhar, temos o erro real nos logs da Edge Function.
 
-### 4. Enriquecer erros lançados internamente
-- Login KXZ (linha 135, 140, 144) e listagem (207, 213) já usam `new Error(...)` — manter.
-- Upsert (`if (upErr) throw upErr` linhas 378 e 467): manter o `throw upErr` (PostgrestError); o helper agora cuida da serialização.
+### 2. Edge Function `ingest-revenue`
+Substituir o bloco do upsert (linhas ~459-470) por:
+```ts
+if (records.length > 0) {
+  const chunkSize = 500;
+  for (let i = 0; i < records.length; i += chunkSize) {
+    const chunk = records.slice(i, i + chunkSize);
+    const { error: upErr } = await admin.rpc("upsert_api_sales_records", {
+      _records: chunk,
+    });
+    if (upErr) throw upErr;
+    inserted += chunk.length;
+  }
+}
+```
+- `admin` já usa service role, então passa o guard `auth.role()='service_role'`.
+- `mapOrderToRecord` continua igual (já produz objetos compatíveis); garantir que `source: "api"` esteja incluído na saída (verificar no código atual e ajustar se necessário).
 
-## Não muda
-- Schema do banco (colunas `error_message` text e `sync_summary` jsonb já existem).
-- Frontend (`ApiSyncDialog`) — já lê `result.error` como string; continua funcionando porque `info.message` é string. Sem alterações de UI nesta task.
-- Lógica de upsert, paginação KXZ ou normalizers.
+### 3. Não muda
+- Índice parcial `(order_number, pdv_id) WHERE source='api'` (mantido).
+- Schema de `sales_records`.
+- Frontend (`ApiSyncDialog`, `Uploads.tsx`).
+- Serialização de erros (já robusta).
 
 ## Validação
-1. Reexecutar sincronização para 1 PDV via `ApiSyncDialog`.
-2. Conferir `uploads.error_message` e `uploads.sync_summary` no banco — devem conter mensagem legível e, quando aplicável, `code`/`details`/`hint` do Postgres.
-3. Conferir logs da Edge Function — entrada `erro detalhado:` com JSON completo.
-4. Com o erro real visível, abrir task seguinte para corrigir a causa raiz (provavelmente upsert em `sales_records`).
+1. Rodar migration.
+2. Disparar sync para 1 PDV em /uploads.
+3. Conferir card vira "ready" e `sales_records` recebe linhas com `source='api'`.
+4. Rodar 2ª vez no mesmo período: contagem não dobra (UPDATE no conflito).
+5. Rodar para PDV cujo período tem `spreadsheet` no mesmo `order_number` em outro PDV: não interfere (índice parcial só compara `source='api'`).
 
 ## Arquivos tocados
-- `supabase/functions/ingest-revenue/index.ts` (apenas).
+- `supabase/migrations/<nova>.sql` (função RPC).
+- `supabase/functions/ingest-revenue/index.ts` (troca do `.upsert()` pelo `.rpc()`).
