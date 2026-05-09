@@ -575,6 +575,43 @@ Deno.serve(async (req) => {
           .map((o) => mapOrderToRecord(o, pdvId, uploadId))
           .filter((r): r is Record<string, unknown> => r !== null);
 
+        // --- Diagnóstico: amostra das chaves do payload e qualidade do mapeamento ---
+        const sampleKeys =
+          orders.length > 0 ? Object.keys(orders[0] as object).sort() : [];
+        const sampleOrder =
+          orders.length > 0
+            ? JSON.stringify(orders[0]).slice(0, 800)
+            : null;
+        const total = records.length;
+        const zeroAmount = records.filter((r) => Number(r.amount) === 0).length;
+        const unknownPayment = records.filter(
+          (r) => r.payment_method === "Não informado",
+        ).length;
+        const canonical = new Set(["Concluído", "Cancelado", "Pendente", "Reembolsado"]);
+        const nonCanonicalStatus = records.filter(
+          (r) => !canonical.has(String(r.status ?? "")),
+        ).length;
+        const warnings: string[] = [];
+        if (total > 0) {
+          if (unknownPayment / total > 0.5)
+            warnings.push(
+              `Forma de pagamento não reconhecida em ${unknownPayment}/${total} pedidos`,
+            );
+          if (nonCanonicalStatus / total > 0.5)
+            warnings.push(
+              `Status não reconhecido em ${nonCanonicalStatus}/${total} pedidos`,
+            );
+          if (zeroAmount / total > 0.5)
+            warnings.push(
+              `Valor zero em ${zeroAmount}/${total} pedidos (campo de valor pode estar mapeado errado)`,
+            );
+        }
+        if (warnings.length > 0) {
+          console.warn(
+            `[ingest-revenue] pdv=${pdvName} payload suspeito keys=${JSON.stringify(sampleKeys)} sample=${sampleOrder}`,
+          );
+        }
+
         let inserted = 0;
         if (records.length > 0) {
           // Upsert em chunks via RPC (índice parcial WHERE source='api' exige predicado em ON CONFLICT)
@@ -590,7 +627,19 @@ Deno.serve(async (req) => {
         }
 
         const finishedAt = new Date().toISOString();
-        const summary = { inserted, total_orders: orders.length, mapped: records.length };
+        const summary = {
+          inserted,
+          total_orders: orders.length,
+          mapped: records.length,
+          quality: {
+            zero_amount: zeroAmount,
+            unknown_payment: unknownPayment,
+            non_canonical_status: nonCanonicalStatus,
+          },
+          warnings,
+          sample_keys: sampleKeys,
+          sample_order: sampleOrder,
+        };
         await admin
           .from("uploads")
           .update({
@@ -599,7 +648,10 @@ Deno.serve(async (req) => {
             processed_at: finishedAt,
             sync_finished_at: finishedAt,
             sync_summary: summary,
-            error_message: null,
+            error_message:
+              warnings.length > 0
+                ? `Sincronizado com avisos: ${warnings.join("; ")}`
+                : null,
           })
           .eq("id", uploadId);
 
