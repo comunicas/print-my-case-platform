@@ -104,10 +104,23 @@ const STATUS_MAP: Record<string, string> = {
   cancelado: "Cancelado",
   fail: "Cancelado",
   failed: "Cancelado",
+  rejected: "Cancelado",
+  void: "Cancelado",
+  voided: "Cancelado",
+  expired: "Cancelado",
+  abandoned: "Cancelado",
+  timeout: "Cancelado",
   "6": "Cancelado",
   "7": "Cancelado",
   pending: "Pendente",
   pendente: "Pendente",
+  unpaid: "Pendente",
+  awaiting_payment: "Pendente",
+  awaitingpayment: "Pendente",
+  waiting: "Pendente",
+  processing: "Pendente",
+  created: "Pendente",
+  open: "Pendente",
   "1": "Pendente",
   "2": "Pendente",
   refunded: "Reembolsado",
@@ -136,9 +149,12 @@ function normalizePaymentMethod(v: unknown): string {
 }
 
 function normalizeStatus(v: unknown): string {
-  if (v === null || v === undefined || String(v).trim() === "") return "Concluído";
+  // Default seguro: "Pendente". Nunca assumimos "Concluído" para status ausente
+  // ou desconhecido — isso quebraria a regra de agregados financeiros (somente
+  // Concluído/Pago real conta como venda concretizada).
+  if (v === null || v === undefined || String(v).trim() === "") return "Pendente";
   const k = String(v).trim().toLowerCase();
-  return STATUS_MAP[k] ?? sanitize(v, FIELD_LIMITS.status) ?? "Concluído";
+  return STATUS_MAP[k] ?? "Pendente";
 }
 
 function parseAmount(v: unknown): number {
@@ -402,7 +418,26 @@ function mapOrderToRecord(
       o.paymentMethod ??
       o.payWay ?? o.payChannel ?? o.paymentType ?? o.pay_type ?? o.payment_type,
     ),
-    status: normalizeStatus(o.status ?? o.state ?? o.orderStatus ?? o.order_status),
+    status: (() => {
+      const normalized = normalizeStatus(
+        o.status ?? o.state ?? o.orderStatus ?? o.order_status,
+      );
+      // Salvaguarda: se o gateway disser Concluído mas o pedido claramente
+      // não foi pago (sem método de pagamento E sem valor E sem valor pago
+      // efetivo), tratamos como Pendente para não inflar vendas.
+      if (normalized === "Concluído") {
+        const method = normalizePaymentMethod(
+          o.paymentInstrument ??
+            o.payType ?? o.payMethod ?? o.payment_method ??
+            o.paymentMethod ??
+            o.payWay ?? o.payChannel ?? o.paymentType ?? o.pay_type ?? o.payment_type,
+        );
+        if (method === "Não informado" && amount === 0 && actualPaid === 0) {
+          return "Pendente";
+        }
+      }
+      return normalized;
+    })(),
     payment_date: paymentDate,
     order_time: orderTime,
     order_completion_time: completionTime,
@@ -693,6 +728,13 @@ Deno.serve(async (req) => {
         const unknownPayment = recordsToUpsert.filter(
           (r) => r.payment_method === "Não informado",
         ).length;
+        const nonPaidFiltered = recordsToUpsert.filter(
+          (r) =>
+            r.status === "Pendente" &&
+            r.payment_method === "Não informado" &&
+            Number(r.amount) === 0 &&
+            (r.actual_paid_amount === null || Number(r.actual_paid_amount) === 0),
+        ).length;
         const canonical = new Set(["Concluído", "Cancelado", "Pendente", "Reembolsado"]);
         const nonCanonicalStatus = recordsToUpsert.filter(
           (r) => !canonical.has(String(r.status ?? "")),
@@ -746,6 +788,7 @@ Deno.serve(async (req) => {
           in_period: inPeriod.length,
           out_of_period: outOfPeriod,
           cross_source_skipped: crossSourceSkipped,
+          non_paid_filtered: nonPaidFiltered,
           quality: {
             zero_amount: zeroAmount,
             unknown_payment: unknownPayment,

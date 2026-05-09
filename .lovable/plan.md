@@ -1,68 +1,67 @@
-# Plano para corrigir a atualização via API
+## Contexto da validação
 
-## O que encontrei
-- O upload **2026-05** está trazendo registros que caem em **abril no horário de São Paulo**. Confirmei linhas do tipo `upload_period = 2026-05` com `dia_local` entre **2026-04-13 e 2026-04-30**.
-- A causa principal é o fluxo atual da função `ingest-revenue`: ela busca por mês na API, mas **não faz uma segunda validação local após o parse da data**. Como os timestamps vêm em UTC, parte dos pedidos vira “dia anterior” no Brasil.
-- Também há divergência entre o fluxo da API e o fluxo manual:
-  - o manual faz **deduplicação contra registros já existentes** na organização;
-  - a API hoje só faz **upsert entre registros `source='api'`**, então ela **não evita colisão com dados manuais/spreadsheet** já inseridos.
-- No banco, **não achei duplicatas internas de API** por `(order_number, pdv_id)` no dia analisado; o problema parece ser mais de **mês/timezone + coexistência com base manual** do que de repetição do mesmo pedido dentro da própria API.
-- Para **08/05**, no agrupamento por dia local, a base API atual mostra **11 vendas concluídas** entre os 3 PDVs (2 + 5 + 4). Então o “7 vendas” não está batendo com o que foi sincronizado hoje.
+A imagem de referência (dashboard do gateway) mostra para 08/05 um total de **7 vendas pagas**: Boulevard Tatuapé 3, Extra Ricardo Jafet 2, Tietê Plaza 2.
 
-## O que vou implementar
+Após a sincronização atual via API, o banco tem **11 registros** marcados como "Concluído" para o mesmo dia/PDVs. A diferença vem exatamente de 4 registros sem método de pagamento (`Não informado`) e valor 0,00 — pedidos que no gateway não estão pagos (provavelmente pendentes/expirados/abandonados), mas que estamos gravando como Concluído.
 
-### 1) Fechar o filtro pelo mês escolhido de forma robusta
-- Reescrever o parse de datas na `ingest-revenue` para usar parsing explícito e consistente.
-- Converter todas as datas relevantes para a referência local correta antes de decidir o mês.
-- Após mapear cada pedido, **descartar qualquer registro cuja data efetiva local não pertença ao mês selecionado**.
-- Definir uma regra única para qual campo de data manda no enquadramento do mês:
-  - priorizar `payment_date` para vendas pagas/concluídas;
-  - usar fallback controlado apenas quando isso já for compatível com a regra manual.
+### Causa raiz
 
-### 2) Fazer a API seguir exatamente as regras do upload manual
-- Alinhar a normalização da API com a mesma lógica do `process-spreadsheet` para:
-  - status canônicos;
-  - formas de pagamento canônicas;
-  - datas válidas;
-  - campos monetários.
-- Garantir que os agregados continuem contando apenas os status válidos de venda concluída, como já ocorre nas regras atuais.
+Em `supabase/functions/ingest-revenue/index.ts`:
 
-### 3) Impedir duplicação com dados já existentes na aplicação
-- Adicionar uma etapa de deduplicação da API contra `sales_records` já gravados, reutilizando a lógica conceitual do upload manual.
-- A regra base será por `order_number`, respeitando o escopo organizacional/PDV já adotado no sistema.
-- Onde fizer sentido, a sincronização por API deve **atualizar o registro existente** em vez de criar um paralelo só porque a origem é diferente.
-- Se for necessário para manter consistência, vou ajustar a função RPC do banco para suportar essa estratégia sem quebrar o índice parcial atual.
+```ts
+function normalizeStatus(v: unknown): string {
+  if (v === null || v === undefined || String(v).trim() === "") return "Concluído"; // ❌
+  ...
+  return STATUS_MAP[k] ?? sanitize(...) ?? "Concluído"; // ❌ fallback errado
+}
+```
 
-### 4) Normalizar e higienizar os dados já sincronizados
-- Criar um passo de saneamento para os uploads via API já gerados do período afetado:
-  - remover ou desvincular registros fora do mês local correto;
-  - reprocessar com a nova regra;
-  - garantir que o card do upload mostre somente o recorte correto do mês.
-- Revisar especialmente os registros de **08/05** para reconciliar o total pago com a regra manual.
+Qualquer status ausente, desconhecido ou não-mapeado é forçado para `"Concluído"`. Isso quebra a regra global do projeto (agregados financeiros/vendas só podem incluir `Concluído` / `Pago` reais) e infla as métricas.
 
-### 5) Melhorar diagnóstico para próximas sincronizações
-- Registrar no `sync_summary`:
-  - quantos registros foram descartados por estarem fora do mês;
-  - quantos foram pulados por deduplicação com base existente;
-  - quantos foram atualizados vs inseridos;
-  - distribuição por status/pagamento após normalização.
-- Isso vai deixar claro, no próximo teste, se a API retornou mais coisa do que deveria ou se o filtro local excluiu corretamente.
+## Plano
 
-## Arquivos / áreas que devem ser ajustados
-- `supabase/functions/ingest-revenue/index.ts`
-- `supabase/migrations/...` para evoluir a RPC/estratégia de upsert e saneamento, se necessário
-- possivelmente a visualização do card/consulta do upload, **se** o resumo estiver confiando em contagem antiga em vez do recorte saneado
+### 1. Corrigir `normalizeStatus` (única alteração funcional)
 
-## Resultado esperado
-- Ao escolher **2026-05**, o upload API mostrará **somente vendas pertencentes a maio na referência local correta**.
-- A sincronização deixará de criar sobreposição com dados já inseridos manualmente.
-- Os números de “pagos” e total diário passarão a seguir a **mesma regra do fluxo manual**, sem inflar por timezone ou por coexistência de origem.
-- Depois da limpeza, a atualização via API vira apenas um atalho operacional, sem mudar a regra de negócio.
+- Remover o fallback "Concluído" para valores vazios/desconhecidos.
+- Default seguro passa a ser `"Pendente"` (regra canônica do projeto).
+- Ampliar `STATUS_MAP` para mapear explicitamente os status crus que o Kexiaozhan/gateway envia para pedidos não-pagos (`pending`, `unpaid`, `awaiting_payment`, `expired`, `cancelled`, `refunded`, `failed`, `rejected`, `void`, etc.) para os canônicos `Pendente`, `Cancelado`, `Reembolsado`.
 
-## Detalhes técnicos
-- O ponto crítico é que o banco e a API estão lidando com timestamps UTC, mas a leitura operacional do negócio é em **America/Sao_Paulo**.
-- A correção precisa acontecer em **duas camadas**:
-  1. **parse + filtro local** na função de ingestão;
-  2. **deduplicação/upsert compatível com a base manual existente**.
-- Hoje a RPC `upsert_api_sales_records` só resolve conflito para `source='api'`, então ela **não protege contra duplicação entre API e manual/spreadsheet**.
-- Também vou manter a auditoria no `sync_summary` para facilitar a validação com o teu caso de 08/05.
+### 2. Heurística complementar de segurança
+
+Aplicar **somente quando o gateway não trouxer status confiável**: se `status` resultou em `Pendente` por default **e** `payment_method = "Não informado"` **e** `amount = 0` **e** `actual_paid_amount` nulo/0 → manter como `Pendente` (não tentar "adivinhar" Concluído). Não vamos descartar o registro: ele continua existindo na base, apenas não entra nos agregados de vendas pagas (regra que já está em vigor no projeto).
+
+### 3. Saneamento dos dados já gravados
+
+Migration única para reclassificar os registros `source='api'` históricos que casam com o padrão de não-pago:
+
+```sql
+UPDATE public.sales_records
+SET status = 'Pendente'
+WHERE source = 'api'
+  AND status = 'Concluído'
+  AND payment_method = 'Não informado'
+  AND COALESCE(amount, 0) = 0
+  AND COALESCE(actual_paid_amount, 0) = 0;
+```
+
+Isso ajusta o histórico sem apagar registros, preservando rastreabilidade.
+
+### 4. Telemetria de sync
+
+Em `sync_summary` adicionar contagem de `non_paid_filtered` (registros que entraram como Pendente por essa heurística) para facilitar auditorias futuras.
+
+### 5. Validação pós-deploy
+
+- Re-rodar a sync de Maio.
+- Conferir contagem de Concluído por PDV em 08/05 SP → esperado: Boulevard 3, Extra 2, Tietê 2 (total 7).
+- Conferir mês inteiro contra a tela "This Month" da imagem de referência (Boulevard 19, Extra 14, Tietê 27).
+
+## Arquivos afetados
+
+- `supabase/functions/ingest-revenue/index.ts` — ajustes em `STATUS_MAP`, `normalizeStatus` e `sync_summary`.
+- Nova migration de saneamento dos dados API existentes.
+
+## Fora de escopo
+
+- UI (a página de upload e dashboard já consomem os campos canônicos corretamente).
+- Lógica de mês/timezone e dedup cross-source (já corrigidas anteriormente).
