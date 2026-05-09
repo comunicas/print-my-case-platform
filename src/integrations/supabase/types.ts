@@ -1561,7 +1561,11 @@ export type Database = {
           period: string | null
           processed_at: string | null
           records_count: number | null
+          source: string
           status: Database["public"]["Enums"]["upload_status"] | null
+          sync_finished_at: string | null
+          sync_started_at: string | null
+          sync_summary: Json | null
           type: Database["public"]["Enums"]["upload_type"]
           uploaded_at: string | null
           uploaded_by: string
@@ -1577,7 +1581,11 @@ export type Database = {
           period?: string | null
           processed_at?: string | null
           records_count?: number | null
+          source?: string
           status?: Database["public"]["Enums"]["upload_status"] | null
+          sync_finished_at?: string | null
+          sync_started_at?: string | null
+          sync_summary?: Json | null
           type: Database["public"]["Enums"]["upload_type"]
           uploaded_at?: string | null
           uploaded_by: string
@@ -1593,7 +1601,11 @@ export type Database = {
           period?: string | null
           processed_at?: string | null
           records_count?: number | null
+          source?: string
           status?: Database["public"]["Enums"]["upload_status"] | null
+          sync_finished_at?: string | null
+          sync_started_at?: string | null
+          sync_summary?: Json | null
           type?: Database["public"]["Enums"]["upload_type"]
           uploaded_at?: string | null
           uploaded_by?: string
