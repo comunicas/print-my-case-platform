@@ -62,14 +62,25 @@ const PAYMENT_METHOD_MAP: Record<string, string> = {
   "cartão de crédito": "Cartão de Crédito",
   crédito: "Cartão de Crédito",
   credito: "Cartão de Crédito",
+  credit: "Cartão de Crédito",
+  "1": "Cartão de Crédito",
   debitcard: "Cartão de Débito",
   debit_card: "Cartão de Débito",
   "cartão de débito": "Cartão de Débito",
   débito: "Cartão de Débito",
   debito: "Cartão de Débito",
+  debit: "Cartão de Débito",
+  "2": "Cartão de Débito",
   pix: "PIX",
   machinefree: "Cortesia",
   cortesia: "Cortesia",
+  free: "Cortesia",
+  gift: "Cortesia",
+  "free machines": "Cortesia",
+  freemachines: "Cortesia",
+  freemachine: "Cortesia",
+  testorder: "Cortesia",
+  test: "Cortesia",
   couponfree: "Cupom",
   cupom: "Cupom",
   coupon: "Cupom",
@@ -81,13 +92,28 @@ const STATUS_MAP: Record<string, string> = {
   pago: "Concluído",
   concluído: "Concluído",
   concluido: "Concluído",
+  success: "Concluído",
+  finish: "Concluído",
+  finished: "Concluído",
+  delivered: "Concluído",
+  // Códigos numéricos da API Kexiaozhan
+  "3": "Concluído",
+  "4": "Concluído",
   cancelled: "Cancelado",
   canceled: "Cancelado",
   cancelado: "Cancelado",
+  fail: "Cancelado",
+  failed: "Cancelado",
+  "6": "Cancelado",
+  "7": "Cancelado",
   pending: "Pendente",
   pendente: "Pendente",
+  "1": "Pendente",
+  "2": "Pendente",
   refunded: "Reembolsado",
   reembolsado: "Reembolsado",
+  refund: "Reembolsado",
+  "5": "Reembolsado",
 };
 
 function sanitize(value: unknown, max: number): string | null {
@@ -210,6 +236,48 @@ interface KxzOrder {
   refundAmount?: number | string;
   merchantId?: string;
   merchant_id?: string;
+  // Aliases adicionais comuns no payload Kexiaozhan
+  rmbAmount?: number | string;
+  money?: number | string;
+  totalPrice?: number | string;
+  total_price?: number | string;
+  pay_money?: number | string;
+  payMoney?: number | string;
+  realAmount?: number | string;
+  realPayAmount?: number | string;
+  actualPayAmount?: number | string;
+  actual_paid_amount?: number | string;
+  discountAmount?: number | string;
+  discount_amount?: number | string;
+  payWay?: string | number;
+  payChannel?: string | number;
+  paymentType?: string | number;
+  pay_type?: string | number;
+  payment_type?: string | number;
+  orderStatus?: string | number;
+  order_status?: string | number;
+  paySuccessTime?: string | number;
+  successTime?: string | number;
+  completeTime?: string | number;
+  completionTime?: string | number;
+  finishTime?: string | number;
+  createTime?: string | number;
+  create_time?: string | number;
+  created_at?: string | number;
+  printCode?: string;
+  print_code?: string;
+  goodsCode?: string;
+  cargoCode?: string;
+  // Payload real Kexiaozhan
+  orderAmount?: number | string;
+  paymentInstrument?: string;
+  paymentMethod?: number | string;
+  ticketNo?: string;
+  outTradeNo?: string;
+  goodsId?: number | string;
+  shopId?: number | string;
+  type?: number | string;
+  finishTime?: string | number;
 }
 
 async function kxzListOrders(
@@ -273,12 +341,28 @@ function mapOrderToRecord(
     sanitize(o.machineId ?? o.machine_id ?? o.deviceId, FIELD_LIMITS.device_id);
   if (!orderNumber || !productName || !deviceId) return null;
 
-  const amount = parseAmount(o.payAmount ?? o.amount ?? o.paymentAmount);
+  const amount = parseAmount(
+    o.paymentAmount ?? o.payAmount ?? o.amount ??
+    o.orderAmount ??
+    o.rmbAmount ?? o.money ?? o.totalPrice ?? o.total_price ??
+    o.pay_money ?? o.payMoney ?? o.realAmount ?? o.realPayAmount,
+  );
+  const actualPaid = parseAmount(
+    o.actualPayAmount ?? o.actual_paid_amount ?? o.realPayAmount ?? o.realAmount,
+  );
+  const discount = parseAmount(o.discountAmount ?? o.discount_amount);
+  const completionTime =
+    parseDate(o.finishTime ?? o.completeTime ?? o.completionTime ?? o.paySuccessTime ?? o.successTime);
   const paymentDate =
-    parseDate(o.payTime ?? o.paymentTime ?? o.payment_time) ??
-    parseDate(o.orderTime) ??
+    parseDate(o.payTime ?? o.paymentTime ?? o.payment_time ?? o.paySuccessTime ?? o.successTime) ??
+    completionTime ??
+    parseDate(o.orderTime ?? o.createTime ?? o.create_time ?? o.created_at) ??
     new Date().toISOString();
-  const orderTime = parseDate(o.orderTime);
+  const orderTime = parseDate(o.orderTime ?? o.createTime ?? o.create_time ?? o.created_at);
+  const printCode = sanitize(
+    o.printCode ?? o.print_code ?? o.goodsCode ?? o.cargoCode ?? o.ticketNo,
+    50,
+  );
 
   return {
     pdv_id: pdvId,
@@ -289,14 +373,25 @@ function mapOrderToRecord(
     device_id: deviceId,
     merchant_id: sanitize(o.merchantId ?? o.merchant_id, FIELD_LIMITS.merchant_id),
     transaction_number: sanitize(
-      o.transactionNumber ?? o.transactionId,
+      o.transactionNumber ?? o.transactionId ?? o.outTradeNo,
       FIELD_LIMITS.transaction_number,
     ),
     amount,
-    payment_method: normalizePaymentMethod(o.payType ?? o.payMethod ?? o.payment_method),
-    status: normalizeStatus(o.status ?? o.state),
+    actual_paid_amount: actualPaid > 0 ? actualPaid : null,
+    discount_amount: discount,
+    payment_method: normalizePaymentMethod(
+      // paymentInstrument carrega o método real (creditCard/debitCard/pix);
+      // paymentMethod no payload Kexiaozhan é frequentemente 0 (desconhecido)
+      o.paymentInstrument ??
+      o.payType ?? o.payMethod ?? o.payment_method ??
+      o.paymentMethod ??
+      o.payWay ?? o.payChannel ?? o.paymentType ?? o.pay_type ?? o.payment_type,
+    ),
+    status: normalizeStatus(o.status ?? o.state ?? o.orderStatus ?? o.order_status),
     payment_date: paymentDate,
     order_time: orderTime,
+    order_completion_time: completionTime,
+    print_code: printCode,
     refund_amount: parseAmount(o.refundAmount),
   };
 }
@@ -501,6 +596,43 @@ Deno.serve(async (req) => {
           .map((o) => mapOrderToRecord(o, pdvId, uploadId))
           .filter((r): r is Record<string, unknown> => r !== null);
 
+        // --- Diagnóstico: amostra das chaves do payload e qualidade do mapeamento ---
+        const sampleKeys =
+          orders.length > 0 ? Object.keys(orders[0] as object).sort() : [];
+        const sampleOrder =
+          orders.length > 0
+            ? JSON.stringify(orders[0]).slice(0, 800)
+            : null;
+        const total = records.length;
+        const zeroAmount = records.filter((r) => Number(r.amount) === 0).length;
+        const unknownPayment = records.filter(
+          (r) => r.payment_method === "Não informado",
+        ).length;
+        const canonical = new Set(["Concluído", "Cancelado", "Pendente", "Reembolsado"]);
+        const nonCanonicalStatus = records.filter(
+          (r) => !canonical.has(String(r.status ?? "")),
+        ).length;
+        const warnings: string[] = [];
+        if (total > 0) {
+          if (unknownPayment / total > 0.5)
+            warnings.push(
+              `Forma de pagamento não reconhecida em ${unknownPayment}/${total} pedidos`,
+            );
+          if (nonCanonicalStatus / total > 0.5)
+            warnings.push(
+              `Status não reconhecido em ${nonCanonicalStatus}/${total} pedidos`,
+            );
+          if (zeroAmount / total > 0.5)
+            warnings.push(
+              `Valor zero em ${zeroAmount}/${total} pedidos (campo de valor pode estar mapeado errado)`,
+            );
+        }
+        if (warnings.length > 0) {
+          console.warn(
+            `[ingest-revenue] pdv=${pdvName} payload suspeito keys=${JSON.stringify(sampleKeys)} sample=${sampleOrder}`,
+          );
+        }
+
         let inserted = 0;
         if (records.length > 0) {
           // Upsert em chunks via RPC (índice parcial WHERE source='api' exige predicado em ON CONFLICT)
@@ -516,7 +648,19 @@ Deno.serve(async (req) => {
         }
 
         const finishedAt = new Date().toISOString();
-        const summary = { inserted, total_orders: orders.length, mapped: records.length };
+        const summary = {
+          inserted,
+          total_orders: orders.length,
+          mapped: records.length,
+          quality: {
+            zero_amount: zeroAmount,
+            unknown_payment: unknownPayment,
+            non_canonical_status: nonCanonicalStatus,
+          },
+          warnings,
+          sample_keys: sampleKeys,
+          sample_order: sampleOrder,
+        };
         await admin
           .from("uploads")
           .update({
@@ -525,7 +669,10 @@ Deno.serve(async (req) => {
             processed_at: finishedAt,
             sync_finished_at: finishedAt,
             sync_summary: summary,
-            error_message: null,
+            error_message:
+              warnings.length > 0
+                ? `Sincronizado com avisos: ${warnings.join("; ")}`
+                : null,
           })
           .eq("id", uploadId);
 

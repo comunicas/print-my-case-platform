@@ -1,109 +1,71 @@
-# Corrigir upsert da `ingest-revenue` via RPC com índice parcial
+# Plano para corrigir a sincronização via API
 
-## Problema
-`upsert(..., { onConflict: "order_number,pdv_id" })` no supabase-js v2 não permite passar o predicado `WHERE source='api'`. O Postgres rejeita com `42P10` porque o único índice que casa com essa coluna é parcial.
+## O que aconteceu
+A falha de gravação por conflito já foi resolvida, mas o problema atual é **de mapeamento dos campos vindos da API**.
 
-## Solução: RPC `upsert_api_sales_records`
-Criar função SQL `SECURITY DEFINER` que recebe um array JSONB de registros e executa um `INSERT ... ON CONFLICT (order_number, pdv_id) WHERE source='api' DO UPDATE` — atômico, server-side, mantém o índice parcial atual sem afetar `spreadsheet`/`manual`.
+### Evidências já confirmadas
+- O upload `42227c4f-be87-4b1b-82b1-5cfa7195947d` foi marcado como **ready**.
+- O card mostra **126 transações** e no banco existem **126 linhas** ligadas a esse upload.
+- O total gravado bate com o card: **R$ 5.692,40** e **3 reembolsos**.
+- Porém os dados detalhados vieram parcialmente errados:
+  - **126/126** registros com `payment_method = "Não informado"`
+  - **126/126** com `status` fora do padrão canônico (`3`, `4`, `5` em vez de `Concluído`, `Cancelado`, etc.)
+  - **126/126** sem `order_completion_time`
+  - amostra mostra `payment_date` muito próximo do horário da sincronização, indicando fallback para `new Date()` em vez da data real da venda
+  - **50** registros com `amount = 0`
 
-## Mudanças
+## Causa provável
+A API Kexiaozhan está retornando os pedidos em um formato diferente do mapeamento atual da função `ingest-revenue`.
+Hoje a função tenta ler campos como `payType`, `paymentTime`, `status`, `refundAmount`, mas o payload real parece usar outras chaves e/ou valores numéricos.
 
-### 1. Migration — função `public.upsert_api_sales_records`
-```sql
-CREATE OR REPLACE FUNCTION public.upsert_api_sales_records(_records jsonb)
-RETURNS integer
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  affected integer;
-BEGIN
-  -- Apenas service_role pode chamar (a Edge Function usa service role)
-  IF auth.role() <> 'service_role' THEN
-    RAISE EXCEPTION 'forbidden';
-  END IF;
+Na prática:
+- a sincronização **não quebrou**
+- ela **salvou registros**, mas vários campos foram interpretados de forma errada
+- por isso o resumo do card pode parecer correto, enquanto a grade detalhada fica inconsistente
 
-  INSERT INTO public.sales_records (
-    order_number, pdv_id, upload_id, source,
-    product_name, device_id, merchant_id,
-    transaction_number, payment_method, status,
-    amount, actual_paid_amount, discount_amount, refund_amount,
-    payment_date, order_time, order_completion_time,
-    payment_flow, print_code
-  )
-  SELECT
-    r->>'order_number', (r->>'pdv_id')::uuid, NULLIF(r->>'upload_id','')::uuid,
-    COALESCE(r->>'source','api'),
-    r->>'product_name', r->>'device_id', r->>'merchant_id',
-    r->>'transaction_number', r->>'payment_method', r->>'status',
-    (r->>'amount')::numeric,
-    NULLIF(r->>'actual_paid_amount','')::numeric,
-    COALESCE(NULLIF(r->>'discount_amount','')::numeric, 0),
-    COALESCE(NULLIF(r->>'refund_amount','')::numeric, 0),
-    NULLIF(r->>'payment_date','')::timestamptz,
-    NULLIF(r->>'order_time','')::timestamptz,
-    NULLIF(r->>'order_completion_time','')::timestamptz,
-    r->>'payment_flow', r->>'print_code'
-  FROM jsonb_array_elements(_records) r
-  ON CONFLICT (order_number, pdv_id) WHERE source='api' DO UPDATE SET
-    upload_id = EXCLUDED.upload_id,
-    product_name = EXCLUDED.product_name,
-    device_id = EXCLUDED.device_id,
-    merchant_id = EXCLUDED.merchant_id,
-    transaction_number = EXCLUDED.transaction_number,
-    payment_method = EXCLUDED.payment_method,
-    status = EXCLUDED.status,
-    amount = EXCLUDED.amount,
-    actual_paid_amount = EXCLUDED.actual_paid_amount,
-    discount_amount = EXCLUDED.discount_amount,
-    refund_amount = EXCLUDED.refund_amount,
-    payment_date = EXCLUDED.payment_date,
-    order_time = EXCLUDED.order_time,
-    order_completion_time = EXCLUDED.order_completion_time,
-    payment_flow = EXCLUDED.payment_flow,
-    print_code = EXCLUDED.print_code;
+## O que vou corrigir
+### 1. Ajustar o parser da API
+Atualizar o mapeamento da `ingest-revenue` para suportar o payload real da Kexiaozhan:
+- aliases adicionais de campos de valor, forma de pagamento, status e datas
+- tradução de códigos numéricos de status para os status canônicos do sistema
+- tradução de códigos numéricos/textuais de pagamento para os métodos canônicos
+- parse robusto de datas sem cair automaticamente no horário atual quando o campo real existir em outro formato
 
-  GET DIAGNOSTICS affected = ROW_COUNT;
-  RETURN affected;
-END;
-$$;
+### 2. Adicionar diagnóstico seguro da resposta
+Melhorar a instrumentação para detectar payload incompatível sem perder privacidade:
+- salvar no resumo de sincronização contagens de campos não reconhecidos
+- registrar amostra sanitizada das chaves recebidas quando houver mismatch forte
+- destacar quando a sincronização terminou “ready”, mas com sinais de mapeamento suspeito
 
-REVOKE ALL ON FUNCTION public.upsert_api_sales_records(jsonb) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.upsert_api_sales_records(jsonb) TO service_role;
-```
+### 3. Proteger contra “sucesso enganoso”
+Se a API responder com dados estruturalmente válidos porém semanticamente errados, a função não deve apenas marcar como `ready` silenciosamente.
+Vou adicionar validações de consistência, por exemplo:
+- percentual alto demais de `payment_method = Não informado`
+- percentual alto demais de status não mapeado
+- datas todas caindo no fallback
 
-### 2. Edge Function `ingest-revenue`
-Substituir o bloco do upsert (linhas ~459-470) por:
-```ts
-if (records.length > 0) {
-  const chunkSize = 500;
-  for (let i = 0; i < records.length; i += chunkSize) {
-    const chunk = records.slice(i, i + chunkSize);
-    const { error: upErr } = await admin.rpc("upsert_api_sales_records", {
-      _records: chunk,
-    });
-    if (upErr) throw upErr;
-    inserted += chunk.length;
-  }
-}
-```
-- `admin` já usa service role, então passa o guard `auth.role()='service_role'`.
-- `mapOrderToRecord` continua igual (já produz objetos compatíveis); garantir que `source: "api"` esteja incluído na saída (verificar no código atual e ajustar se necessário).
+Quando isso acontecer, a sincronização deve registrar aviso claro no resumo e no erro exibido ao usuário.
 
-### 3. Não muda
-- Índice parcial `(order_number, pdv_id) WHERE source='api'` (mantido).
-- Schema de `sales_records`.
-- Frontend (`ApiSyncDialog`, `Uploads.tsx`).
-- Serialização de erros (já robusta).
+### 4. Corrigir a visualização de status
+A tela de detalhes ainda colore status com base em `Pago` / `Completed`, mas o sistema usa canônico em PT-BR.
+Vou alinhar a UI para refletir corretamente os valores canônicos após o ajuste do parser.
 
-## Validação
-1. Rodar migration.
-2. Disparar sync para 1 PDV em /uploads.
-3. Conferir card vira "ready" e `sales_records` recebe linhas com `source='api'`.
-4. Rodar 2ª vez no mesmo período: contagem não dobra (UPDATE no conflito).
-5. Rodar para PDV cujo período tem `spreadsheet` no mesmo `order_number` em outro PDV: não interfere (índice parcial só compara `source='api'`).
+### 5. Reprocessar os uploads afetados
+Depois da correção, reexecutar a sincronização dos PDVs/períodos afetados para substituir os registros API incorretos pelos valores corretos.
 
-## Arquivos tocados
-- `supabase/migrations/<nova>.sql` (função RPC).
-- `supabase/functions/ingest-revenue/index.ts` (troca do `.upsert()` pelo `.rpc()`).
+## Próximos passos práticos
+1. Revisar e ampliar o mapeamento da `ingest-revenue` para o payload real.
+2. Adicionar validações e resumo diagnóstico da sincronização.
+3. Ajustar a tela de detalhes para os status canônicos.
+4. Re-sincronizar os uploads API já afetados, começando pelo período **2026-05**.
+5. Validar amostras no banco e na tela antes de considerar a correção concluída.
+
+## Impacto esperado
+- O card continuará mostrando a contagem correta.
+- A tabela passará a exibir **valor, pagamento, status e datas reais**.
+- Os uploads API antigos com dados inconsistentes poderão ser normalizados por re-sincronização.
+
+## Detalhes técnicos
+- Arquivos principais: `supabase/functions/ingest-revenue/index.ts`, `src/pages/UploadDetails.tsx`
+- Sem troca de arquitetura: a RPC de upsert pode permanecer.
+- O foco agora é **compatibilidade com o payload real da API** e **reconciliação dos dados já gravados**.
