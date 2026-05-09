@@ -907,6 +907,28 @@ Deno.serve(async (req) => {
           }
         }
 
+        // === Verificação pós-sincronização: compara gateway vs banco e
+        // detecta duplicidades por order_number no PDV/período.
+        let verification: VerificationReport | undefined;
+        try {
+          verification = await buildVerification(
+            admin,
+            pdvId,
+            period,
+            recordsToUpsert,
+            outOfPeriod,
+            crossSourceSkipped,
+          );
+          if (verification.warnings.length > 0) {
+            warnings.push(...verification.warnings);
+          }
+        } catch (vErr) {
+          console.warn(
+            `[ingest-revenue] pdv=${pdvName} verificação falhou:`,
+            JSON.stringify(serializeError(vErr)),
+          );
+        }
+
         const finishedAt = new Date().toISOString();
         const summary = {
           inserted,
@@ -924,6 +946,7 @@ Deno.serve(async (req) => {
           warnings,
           sample_keys: sampleKeys,
           sample_order: sampleOrder,
+          verification,
         };
         await admin
           .from("uploads")
@@ -946,6 +969,7 @@ Deno.serve(async (req) => {
           status: "ready",
           inserted,
           total: recordsToUpsert.length,
+          verification,
         });
         console.info(
           `[ingest-revenue] pdv=${pdvName} ok orders=${orders.length} mapped=${records.length} in_period=${inPeriod.length} out_of_period=${outOfPeriod} cross_source_skipped=${crossSourceSkipped} inserted=${inserted}`,
