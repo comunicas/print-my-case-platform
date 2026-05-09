@@ -183,6 +183,21 @@ function parseDate(v: unknown): string | null {
   return isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
+// Retorna "YYYY-MM" no fuso America/Sao_Paulo a partir de um ISO string.
+// Usa Intl para evitar dependência de offset fixo.
+const SP_YM_FMT = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Sao_Paulo",
+  year: "numeric",
+  month: "2-digit",
+});
+function isoToSaoPauloYearMonth(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  // en-CA produz "YYYY-MM"
+  return SP_YM_FMT.format(d);
+}
+
 // --- Cliente Kexiaozhan ---
 const KXZ_BASE = (Deno.env.get("KXZ_API_BASE") ?? "").replace(/\/+$/, "");
 const KXZ_USER = Deno.env.get("KXZ_USER") ?? "";
