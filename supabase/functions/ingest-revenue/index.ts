@@ -104,10 +104,23 @@ const STATUS_MAP: Record<string, string> = {
   cancelado: "Cancelado",
   fail: "Cancelado",
   failed: "Cancelado",
+  rejected: "Cancelado",
+  void: "Cancelado",
+  voided: "Cancelado",
+  expired: "Cancelado",
+  abandoned: "Cancelado",
+  timeout: "Cancelado",
   "6": "Cancelado",
   "7": "Cancelado",
   pending: "Pendente",
   pendente: "Pendente",
+  unpaid: "Pendente",
+  awaiting_payment: "Pendente",
+  awaitingpayment: "Pendente",
+  waiting: "Pendente",
+  processing: "Pendente",
+  created: "Pendente",
+  open: "Pendente",
   "1": "Pendente",
   "2": "Pendente",
   refunded: "Reembolsado",
@@ -136,9 +149,12 @@ function normalizePaymentMethod(v: unknown): string {
 }
 
 function normalizeStatus(v: unknown): string {
-  if (v === null || v === undefined || String(v).trim() === "") return "Concluído";
+  // Default seguro: "Pendente". Nunca assumimos "Concluído" para status ausente
+  // ou desconhecido — isso quebraria a regra de agregados financeiros (somente
+  // Concluído/Pago real conta como venda concretizada).
+  if (v === null || v === undefined || String(v).trim() === "") return "Pendente";
   const k = String(v).trim().toLowerCase();
-  return STATUS_MAP[k] ?? sanitize(v, FIELD_LIMITS.status) ?? "Concluído";
+  return STATUS_MAP[k] ?? "Pendente";
 }
 
 function parseAmount(v: unknown): number {
