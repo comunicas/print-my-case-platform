@@ -418,7 +418,26 @@ function mapOrderToRecord(
       o.paymentMethod ??
       o.payWay ?? o.payChannel ?? o.paymentType ?? o.pay_type ?? o.payment_type,
     ),
-    status: normalizeStatus(o.status ?? o.state ?? o.orderStatus ?? o.order_status),
+    status: (() => {
+      const normalized = normalizeStatus(
+        o.status ?? o.state ?? o.orderStatus ?? o.order_status,
+      );
+      // Salvaguarda: se o gateway disser Concluído mas o pedido claramente
+      // não foi pago (sem método de pagamento E sem valor E sem valor pago
+      // efetivo), tratamos como Pendente para não inflar vendas.
+      if (normalized === "Concluído") {
+        const method = normalizePaymentMethod(
+          o.paymentInstrument ??
+            o.payType ?? o.payMethod ?? o.payment_method ??
+            o.paymentMethod ??
+            o.payWay ?? o.payChannel ?? o.paymentType ?? o.pay_type ?? o.payment_type,
+        );
+        if (method === "Não informado" && amount === 0 && actualPaid === 0) {
+          return "Pendente";
+        }
+      }
+      return normalized;
+    })(),
     payment_date: paymentDate,
     order_time: orderTime,
     order_completion_time: completionTime,
