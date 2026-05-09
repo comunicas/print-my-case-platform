@@ -474,12 +474,20 @@ Deno.serve(async (req) => {
           .select("id")
           .single();
         if (createErr || !created) {
+          const cInfo = serializeError(createErr);
           results.push({
             pdv_id: pdvId,
             pdv_name: pdvName,
             status: "error",
-            error: `Falha ao criar card: ${createErr?.message ?? "desconhecido"}`,
+            error: `Falha ao criar card: ${cInfo.message}`,
+            code: cInfo.code,
+            details: cInfo.details,
+            hint: cInfo.hint,
           });
+          console.error(
+            `[ingest-revenue] pdv=${pdvName} falha ao criar card:`,
+            JSON.stringify(cInfo),
+          );
           continue;
         }
         uploadId = (created as any).id as string;
@@ -532,19 +540,36 @@ Deno.serve(async (req) => {
           `[ingest-revenue] pdv=${pdvName} ok orders=${orders.length} mapped=${records.length}`,
         );
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
+        const info = serializeError(err);
         const finishedAt = new Date().toISOString();
+        console.error(
+          `[ingest-revenue] pdv=${pdvName} erro detalhado:`,
+          JSON.stringify(info),
+        );
         await admin
           .from("uploads")
           .update({
             status: "error",
-            error_message: msg.slice(0, 500),
+            error_message: info.message.slice(0, 500),
             sync_finished_at: finishedAt,
-            sync_summary: { error: msg.slice(0, 500) },
+            sync_summary: {
+              error: info.message,
+              code: info.code,
+              details: info.details,
+              hint: info.hint,
+              raw: info.raw,
+            },
           })
           .eq("id", uploadId);
-        results.push({ pdv_id: pdvId, pdv_name: pdvName, status: "error", error: msg });
-        console.error(`[ingest-revenue] pdv=${pdvName} erro: ${msg}`);
+        results.push({
+          pdv_id: pdvId,
+          pdv_name: pdvName,
+          status: "error",
+          error: info.message,
+          code: info.code,
+          details: info.details,
+          hint: info.hint,
+        });
       }
     }
 
@@ -553,10 +578,19 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[ingest-revenue] erro fatal req=${requestId}: ${msg}`);
+    const info = serializeError(err);
+    console.error(
+      `[ingest-revenue] erro fatal req=${requestId}:`,
+      JSON.stringify(info),
+    );
     return new Response(
-      JSON.stringify({ error: msg, request_id: requestId }),
+      JSON.stringify({
+        error: info.message,
+        code: info.code,
+        details: info.details,
+        hint: info.hint,
+        request_id: requestId,
+      }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
