@@ -611,6 +611,76 @@ Deno.serve(async (req) => {
           .map((o) => mapOrderToRecord(o, pdvId, uploadId))
           .filter((r): r is Record<string, unknown> => r !== null);
 
+        // === Filtro 1: garantir que payment_date pertença ao mês escolhido
+        // na referência local (America/Sao_Paulo). A API pode devolver pedidos
+        // do início/fim do mês adjacente devido ao recorte UTC.
+        let outOfPeriod = 0;
+        const inPeriod = records.filter((r) => {
+          const ym = isoToSaoPauloYearMonth(r.payment_date as string | null);
+          if (ym === period) return true;
+          outOfPeriod += 1;
+          return false;
+        });
+
+        // === Filtro 2: deduplicar contra registros já existentes na organização
+        // de OUTRAS origens (manual/spreadsheet). A RPC já faz upsert para
+        // source='api' via índice parcial, então aqui só precisamos evitar
+        // colidir com pedidos inseridos por planilha/manual.
+        let crossSourceSkipped = 0;
+        const recordsToUpsert: Record<string, unknown>[] = inPeriod;
+        if (inPeriod.length > 0) {
+          // PDVs da org para escopo de dedup cross-PDV (igual process-spreadsheet)
+          const { data: orgPdvs } = await admin
+            .from("pdvs")
+            .select("id")
+            .eq("organization_id", orgId);
+          const orgPdvIds = (orgPdvs ?? []).map((p: any) => p.id as string);
+
+          const orderNums = [...new Set(
+            inPeriod.map((r) => r.order_number as string).filter(Boolean),
+          )];
+
+          const existingNonApi = new Set<string>();
+          const dedupChunkSize = 500;
+          for (let i = 0; i < orderNums.length; i += dedupChunkSize) {
+            const chunk = orderNums.slice(i, i + dedupChunkSize);
+            const { data: existing, error: dedupErr } = await admin
+              .from("sales_records")
+              .select("order_number, source")
+              .in("pdv_id", orgPdvIds.length > 0 ? orgPdvIds : [pdvId])
+              .in("order_number", chunk)
+              .neq("source", "api");
+            if (!dedupErr && existing) {
+              for (const e of existing as any[]) existingNonApi.add(e.order_number);
+            }
+          }
+
+          if (existingNonApi.size > 0) {
+            const filtered = inPeriod.filter(
+              (r) => !existingNonApi.has(r.order_number as string),
+            );
+            crossSourceSkipped = inPeriod.length - filtered.length;
+            recordsToUpsert.length = 0;
+            recordsToUpsert.push(...filtered);
+          }
+        }
+
+        // === Limpeza prévia: remover registros API antigos deste PDV cuja
+        // data efetiva caia FORA do período, evitando que sincronizações
+        // anteriores deixem "sujeira" de meses adjacentes.
+        const periodStart = new Date(`${period}-01T00:00:00-03:00`).toISOString();
+        const [py, pm] = period.split("-").map(Number);
+        const nextMonth = pm === 12
+          ? `${py + 1}-01-01T00:00:00-03:00`
+          : `${py}-${String(pm + 1).padStart(2, "0")}-01T00:00:00-03:00`;
+        const periodEnd = new Date(nextMonth).toISOString();
+        await admin
+          .from("sales_records")
+          .delete()
+          .eq("pdv_id", pdvId)
+          .eq("source", "api")
+          .or(`payment_date.lt.${periodStart},payment_date.gte.${periodEnd}`);
+
         // --- Diagnóstico: amostra das chaves do payload e qualidade do mapeamento ---
         const sampleKeys =
           orders.length > 0 ? Object.keys(orders[0] as object).sort() : [];
@@ -618,16 +688,22 @@ Deno.serve(async (req) => {
           orders.length > 0
             ? JSON.stringify(orders[0]).slice(0, 800)
             : null;
-        const total = records.length;
-        const zeroAmount = records.filter((r) => Number(r.amount) === 0).length;
-        const unknownPayment = records.filter(
+        const total = recordsToUpsert.length;
+        const zeroAmount = recordsToUpsert.filter((r) => Number(r.amount) === 0).length;
+        const unknownPayment = recordsToUpsert.filter(
           (r) => r.payment_method === "Não informado",
         ).length;
         const canonical = new Set(["Concluído", "Cancelado", "Pendente", "Reembolsado"]);
-        const nonCanonicalStatus = records.filter(
+        const nonCanonicalStatus = recordsToUpsert.filter(
           (r) => !canonical.has(String(r.status ?? "")),
         ).length;
         const warnings: string[] = [];
+        if (outOfPeriod > 0)
+          warnings.push(`${outOfPeriod} pedido(s) fora do mês ${period} (descartados)`);
+        if (crossSourceSkipped > 0)
+          warnings.push(
+            `${crossSourceSkipped} pedido(s) já existiam via planilha/manual (mantidos os originais)`,
+          );
         if (total > 0) {
           if (unknownPayment / total > 0.5)
             warnings.push(
@@ -649,11 +725,11 @@ Deno.serve(async (req) => {
         }
 
         let inserted = 0;
-        if (records.length > 0) {
+        if (recordsToUpsert.length > 0) {
           // Upsert em chunks via RPC (índice parcial WHERE source='api' exige predicado em ON CONFLICT)
           const chunkSize = 500;
-          for (let i = 0; i < records.length; i += chunkSize) {
-            const chunk = records.slice(i, i + chunkSize);
+          for (let i = 0; i < recordsToUpsert.length; i += chunkSize) {
+            const chunk = recordsToUpsert.slice(i, i + chunkSize);
             const { error: upErr } = await admin.rpc("upsert_api_sales_records", {
               _records: chunk,
             });
@@ -667,6 +743,9 @@ Deno.serve(async (req) => {
           inserted,
           total_orders: orders.length,
           mapped: records.length,
+          in_period: inPeriod.length,
+          out_of_period: outOfPeriod,
+          cross_source_skipped: crossSourceSkipped,
           quality: {
             zero_amount: zeroAmount,
             unknown_payment: unknownPayment,
@@ -680,7 +759,7 @@ Deno.serve(async (req) => {
           .from("uploads")
           .update({
             status: "ready",
-            records_count: records.length,
+            records_count: recordsToUpsert.length,
             processed_at: finishedAt,
             sync_finished_at: finishedAt,
             sync_summary: summary,
@@ -696,10 +775,10 @@ Deno.serve(async (req) => {
           pdv_name: pdvName,
           status: "ready",
           inserted,
-          total: records.length,
+          total: recordsToUpsert.length,
         });
         console.info(
-          `[ingest-revenue] pdv=${pdvName} ok orders=${orders.length} mapped=${records.length}`,
+          `[ingest-revenue] pdv=${pdvName} ok orders=${orders.length} mapped=${records.length} in_period=${inPeriod.length} out_of_period=${outOfPeriod} cross_source_skipped=${crossSourceSkipped} inserted=${inserted}`,
         );
       } catch (err) {
         const info = serializeError(err);
