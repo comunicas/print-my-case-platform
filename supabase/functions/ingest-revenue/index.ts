@@ -233,6 +233,38 @@ interface KxzOrder {
   refundAmount?: number | string;
   merchantId?: string;
   merchant_id?: string;
+  // Aliases adicionais comuns no payload Kexiaozhan
+  rmbAmount?: number | string;
+  money?: number | string;
+  totalPrice?: number | string;
+  total_price?: number | string;
+  pay_money?: number | string;
+  payMoney?: number | string;
+  realAmount?: number | string;
+  realPayAmount?: number | string;
+  actualPayAmount?: number | string;
+  actual_paid_amount?: number | string;
+  discountAmount?: number | string;
+  discount_amount?: number | string;
+  payWay?: string | number;
+  payChannel?: string | number;
+  paymentType?: string | number;
+  pay_type?: string | number;
+  payment_type?: string | number;
+  orderStatus?: string | number;
+  order_status?: string | number;
+  paySuccessTime?: string | number;
+  successTime?: string | number;
+  completeTime?: string | number;
+  completionTime?: string | number;
+  finishTime?: string | number;
+  createTime?: string | number;
+  create_time?: string | number;
+  created_at?: string | number;
+  printCode?: string;
+  print_code?: string;
+  goodsCode?: string;
+  cargoCode?: string;
 }
 
 async function kxzListOrders(
@@ -296,12 +328,24 @@ function mapOrderToRecord(
     sanitize(o.machineId ?? o.machine_id ?? o.deviceId, FIELD_LIMITS.device_id);
   if (!orderNumber || !productName || !deviceId) return null;
 
-  const amount = parseAmount(o.payAmount ?? o.amount ?? o.paymentAmount);
+  const amount = parseAmount(
+    o.payAmount ?? o.amount ?? o.paymentAmount ??
+    o.rmbAmount ?? o.money ?? o.totalPrice ?? o.total_price ??
+    o.pay_money ?? o.payMoney ?? o.realAmount ?? o.realPayAmount,
+  );
+  const actualPaid = parseAmount(
+    o.actualPayAmount ?? o.actual_paid_amount ?? o.realPayAmount ?? o.realAmount,
+  );
+  const discount = parseAmount(o.discountAmount ?? o.discount_amount);
+  const completionTime =
+    parseDate(o.completeTime ?? o.completionTime ?? o.finishTime ?? o.paySuccessTime ?? o.successTime);
   const paymentDate =
-    parseDate(o.payTime ?? o.paymentTime ?? o.payment_time) ??
-    parseDate(o.orderTime) ??
+    parseDate(o.payTime ?? o.paymentTime ?? o.payment_time ?? o.paySuccessTime ?? o.successTime) ??
+    completionTime ??
+    parseDate(o.orderTime ?? o.createTime ?? o.create_time ?? o.created_at) ??
     new Date().toISOString();
-  const orderTime = parseDate(o.orderTime);
+  const orderTime = parseDate(o.orderTime ?? o.createTime ?? o.create_time ?? o.created_at);
+  const printCode = sanitize(o.printCode ?? o.print_code ?? o.goodsCode ?? o.cargoCode, 50);
 
   return {
     pdv_id: pdvId,
@@ -316,10 +360,17 @@ function mapOrderToRecord(
       FIELD_LIMITS.transaction_number,
     ),
     amount,
-    payment_method: normalizePaymentMethod(o.payType ?? o.payMethod ?? o.payment_method),
-    status: normalizeStatus(o.status ?? o.state),
+    actual_paid_amount: actualPaid > 0 ? actualPaid : null,
+    discount_amount: discount,
+    payment_method: normalizePaymentMethod(
+      o.payType ?? o.payMethod ?? o.payment_method ??
+      o.payWay ?? o.payChannel ?? o.paymentType ?? o.pay_type ?? o.payment_type,
+    ),
+    status: normalizeStatus(o.status ?? o.state ?? o.orderStatus ?? o.order_status),
     payment_date: paymentDate,
     order_time: orderTime,
+    order_completion_time: completionTime,
+    print_code: printCode,
     refund_amount: parseAmount(o.refundAmount),
   };
 }
