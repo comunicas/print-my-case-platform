@@ -144,7 +144,7 @@ export default function PublicStock() {
           {/* Logo e Info - Centralizado */}
           <div className="flex flex-col items-center text-center space-y-3">
             <img
-              src="/logo-printmycase.png"
+              src="/a33970fb-78ec-4651-a5e5-98cb6db17573.png"
               alt="PrintMyCase"
               className="h-16 w-16 object-contain rounded-2xl shadow-lg bg-white/10 p-2"
             />
