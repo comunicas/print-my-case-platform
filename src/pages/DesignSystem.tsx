@@ -97,6 +97,24 @@ import { SelectFilter } from "@/components/ui/SelectFilter";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { format } from "date-fns";
 
+// Dashboard / charts
+import {
+  KPICard, QuickStats, FinancialSummaryCard, LossAnalysisCard,
+  ChartCard, ChartEmptyState, ChartSkeleton,
+  SalesByDayChart, SalesHeatmapChart, TopProductsChart,
+  LossesByDayChart, StockAlertsTable, DateRangeFilter,
+} from "@/components/dashboard";
+import { ProductSalesByDayChart } from "@/components/stock/ProductSalesByDayChart";
+import { ProductSalesByHourChart } from "@/components/stock/ProductSalesByHourChart";
+import { ProductSalesHistoryChart } from "@/components/stock/ProductSalesHistoryChart";
+import { History, Package, DollarSign, ShoppingCart, TrendingUp as TrendingUpIcon } from "lucide-react";
+import { LineChart, Line, PieChart, Pie, Cell as RCell, YAxis as RYAxis } from "recharts";
+import {
+  salesByDayMock, lossesByDayMock, topProductsMock, stockByBrandMock,
+  heatmapMock, stockAlertsMock, productSalesByDayMock, productSalesByHourMock,
+  stockHistoryMock,
+} from "@/pages/ds/chartMocks";
+
 // ------------------------------------------------------------------
 // Navigation structure (used by both desktop sidebar and mobile sheet)
 // ------------------------------------------------------------------
@@ -158,6 +176,15 @@ const NAV_SECTIONS: Array<{ group: string; items: Array<{ id: string; label: str
   ]},
   { group: "Patterns", items: [
     { id: "patterns", label: "KPI / Filters / Page header" },
+  ]},
+  { group: "Data viz (dashboard)", items: [
+    { id: "kpi-cards", label: "KPI / Summary cards" },
+    { id: "chart-wrappers", label: "Chart wrappers" },
+    { id: "sales-charts", label: "Sales charts" },
+    { id: "stock-charts", label: "Stock charts" },
+    { id: "loss-charts", label: "Loss charts" },
+    { id: "product-charts", label: "Product charts" },
+    { id: "tables-filters", label: "Alerts table / Date filter" },
   ]},
 ];
 
@@ -296,6 +323,71 @@ const chartData = [
   { day: "Seg", v: 12 }, { day: "Ter", v: 18 }, { day: "Qua", v: 9 },
   { day: "Qui", v: 22 }, { day: "Sex", v: 16 },
 ];
+
+function DateRangeFilterDemo() {
+  const today = new Date();
+  const start = new Date();
+  start.setDate(today.getDate() - 13);
+  const [range, setRange] = useState<{ from: Date; to: Date }>({ from: start, to: today });
+  return (
+    <DateRangeFilter dateRange={range} onDateRangeChange={setRange} />
+  );
+}
+
+function StockHistoryPreview() {
+  return (
+    <ChartCard
+      title="Histórico de Estoque"
+      description="Preview com dados mock — componente real busca via useStockHistory"
+      icon={History}
+      iconColor="text-purple-500"
+    >
+      <ChartContainer
+        config={{
+          APPLE: { label: "APPLE", color: "hsl(var(--chart-1))" },
+          SAMSUNG: { label: "SAMSUNG", color: "hsl(var(--chart-2))" },
+          XIAOMI: { label: "XIAOMI", color: "hsl(var(--chart-3))" },
+        }}
+        className="h-[260px] md:h-[300px] w-full"
+      >
+        <LineChart data={stockHistoryMock}>
+          <CartesianGrid vertical={false} strokeDasharray="3 3" />
+          <XAxis dataKey="dateDisplay" tickLine={false} axisLine={false} fontSize={11} />
+          <RYAxis tickLine={false} axisLine={false} fontSize={11} width={28} />
+          <ChartTooltip content={<ChartTooltipContent />} />
+          <Line type="monotone" dataKey="APPLE" stroke="var(--color-APPLE)" strokeWidth={2} dot={false} />
+          <Line type="monotone" dataKey="SAMSUNG" stroke="var(--color-SAMSUNG)" strokeWidth={2} dot={false} />
+          <Line type="monotone" dataKey="XIAOMI" stroke="var(--color-XIAOMI)" strokeWidth={2} dot={false} />
+        </LineChart>
+      </ChartContainer>
+    </ChartCard>
+  );
+}
+
+function StockByBrandPreview() {
+  const total = stockByBrandMock.reduce((a, d) => a + d.quantity, 0);
+  const config = stockByBrandMock.reduce((acc, item) => {
+    acc[item.brand] = { label: item.brand, color: item.fill };
+    return acc;
+  }, {} as Record<string, { label: string; color: string }>);
+  return (
+    <ChartCard
+      title="Estoque por Marca"
+      description={`Total: ${total} unidades — preview com mock`}
+      icon={Package}
+      iconColor="text-blue-500"
+    >
+      <ChartContainer config={config} className="h-[260px] md:h-[300px] w-full">
+        <PieChart>
+          <ChartTooltip content={<ChartTooltipContent nameKey="brand" />} />
+          <Pie data={stockByBrandMock} dataKey="quantity" nameKey="brand" innerRadius={50} outerRadius={90}>
+            {stockByBrandMock.map((d) => <RCell key={d.brand} fill={d.fill} />)}
+          </Pie>
+        </PieChart>
+      </ChartContainer>
+    </ChartCard>
+  );
+}
 
 // ------------------------------------------------------------------
 // Page
@@ -1098,10 +1190,98 @@ export default function DesignSystem() {
             </DSExample>
           </DSSection>
 
+          {/* ============== DATA VIZ (DASHBOARD) ============== */}
+          <DSSection id="kpi-cards" title="KPI / Summary cards" description="Cards de métrica usados no Dashboard e Financeiro.">
+            <DSExample title="KPICard (variants)">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                {(() => {
+                  const today = new Date();
+                  const start = new Date(); start.setDate(today.getDate() - 13);
+                  const prevStart = new Date(start); prevStart.setDate(prevStart.getDate() - 14);
+                  const prevEnd = new Date(start); prevEnd.setDate(prevEnd.getDate() - 1);
+                  const mkTrend = (cur: number, prev: number) => ({
+                    percentage: Math.round(((cur - prev) / prev) * 1000) / 10,
+                    hasPreviousData: true,
+                    isPositive: cur >= prev,
+                    currentPeriod: { start, end: today },
+                    previousPeriod: { start: prevStart, end: prevEnd },
+                    currentValue: cur,
+                    previousValue: prev,
+                  });
+                  return (
+                    <>
+                      <KPICard title="Receita" value="R$ 128.4k" icon={DollarSign} variant="success" trend={mkTrend(128400, 114200)} />
+                      <KPICard title="Vendas" value="1.284" icon={ShoppingCart} trend={mkTrend(1284, 1325)} />
+                    </>
+                  );
+                })()}
+                <KPICard title="Ticket médio" value="R$ 99,9" icon={TrendingUpIcon} variant="warning" />
+                <KPICard title="Perda" value="R$ 4.2k" icon={Package} variant="danger" subtitle="3.2% do total" />
+              </div>
+            </DSExample>
+            <DSExample title="QuickStats (badges)">
+              <QuickStats peakTimeRange="14h-16h" peakTimeRangeRevenue={4820} bestDay="Sex" bestDayRevenue={6240} />
+            </DSExample>
+            <DSExample title="FinancialSummaryCard">
+              <FinancialSummaryCard margemOperacional={24.6} custoporMaquina={1850} taxaPerda={3.2} referenceMonth={new Date()} />
+            </DSExample>
+            <DSExample title="LossAnalysisCard">
+              <LossAnalysisCard totalCancellations={840} cancelledTransactions={6} totalRefunds={520} refundedTransactions={4} />
+            </DSExample>
+          </DSSection>
+
+          <DSSection id="chart-wrappers" title="Chart wrappers" description="Containers compartilhados por todos os charts.">
+            <DSExample title="ChartCard (placeholder)">
+              <ChartCard title="Título do gráfico" description="Subtítulo descritivo curto." icon={TrendingUpIcon} iconColor="text-primary">
+                <div className="h-32 flex items-center justify-center md-body-medium text-muted-foreground">[ conteúdo do gráfico ]</div>
+              </ChartCard>
+            </DSExample>
+            <DSExample title="ChartSkeleton">
+              <ChartSkeleton />
+            </DSExample>
+            <DSExample title="ChartEmptyState">
+              <div className="rounded-lg border border-border">
+                <ChartEmptyState />
+              </div>
+            </DSExample>
+          </DSSection>
+
+          <DSSection id="sales-charts" title="Sales charts" description="Visualizações de receita.">
+            <DSExample title="SalesByDayChart"><SalesByDayChart data={salesByDayMock} /></DSExample>
+            <DSExample title="SalesHeatmapChart"><SalesHeatmapChart data={heatmapMock} /></DSExample>
+            <DSExample title="TopProductsChart"><TopProductsChart data={topProductsMock} /></DSExample>
+          </DSSection>
+
+          <DSSection id="stock-charts" title="Stock charts" description="Estado e evolução do estoque.">
+            <DSExample title="StockHistoryChart (preview standalone)"><StockHistoryPreview /></DSExample>
+            <DSExample title="StockByBrandChart (preview standalone)"><StockByBrandPreview /></DSExample>
+          </DSSection>
+
+          <DSSection id="loss-charts" title="Loss charts" description="Cancelamentos e reembolsos.">
+            <DSExample title="LossesByDayChart"><LossesByDayChart data={lossesByDayMock} /></DSExample>
+          </DSSection>
+
+          <DSSection id="product-charts" title="Product charts" description="Charts em modal de produto (src/components/stock/).">
+            <DSExample title="ProductSalesByDayChart">
+              <ProductSalesByDayChart data={productSalesByDayMock} bestDay={{ day: 5, dayName: "Sex", count: 14 }} />
+            </DSExample>
+            <DSExample title="ProductSalesByHourChart">
+              <ProductSalesByHourChart data={productSalesByHourMock} peakHour={{ hour: 14, count: 9 }} />
+            </DSExample>
+            <DSExample title="ProductSalesHistoryChart (estado vazio)">
+              <ProductSalesHistoryChart productName={null} />
+            </DSExample>
+          </DSSection>
+
+          <DSSection id="tables-filters" title="Alerts table / Date filter">
+            <DSExample title="StockAlertsTable"><StockAlertsTable data={stockAlertsMock} /></DSExample>
+            <DSExample title="DateRangeFilter"><DateRangeFilterDemo /></DSExample>
+          </DSSection>
+
           <footer className="md-body-small text-muted-foreground py-8 flex items-start gap-2 flex-wrap">
             <Smartphone className="h-3.5 w-3.5 mt-1 shrink-0" />
             <span className="min-w-0 break-words">
-              61/61 componentes documentados · espelho vivo dos primitivos em{" "}
+              61 UI + 18 dashboard componentes documentados · espelho vivo de{" "}
               <code className="font-mono break-all">src/components/ui</code>.
             </span>
           </footer>
