@@ -1,54 +1,74 @@
-# Logo PrintMyCase como padrão do DS
+## Diagnóstico
 
-## Objetivo
-Adotar o logo enviado como o logo oficial da aplicação, em formato SVG vetorial, e expor via componente padronizado no Design System.
+O logo aparece **100% branco** porque o componente `<Logo />` aplica `filter: brightness(0) invert(1)` (prop `mono`) em todos os lugares com fundo escuro (sidebar, auth, mobile). Isso "queima" o SVG inteiro em branco — funcionava como workaround pq o SVG vetorizado pelo `vtracer` tinha o roxo `#9F229A` + branco misturados, e em fundo roxo o roxo desaparecia.
 
-## Etapas
+Você enviou agora os **SVGs oficiais** (`logo-printmycase.svg` e `icon_printmycase.svg`) — neles o desenho **já é branco sobre transparente**, então não precisa de filtro nenhum em fundo escuro, e em fundo claro precisa ser renderizado em roxo.
 
-### 1. Vetorizar o PNG → SVG
-- Copiar `user-uploads://logo.png` para `/tmp/logo.png`
-- Vetorizar com `vtracer` (color tracing) gerando `src/assets/logo-printmycase.svg`
-- Otimizar paths e ajustar `viewBox` para preservar proporção (~800×440)
-- Gerar também `public/logo-printmycase.svg` para uso em `<img src>` (Auth/PublicStock que estão fora do bundling React)
+## Plano
 
-### 2. Componente padrão `<Logo />`
-Criar `src/components/ui/Logo.tsx`:
-- Props: `variant: "full" | "icon"`, `size?: number`, `className?: string`, `mono?: boolean`
-- `full` → renderiza o SVG colorido (roxo + branco)
-- `icon` → mantém `/icon-printmycase.png` (decisão do usuário)
-- `mono` → aplica `filter: brightness(0) invert(1)` para uso em fundos escuros (sidebar roxa)
-- Exportar do barrel `src/components/ui/index.ts` se existir
+### 1. Substituir os arquivos SVG pelos oficiais
+- `code--copy user-uploads://logo-printmycase.svg` → `src/assets/logo-printmycase.svg` (overwrite)
+- `code--copy user-uploads://logo-printmycase.svg` → `public/logo-printmycase.svg` (overwrite)
+- `code--copy user-uploads://icon_printmycase.svg` → `src/assets/icon-printmycase.svg` (novo)
+- `code--copy user-uploads://icon_printmycase.svg` → `public/icon-printmycase.svg` (novo)
+- Remover `public/icon-printmycase.png` legacy
 
-### 3. Substituir todas as referências
-Trocar `<img src="/a33970fb-...png">` por `<Logo variant="full" />` (ou `mono`) em:
-- `src/pages/Auth.tsx` (2 ocorrências — painel esquerdo e mobile)
-- `src/components/layout/AppSidebar.tsx` (linha 190 — sidebar expandida)
-- `src/components/layout/MobileSidebar.tsx` (linha 107)
-- `src/pages/PublicStock.tsx` (linha 147 — header público)
+### 2. Refatorar `<Logo />` (`src/components/ui/Logo.tsx`)
+Os SVGs oficiais são **brancos sobre transparente**. Nova lógica:
 
-`AppSidebar` colapsada (linha 182) e `AppHeader` (linha 62) continuam usando `/icon-printmycase.png` via `<Logo variant="icon" />`.
+- `variant="full" | "icon"` continua existindo
+- Nova prop `tone: "brand" | "light" | "dark"` (default `"brand"`):
+  - `brand` → roxo `#9F229A` (aplicado via `filter` CSS — `invert(...) sepia(...) hue-rotate(...)` calibrado, OU mais simples: usar `<img>` + `mask-image` com `bg-[hsl(var(--primary))]` para colorir)
+  - `light` → branco puro (sem filtro — SVG já é branco)
+  - `dark` → preto (filtro `brightness(0)`)
+- Remover prop `mono` (substituída por `tone`)
+
+Implementação preferida — usar **CSS mask** para colorização limpa:
+```tsx
+<span
+  role="img"
+  aria-label={alt}
+  className={cn("inline-block", className)}
+  style={{
+    backgroundColor: tone === "brand" ? "hsl(var(--primary))" 
+                    : tone === "dark" ? "#000" 
+                    : "#fff",
+    WebkitMaskImage: `url(${src})`,
+    maskImage: `url(${src})`,
+    WebkitMaskRepeat: "no-repeat",
+    maskRepeat: "no-repeat",
+    WebkitMaskSize: "contain",
+    maskSize: "contain",
+    WebkitMaskPosition: "center",
+    maskPosition: "center",
+  }}
+/>
+```
+Isso resolve definitivamente — qualquer cor com 1 linha.
+
+### 3. Atualizar todas as call-sites
+- `Auth.tsx` painel esquerdo (fundo roxo escuro) → `<Logo tone="light" />`
+- `Auth.tsx` mobile (fundo branco) → `<Logo tone="brand" />`
+- `AppSidebar.tsx` colapsada (fundo roxo) → `<Logo variant="icon" tone="light" />`
+- `AppSidebar.tsx` expandida (fundo roxo) → `<Logo variant="full" tone="light" />`
+- `MobileSidebar.tsx` (fundo roxo) → `<Logo tone="light" />`
+- `AppHeader.tsx` mobile (fundo claro) → `<Logo variant="icon" tone="brand" />`
+- `PublicStock.tsx` header (gradiente roxo) → `<Logo tone="light" />`
 
 ### 4. Favicon
-- Gerar `public/favicon.png` 256×256 a partir do logo (ImageMagick — fundo transparente, padding leve)
-- Apagar `public/favicon.ico` (browser usa /favicon.ico por padrão e sobrescreve)
-- Atualizar `index.html`: `<link rel="icon" href="/favicon.png" type="image/png">`
+Regerar `public/favicon.png` 256×256 a partir do **icon SVG oficial** (cor roxa `#9F229A` sobre transparente) usando `imagemagick` com `-background none` + recolor.
 
-### 5. Documentar no Design System (`/ds`)
-Adicionar nova seção "Brand — Logo" em `src/pages/DesignSystem.tsx` (antes da nova seção "DS Novo — Tokens de Cor"):
-- Preview do `<Logo variant="full" />` em fundo claro
-- Preview do `<Logo variant="full" mono />` em fundo roxo (sidebar context)
-- Preview do `<Logo variant="icon" />` 
-- Bloco de código com import e uso
-- Bloco com regras de uso: clear-space mínimo, tamanho mínimo, fundo permitido
+### 5. Atualizar Design System (`/ds`)
+Na seção "Brand — Logo" trocar os 3 previews para refletir as 3 tones × 2 variants:
+- `<Logo variant="full" tone="brand" />` em fundo claro
+- `<Logo variant="full" tone="light" />` em fundo roxo
+- `<Logo variant="icon" tone="brand" />` em fundo claro
+- `<Logo variant="icon" tone="light" />` em fundo roxo
 
-### 6. Limpeza
-- Remover `public/a33970fb-78ec-4651-a5e5-98cb6db17573.png` (PNG temporário do turno anterior)
+Atualizar bloco de código + regras de uso (incluir `tone`).
 
-## Detalhes técnicos
-- `vtracer` instalado via `nix run nixpkgs#vtracer`
-- SVG final será limpo com `svgo` se necessário para reduzir bytes
-- Componente `<Logo />` aceita `aria-label` por padrão "PrintMyCase"
-- Toda lógica visual existente (filtros `brightness(0) invert(1)` na sidebar) é encapsulada na prop `mono`
-
-## Resultado
-Logo oficial em SVG nativo (escalável, leve, monocromável), componente único `<Logo />` reutilizável, favicon atualizado, e documentação visual completa no `/ds`.
+### 6. QA visual
+Após mudanças, abrir `/auth`, `/`, `/ds` no preview e confirmar que:
+- Sidebar mostra o logo branco legível (não 100% branco-borrado)
+- Auth direito mostra logo roxo nítido
+- DS mostra todas as 4 combinações renderizando corretamente

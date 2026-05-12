@@ -1286,9 +1286,9 @@ export default function DesignSystem() {
                 <Logo className="h-16" />
               </div>
             </DSExample>
-            <DSExample title="Variant: full + mono (fundo escuro / sidebar)">
+            <DSExample title={`Variant: full + tone="light" (fundo escuro / sidebar)`}>
               <div className="flex items-center justify-center p-8 bg-primary rounded-[var(--radius)]">
-                <Logo className="h-16" mono />
+                <Logo className="h-16" tone="light" />
               </div>
             </DSExample>
             <DSExample title="Variant: icon (símbolo compacto)">
@@ -1296,7 +1296,7 @@ export default function DesignSystem() {
                 <Logo variant="icon" className="h-8 w-8" />
                 <Logo variant="icon" className="h-12 w-12" />
                 <div className="h-12 w-12 rounded-lg bg-primary flex items-center justify-center">
-                  <Logo variant="icon" className="h-7 w-7" mono />
+                  <Logo variant="icon" className="h-7 w-7" tone="light" />
                 </div>
               </div>
             </DSExample>
@@ -1305,7 +1305,7 @@ export default function DesignSystem() {
 {`import { Logo } from "@/components/ui/Logo";
 
 <Logo className="h-10" />              // padrão
-<Logo className="h-10" mono />         // fundo escuro
+<Logo className="h-10" tone="light" />         // fundo escuro
 <Logo variant="icon" className="h-6" /> // símbolo`}
               </pre>
             </DSExample>
@@ -1313,7 +1313,7 @@ export default function DesignSystem() {
               <ul className="text-[13px] text-foreground/80 space-y-1.5 list-disc pl-5">
                 <li>Tamanho mínimo recomendado: <strong>32px</strong> de altura.</li>
                 <li>Clear-space mínimo ao redor: <strong>50%</strong> da altura do logo.</li>
-                <li>Em fundos escuros use <code className="font-mono text-primary">mono</code> (filtro inverso).</li>
+                <li>Em fundos escuros use <code className="font-mono text-primary">tone="light"</code>; em fundos claros, <code className="font-mono text-primary">tone="brand"</code> (default).</li>
                 <li>Nunca aplicar sombras, contornos ou rotação ao logo.</li>
                 <li>Sempre via <code className="font-mono text-primary">&lt;Logo /&gt;</code> — nunca <code className="font-mono">&lt;img&gt;</code> direto.</li>
               </ul>
