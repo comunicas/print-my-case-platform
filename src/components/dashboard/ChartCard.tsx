@@ -29,16 +29,19 @@ export function ChartCard({
   return (
     <Card 
       data-testid={testId} 
-      className={cn("flex flex-col animate-fade-in-up", className)}
+      className={cn(
+        "flex flex-col animate-fade-in-up shadow-none transition-shadow hover:shadow-[0_4px_20px_hsl(var(--primary)/0.08)]",
+        className
+      )}
       style={{ animationDelay: `${animationDelay}ms`, animationFillMode: "backwards" }}
     >
       <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between px-4 md:px-6 pt-4 md:pt-6 pb-2">
         <div className="min-w-0">
-          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+          <CardTitle className="flex items-center gap-2 text-[14.5px] font-bold">
             <Icon className={cn("h-5 w-5 shrink-0", iconColor)} />
             <span className="min-w-0 break-words">{title}</span>
           </CardTitle>
-          <CardDescription>{description}</CardDescription>
+          <CardDescription className="text-[12px] text-muted-foreground">{description}</CardDescription>
         </div>
         {headerBadge && (
           <div className="flex items-center md:justify-end shrink-0">
