@@ -43,22 +43,25 @@ export function TopProductsChart({ data, animationDelay = 0, selectedPdvId }: To
               layout="vertical" 
               margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
             >
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="4 4" horizontal={false} />
               <XAxis 
                 type="number" 
-                className="text-xs" 
-                tick={{ fill: "hsl(var(--muted-foreground))" }}
+                tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                tickLine={false}
+                axisLine={false}
                 tickFormatter={(value) => formatCurrency(value).replace("R$", "").trim()}
               />
               <YAxis 
                 type="category" 
                 dataKey="name" 
-                className="text-xs" 
-                tick={{ fill: "hsl(var(--muted-foreground))" }}
+                tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                tickLine={false}
+                axisLine={false}
                 width={120}
                 tickFormatter={(v) => truncateName(v, 18)}
               />
               <ChartTooltip
+                cursor={{ fill: "hsl(var(--primary) / 0.08)" }}
                 content={
                   <ChartTooltipContent 
                     hideLabel={true}
