@@ -99,7 +99,7 @@ export default function Financeiro() {
 
   return (
     <AppLayout>
-      <div className="p-4 md:p-6 space-y-6 max-w-3xl mx-auto">
+      <div className="ds-screen-enter p-4 md:p-6 space-y-6 max-w-3xl mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-2">

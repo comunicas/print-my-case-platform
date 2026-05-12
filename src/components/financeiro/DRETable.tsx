@@ -38,11 +38,14 @@ function DRERow({ label, value, prefix = "", bold, highlight, muted, isLoading }
       className={cn(
         "flex items-center justify-between py-3 px-4",
         bold && "font-semibold",
-        highlight && "bg-muted/50 rounded-lg",
+        highlight && "bg-primary/[0.08] rounded-[8px]",
         muted && "opacity-50"
       )}
     >
-      <span className={cn("text-sm", muted ? "text-muted-foreground/60" : "text-muted-foreground")}>
+      <span className={cn(
+        "text-[13px]",
+        highlight ? "text-primary font-semibold" : (muted ? "text-muted-foreground/60" : "text-foreground/70")
+      )}>
         {prefix && <span className="mr-1">{prefix}</span>}
         {label}
       </span>
@@ -51,8 +54,9 @@ function DRERow({ label, value, prefix = "", bold, highlight, muted, isLoading }
       ) : (
         <span
           className={cn(
-            "text-sm font-mono tabular-nums",
-            highlight && (isPositive ? "text-primary" : "text-destructive"),
+            "text-[13px] font-semibold tabular-nums",
+            highlight && (isPositive ? "text-primary font-bold" : "text-destructive font-bold"),
+            !highlight && !isPositive && "text-destructive",
             muted && "text-muted-foreground/60"
           )}
         >
