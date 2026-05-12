@@ -83,7 +83,7 @@ export function AppLayout({ children, fullHeight = false }: AppLayoutProps) {
           className={
             fullHeight
               ? "flex-1 flex flex-col min-h-0 overflow-hidden p-3 sm:p-4 md:p-5 lg:p-6"
-              : "flex-1 flex flex-col min-h-0 p-4 md:p-5 lg:p-6 overflow-auto"
+              : "flex-1 flex flex-col min-h-0 p-4 md:p-5 lg:p-6 overflow-y-auto overflow-x-hidden"
           }
         >
           <ErrorBoundary fallback={<PageErrorFallback />}>

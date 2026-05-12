@@ -325,7 +325,7 @@ export function DateRangeFilter({
       </div>
 
       {/* Period Info */}
-      <div data-testid="date-range-display" className="flex items-center gap-2 text-sm text-muted-foreground">
+      <div data-testid="date-range-display" className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         <span className="font-medium text-foreground">
           {formatDateRange()}
         </span>

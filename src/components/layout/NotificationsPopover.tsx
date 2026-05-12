@@ -138,7 +138,7 @@ export function NotificationsPopover() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative h-9 w-9 min-w-[44px] min-h-[44px]">
+        <Button variant="ghost" size="icon" className="relative h-9 w-9 md:min-w-[44px] md:min-h-[44px]">
           <Bell className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
           {unreadCount > 0 && (
             <span className="absolute -top-0.5 -right-0.5 h-4 w-4 md:h-5 md:w-5 bg-primary rounded-full flex items-center justify-center">

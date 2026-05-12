@@ -1,67 +1,51 @@
+# Correção da rolagem horizontal no mobile (Home)
 
-## Verificação prévia da análise
+## Diagnóstico
 
-Antes de planejar, confrontei cada ponto com o código já existente. Resultado:
+Inspecionei o DOM no preview mobile e encontrei elementos que excedem a largura do viewport (390px), forçando a rolagem horizontal do `<main>`. As causas, em ordem de impacto:
 
-| # da análise | Status real | Ação |
-|---|---|---|
-| 1. Sidebar sem toggle mobile | **Já implementado** — `AppLayout` usa `useBreakpoint()` e renderiza `MobileSidebar` (drawer) em `mobile`, `AppSidebar` em desktop/tablet | Ignorar |
-| 2. Conteúdo espremido em 119px | Consequência do #1 — não ocorre | Ignorar |
-| 3. Tabela de Estoque sem view mobile | Verdadeiro (`ProductStockTable` usa `<Table>` com scroll) | **Incluir** |
-| 4. Botões de período < 44px | Verdadeiro (`h-8` em `DateRangeFilter`) | **Incluir** |
-| 5. Filtros do Dashboard com 2 scrolls horizontais | Verdadeiro | **Incluir** |
-| 6. Heatmap `min-w-[340px]` | Verdadeiro | **Incluir** |
-| 7. Topbar org sem `max-w` | Verificar — `AppHeader` já tem `truncate max-w-[150px]` no nome da org única, mas o `OrgSwitcher` (multi-org) não | **Incluir** (apenas OrgSwitcher) |
-| 8. Ícones nav recolhidos pequenos para touch | Sidebar recolhida só aparece em desktop/tablet (não mobile). Em tablet `py-2.5` ≈ 40px. **Não é problema mobile real** | Ignorar |
-| 9. Header Financeiro empilhar | Confirmar no arquivo, provavelmente válido | **Incluir** |
-| 10. Tabela Mensal sem indicador de scroll | Provavelmente válido | **Incluir** |
+### 1. Header (`AppHeader.tsx`) — causa principal
+Soma das larguras mínimas em 390px:
+- Esquerda: `px-3` (12) + hamburger `min-w-[44px]` + gap + logo 32px + gap + `OrgSwitcher` `w-[160px]` ≈ **252px**
+- Direita: tema `min-w-[44px]` + gap + notificações `min-w-[44px]` + gap + avatar `min-w-[44px]` ≈ **144px**
+- Total ≈ **420px > 390px** → estoura o viewport.
 
-## Escopo do plano
+Os botões usam `min-w-[44px] min-h-[44px]` (touch target). Esses `min-w` impedem que o flexbox encolha e empurram o conteúdo para fora.
 
-Apenas mudanças visuais/responsivas (sem lógica de negócio). 7 ajustes pequenos e independentes.
+### 2. `OrgSwitcher` com `w-[160px]`
+A largura fixa não encolhe quando o espaço aperta.
 
-### 1. Card view mobile da Tabela de Estoque
-- Arquivo: `src/components/stock/ProductStockTable.tsx`
-- Em `<768px`: renderizar lista de cards (`<Card>` por produto) com Produto + Status no topo, e grid 2-col com PDV, Slot, Estoque, Vendas. Manter ações (ver detalhes) acessíveis via clique no card.
-- Em `≥768px`: tabela atual inalterada (`hidden md:block` wrapper na tabela, `md:hidden` no novo bloco de cards).
+### 3. `<main>` em `AppLayout.tsx`
+Usa `overflow-auto`, que permite tanto scroll vertical quanto horizontal. Sem `overflow-x-hidden` qualquer overflow pontual de filho vira barra horizontal de página.
 
-### 2. Touch targets dos presets de período
-- Arquivo: `src/components/dashboard/DateRangeFilter.tsx` (linhas 207, 220, 233)
-- Trocar `h-8 px-3` → `h-10 sm:h-8 px-4 sm:px-3` nos 3 botões + trigger do calendário.
+### 4. Linha "período" em `DateRangeFilter.tsx` (secundário)
+`<div className="flex items-center gap-2 ...">` com data + "(N dias)" + botão reset não tem `flex-wrap`, podendo estourar em períodos com texto longo (ex.: anos diferentes).
 
-### 3. Layout dos filtros do Dashboard em mobile
-- Arquivo provável: o componente que monta DateRangeFilter + seletor de PDV no Dashboard (verificar em `src/pages/Index.tsx` ou `QuickStats`).
-- Em mobile: empilhar verticalmente (presets de período em uma linha com scroll, PDV select em linha separada `w-full`). Em `sm:` manter o layout atual.
+## Mudanças propostas
 
-### 4. Heatmap "Vendas por Horário"
-- Arquivo: `src/components/dashboard/SalesHeatmapChart.tsx`
-- Envolver o grid em `<div className="overflow-x-auto -mx-4 px-4">` para permitir scroll suave da borda à borda em telas estreitas, mantendo `min-w-[340px]`.
+**`src/components/layout/AppLayout.tsx`**
+- Trocar `overflow-auto` do `<main>` por `overflow-y-auto overflow-x-hidden` para nunca permitir scroll horizontal de página (defesa em profundidade).
 
-### 5. OrgSwitcher com `max-w` em mobile
-- Arquivo: `src/components/layout/OrgSwitcher.tsx`
-- Adicionar `max-w-[180px] sm:max-w-none` + `truncate` no trigger para evitar empurrar os ícones do header.
+**`src/components/layout/AppHeader.tsx`**
+- Remover `min-w-[44px]` dos botões (manter `h-9 w-9` que já dá ~36px clicável; ou usar `min-w-9` em vez de 44 para não estourar). Manter `min-h-[44px]` apenas no hamburger se necessário; nos demais aplicar `h-9 w-9` puro no mobile e elevar para 44 só em `md:`.
+- Adicionar `min-w-0 flex-1` no contêiner esquerdo (`<div className="flex items-center gap-2 ... min-w-0">`) para permitir que o `OrgSwitcher` encolha.
+- Adicionar `flex-shrink-0` no contêiner direito.
+- Reduzir `gap-1.5` para `gap-1` em mobile entre os botões da direita.
 
-### 6. Header da página Financeiro empilhar em mobile
-- Arquivo: `src/pages/Financeiro.tsx`
-- Trocar header `flex items-center justify-between` por `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`. Botão "Nova Despesa" full-width em mobile (`w-full sm:w-auto`).
+**`src/components/layout/OrgSwitcher.tsx`**
+- Trocar `w-[160px]` por `max-w-[160px] w-full min-w-0` (ou `flex-1`) para permitir encolher.
 
-### 7. Indicador de scroll na Evolução Mensal
-- Arquivo: `src/components/financeiro/MonthlyBreakdownTable.tsx`
-- Envolver tabela em `<div className="relative">` com gradiente fade `pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-card to-transparent md:hidden` indicando scroll horizontal disponível.
+**`src/components/dashboard/DateRangeFilter.tsx`** (correção pequena)
+- Adicionar `flex-wrap` na linha "Período Info" para evitar estouro quando texto for longo: `flex flex-wrap items-center gap-2`.
 
-## Detalhes técnicos
+## Verificação
 
-- Todas as alterações usam tokens semânticos do design system existente (`bg-card`, `text-muted-foreground`, etc.) — nenhuma cor hard-coded.
-- Nenhuma mudança em hooks de dados, RLS, edge functions, schema ou lógica de negócio.
-- Nenhuma dependência nova. Apenas Tailwind responsivo.
-- Breakpoint usado: `md:` (768px), consistente com o restante do projeto.
-- Targets de toque mínimos de 44px respeitados conforme regra de memória mobile-first.
+1. Abrir preview em 375px e 390px.
+2. Confirmar ausência de barra horizontal no `<main>`.
+3. Validar que: hamburger continua clicável (≥36px), `OrgSwitcher` encolhe sem cortar conteúdo importante, ícones de tema/notificações/avatar permanecem acessíveis.
+4. Inspecionar via DevTools: nenhum elemento com `right > document.documentElement.clientWidth`.
 
-## Itens explicitamente **descartados** (já implementados ou não aplicáveis)
+## Fora do escopo
 
-- Sidebar mobile com hamburguer/overlay → já existe via `MobileSidebar` + botão `Menu` no `AppHeader`.
-- Aumentar área de toque dos ícones recolhidos da sidebar → estado recolhido não é exibido em mobile.
-
-## Validação pós-implementação
-
-- Inspecionar visualmente em viewport 375×812 (`preview_ui--set_preview_device_viewport: mobile`) cada uma das 4 páginas afetadas: Dashboard, Estoque/Tabela, Financeiro, e header geral.
+- Não alterar lógica de negócio nem queries.
+- Não mudar layout desktop/tablet (mudanças usam variantes `md:`).
