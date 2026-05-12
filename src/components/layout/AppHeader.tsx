@@ -48,10 +48,10 @@ export function AppHeader({ isMobile, onMenuClick }: AppHeaderProps) {
   };
 
   return (
-    <header className="h-14 md:h-16 bg-card border-b border-border flex items-center justify-between px-3 md:px-6 flex-shrink-0">
-      <div className="flex items-center gap-2 md:gap-4 min-w-0">
+    <header className="h-14 md:h-16 bg-card border-b border-border flex items-center justify-between gap-2 px-3 md:px-6 flex-shrink-0">
+      <div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
         {isMobile && (
-          <Button variant="ghost" size="icon" onClick={onMenuClick} className="flex-shrink-0 h-9 w-9 min-w-[44px] min-h-[44px]">
+          <Button variant="ghost" size="icon" onClick={onMenuClick} className="flex-shrink-0 h-9 w-9 md:min-w-[44px] md:min-h-[44px]">
             <Menu className="h-5 w-5" />
           </Button>
         )}
@@ -79,12 +79,12 @@ export function AppHeader({ isMobile, onMenuClick }: AppHeaderProps) {
         )}
       </div>
 
-      <div className="flex items-center gap-1.5 md:gap-3">
+      <div className="flex items-center gap-1 md:gap-3 flex-shrink-0">
         <Button
           variant="ghost"
           size="icon"
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          className="relative h-9 w-9 min-w-[44px] min-h-[44px]"
+          className="relative h-9 w-9 md:min-w-[44px] md:min-h-[44px]"
         >
           <Sun className="h-4 w-4 md:h-5 md:w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 text-muted-foreground" />
           <Moon className="absolute h-4 w-4 md:h-5 md:w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 text-muted-foreground" />
@@ -94,7 +94,7 @@ export function AppHeader({ isMobile, onMenuClick }: AppHeaderProps) {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="gap-2 px-1 md:px-2 min-w-[44px] min-h-[44px]">
+            <Button variant="ghost" className="gap-2 px-1 md:px-2 h-9 md:min-w-[44px] md:min-h-[44px]">
               <Avatar className="h-7 w-7 md:h-8 md:w-8">
                 <AvatarImage src={profile?.avatar_url || ""} />
                 <AvatarFallback className="bg-primary text-primary-foreground text-xs md:text-sm">
