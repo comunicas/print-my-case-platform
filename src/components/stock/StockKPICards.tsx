@@ -1,6 +1,7 @@
 import React from 'react';
 import { Package, Boxes, AlertTriangle, RefreshCw } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import { StockKPIs } from '@/lib/stockUtils';
 
 interface StockKPICardsProps {
