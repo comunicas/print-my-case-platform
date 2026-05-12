@@ -9,6 +9,7 @@ import {
   newPasswordSchema,
 } from "@/lib/schemas/auth";
 import { PasswordStrengthIndicator } from "@/components/ui/password-strength";
+import { Logo } from "@/components/ui/Logo";
 
 type AuthMode = "login" | "forgot" | "reset";
 
@@ -55,11 +56,7 @@ function AuthLeftPanel() {
       </svg>
 
       <div className="auth-left-body">
-        <img
-          src="/a33970fb-78ec-4651-a5e5-98cb6db17573.png"
-          alt="Print My Case"
-          className="auth-logo-left"
-        />
+        <Logo className="auth-logo-left" mono />
 
         <div className="auth-tagline">
           <h2 className="auth-tagline-title">
@@ -97,11 +94,7 @@ function AuthShell({
       <AuthLeftPanel />
       <main className="auth-right">
         <div className="auth-form-wrap">
-          <img
-            src="/a33970fb-78ec-4651-a5e5-98cb6db17573.png"
-            alt="Print My Case"
-            className="auth-logo-mobile"
-          />
+          <Logo className="auth-logo-mobile" />
           <header className="auth-header">
             <h1 className="auth-title">{title}</h1>
             <p className="auth-sub">{subtitle}</p>

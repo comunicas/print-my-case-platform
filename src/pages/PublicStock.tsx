@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { extractBrandFromProductName } from "@/lib/productNormalization";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
+import { Logo } from "@/components/ui/Logo";
 
 export default function PublicStock() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
@@ -143,11 +144,7 @@ export default function PublicStock() {
         <div className="container mx-auto px-5 py-8 space-y-6 max-w-md">
           {/* Logo e Info - Centralizado */}
           <div className="flex flex-col items-center text-center space-y-3">
-            <img
-              src="/a33970fb-78ec-4651-a5e5-98cb6db17573.png"
-              alt="PrintMyCase"
-              className="h-16 w-16 object-contain rounded-2xl shadow-lg bg-white/10 p-2"
-            />
+            <Logo className="h-16 w-16 rounded-2xl shadow-lg bg-white/10 p-2" />
             <div className="space-y-1">
               <h1 className="font-bold text-2xl tracking-tight">
                 {organization.pdv_name || organization.name}
