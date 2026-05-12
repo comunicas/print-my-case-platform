@@ -144,7 +144,9 @@ export default function PublicStock() {
         <div className="container mx-auto px-5 py-8 space-y-6 max-w-md">
           {/* Logo e Info - Centralizado */}
           <div className="flex flex-col items-center text-center space-y-3">
-            <Logo className="h-16 w-16 rounded-2xl shadow-lg bg-white/10 p-2" />
+            <div className="h-16 w-16 rounded-2xl shadow-lg bg-white/10 p-2 flex items-center justify-center">
+              <Logo variant="icon" tone="light" className="h-full w-full" />
+            </div>
             <div className="space-y-1">
               <h1 className="font-bold text-2xl tracking-tight">
                 {organization.pdv_name || organization.name}
