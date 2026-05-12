@@ -196,7 +196,7 @@ export function DateRangeFilter({
   return (
     <div data-testid="date-filter" className={cn("flex flex-col sm:flex-row sm:items-center gap-3", className)}>
       {/* Preset Buttons */}
-      <div className="flex items-center gap-1 flex-nowrap overflow-x-auto scrollbar-hide">
+      <div className="grid grid-cols-2 gap-2 w-full md:flex md:items-center md:gap-1 md:flex-nowrap md:w-auto md:overflow-x-auto md:scrollbar-hide">
         {PRESETS.map((preset) => (
           <Button
             key={preset.label}
@@ -204,7 +204,7 @@ export function DateRangeFilter({
             variant={isPresetActive(preset.getDates) ? "default" : "outline"}
             size="sm"
             onClick={() => handlePresetClick(preset.getDates)}
-            className="h-10 sm:h-8 px-4 sm:px-3 touch-manipulation"
+            className="h-10 sm:h-8 px-4 sm:px-3 w-full md:w-auto touch-manipulation"
           >
             {preset.label}
           </Button>
@@ -217,7 +217,7 @@ export function DateRangeFilter({
           size="sm"
           onClick={handleTotalClick}
           disabled={!dataRange}
-          className="h-10 sm:h-8 px-4 sm:px-3 touch-manipulation"
+          className="h-10 sm:h-8 px-4 sm:px-3 w-full md:w-auto touch-manipulation"
         >
           Total
         </Button>
@@ -230,11 +230,12 @@ export function DateRangeFilter({
               variant="outline"
               size="sm"
               className={cn(
-                "h-10 sm:h-8 px-4 sm:px-3 gap-1 touch-manipulation",
+                "h-10 sm:h-8 px-4 sm:px-3 gap-1 w-full md:w-auto touch-manipulation",
                 !isAnyPresetActive && "border-primary"
               )}
             >
               <CalendarIcon className="h-3.5 w-3.5" />
+              <span className="md:sr-only">Personalizado</span>
               <ChevronDown className="h-3 w-3" />
             </Button>
           </PopoverTrigger>
@@ -325,7 +326,7 @@ export function DateRangeFilter({
       </div>
 
       {/* Period Info */}
-      <div data-testid="date-range-display" className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+      <div data-testid="date-range-display" className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground w-full md:w-auto">
         <span className="font-medium text-foreground">
           {formatDateRange()}
         </span>
