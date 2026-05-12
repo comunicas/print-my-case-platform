@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import {
   Loader2,
   RefreshCw,
@@ -70,11 +71,48 @@ interface PdvResult {
   verification?: StockVerification;
 }
 
+type Stage = "idle" | "login" | "channels" | "products" | "writing" | "done" | "error";
+interface PdvProgress {
+  stage: Stage;
+  loginDone?: boolean;
+  channelsDone?: boolean;
+  productsDone?: boolean;
+  writingDone?: boolean;
+  channelsPage?: number;
+  channelsCount?: number;
+  channelsTotal?: number;
+  insertedCount?: number;
+  errorMsg?: string;
+}
+
+const STAGE_LABEL: Record<Stage, string> = {
+  idle: "Aguardando",
+  login: "Login",
+  channels: "Canais",
+  products: "Produtos",
+  writing: "Gravação",
+  done: "Concluído",
+  error: "Erro",
+};
+
+function progressPercent(p: PdvProgress | undefined): number {
+  if (!p) return 0;
+  if (p.stage === "done") return 100;
+  if (p.stage === "error") return 100;
+  let pct = 0;
+  if (p.loginDone) pct = 25;
+  if (p.channelsDone) pct = 50;
+  if (p.productsDone) pct = 75;
+  if (p.writingDone) pct = 100;
+  return pct;
+}
+
 export function ApiStockSyncDialog({ open, onOpenChange, pdvs }: ApiStockSyncDialogProps) {
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isSyncing, setIsSyncing] = useState(false);
   const [results, setResults] = useState<PdvResult[] | null>(null);
+  const [progress, setProgress] = useState<Record<string, PdvProgress>>({});
 
   const eligible = useMemo(() => pdvs.filter((p) => !!p.machine_id), [pdvs]);
 
@@ -82,6 +120,7 @@ export function ApiStockSyncDialog({ open, onOpenChange, pdvs }: ApiStockSyncDia
     if (open) {
       setSelected(new Set(eligible.map((p) => p.id)));
       setResults(null);
+      setProgress({});
     }
   }, [open, eligible]);
 
@@ -105,12 +144,109 @@ export function ApiStockSyncDialog({ open, onOpenChange, pdvs }: ApiStockSyncDia
     }
     setIsSyncing(true);
     setResults(null);
+    const initial: Record<string, PdvProgress> = {};
+    for (const id of selected) initial[id] = { stage: "idle" };
+    setProgress(initial);
+
     try {
-      const { data, error } = await supabase.functions.invoke("sync-stock", {
-        body: { pdv_ids: Array.from(selected) },
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) throw new Error("Sessão expirada. Faça login novamente.");
+
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sync-stock`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({ pdv_ids: Array.from(selected), stream: true }),
       });
-      if (error) throw error;
-      const list: PdvResult[] = data?.results ?? [];
+      if (!res.ok || !res.body) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`HTTP ${res.status} ${txt.slice(0, 200)}`);
+      }
+
+      const list: PdvResult[] = [];
+      const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+      let buffer = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += value;
+        let idx: number;
+        while ((idx = buffer.indexOf("\n\n")) !== -1) {
+          const raw = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 2);
+          if (!raw.trim() || raw.startsWith(":")) continue;
+          let event = "message";
+          let dataStr = "";
+          for (const line of raw.split("\n")) {
+            if (line.startsWith("event:")) event = line.slice(6).trim();
+            else if (line.startsWith("data:")) dataStr += line.slice(5).trim();
+          }
+          if (!dataStr) continue;
+          let payload: any;
+          try {
+            payload = JSON.parse(dataStr);
+          } catch {
+            continue;
+          }
+          if (event === "stage") {
+            const pid = payload.pdv_id as string;
+            setProgress((prev) => {
+              const cur: PdvProgress = { ...(prev[pid] ?? { stage: "idle" }) };
+              const stage = payload.stage as Stage;
+              if (payload.status === "error") {
+                cur.stage = "error";
+                cur.errorMsg = payload.message;
+              } else {
+                cur.stage = stage;
+                if (stage === "login" && (payload.status === "done" || payload.status === "cached")) {
+                  cur.loginDone = true;
+                }
+                if (stage === "channels") {
+                  if (payload.status === "progress") {
+                    cur.channelsPage = payload.page;
+                    cur.channelsCount = payload.count;
+                  } else if (payload.status === "done") {
+                    cur.channelsDone = true;
+                    cur.channelsTotal = payload.total;
+                  }
+                }
+                if (stage === "products" && (payload.status === "done" || payload.status === "skip")) {
+                  cur.productsDone = true;
+                }
+                if (stage === "writing") {
+                  if (payload.status === "start") cur.channelsTotal = payload.total ?? cur.channelsTotal;
+                  if (payload.status === "done") {
+                    cur.writingDone = true;
+                    cur.insertedCount = payload.inserted;
+                  }
+                }
+              }
+              return { ...prev, [pid]: cur };
+            });
+          } else if (event === "pdv") {
+            list.push(payload as PdvResult);
+            const pid = payload.pdv_id as string;
+            setProgress((prev) => ({
+              ...prev,
+              [pid]: {
+                ...(prev[pid] ?? { stage: "idle" }),
+                stage: payload.status === "ready" ? "done" : "error",
+                errorMsg: payload.error,
+                insertedCount: payload.inserted,
+              },
+            }));
+          } else if (event === "end") {
+            // results fully captured
+          } else if (event === "error") {
+            throw new Error(payload?.message ?? "Erro no stream");
+          }
+        }
+      }
       setResults(list);
       const ok = list.filter((r) => r.status === "ready").length;
       const err = list.filter((r) => r.status === "error").length;
@@ -164,6 +300,8 @@ export function ApiStockSyncDialog({ open, onOpenChange, pdvs }: ApiStockSyncDia
               <div className="space-y-2">
                 {eligible.map((p) => {
                   const r = results?.find((x) => x.pdv_id === p.id);
+                  const pg = progress[p.id];
+                  const showProgress = isSyncing && pg && pg.stage !== "done" && pg.stage !== "error";
                   return (
                     <label
                       key={p.id}
@@ -180,6 +318,23 @@ export function ApiStockSyncDialog({ open, onOpenChange, pdvs }: ApiStockSyncDia
                         <div className="text-xs text-muted-foreground truncate">
                           ID {p.machine_id}
                         </div>
+                        {showProgress && (
+                          <div className="mt-1.5 space-y-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <Badge variant="secondary" className="gap-1 text-[10px]">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                {STAGE_LABEL[pg.stage]}
+                                {pg.stage === "channels" && pg.channelsCount != null
+                                  ? ` · pág ${pg.channelsPage} · ${pg.channelsCount}`
+                                  : ""}
+                              </Badge>
+                              <span className="text-[10px] tabular-nums text-muted-foreground">
+                                {progressPercent(pg)}%
+                              </span>
+                            </div>
+                            <Progress value={progressPercent(pg)} className="h-1.5" />
+                          </div>
+                        )}
                         {r && (
                           <div className="mt-1">
                             {r.status === "ready" ? (
