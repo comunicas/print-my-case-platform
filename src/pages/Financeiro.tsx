@@ -101,20 +101,22 @@ export default function Financeiro() {
     <AppLayout>
       <div className="p-4 md:p-6 space-y-6 max-w-3xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-2">
             <Wallet className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-bold">Financeiro</h1>
           </div>
-          <div className="flex items-center gap-2">
-            <PDVFilter
-              value={selectedPdvId}
-              onChange={setSelectedPdvId}
-              pdvs={pdvs}
-              showAutoAppliedBadge={wasAutoApplied}
-            />
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex-1 sm:flex-none">
+              <PDVFilter
+                value={selectedPdvId}
+                onChange={setSelectedPdvId}
+                pdvs={pdvs}
+                showAutoAppliedBadge={wasAutoApplied}
+              />
+            </div>
             {isAdmin && (
-              <Button onClick={handleOpenNew} size="sm">
+              <Button onClick={handleOpenNew} size="sm" className="whitespace-nowrap">
                 <Plus className="h-4 w-4 mr-1" />
                 Nova Despesa
               </Button>

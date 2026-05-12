@@ -1,45 +1,67 @@
-## Objetivo
-Exibir progresso por PDV e por etapa (Login → Canais → Produtos → Gravação) durante a sincronização de estoque via API Kexiaozhan.
 
-## Abordagem
-Streaming SSE a partir da edge function `sync-stock`. O front consome eventos e atualiza o estado de cada PDV em tempo real. Mantém o retorno JSON atual como fallback (retro-compatível via flag `stream`).
+## Verificação prévia da análise
 
-```text
-Client ──POST sync-stock {stream:true}──▶ Edge
-   ◀── event: stage  {pdv_id, stage:"login",    status:"start|done|cached"}
-   ◀── event: stage  {pdv_id, stage:"channels", status:"start|progress|done", page?, count?, total?}
-   ◀── event: stage  {pdv_id, stage:"products", status:"start|skip|done"}
-   ◀── event: stage  {pdv_id, stage:"writing",  status:"start|done", inserted?}
-   ◀── event: pdv    {pdv_id, ...PdvResult}
-   ◀── event: end    {results:[...]}
-```
+Antes de planejar, confrontei cada ponto com o código já existente. Resultado:
 
-## Backend — supabase/functions/sync-stock/index.ts
-1. Aceitar `stream: true` no body. Quando ativo, responder `text/event-stream` via `ReadableStream`; senão, manter retorno JSON atual.
-2. Helper `emit(event, data)` que escreve `event: X\ndata: {...}\n\n` no controller.
-3. Login: emitir `start` antes de `kxzLogin()` no 1º PDV, `cached` nos seguintes, `done` após.
-4. Canais: emitir `start`; dentro do loop de paginação emitir `progress {page, count}`; `done {total}` ao final.
-5. Produtos: emitir `start` ou `skip` (quando nenhum nome ausente); `done` após `kxzListGoodsBriefs`.
-6. Gravação: emitir `start` antes do DELETE+INSERT/recalc/buildVerification; `done {inserted}` ao final.
-7. `emit("pdv", PdvResult)` por PDV concluído; `emit("end",{results})` no fim.
-8. Erro por PDV: emitir `stage {status:"error", message}` + `pdv {status:"error"}` e seguir para o próximo.
-9. Heartbeat `: ping\n\n` a cada 15s para evitar timeout de proxy.
+| # da análise | Status real | Ação |
+|---|---|---|
+| 1. Sidebar sem toggle mobile | **Já implementado** — `AppLayout` usa `useBreakpoint()` e renderiza `MobileSidebar` (drawer) em `mobile`, `AppSidebar` em desktop/tablet | Ignorar |
+| 2. Conteúdo espremido em 119px | Consequência do #1 — não ocorre | Ignorar |
+| 3. Tabela de Estoque sem view mobile | Verdadeiro (`ProductStockTable` usa `<Table>` com scroll) | **Incluir** |
+| 4. Botões de período < 44px | Verdadeiro (`h-8` em `DateRangeFilter`) | **Incluir** |
+| 5. Filtros do Dashboard com 2 scrolls horizontais | Verdadeiro | **Incluir** |
+| 6. Heatmap `min-w-[340px]` | Verdadeiro | **Incluir** |
+| 7. Topbar org sem `max-w` | Verificar — `AppHeader` já tem `truncate max-w-[150px]` no nome da org única, mas o `OrgSwitcher` (multi-org) não | **Incluir** (apenas OrgSwitcher) |
+| 8. Ícones nav recolhidos pequenos para touch | Sidebar recolhida só aparece em desktop/tablet (não mobile). Em tablet `py-2.5` ≈ 40px. **Não é problema mobile real** | Ignorar |
+| 9. Header Financeiro empilhar | Confirmar no arquivo, provavelmente válido | **Incluir** |
+| 10. Tabela Mensal sem indicador de scroll | Provavelmente válido | **Incluir** |
 
-## Frontend — src/components/upload/ApiStockSyncDialog.tsx
-1. Novo estado `Map<pdvId, PdvProgress>` com `{ stage, stageStatus, channelsLoaded?, page? }`.
-2. Trocar `supabase.functions.invoke` por `fetch` direto (`${VITE_SUPABASE_URL}/functions/v1/sync-stock`) com `Authorization` da sessão e body `{ pdv_ids, stream:true }`. Ler `response.body` com `TextDecoderStream` + parser SSE simples (split por `\n\n`).
-3. Ao receber `stage`, atualizar progress do PDV; ao receber `pdv`, mesclar em `results` (mantendo UI de verificação atual); em `end`, disparar toasts + `invalidateQueries` (igual hoje).
-4. UI por linha de PDV:
-   - Badge da etapa atual: Login / Canais / Produtos / Gravação / OK / Erro.
-   - `<Progress>` (shadcn já existente) com valor 25/50/75/100 conforme etapa concluída.
-   - Subtexto opcional: "Canais: página N · X carregados".
+## Escopo do plano
 
-## Considerações técnicas
-- SSE via `fetch` streaming (não `EventSource`, que não suporta POST + headers).
-- Sem mudanças em banco, RLS, schemas ou outras funções.
-- Ordem de etapas determinística no backend; front nunca avança etapa sozinho.
-- Mantém todo o comportamento atual de snapshot, recálculo de marca, dedução de pre_stock e verificação.
+Apenas mudanças visuais/responsivas (sem lógica de negócio). 7 ajustes pequenos e independentes.
 
-## Arquivos
-- Editar: `supabase/functions/sync-stock/index.ts` (modo stream + emissão de eventos).
-- Editar: `src/components/upload/ApiStockSyncDialog.tsx` (consumo SSE + UI de progresso por PDV/etapa).
+### 1. Card view mobile da Tabela de Estoque
+- Arquivo: `src/components/stock/ProductStockTable.tsx`
+- Em `<768px`: renderizar lista de cards (`<Card>` por produto) com Produto + Status no topo, e grid 2-col com PDV, Slot, Estoque, Vendas. Manter ações (ver detalhes) acessíveis via clique no card.
+- Em `≥768px`: tabela atual inalterada (`hidden md:block` wrapper na tabela, `md:hidden` no novo bloco de cards).
+
+### 2. Touch targets dos presets de período
+- Arquivo: `src/components/dashboard/DateRangeFilter.tsx` (linhas 207, 220, 233)
+- Trocar `h-8 px-3` → `h-10 sm:h-8 px-4 sm:px-3` nos 3 botões + trigger do calendário.
+
+### 3. Layout dos filtros do Dashboard em mobile
+- Arquivo provável: o componente que monta DateRangeFilter + seletor de PDV no Dashboard (verificar em `src/pages/Index.tsx` ou `QuickStats`).
+- Em mobile: empilhar verticalmente (presets de período em uma linha com scroll, PDV select em linha separada `w-full`). Em `sm:` manter o layout atual.
+
+### 4. Heatmap "Vendas por Horário"
+- Arquivo: `src/components/dashboard/SalesHeatmapChart.tsx`
+- Envolver o grid em `<div className="overflow-x-auto -mx-4 px-4">` para permitir scroll suave da borda à borda em telas estreitas, mantendo `min-w-[340px]`.
+
+### 5. OrgSwitcher com `max-w` em mobile
+- Arquivo: `src/components/layout/OrgSwitcher.tsx`
+- Adicionar `max-w-[180px] sm:max-w-none` + `truncate` no trigger para evitar empurrar os ícones do header.
+
+### 6. Header da página Financeiro empilhar em mobile
+- Arquivo: `src/pages/Financeiro.tsx`
+- Trocar header `flex items-center justify-between` por `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`. Botão "Nova Despesa" full-width em mobile (`w-full sm:w-auto`).
+
+### 7. Indicador de scroll na Evolução Mensal
+- Arquivo: `src/components/financeiro/MonthlyBreakdownTable.tsx`
+- Envolver tabela em `<div className="relative">` com gradiente fade `pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-card to-transparent md:hidden` indicando scroll horizontal disponível.
+
+## Detalhes técnicos
+
+- Todas as alterações usam tokens semânticos do design system existente (`bg-card`, `text-muted-foreground`, etc.) — nenhuma cor hard-coded.
+- Nenhuma mudança em hooks de dados, RLS, edge functions, schema ou lógica de negócio.
+- Nenhuma dependência nova. Apenas Tailwind responsivo.
+- Breakpoint usado: `md:` (768px), consistente com o restante do projeto.
+- Targets de toque mínimos de 44px respeitados conforme regra de memória mobile-first.
+
+## Itens explicitamente **descartados** (já implementados ou não aplicáveis)
+
+- Sidebar mobile com hamburguer/overlay → já existe via `MobileSidebar` + botão `Menu` no `AppHeader`.
+- Aumentar área de toque dos ícones recolhidos da sidebar → estado recolhido não é exibido em mobile.
+
+## Validação pós-implementação
+
+- Inspecionar visualmente em viewport 375×812 (`preview_ui--set_preview_device_viewport: mobile`) cada uma das 4 páginas afetadas: Dashboard, Estoque/Tabela, Financeiro, e header geral.

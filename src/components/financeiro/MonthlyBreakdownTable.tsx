@@ -106,6 +106,7 @@ export function MonthlyBreakdownTable({ data, isLoading }: MonthlyBreakdownTable
           </CardTitle>
         </CardHeader>
         <CardContent className="px-2 sm:px-6">
+          <div className="relative">
           <ScrollArea className="w-full">
             <Table>
               <TableHeader>
@@ -185,6 +186,12 @@ export function MonthlyBreakdownTable({ data, isLoading }: MonthlyBreakdownTable
             </Table>
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
+          {/* Mobile scroll hint */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute right-0 top-0 bottom-3 w-8 bg-gradient-to-l from-card to-transparent sm:hidden"
+          />
+          </div>
         </CardContent>
       </Card>
     </TooltipProvider>

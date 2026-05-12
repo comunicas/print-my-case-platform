@@ -204,7 +204,7 @@ export function DateRangeFilter({
             variant={isPresetActive(preset.getDates) ? "default" : "outline"}
             size="sm"
             onClick={() => handlePresetClick(preset.getDates)}
-            className="h-8 px-3"
+            className="h-10 sm:h-8 px-4 sm:px-3 touch-manipulation"
           >
             {preset.label}
           </Button>
@@ -217,7 +217,7 @@ export function DateRangeFilter({
           size="sm"
           onClick={handleTotalClick}
           disabled={!dataRange}
-          className="h-8 px-3"
+          className="h-10 sm:h-8 px-4 sm:px-3 touch-manipulation"
         >
           Total
         </Button>
@@ -230,7 +230,7 @@ export function DateRangeFilter({
               variant="outline"
               size="sm"
               className={cn(
-                "h-8 px-3 gap-1",
+                "h-10 sm:h-8 px-4 sm:px-3 gap-1 touch-manipulation",
                 !isAnyPresetActive && "border-primary"
               )}
             >
