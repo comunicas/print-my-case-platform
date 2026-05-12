@@ -1230,6 +1230,15 @@ export default function DesignSystem() {
             <DSExample title="LossAnalysisCard">
               <LossAnalysisCard totalCancellations={840} cancelledTransactions={6} totalRefunds={520} refundedTransactions={4} />
             </DSExample>
+            <DSExample title="PDVComparisonCards (Financeiro)">
+              <PDVComparisonCards
+                data={[
+                  { pdvId: "1", pdvName: "Tietê Plaza Shopping", receita: 32480, resultado: 7240, margem: 22.3, transacoes: 248 },
+                  { pdvId: "2", pdvName: "Boulevard Tatuapé", receita: 18420, resultado: 1980, margem: 10.7, transacoes: 142 },
+                  { pdvId: "3", pdvName: "Extra Ricardo Jafet", receita: 9540, resultado: -1320, margem: -13.8, transacoes: 76 },
+                ]}
+              />
+            </DSExample>
           </DSSection>
 
           <DSSection id="chart-wrappers" title="Chart wrappers" description="Containers compartilhados por todos os charts.">
