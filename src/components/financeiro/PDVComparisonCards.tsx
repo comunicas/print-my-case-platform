@@ -69,29 +69,32 @@ function PDVCard({ pdv }: { pdv: PDVComparisonData }) {
           </p>
         </div>
 
-        {/* KPI primário: Receita */}
-        <div className="space-y-0.5">
+        {/* KPI primário: Receita Bruta + Receita Líquida */}
+        <div className="space-y-0.5 min-w-0">
           <p className="md-label-small uppercase tracking-wider text-muted-foreground">
             Receita
           </p>
-          <p className="md-headline-small tabular-nums text-foreground">
+          <p className="md-headline-small tabular-nums text-foreground truncate">
             {formatCurrency(pdv.receita)}
+          </p>
+          <p className="md-label-small text-muted-foreground tabular-nums truncate">
+            Líquida: {formatCurrency(pdv.receitaLiquida)}
           </p>
         </div>
 
-        {/* Sub-métricas */}
-        <div className="grid grid-cols-3 gap-2 pt-1 border-t border-border">
-          <Metric
+        {/* Sub-métricas — lista vertical garante leitura em qualquer largura */}
+        <div className="pt-2 border-t border-border space-y-1.5">
+          <Row
             label="Resultado"
             value={formatCurrency(pdv.resultado)}
             colorClass={getResultColor(pdv.resultado)}
           />
-          <Metric
+          <Row
             label="Margem"
             value={`${pdv.margem.toFixed(1)}%`}
             colorClass={getMarginColor(pdv.margem)}
           />
-          <Metric
+          <Row
             label="Transações"
             value={pdv.transacoes.toLocaleString("pt-BR")}
           />
@@ -101,7 +104,7 @@ function PDVCard({ pdv }: { pdv: PDVComparisonData }) {
   );
 }
 
-function Metric({
+function Row({
   label,
   value,
   colorClass,
@@ -111,19 +114,19 @@ function Metric({
   colorClass?: string;
 }) {
   return (
-    <div className="space-y-0.5 min-w-0">
-      <p className="md-label-small uppercase tracking-wider text-muted-foreground truncate">
+    <div className="flex items-baseline justify-between gap-3 min-w-0">
+      <span className="md-label-small uppercase tracking-wider text-muted-foreground shrink-0">
         {label}
-      </p>
-      <p
+      </span>
+      <span
         className={cn(
-          "md-title-small tabular-nums truncate",
+          "md-title-small tabular-nums text-right truncate",
           colorClass ?? "text-foreground"
         )}
         title={value}
       >
         {value}
-      </p>
+      </span>
     </div>
   );
 }
