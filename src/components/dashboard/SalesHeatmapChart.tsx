@@ -35,13 +35,12 @@ export function SalesHeatmapChart({ data, animationDelay = 0 }: SalesHeatmapChar
   }, [data]);
   
   const getCellColor = (revenue: number) => {
-    if (revenue === 0 || maxRevenue === 0) return "bg-muted/40";
+    if (revenue === 0 || maxRevenue === 0) return "bg-muted";
     const ratio = revenue / maxRevenue;
-    if (ratio < 0.15) return "bg-purple-100 dark:bg-purple-950/60";
-    if (ratio < 0.30) return "bg-purple-200 dark:bg-purple-900/70";
-    if (ratio < 0.50) return "bg-purple-300 dark:bg-purple-800/80";
-    if (ratio < 0.75) return "bg-purple-400 dark:bg-purple-700";
-    return "bg-purple-500 dark:bg-purple-600";
+    if (ratio < 0.20) return "bg-primary/15";
+    if (ratio < 0.45) return "bg-primary/40";
+    if (ratio < 0.75) return "bg-primary/70";
+    return "bg-primary";
   };
   
   const isPeakCell = (rangeId: number, day: number) => {
@@ -129,12 +128,11 @@ export function SalesHeatmapChart({ data, animationDelay = 0 }: SalesHeatmapChar
             >
               <span>Menos</span>
               <div className="flex gap-0.5">
-                <div className="w-4 h-4 rounded bg-muted/40 border border-border/50" />
-                <div className="w-4 h-4 rounded bg-purple-100 dark:bg-purple-950/60" />
-                <div className="w-4 h-4 rounded bg-purple-200 dark:bg-purple-900/70" />
-                <div className="w-4 h-4 rounded bg-purple-300 dark:bg-purple-800/80" />
-                <div className="w-4 h-4 rounded bg-purple-400 dark:bg-purple-700" />
-                <div className="w-4 h-4 rounded bg-purple-500 dark:bg-purple-600" />
+                <div className="w-4 h-4 rounded bg-muted border border-border/50" />
+                <div className="w-4 h-4 rounded bg-primary/15" />
+                <div className="w-4 h-4 rounded bg-primary/40" />
+                <div className="w-4 h-4 rounded bg-primary/70" />
+                <div className="w-4 h-4 rounded bg-primary" />
               </div>
               <span>Mais</span>
             </div>
