@@ -176,7 +176,7 @@ export default function Uploads() {
 
   return (
     <AppLayout>
-      <div className="space-y-4 md:space-y-6">
+      <div className="ds-screen-enter space-y-4 md:space-y-6">
         {/* Header Section */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -187,6 +187,12 @@ export default function Uploads() {
               Gerencie planilhas de vendas e estoque
             </p>
           </div>
+          {canUpload && activePdvs.length > 0 && (
+            <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold bg-[hsl(158_64%_95%)] text-[hsl(158_64%_36%)] px-3 py-1 rounded-full border border-[hsl(158_64%_90%)] self-start sm:self-auto">
+              <span className="w-[7px] h-[7px] rounded-full bg-[hsl(158_64%_36%)] animate-[pulse_2s_ease-in-out_infinite]" />
+              API Conectada
+            </span>
+          )}
         </div>
 
         <div className="space-y-4">
@@ -276,7 +282,7 @@ export default function Uploads() {
             {/* Uploads Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
               {filteredUploads.map((upload) => (
-                <Card key={upload.id} className="hover:shadow-md transition-shadow">
+                <Card key={upload.id} className="transition-all duration-200 hover:-translate-y-0.5 hover:border-primary hover:shadow-[0_6px_20px_hsl(var(--primary)/0.10)]">
                   <CardContent className="p-4 md:p-5">
                     <div className="flex items-start gap-3">
                       <div
