@@ -1,71 +1,45 @@
-# Sincronização de estoque via Kexiaozhan
+## Objetivo
+Exibir progresso por PDV e por etapa (Login → Canais → Produtos → Gravação) durante a sincronização de estoque via API Kexiaozhan.
 
-## Princípio
-Buscar **apenas** o que `stock_records` precisa (`pdv_id, device_id, slot_number, product_name, quantity, is_active`) reaproveitando 100% do padrão de `ingest-revenue`. Slots desativados são preservados com `is_active=false` (podem ser reativados em sync futura).
+## Abordagem
+Streaming SSE a partir da edge function `sync-stock`. O front consome eventos e atualiza o estado de cada PDV em tempo real. Mantém o retorno JSON atual como fallback (retro-compatível via flag `stream`).
 
-## Endpoints utilizados
-| Etapa | Método | Path |
-|---|---|---|
-| Login | POST | `/user/login` |
-| Estoque | GET | `/v1/machine-channels?machineId=X&page=N&size=20` (paginar) |
-| Produtos (condicional) | GET | `/v1/machine-goods-briefs?machineId=X` (1× por PDV, em cache, só se `productName` faltar) |
-
-Dispensados: `/v1/machine-ids` e `/v1/machines` (já temos `pdvs.machine_id` e `pdvs.name`).
-
-## Fluxo da Edge Function `sync-stock`
 ```text
-1. Auth JWT → resolve org → bloqueia viewer
-2. kxzLogin() (helper reusado de ingest-revenue)
-3. Para cada pdv_id selecionado:
-   3.1 Carrega pdv (machine_id) via service role + valida org
-   3.2 Cria card em `uploads` (type='stock', source='api',
-       file_name='api-stock-YYYY-MM-DD-HHmm')
-   3.3 Pagina /v1/machine-channels?machineId={machine_id}
-   3.4 Se algum canal vier sem productName → 1× /v1/machine-goods-briefs
-   3.5 Mapeia para registro canônico:
-        slot_number  = canal padStart(2,'0')
-        product_name = nome do produto (channel ou brief)
-        quantity     = stock atual do canal
-        is_active    = status do canal (ativo/desativado)
-        device_id    = pdv.machine_id
-   3.6 Lê snapshot anterior (pdv_id+device_id) para deduzir pre_stock
-   3.7 DELETE FROM stock_records WHERE pdv_id+device_id (snapshot total)
-   3.8 INSERT em chunks de 500 (inclui slots inativos)
-   3.9 Recalcula stock_history do dia, agregando por brand em 1 passada
-   3.10 Deduz pre_stock por (qty_nova_total − qty_antiga_total) por product_name
-        apenas quando aumentou
-   3.11 buildStockVerification() → resumo
-   3.12 Atualiza upload (records_count, sync_summary, status='ready')
-4. Retorna resumo agregado
+Client ──POST sync-stock {stream:true}──▶ Edge
+   ◀── event: stage  {pdv_id, stage:"login",    status:"start|done|cached"}
+   ◀── event: stage  {pdv_id, stage:"channels", status:"start|progress|done", page?, count?, total?}
+   ◀── event: stage  {pdv_id, stage:"products", status:"start|skip|done"}
+   ◀── event: stage  {pdv_id, stage:"writing",  status:"start|done", inserted?}
+   ◀── event: pdv    {pdv_id, ...PdvResult}
+   ◀── event: end    {results:[...]}
 ```
 
-## Verificação pós-sync (por PDV)
-- `total_slots`, `total_quantity`, `active_slots` (Gateway × Banco)
-- `by_brand`: { brand → { qty, slots, Δ } }
-- `missing_product_names`: canais sem produto resolvido
-- `duplicates`: combinações `device+slot` repetidas no gateway
-- `ok`: flag global
+## Backend — supabase/functions/sync-stock/index.ts
+1. Aceitar `stream: true` no body. Quando ativo, responder `text/event-stream` via `ReadableStream`; senão, manter retorno JSON atual.
+2. Helper `emit(event, data)` que escreve `event: X\ndata: {...}\n\n` no controller.
+3. Login: emitir `start` antes de `kxzLogin()` no 1º PDV, `cached` nos seguintes, `done` após.
+4. Canais: emitir `start`; dentro do loop de paginação emitir `progress {page, count}`; `done {total}` ao final.
+5. Produtos: emitir `start` ou `skip` (quando nenhum nome ausente); `done` após `kxzListGoodsBriefs`.
+6. Gravação: emitir `start` antes do DELETE+INSERT/recalc/buildVerification; `done {inserted}` ao final.
+7. `emit("pdv", PdvResult)` por PDV concluído; `emit("end",{results})` no fim.
+8. Erro por PDV: emitir `stage {status:"error", message}` + `pdv {status:"error"}` e seguir para o próximo.
+9. Heartbeat `: ping\n\n` a cada 15s para evitar timeout de proxy.
 
-## Mudanças no código
-1. **Nova** `supabase/functions/sync-stock/index.ts` (não toca em `ingest-stock`, que segue 503).
-2. **Helpers reaproveitados** copiados de `ingest-revenue`: `serializeError`, `kxzLogin`, `kxzFetch`, sanitizers, `extractBrand`.
-3. **Novo** `src/components/upload/ApiStockSyncDialog.tsx` (cópia adaptada de `ApiSyncDialog`):
-   - Sem seletor de mês.
-   - Checkbox de PDVs ativos com `machine_id`.
-   - Bloco de verificação por PDV (Gateway × Banco, divergências em âmbar).
-4. **Página Uploads**: botão "Sincronizar Estoque (API)" ao lado do botão de receita.
+## Frontend — src/components/upload/ApiStockSyncDialog.tsx
+1. Novo estado `Map<pdvId, PdvProgress>` com `{ stage, stageStatus, channelsLoaded?, page? }`.
+2. Trocar `supabase.functions.invoke` por `fetch` direto (`${VITE_SUPABASE_URL}/functions/v1/sync-stock`) com `Authorization` da sessão e body `{ pdv_ids, stream:true }`. Ler `response.body` com `TextDecoderStream` + parser SSE simples (split por `\n\n`).
+3. Ao receber `stage`, atualizar progress do PDV; ao receber `pdv`, mesclar em `results` (mantendo UI de verificação atual); em `end`, disparar toasts + `invalidateQueries` (igual hoje).
+4. UI por linha de PDV:
+   - Badge da etapa atual: Login / Canais / Produtos / Gravação / OK / Erro.
+   - `<Progress>` (shadcn já existente) com valor 25/50/75/100 conforme etapa concluída.
+   - Subtexto opcional: "Canais: página N · X carregados".
 
-## Secrets
-Reaproveita `KXZ_API_BASE`, `KXZ_USER`, `KXZ_PASS`. Nada novo.
+## Considerações técnicas
+- SSE via `fetch` streaming (não `EventSource`, que não suporta POST + headers).
+- Sem mudanças em banco, RLS, schemas ou outras funções.
+- Ordem de etapas determinística no backend; front nunca avança etapa sozinho.
+- Mantém todo o comportamento atual de snapshot, recálculo de marca, dedução de pre_stock e verificação.
 
-## Pontos de atenção
-- **Slots desativados**: persistidos com `is_active=false` — reativação futura sobrescreve para `true` automaticamente.
-- **Snapshot total por device**: garante reflexo fiel da máquina; canais removidos fisicamente saem do banco.
-- **Brand recalc em batch**: agrupa por brand depois do insert (evita N queries do `ingest-stock` antigo).
-- **Validação de campos JSON**: nomes de campo de `/v1/machine-channels` confirmados no primeiro teste com `curl_edge_functions`; parser ajustado conforme retorno real.
-
-## Entregáveis
-- `supabase/functions/sync-stock/index.ts`
-- `src/components/upload/ApiStockSyncDialog.tsx`
-- Botão na página Uploads
-- Deploy automático
+## Arquivos
+- Editar: `supabase/functions/sync-stock/index.ts` (modo stream + emissão de eventos).
+- Editar: `src/components/upload/ApiStockSyncDialog.tsx` (consumo SSE + UI de progresso por PDV/etapa).
