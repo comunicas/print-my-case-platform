@@ -1,40 +1,59 @@
 import { cn } from "@/lib/utils";
-import logoUrl from "@/assets/logo-printmycase.svg";
 
 type LogoVariant = "full" | "icon";
+type LogoTone = "brand" | "light" | "dark";
 
 interface LogoProps {
   variant?: LogoVariant;
+  tone?: LogoTone;
   className?: string;
-  /** Inverts to white for dark backgrounds (sidebar etc.) */
-  mono?: boolean;
   alt?: string;
 }
 
 /**
  * PrintMyCase logo — padrão da aplicação.
  *
- * - `variant="full"` (default): logotipo completo em SVG vetorial.
- * - `variant="icon"`: símbolo compacto (PNG legacy do app icon).
- * - `mono`: aplica filter inverso para fundos escuros.
+ * - `variant="full"` (default): logotipo completo.
+ * - `variant="icon"`: símbolo compacto.
+ * - `tone="brand"` (default): roxo da marca (use em fundos claros).
+ * - `tone="light"`: branco (use em fundos escuros — sidebar, hero roxo).
+ * - `tone="dark"`: preto (uso raro — impressões/print).
  *
- * Use Tailwind `h-*` ou `w-*` no `className` para dimensionar.
+ * Renderiza via CSS `mask-image`, permitindo qualquer cor sem reexportar SVG.
+ * Use Tailwind `h-*` / `w-*` no `className` para dimensionar.
  */
 export function Logo({
   variant = "full",
+  tone = "brand",
   className,
-  mono = false,
   alt = "PrintMyCase",
 }: LogoProps) {
-  const src = variant === "icon" ? "/icon-printmycase.png" : logoUrl;
+  const src =
+    variant === "icon" ? "/icon-printmycase.svg" : "/logo-printmycase.svg";
+
+  const color =
+    tone === "brand"
+      ? "hsl(var(--primary))"
+      : tone === "dark"
+        ? "#000000"
+        : "#FFFFFF";
 
   return (
-    <img
-      src={src}
-      alt={alt}
-      className={cn("object-contain select-none", className)}
-      style={mono ? { filter: "brightness(0) invert(1)" } : undefined}
-      draggable={false}
+    <span
+      role="img"
+      aria-label={alt}
+      className={cn("inline-block select-none", className)}
+      style={{
+        backgroundColor: color,
+        WebkitMaskImage: `url(${src})`,
+        maskImage: `url(${src})`,
+        WebkitMaskRepeat: "no-repeat",
+        maskRepeat: "no-repeat",
+        WebkitMaskSize: "contain",
+        maskSize: "contain",
+        WebkitMaskPosition: "center",
+        maskPosition: "center",
+      }}
     />
   );
 }
