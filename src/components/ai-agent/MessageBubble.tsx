@@ -179,10 +179,10 @@ export function MessageBubble({ message, conversationId }: Props) {
       )}
       <div
         className={cn(
-          "group relative rounded-2xl px-3 py-2 sm:px-4 sm:py-3 text-sm min-w-0 overflow-hidden",
+          "group relative px-4 py-2.5 text-[14px] min-w-0 overflow-hidden",
           isUser
-            ? "max-w-[calc(100%-2.75rem)] sm:max-w-[80%] md:max-w-[75%] bg-primary text-primary-foreground"
-            : "max-w-[calc(100%-2.75rem)] sm:max-w-[85%] md:max-w-[80%] bg-muted text-foreground",
+            ? "max-w-[calc(100%-2.75rem)] sm:max-w-[80%] md:max-w-[75%] bg-primary text-white rounded-[12px] rounded-br-[4px]"
+            : "max-w-[calc(100%-2.75rem)] sm:max-w-[85%] md:max-w-[80%] bg-card border border-border text-foreground rounded-[12px] rounded-bl-[4px]",
         )}
       >
         {!isUser && message.content && (

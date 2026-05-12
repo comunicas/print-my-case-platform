@@ -32,7 +32,7 @@ export function ChatInput({ value, onChange, onSend, isSending }: Props) {
 
   return (
     <div
-      className="flex items-end gap-2 p-2 sm:p-3 border-t bg-background"
+      className="flex items-end gap-2 px-4 py-3 border-t border-border bg-card"
       style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
     >
       <Textarea
@@ -42,13 +42,13 @@ export function ChatInput({ value, onChange, onSend, isSending }: Props) {
         onKeyDown={handleKey}
         placeholder="Pergunte sobre estoque, vendas, redistribuição entre PDVs…"
         rows={1}
-        className="resize-none min-h-[44px] max-h-40 flex-1 text-base sm:text-sm"
+        className="resize-none min-h-[44px] max-h-40 flex-1 text-base sm:text-[14px] bg-background border border-border rounded-[8px] px-3.5 py-2 focus-visible:border-primary focus-visible:ring-0 focus-visible:shadow-[0_0_0_3px_hsl(var(--primary)/0.15)]"
         disabled={isSending}
       />
       <Button
         type="button"
         size="icon"
-        className="h-11 w-11 flex-shrink-0 self-end"
+        className="h-9 w-9 flex-shrink-0 self-end bg-primary text-white rounded-[8px] hover:bg-primary/90 disabled:opacity-50"
         onClick={onSend}
         disabled={isSending || !value.trim()}
         aria-label="Enviar mensagem"

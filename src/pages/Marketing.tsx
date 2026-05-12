@@ -74,7 +74,7 @@ export default function Marketing() {
 
   return (
     <AppLayout>
-      <div className="space-y-4 md:space-y-6">
+      <div className="ds-screen-enter space-y-4 md:space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-xl md:text-2xl font-bold">Marketing</h1>
@@ -91,7 +91,7 @@ export default function Marketing() {
         </div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList>
+          <TabsList className="h-auto bg-transparent p-0 border-b border-border rounded-none w-full justify-start gap-1 overflow-x-auto">
             <TabsTrigger value="cupons">Cupons</TabsTrigger>
             <TabsTrigger value="midias">Mídias</TabsTrigger>
             {isAdmin && <TabsTrigger value="catalogos">Catálogos</TabsTrigger>}
