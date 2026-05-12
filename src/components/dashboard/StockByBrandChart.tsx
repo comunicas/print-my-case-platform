@@ -2,8 +2,7 @@ import { useMemo } from "react";
 import { Package } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { PieChart, Pie, Cell } from "recharts";
-import { StockByBrandData, exportToExcel } from "@/lib/dashboardUtils";
-import { getStockByBrand } from "@/lib/dashboardUtils";
+import { StockByBrandData, getStockByBrand } from "@/lib/dashboardUtils";
 import { pluralize } from "@/lib/utils";
 import { ChartCard } from "./ChartCard";
 import { ChartEmptyState } from "./ChartEmptyState";
@@ -31,17 +30,6 @@ export function StockByBrandChart({ pdvId, animationDelay = 0 }: StockByBrandCha
     return acc;
   }, {} as Record<string, { label: string; color: string }>);
   
-  const handleExport = () => {
-    exportToExcel(
-      data.map(d => ({
-        Marca: d.brand,
-        Quantidade: d.quantity,
-        Percentual: `${Math.round((d.quantity / total) * 100)}%`,
-      })),
-      "estoque-por-marca"
-    );
-  };
-
   return (
     <ChartCard
       testId="stock-by-brand-chart"
@@ -49,8 +37,6 @@ export function StockByBrandChart({ pdvId, animationDelay = 0 }: StockByBrandCha
       description="Distribuição do estoque atual por marca"
       icon={Package}
       iconColor="text-blue-500"
-      onExport={handleExport}
-      exportTestId="export-stock-by-brand"
       animationDelay={animationDelay}
     >
       {data.length > 0 ? (
