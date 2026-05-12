@@ -14,6 +14,9 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['"DM Sans"', 'system-ui', 'sans-serif'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -58,11 +61,18 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        "surface-2": "hsl(var(--surface-2))",
+        "border-2": "hsl(var(--border-2))",
+        "text-1": "hsl(var(--text-1))",
+        "text-2": "hsl(var(--text-2))",
+        "text-3": "hsl(var(--text-3))",
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        DEFAULT: "0.75rem",
+        lg: "1rem",
+        xl: "1.25rem",
+        sm: "0.5rem",
+        full: "9999px",
       },
       keyframes: {
         "accordion-down": {
