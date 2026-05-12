@@ -4,6 +4,7 @@ import { useTheme } from "next-themes";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Logo } from "@/components/ui/Logo";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,11 +59,7 @@ export function AppHeader({ isMobile, onMenuClick }: AppHeaderProps) {
 
         {/* Mobile-only logo (desktop already shows it inside the sidebar) */}
         {isMobile && (
-          <img
-            src="/icon-printmycase.png"
-            alt="PrintMyCase"
-            className="h-8 w-8 flex-shrink-0 object-contain"
-          />
+          <Logo variant="icon" className="h-8 w-8 flex-shrink-0" />
         )}
 
         {hasMultipleOrgs ? (
