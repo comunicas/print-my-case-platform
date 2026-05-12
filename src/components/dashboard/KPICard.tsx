@@ -27,6 +27,13 @@ const variantStyles = {
   danger: "text-destructive",
 };
 
+const variantIconColors: Record<NonNullable<KPICardProps["variant"]>, string> = {
+  default: "hsl(var(--primary))",
+  success: "hsl(158 64% 40%)",
+  warning: "hsl(38 92% 50%)",
+  danger: "hsl(var(--destructive))",
+};
+
 export function KPICard({
   title,
   value,
@@ -49,34 +56,45 @@ export function KPICard({
   };
   
   const TrendIcon = getTrendIcon();
+  const iconColor = variantIconColors[variant];
+  const isUp = trend?.isPositive;
 
   return (
-    <Card data-testid={testId} className="overflow-hidden min-h-[88px]">
-      <CardHeader className="flex flex-row items-center justify-between pb-1 md:pb-2 px-3 md:px-6 xl:px-3 pt-4 md:pt-6 xl:pt-3">
-        <CardTitle className="text-[10px] md:text-sm xl:text-[10px] font-medium text-muted-foreground truncate pr-2">
+    <Card
+      data-testid={testId}
+      className="overflow-hidden min-h-[88px] p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary hover:shadow-[0_6px_20px_hsl(var(--primary)/0.10)]"
+    >
+      <CardHeader className="flex flex-row items-center justify-between p-0 pb-2 space-y-0">
+        <CardTitle className="text-[11.5px] md:text-[12px] font-medium text-muted-foreground truncate pr-2">
           {title}
         </CardTitle>
-        <Icon className={cn("h-3.5 w-3.5 md:h-4 md:w-4 xl:h-3.5 xl:w-3.5 shrink-0", variantStyles[variant])} />
+        <div
+          className="w-8 h-8 rounded-[8px] flex items-center justify-center shrink-0"
+          style={{ background: `${iconColor.replace(")", " / 0.12)")}` }}
+        >
+          <Icon className={cn("h-4 w-4", variantStyles[variant])} />
+        </div>
       </CardHeader>
-      <CardContent className="px-3 md:px-6 xl:px-3 pb-3 md:pb-6 xl:pb-3">
-        <div data-testid="kpi-value" className="text-base md:text-xl xl:text-base font-bold text-foreground truncate">{value}</div>
+      <CardContent className="p-0">
+        <div data-testid="kpi-value" className="text-[17px] md:text-[22px] font-bold leading-tight text-foreground truncate">{value}</div>
         
-        <div className="flex items-center gap-1 md:gap-2 mt-0.5 md:mt-1 min-h-[18px] overflow-hidden">
+        <div className="flex items-center gap-1 md:gap-2 mt-1.5 min-h-[18px] overflow-hidden">
           {showTrend && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Badge
+                  <span
                     data-testid="kpi-trend"
-                    variant="outline"
                     className={cn(
-                      "cursor-help gap-0.5 md:gap-1 text-[10px] md:text-xs font-medium px-1.5 md:px-2",
-                      getTrendColor()
+                      "inline-flex items-center gap-1 cursor-help text-[11px] font-semibold px-2 py-0.5 rounded-full",
+                      isUp
+                        ? "bg-[hsl(158_64%_95%)] text-[hsl(158_64%_36%)]"
+                        : "bg-[hsl(0_86%_97%)] text-[hsl(0_84%_50%)]"
                     )}
                   >
-                    <TrendIcon className="h-2.5 w-2.5 md:h-3 md:w-3" />
+                    <TrendIcon className="h-3 w-3" />
                     {formatTrendBadge(trend.percentage)}
-                  </Badge>
+                  </span>
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs whitespace-pre-line text-left">
                   {formatTrendTooltip(trend, title)}
