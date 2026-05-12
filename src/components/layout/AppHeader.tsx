@@ -4,6 +4,7 @@ import { useTheme } from "next-themes";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Logo } from "@/components/ui/Logo";
 import {
   DropdownMenu,
   DropdownMenuContent,
