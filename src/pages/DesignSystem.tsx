@@ -10,6 +10,7 @@ import { useTheme } from "next-themes";
 import { toast } from "sonner";
 
 import { DSSection, DSExample } from "@/components/design-system/DSSection";
+import { PDVComparisonCards } from "@/components/financeiro/PDVComparisonCards";
 import {
   m3Palette, m3Typography, m3Shape, m3Elevation, m3Motion, m3Spacing, M3_SEED,
 } from "@/design-system/tokens";
