@@ -25,7 +25,9 @@ export function DSExample({ title, children }: { title: string; children: ReactN
   return (
     <div>
       <h3 className="md-title-small text-muted-foreground uppercase tracking-wider mb-3">{title}</h3>
-      <div className="rounded-lg border border-border bg-card p-6">{children}</div>
+      <div className="rounded-lg border border-border bg-card p-4 sm:p-6 overflow-x-auto">
+        <div className="min-w-0">{children}</div>
+      </div>
     </div>
   );
 }
