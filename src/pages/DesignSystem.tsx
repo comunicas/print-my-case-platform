@@ -10,6 +10,7 @@ import { useTheme } from "next-themes";
 import { toast } from "sonner";
 
 import { DSSection, DSExample } from "@/components/design-system/DSSection";
+import { PDVComparisonCards } from "@/components/financeiro/PDVComparisonCards";
 import {
   m3Palette, m3Typography, m3Shape, m3Elevation, m3Motion, m3Spacing, M3_SEED,
 } from "@/design-system/tokens";
@@ -1228,6 +1229,15 @@ export default function DesignSystem() {
             </DSExample>
             <DSExample title="LossAnalysisCard">
               <LossAnalysisCard totalCancellations={840} cancelledTransactions={6} totalRefunds={520} refundedTransactions={4} />
+            </DSExample>
+            <DSExample title="PDVComparisonCards (Financeiro)">
+              <PDVComparisonCards
+                data={[
+                  { pdvId: "1", pdvName: "Tietê Plaza Shopping", receita: 32480, receitaLiquida: 30200, resultado: 7240, margem: 22.3, transacoes: 248 },
+                  { pdvId: "2", pdvName: "Boulevard Tatuapé", receita: 18420, receitaLiquida: 17100, resultado: 1980, margem: 10.7, transacoes: 142 },
+                  { pdvId: "3", pdvName: "Extra Ricardo Jafet", receita: 9540, receitaLiquida: 8900, resultado: -1320, margem: -13.8, transacoes: 76 },
+                ]}
+              />
             </DSExample>
           </DSSection>
 

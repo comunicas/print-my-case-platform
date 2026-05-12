@@ -7,20 +7,11 @@ import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { CalendarDays } from "lucide-react";
 import type { MonthSummary } from "@/hooks/useMonthlyDRESummary";
+import { getMarginColor, getResultColor } from "./colorUtils";
 
 interface MonthlyBreakdownTableProps {
   data: MonthSummary[];
   isLoading?: boolean;
-}
-
-function getMarginColor(value: number) {
-  if (value >= 20) return "text-emerald-600 dark:text-emerald-400";
-  if (value >= 10) return "text-amber-600 dark:text-amber-400";
-  return "text-destructive";
-}
-
-function getResultColor(value: number) {
-  return value >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive";
 }
 
 interface RowDef {
