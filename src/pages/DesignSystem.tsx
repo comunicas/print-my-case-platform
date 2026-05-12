@@ -1190,10 +1190,81 @@ export default function DesignSystem() {
             </DSExample>
           </DSSection>
 
+          {/* ============== DATA VIZ (DASHBOARD) ============== */}
+          <DSSection id="kpi-cards" title="KPI / Summary cards" description="Cards de métrica usados no Dashboard e Financeiro.">
+            <DSExample title="KPICard (variants)">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                <KPICard title="Receita" value="R$ 128.4k" icon={DollarSign} variant="success"
+                  trend={{ percentage: 12.4, direction: "up", currentValue: 128400, previousValue: 114200 } as any} />
+                <KPICard title="Vendas" value="1.284" icon={ShoppingCart}
+                  trend={{ percentage: -3.1, direction: "down", currentValue: 1284, previousValue: 1325 } as any} />
+                <KPICard title="Ticket médio" value="R$ 99,9" icon={TrendingUpIcon} variant="warning" />
+                <KPICard title="Perda" value="R$ 4.2k" icon={Package} variant="danger" subtitle="3.2% do total" />
+              </div>
+            </DSExample>
+            <DSExample title="QuickStats (badges)">
+              <QuickStats peakTimeRange="14h-16h" peakTimeRangeRevenue={4820} bestDay="Sex" bestDayRevenue={6240} />
+            </DSExample>
+            <DSExample title="FinancialSummaryCard">
+              <FinancialSummaryCard margemOperacional={24.6} custoporMaquina={1850} taxaPerda={3.2} referenceMonth={new Date()} />
+            </DSExample>
+            <DSExample title="LossAnalysisCard">
+              <LossAnalysisCard totalCancellations={840} cancelledTransactions={6} totalRefunds={520} refundedTransactions={4} />
+            </DSExample>
+          </DSSection>
+
+          <DSSection id="chart-wrappers" title="Chart wrappers" description="Containers compartilhados por todos os charts.">
+            <DSExample title="ChartCard (placeholder)">
+              <ChartCard title="Título do gráfico" description="Subtítulo descritivo curto." icon={TrendingUpIcon} iconColor="text-primary">
+                <div className="h-32 flex items-center justify-center md-body-medium text-muted-foreground">[ conteúdo do gráfico ]</div>
+              </ChartCard>
+            </DSExample>
+            <DSExample title="ChartSkeleton">
+              <ChartSkeleton />
+            </DSExample>
+            <DSExample title="ChartEmptyState">
+              <div className="rounded-lg border border-border">
+                <ChartEmptyState />
+              </div>
+            </DSExample>
+          </DSSection>
+
+          <DSSection id="sales-charts" title="Sales charts" description="Visualizações de receita.">
+            <DSExample title="SalesByDayChart"><SalesByDayChart data={salesByDayMock} /></DSExample>
+            <DSExample title="SalesHeatmapChart"><SalesHeatmapChart data={heatmapMock} /></DSExample>
+            <DSExample title="TopProductsChart"><TopProductsChart data={topProductsMock} /></DSExample>
+          </DSSection>
+
+          <DSSection id="stock-charts" title="Stock charts" description="Estado e evolução do estoque.">
+            <DSExample title="StockHistoryChart (preview standalone)"><StockHistoryPreview /></DSExample>
+            <DSExample title="StockByBrandChart (preview standalone)"><StockByBrandPreview /></DSExample>
+          </DSSection>
+
+          <DSSection id="loss-charts" title="Loss charts" description="Cancelamentos e reembolsos.">
+            <DSExample title="LossesByDayChart"><LossesByDayChart data={lossesByDayMock} /></DSExample>
+          </DSSection>
+
+          <DSSection id="product-charts" title="Product charts" description="Charts em modal de produto (src/components/stock/).">
+            <DSExample title="ProductSalesByDayChart">
+              <ProductSalesByDayChart data={productSalesByDayMock} bestDay={{ day: 5, dayName: "Sex", count: 14 }} />
+            </DSExample>
+            <DSExample title="ProductSalesByHourChart">
+              <ProductSalesByHourChart data={productSalesByHourMock} peakHour={{ hour: 14, count: 9 }} />
+            </DSExample>
+            <DSExample title="ProductSalesHistoryChart (estado vazio)">
+              <ProductSalesHistoryChart productName={null} />
+            </DSExample>
+          </DSSection>
+
+          <DSSection id="tables-filters" title="Alerts table / Date filter">
+            <DSExample title="StockAlertsTable"><StockAlertsTable data={stockAlertsMock} /></DSExample>
+            <DSExample title="DateRangeFilter"><DateRangeFilterDemo /></DSExample>
+          </DSSection>
+
           <footer className="md-body-small text-muted-foreground py-8 flex items-start gap-2 flex-wrap">
             <Smartphone className="h-3.5 w-3.5 mt-1 shrink-0" />
             <span className="min-w-0 break-words">
-              61/61 componentes documentados · espelho vivo dos primitivos em{" "}
+              61 UI + 18 dashboard componentes documentados · espelho vivo de{" "}
               <code className="font-mono break-all">src/components/ui</code>.
             </span>
           </footer>
