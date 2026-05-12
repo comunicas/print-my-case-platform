@@ -324,6 +324,71 @@ const chartData = [
   { day: "Qui", v: 22 }, { day: "Sex", v: 16 },
 ];
 
+function DateRangeFilterDemo() {
+  const today = new Date();
+  const start = new Date();
+  start.setDate(today.getDate() - 13);
+  const [range, setRange] = useState<{ from: Date; to: Date }>({ from: start, to: today });
+  return (
+    <DateRangeFilter dateRange={range} onDateRangeChange={setRange} />
+  );
+}
+
+function StockHistoryPreview() {
+  return (
+    <ChartCard
+      title="Histórico de Estoque"
+      description="Preview com dados mock — componente real busca via useStockHistory"
+      icon={History}
+      iconColor="text-purple-500"
+    >
+      <ChartContainer
+        config={{
+          APPLE: { label: "APPLE", color: "hsl(var(--chart-1))" },
+          SAMSUNG: { label: "SAMSUNG", color: "hsl(var(--chart-2))" },
+          XIAOMI: { label: "XIAOMI", color: "hsl(var(--chart-3))" },
+        }}
+        className="h-[260px] md:h-[300px] w-full"
+      >
+        <LineChart data={stockHistoryMock}>
+          <CartesianGrid vertical={false} strokeDasharray="3 3" />
+          <XAxis dataKey="dateDisplay" tickLine={false} axisLine={false} fontSize={11} />
+          <RYAxis tickLine={false} axisLine={false} fontSize={11} width={28} />
+          <ChartTooltip content={<ChartTooltipContent />} />
+          <Line type="monotone" dataKey="APPLE" stroke="var(--color-APPLE)" strokeWidth={2} dot={false} />
+          <Line type="monotone" dataKey="SAMSUNG" stroke="var(--color-SAMSUNG)" strokeWidth={2} dot={false} />
+          <Line type="monotone" dataKey="XIAOMI" stroke="var(--color-XIAOMI)" strokeWidth={2} dot={false} />
+        </LineChart>
+      </ChartContainer>
+    </ChartCard>
+  );
+}
+
+function StockByBrandPreview() {
+  const total = stockByBrandMock.reduce((a, d) => a + d.quantity, 0);
+  const config = stockByBrandMock.reduce((acc, item) => {
+    acc[item.brand] = { label: item.brand, color: item.fill };
+    return acc;
+  }, {} as Record<string, { label: string; color: string }>);
+  return (
+    <ChartCard
+      title="Estoque por Marca"
+      description={`Total: ${total} unidades — preview com mock`}
+      icon={Package}
+      iconColor="text-blue-500"
+    >
+      <ChartContainer config={config} className="h-[260px] md:h-[300px] w-full">
+        <PieChart>
+          <ChartTooltip content={<ChartTooltipContent nameKey="brand" />} />
+          <Pie data={stockByBrandMock} dataKey="quantity" nameKey="brand" innerRadius={50} outerRadius={90}>
+            {stockByBrandMock.map((d) => <RCell key={d.brand} fill={d.fill} />)}
+          </Pie>
+        </PieChart>
+      </ChartContainer>
+    </ChartCard>
+  );
+}
+
 // ------------------------------------------------------------------
 // Page
 // ------------------------------------------------------------------
