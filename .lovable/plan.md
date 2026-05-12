@@ -1,45 +1,33 @@
-## Refatoração mobile do filtro de período (Dashboard)
+## Remover todos os botões "Excel" do dashboard (home) + corrigir header quebrado no mobile
 
-**Problema:** No mobile (375–390px) os botões "Hoje | Ontem | Este mês | Mês anterior | Total | 📅" não cabem em uma linha. Hoje há `overflow-x-auto` na barra, mas o scroll horizontal interno fica escondido (sem indicador visual) e dá a impressão de layout quebrado — exatamente o que aparece no print enviado.
+### Mudanças
 
-### Solução
+**1. Remover `onExport` / `exportTestId` em todos os gráficos do dashboard:**
+- `src/components/dashboard/StockHistoryChart.tsx`
+- `src/components/dashboard/SalesByDayChart.tsx`
+- `src/components/dashboard/SalesHeatmapChart.tsx`
+- `src/components/dashboard/TopProductsChart.tsx`
+- `src/components/dashboard/StockByBrandChart.tsx`
+- `src/components/dashboard/LossesByDayChart.tsx`
 
-Refatorar apenas `src/components/dashboard/DateRangeFilter.tsx` para usar um layout dedicado em mobile, mantendo o desktop intacto.
+Em cada arquivo:
+- Remover as props `onExport={...}` e `exportTestId="..."` passadas ao `<ChartCard>`.
+- Remover a função `handleExport` local.
+- Remover o import de `exportToExcel` se não for mais usado.
 
-**Layout mobile (< md):**
+**2. `src/components/dashboard/ChartCard.tsx` — limpar suporte ao export e ajustar header**
+- Remover as props `onExport` e `exportTestId` do tipo e do JSX (botão "Excel" + import de `Download`).
+- Empilhar header no mobile para o título não competir com o badge de período (caso de "Evolução do Estoque", "Vendas por Dia"): `flex flex-col gap-2 md:flex-row md:items-center md:justify-between`. Em `md+` mantém a linha única atual.
+- Adicionar `min-w-0` no wrapper do título para evitar overflow.
 
-```text
-┌─────────────────────────────────┐
-│ [ Hoje ]   [ Ontem ]            │  grid 2 colunas, h-10
-│ [ Este mês ] [ Mês anterior ]   │
-│ [ Total ]  [ 📅 Personalizado ] │
-├─────────────────────────────────┤
-│ 01/12/2025 – 06/05  (157 dias)  │  linha separada, com flex-wrap
-│ ↺                                │
-└─────────────────────────────────┘
-```
-
-- Container externo: `flex flex-col gap-3` em mobile / `sm:flex-row sm:items-center` em desktop (mantém o atual).
-- Grupo de presets: `grid grid-cols-2 gap-2 w-full` em mobile / `md:flex md:items-center md:gap-1 md:flex-nowrap md:w-auto` em desktop. Remove `overflow-x-auto` no mobile (não precisa mais).
-- Botões: `w-full md:w-auto`, mantém `h-10 sm:h-8` e `touch-manipulation`.
-- Botão do calendário customizado: passa a ter um label "Personalizado" + ícone no mobile (`md:sr-only` no texto) para ficar claro que é um período custom; em desktop continua só ícone + chevron.
-- Bloco "Período Info": já tem `flex-wrap`; garantir `w-full` em mobile e que o range de dados (`Dados: ...`) continue oculto em mobile (`hidden sm:inline`).
-
-**Desktop (≥ md):** comportamento atual preservado — uma única linha com presets + date picker à esquerda e info à direita.
-
-### Arquivos alterados
-
-- `src/components/dashboard/DateRangeFilter.tsx` — único arquivo. Apenas classes Tailwind/JSX de layout; nenhuma mudança em lógica de datas, presets, popover, calendário, validação ou contratos do componente.
+**3. `src/lib/dashboardUtils.ts`**
+- Manter a função `exportToExcel` (pode ser usada em outras telas como Estoque). Apenas não é mais chamada pelos cards do dashboard.
 
 ### Não escopo
-
-- Sem mudanças em `Index.tsx`, hooks, lógica de negócio, ou outros filtros.
-- Sem alteração de cores, tokens ou comportamento desktop.
-- Sem mexer no Popover do calendário (o conteúdo interno do date picker já abre em portal e não é afetado).
+- Sem mudanças em outras páginas (Estoque, Financeiro, Uploads). Botões Excel fora da home permanecem.
+- Sem alterações em hooks, dados ou lógica de negócio.
 
 ### Verificação
-
-1. Preview em 375 e 390px: 6 controles visíveis sem scroll horizontal, todos com toque ≥ 40px.
-2. Preview em ≥ 768px: layout idêntico ao atual (uma linha).
-3. Selecionar cada preset, abrir o date picker, escolher range custom — comportamento inalterado.
-4. Conferir que não aparece scroll horizontal no `<main>` em nenhum breakpoint.
+1. Mobile 390px (`/`): nenhum card do dashboard exibe botão "Excel"; títulos não quebram em 3 linhas; seletor de período (7d/15d/30d/90d) aparece abaixo do título.
+2. Desktop ≥ 768px (`/`): mesmos cards sem botão "Excel", header em uma única linha.
+3. Páginas fora da home (ex.: Estoque) continuam com seus exports intactos.
