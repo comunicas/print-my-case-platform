@@ -159,6 +159,15 @@ const NAV_SECTIONS: Array<{ group: string; items: Array<{ id: string; label: str
   { group: "Patterns", items: [
     { id: "patterns", label: "KPI / Filters / Page header" },
   ]},
+  { group: "Data viz (dashboard)", items: [
+    { id: "kpi-cards", label: "KPI / Summary cards" },
+    { id: "chart-wrappers", label: "Chart wrappers" },
+    { id: "sales-charts", label: "Sales charts" },
+    { id: "stock-charts", label: "Stock charts" },
+    { id: "loss-charts", label: "Loss charts" },
+    { id: "product-charts", label: "Product charts" },
+    { id: "tables-filters", label: "Alerts table / Date filter" },
+  ]},
 ];
 
 // ------------------------------------------------------------------
