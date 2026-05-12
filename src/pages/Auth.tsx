@@ -1,36 +1,133 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Loader2, Mail, Lock, ArrowLeft, CheckCircle2 } from "lucide-react";
-import { 
-  loginSchema, 
-  forgotPasswordSchema, 
-  newPasswordSchema 
+import {
+  loginSchema,
+  forgotPasswordSchema,
+  newPasswordSchema,
 } from "@/lib/schemas/auth";
 import { PasswordStrengthIndicator } from "@/components/ui/password-strength";
 
 type AuthMode = "login" | "forgot" | "reset";
 
+const NODES: Array<[number, number]> = [
+  [80, 90], [200, 60], [310, 130], [150, 200],
+  [260, 240], [90, 300], [340, 320], [190, 360],
+];
+const EDGES: Array<[number, number]> = [
+  [0, 1], [1, 2], [1, 3], [2, 4], [3, 4],
+  [4, 6], [5, 3], [5, 7], [6, 7], [3, 0],
+];
+
+const FEATURES = [
+  { label: "Dashboard operacional" },
+  { label: "Controle de estoque em tempo real" },
+  { label: "Análise financeira completa" },
+  { label: "Assistente IA integrado" },
+];
+
+function AuthLeftPanel() {
+  return (
+    <aside className="auth-left">
+      <div className="auth-orb auth-orb--1" />
+      <div className="auth-orb auth-orb--2" />
+      <div className="auth-orb auth-orb--3" />
+
+      <svg className="auth-network" viewBox="0 0 420 440" fill="none" aria-hidden="true">
+        {EDGES.map(([a, b], i) => (
+          <line
+            key={`e-${i}`}
+            x1={NODES[a][0]} y1={NODES[a][1]}
+            x2={NODES[b][0]} y2={NODES[b][1]}
+            stroke="rgba(167,139,250,0.25)"
+            strokeWidth="1"
+          />
+        ))}
+        {NODES.map(([x, y], i) => (
+          <circle
+            key={`n-${i}`}
+            cx={x} cy={y} r="3.5"
+            fill="rgba(167,139,250,0.7)"
+          />
+        ))}
+      </svg>
+
+      <div className="auth-left-body">
+        <img
+          src="/logo-printmycase.png"
+          alt="Print My Case"
+          className="auth-logo-left"
+        />
+
+        <div className="auth-tagline">
+          <h2 className="auth-tagline-title">
+            Gestão completa<br />dos seus PDVs
+          </h2>
+          <p className="auth-tagline-sub">
+            Estoque, vendas e finanças em um só lugar — em tempo real.
+          </p>
+        </div>
+
+        <div className="auth-features">
+          {FEATURES.map((f) => (
+            <div key={f.label} className="auth-feature">
+              <span className="auth-feature-dot" />
+              {f.label}
+            </div>
+          ))}
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function AuthShell({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="auth-shell">
+      <AuthLeftPanel />
+      <main className="auth-right">
+        <div className="auth-form-wrap">
+          <img
+            src="/logo-printmycase.png"
+            alt="Print My Case"
+            className="auth-logo-mobile"
+          />
+          <header className="auth-header">
+            <h1 className="auth-title">{title}</h1>
+            <p className="auth-sub">{subtitle}</p>
+          </header>
+          {children}
+        </div>
+      </main>
+    </div>
+  );
+}
+
 export default function Auth() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, session, signIn, resetPassword, updatePassword, loading: authLoading } = useAuth();
-  
+
   const [mode, setMode] = useState<AuthMode>("login");
   const [isLoading, setIsLoading] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
   const [passwordUpdated, setPasswordUpdated] = useState(false);
   const [waitingForSession, setWaitingForSession] = useState(false);
-  
+
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [forgotEmail, setForgotEmail] = useState("");
   const [newPasswordData, setNewPasswordData] = useState({ password: "", confirmPassword: "" });
-  
+
   const [loginErrors, setLoginErrors] = useState<Record<string, string>>({});
   const [forgotErrors, setForgotErrors] = useState<Record<string, string>>({});
   const [newPasswordErrors, setNewPasswordErrors] = useState<Record<string, string>>({});
@@ -60,7 +157,7 @@ export default function Auth() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginErrors({});
-    
+
     const result = loginSchema.safeParse(loginData);
     if (!result.success) {
       const errors: Record<string, string> = {};
@@ -77,8 +174,8 @@ export default function Auth() {
 
     if (error) {
       toast.error("Erro ao entrar", {
-        description: error.message === "Invalid login credentials" 
-          ? "Email ou senha incorretos" 
+        description: error.message === "Invalid login credentials"
+          ? "Email ou senha incorretos"
           : error.message,
       });
     } else {
@@ -92,7 +189,7 @@ export default function Auth() {
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setForgotErrors({});
-    
+
     const result = forgotPasswordSchema.safeParse({ email: forgotEmail });
     if (!result.success) {
       const errors: Record<string, string> = {};
@@ -108,9 +205,7 @@ export default function Auth() {
     setIsLoading(false);
 
     if (error) {
-      toast.error("Erro ao enviar email", {
-        description: error.message,
-      });
+      toast.error("Erro ao enviar email", { description: error.message });
     } else {
       setResetEmailSent(true);
     }
@@ -119,7 +214,7 @@ export default function Auth() {
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setNewPasswordErrors({});
-    
+
     const result = newPasswordSchema.safeParse(newPasswordData);
     if (!result.success) {
       const errors: Record<string, string> = {};
@@ -135,9 +230,7 @@ export default function Auth() {
     setIsLoading(false);
 
     if (error) {
-      toast.error("Erro ao atualizar senha", {
-        description: error.message,
-      });
+      toast.error("Erro ao atualizar senha", { description: error.message });
     } else {
       setPasswordUpdated(true);
     }
@@ -151,320 +244,222 @@ export default function Auth() {
     );
   }
 
-  // Forgot Password Mode
   if (mode === "forgot") {
+    const title = resetEmailSent ? "Link enviado!" : "Recuperar senha";
+    const subtitle = resetEmailSent
+      ? `Confira sua caixa em ${forgotEmail}`
+      : "Enviaremos um link para redefinir sua senha";
+
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <img 
-              src="/logo-printmycase.png" 
-              alt="Print My Case" 
-              className="h-16 mx-auto mb-4"
-            />
-            <h1 className="text-2xl font-bold text-foreground">Print My Case</h1>
-            <p className="text-muted-foreground">Sistema de Gestão de PDVs</p>
+      <AuthShell title={title} subtitle={subtitle}>
+        {resetEmailSent ? (
+          <div className="space-y-5">
+            <div className="flex justify-center">
+              <CheckCircle2 className="h-14 w-14 text-[hsl(var(--success))]" />
+            </div>
+            <button
+              type="button"
+              className="auth-submit"
+              onClick={() => {
+                setMode("login");
+                setResetEmailSent(false);
+                setForgotEmail("");
+              }}
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Voltar para login
+            </button>
           </div>
+        ) : (
+          <form onSubmit={handleForgotPassword} className="space-y-4">
+            <div>
+              <label htmlFor="forgot-email" className="auth-label">Email</label>
+              <div className={`auth-input-row ${forgotErrors.email ? "error" : ""}`}>
+                <span className="auth-input-prefix"><Mail className="h-4 w-4" /></span>
+                <input
+                  id="forgot-email"
+                  type="email"
+                  placeholder="seu@email.com"
+                  className="auth-input"
+                  value={forgotEmail}
+                  onChange={(e) => {
+                    setForgotEmail(e.target.value);
+                    if (forgotErrors.email) setForgotErrors({});
+                  }}
+                />
+              </div>
+              {forgotErrors.email && <p className="auth-err-msg">{forgotErrors.email}</p>}
+            </div>
 
-          <Card>
-            <CardHeader className="space-y-1 pb-4">
-              <CardTitle className="text-xl text-center">Recuperar senha</CardTitle>
-              <CardDescription className="text-center">
-                {resetEmailSent 
-                  ? "Verifique seu email" 
-                  : "Informe seu email para receber o link de recuperação"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {resetEmailSent ? (
-                <div className="text-center space-y-4">
-                  <div className="flex justify-center">
-                    <CheckCircle2 className="h-16 w-16 text-green-500" />
-                  </div>
-                  <p className="text-muted-foreground">
-                    Enviamos um link de recuperação para <strong>{forgotEmail}</strong>. 
-                    Verifique sua caixa de entrada e spam.
-                  </p>
-                  <Button 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={() => {
-                      setMode("login");
-                      setResetEmailSent(false);
-                      setForgotEmail("");
-                    }}
-                  >
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Voltar para login
-                  </Button>
-                </div>
-              ) : (
-                <form onSubmit={handleForgotPassword} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="forgot-email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="forgot-email"
-                        type="email"
-                        placeholder="seu@email.com"
-                        className={`pl-10 ${forgotErrors.email ? "border-destructive" : ""}`}
-                        value={forgotEmail}
-                        onChange={(e) => {
-                          setForgotEmail(e.target.value);
-                          if (forgotErrors.email) setForgotErrors({});
-                        }}
-                      />
-                    </div>
-                    {forgotErrors.email && (
-                      <p className="text-sm text-destructive">{forgotErrors.email}</p>
-                    )}
-                  </div>
+            <button type="submit" className="auth-submit" disabled={isLoading}>
+              {isLoading ? (<><Loader2 className="h-4 w-4 animate-spin" /> Enviando...</>) : "Enviar link de recuperação"}
+            </button>
 
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Enviando...
-                      </>
-                    ) : (
-                      "Enviar link de recuperação"
-                    )}
-                  </Button>
-
-                  <Button 
-                    type="button"
-                    variant="ghost" 
-                    className="w-full"
-                    onClick={() => setMode("login")}
-                  >
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Voltar para login
-                  </Button>
-                </form>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            <button
+              type="button"
+              className="auth-forgot"
+              onClick={() => setMode("login")}
+              style={{ display: "flex", alignItems: "center", gap: 6, margin: "12px auto 0" }}
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Voltar para login
+            </button>
+          </form>
+        )}
+      </AuthShell>
     );
   }
 
-  // Reset Password Mode
   if (mode === "reset") {
     if (waitingForSession || (searchParams.get("mode") === "reset" && !session)) {
       return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+        <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
           <p className="text-muted-foreground">Validando link de recuperação...</p>
         </div>
       );
     }
 
+    const title = passwordUpdated ? "Senha atualizada!" : "Nova senha";
+    const subtitle = passwordUpdated
+      ? "Sua senha foi alterada com sucesso"
+      : "Crie sua nova senha";
+
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <img 
-              src="/logo-printmycase.png" 
-              alt="Print My Case" 
-              className="h-16 mx-auto mb-4"
-            />
-            <h1 className="text-2xl font-bold text-foreground">Print My Case</h1>
-            <p className="text-muted-foreground">Sistema de Gestão de PDVs</p>
+      <AuthShell title={title} subtitle={subtitle}>
+        {passwordUpdated ? (
+          <div className="space-y-5">
+            <div className="flex justify-center">
+              <CheckCircle2 className="h-14 w-14 text-[hsl(var(--success))]" />
+            </div>
+            <button
+              type="button"
+              className="auth-submit"
+              onClick={() => {
+                setMode("login");
+                setPasswordUpdated(false);
+                setNewPasswordData({ password: "", confirmPassword: "" });
+                navigate("/auth");
+              }}
+            >
+              Ir para login
+            </button>
           </div>
-
-          <Card>
-            <CardHeader className="space-y-1 pb-4">
-              <CardTitle className="text-xl text-center">
-                {passwordUpdated ? "Senha atualizada!" : "Definir nova senha"}
-              </CardTitle>
-              <CardDescription className="text-center">
-                {passwordUpdated 
-                  ? "Sua senha foi alterada com sucesso" 
-                  : "Digite sua nova senha abaixo"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {passwordUpdated ? (
-                <div className="text-center space-y-4">
-                  <div className="flex justify-center">
-                    <CheckCircle2 className="h-16 w-16 text-green-500" />
-                  </div>
-                  <p className="text-muted-foreground">
-                    Você já pode fazer login com sua nova senha.
-                  </p>
-                  <Button 
-                    className="w-full"
-                    onClick={() => {
-                      setMode("login");
-                      setPasswordUpdated(false);
-                      setNewPasswordData({ password: "", confirmPassword: "" });
-                      navigate("/auth");
-                    }}
-                  >
-                    Ir para login
-                  </Button>
+        ) : (
+          <form onSubmit={handleUpdatePassword} className="space-y-4">
+            <div>
+              <label htmlFor="new-password" className="auth-label">Nova senha</label>
+              <div className={`auth-input-row ${newPasswordErrors.password ? "error" : ""}`}>
+                <span className="auth-input-prefix"><Lock className="h-4 w-4" /></span>
+                <input
+                  id="new-password"
+                  type="password"
+                  placeholder="••••••••"
+                  className="auth-input"
+                  value={newPasswordData.password}
+                  onChange={(e) => {
+                    setNewPasswordData({ ...newPasswordData, password: e.target.value });
+                    if (newPasswordErrors.password) setNewPasswordErrors({});
+                  }}
+                />
+              </div>
+              {newPasswordErrors.password && <p className="auth-err-msg">{newPasswordErrors.password}</p>}
+              {newPasswordData.password && (
+                <div className="mt-2">
+                  <PasswordStrengthIndicator password={newPasswordData.password} />
                 </div>
-              ) : (
-                <form onSubmit={handleUpdatePassword} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="new-password">Nova senha</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="new-password"
-                        type="password"
-                        placeholder="••••••••"
-                        className={`pl-10 ${newPasswordErrors.password ? "border-destructive" : ""}`}
-                        value={newPasswordData.password}
-                        onChange={(e) => {
-                          setNewPasswordData({ ...newPasswordData, password: e.target.value });
-                          if (newPasswordErrors.password) setNewPasswordErrors({});
-                        }}
-                      />
-                    </div>
-                    {newPasswordErrors.password && (
-                      <p className="text-sm text-destructive">{newPasswordErrors.password}</p>
-                    )}
-                    {newPasswordData.password && (
-                      <PasswordStrengthIndicator password={newPasswordData.password} />
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="confirm-new-password">Confirmar nova senha</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="confirm-new-password"
-                        type="password"
-                        placeholder="••••••••"
-                        className={`pl-10 ${newPasswordErrors.confirmPassword ? "border-destructive" : ""}`}
-                        value={newPasswordData.confirmPassword}
-                        onChange={(e) => {
-                          setNewPasswordData({ ...newPasswordData, confirmPassword: e.target.value });
-                          if (newPasswordErrors.confirmPassword) setNewPasswordErrors({});
-                        }}
-                      />
-                    </div>
-                    {newPasswordErrors.confirmPassword && (
-                      <p className="text-sm text-destructive">{newPasswordErrors.confirmPassword}</p>
-                    )}
-                  </div>
-
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Atualizando...
-                      </>
-                    ) : (
-                      "Atualizar senha"
-                    )}
-                  </Button>
-                </form>
               )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            </div>
+
+            <div>
+              <label htmlFor="confirm-new-password" className="auth-label">Confirmar nova senha</label>
+              <div className={`auth-input-row ${newPasswordErrors.confirmPassword ? "error" : ""}`}>
+                <span className="auth-input-prefix"><Lock className="h-4 w-4" /></span>
+                <input
+                  id="confirm-new-password"
+                  type="password"
+                  placeholder="••••••••"
+                  className="auth-input"
+                  value={newPasswordData.confirmPassword}
+                  onChange={(e) => {
+                    setNewPasswordData({ ...newPasswordData, confirmPassword: e.target.value });
+                    if (newPasswordErrors.confirmPassword) setNewPasswordErrors({});
+                  }}
+                />
+              </div>
+              {newPasswordErrors.confirmPassword && <p className="auth-err-msg">{newPasswordErrors.confirmPassword}</p>}
+            </div>
+
+            <button type="submit" className="auth-submit" disabled={isLoading}>
+              {isLoading ? (<><Loader2 className="h-4 w-4 animate-spin" /> Atualizando...</>) : "Atualizar senha"}
+            </button>
+          </form>
+        )}
+      </AuthShell>
     );
   }
 
-  // Login Mode (only login, no signup)
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <img 
-            src="/logo-printmycase.png" 
-            alt="Print My Case" 
-            className="h-16 mx-auto mb-4"
-          />
-          <h1 className="text-2xl font-bold text-foreground">Print My Case</h1>
-          <p className="text-muted-foreground">Sistema de Gestão de PDVs</p>
+    <AuthShell
+      title="Bem-vindo"
+      subtitle="Entre com suas credenciais para continuar"
+    >
+      <form onSubmit={handleLogin} className="space-y-4">
+        <div>
+          <label htmlFor="email" className="auth-label">Email</label>
+          <div className={`auth-input-row ${loginErrors.email ? "error" : ""}`}>
+            <span className="auth-input-prefix"><Mail className="h-4 w-4" /></span>
+            <input
+              id="email"
+              type="email"
+              placeholder="seu@email.com"
+              className="auth-input"
+              value={loginData.email}
+              onChange={(e) => {
+                setLoginData({ ...loginData, email: e.target.value });
+                if (loginErrors.email) setLoginErrors({});
+              }}
+            />
+          </div>
+          {loginErrors.email && <p className="auth-err-msg">{loginErrors.email}</p>}
         </div>
 
-        <Card>
-          <CardHeader className="space-y-1 pb-4">
-            <CardTitle className="text-xl text-center">Acesse sua conta</CardTitle>
-            <CardDescription className="text-center">
-              Entre com seu email e senha
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    className={`pl-10 ${loginErrors.email ? "border-destructive" : ""}`}
-                    value={loginData.email}
-                    onChange={(e) => {
-                      setLoginData({ ...loginData, email: e.target.value });
-                      if (loginErrors.email) setLoginErrors({});
-                    }}
-                  />
-                </div>
-                {loginErrors.email && (
-                  <p className="text-sm text-destructive">{loginErrors.email}</p>
-                )}
-              </div>
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label htmlFor="password" className="auth-label" style={{ marginBottom: 0 }}>Senha</label>
+            <button
+              type="button"
+              className="auth-forgot"
+              onClick={() => setMode("forgot")}
+            >
+              Esqueceu a senha?
+            </button>
+          </div>
+          <div className={`auth-input-row ${loginErrors.password ? "error" : ""}`}>
+            <span className="auth-input-prefix"><Lock className="h-4 w-4" /></span>
+            <input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              className="auth-input"
+              value={loginData.password}
+              onChange={(e) => {
+                setLoginData({ ...loginData, password: e.target.value });
+                if (loginErrors.password) setLoginErrors({});
+              }}
+            />
+          </div>
+          {loginErrors.password && <p className="auth-err-msg">{loginErrors.password}</p>}
+        </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Senha</Label>
-                  <Button 
-                    type="button"
-                    variant="link" 
-                    className="px-0 h-auto font-normal text-sm"
-                    onClick={() => setMode("forgot")}
-                  >
-                    Esqueceu a senha?
-                  </Button>
-                </div>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    className={`pl-10 ${loginErrors.password ? "border-destructive" : ""}`}
-                    value={loginData.password}
-                    onChange={(e) => {
-                      setLoginData({ ...loginData, password: e.target.value });
-                      if (loginErrors.password) setLoginErrors({});
-                    }}
-                  />
-                </div>
-                {loginErrors.password && (
-                  <p className="text-sm text-destructive">{loginErrors.password}</p>
-                )}
-              </div>
+        <button type="submit" className="auth-submit" disabled={isLoading}>
+          {isLoading ? (<><Loader2 className="h-4 w-4 animate-spin" /> Entrando...</>) : "Entrar"}
+        </button>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Entrando...
-                  </>
-                ) : (
-                  "Entrar"
-                )}
-              </Button>
-            </form>
-
-            <p className="text-center text-sm text-muted-foreground mt-6">
-              Para criar uma conta, entre em contato com o administrador.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+        <p className="text-center text-xs text-muted-foreground mt-6">
+          Para criar uma conta, entre em contato com o administrador.
+        </p>
+      </form>
+    </AuthShell>
   );
 }
