@@ -19,6 +19,7 @@ import {
 import { CollapsibleNavMenu } from "./CollapsibleNavMenu";
 import { useProfile } from "@/hooks/useProfile";
 import { usePrefetchRoutes } from "@/hooks/usePrefetchRoutes";
+import { Logo } from "@/components/ui/Logo";
 
 interface NavItem {
   icon: React.ElementType;
@@ -178,20 +179,10 @@ export function AppSidebar({
               className="h-9 w-9 rounded-lg flex items-center justify-center"
               style={{ background: "rgba(255,255,255,0.20)" }}
             >
-              <img
-                src="/icon-printmycase.png"
-                alt="Print My Case"
-                className="h-6 w-6 object-contain"
-                style={{ filter: "brightness(0) invert(1)" }}
-              />
+              <Logo variant="icon" className="h-6 w-6" mono />
             </div>
           ) : (
-            <img
-              src="/a33970fb-78ec-4651-a5e5-98cb6db17573.png"
-              alt="Print My Case"
-              className="h-10 object-contain"
-              style={{ filter: "brightness(0) invert(1)" }}
-            />
+            <Logo className="h-10" mono />
           )}
         </div>
 

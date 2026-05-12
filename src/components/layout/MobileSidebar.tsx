@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/sheet";
 import { CollapsibleNavMenu } from "./CollapsibleNavMenu";
 import { useProfile } from "@/hooks/useProfile";
+import { Logo } from "@/components/ui/Logo";
 
 interface NavItem {
   icon: React.ElementType;
@@ -103,12 +104,7 @@ export function MobileSidebar({
       >
         <SheetHeader className="h-[60px] flex flex-row items-center border-b border-[hsl(var(--sidebar-solid-bdr))] px-4">
           <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
-          <img
-            src="/a33970fb-78ec-4651-a5e5-98cb6db17573.png"
-            alt="Print My Case"
-            className="h-10 object-contain"
-            style={{ filter: "brightness(0) invert(1)" }}
-          />
+          <Logo className="h-10" mono />
         </SheetHeader>
 
         <div className="flex-1 flex flex-col">

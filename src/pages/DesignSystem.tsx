@@ -31,6 +31,7 @@ import { SkeletonShimmer } from "@/components/ui/skeleton-shimmer";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { Logo } from "@/components/ui/Logo";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -1279,6 +1280,46 @@ export default function DesignSystem() {
           </DSSection>
 
           {/* ─── DS Novo (Sprint refresh) ─── */}
+          <DSSection id="brand-logo" title="Brand — Logo" description="Logo oficial PrintMyCase em SVG vetorial. Use sempre via componente <Logo />.">
+            <DSExample title="Variant: full (fundo claro)">
+              <div className="flex items-center justify-center p-8 bg-background border border-border rounded-[var(--radius)]">
+                <Logo className="h-16" />
+              </div>
+            </DSExample>
+            <DSExample title="Variant: full + mono (fundo escuro / sidebar)">
+              <div className="flex items-center justify-center p-8 bg-primary rounded-[var(--radius)]">
+                <Logo className="h-16" mono />
+              </div>
+            </DSExample>
+            <DSExample title="Variant: icon (símbolo compacto)">
+              <div className="flex items-center gap-6 p-6 bg-card border border-border rounded-[var(--radius)]">
+                <Logo variant="icon" className="h-8 w-8" />
+                <Logo variant="icon" className="h-12 w-12" />
+                <div className="h-12 w-12 rounded-lg bg-primary flex items-center justify-center">
+                  <Logo variant="icon" className="h-7 w-7" mono />
+                </div>
+              </div>
+            </DSExample>
+            <DSExample title="Uso">
+              <pre className="text-[12px] font-mono bg-muted rounded-[8px] p-4 overflow-x-auto">
+{`import { Logo } from "@/components/ui/Logo";
+
+<Logo className="h-10" />              // padrão
+<Logo className="h-10" mono />         // fundo escuro
+<Logo variant="icon" className="h-6" /> // símbolo`}
+              </pre>
+            </DSExample>
+            <DSExample title="Regras de uso">
+              <ul className="text-[13px] text-foreground/80 space-y-1.5 list-disc pl-5">
+                <li>Tamanho mínimo recomendado: <strong>32px</strong> de altura.</li>
+                <li>Clear-space mínimo ao redor: <strong>50%</strong> da altura do logo.</li>
+                <li>Em fundos escuros use <code className="font-mono text-primary">mono</code> (filtro inverso).</li>
+                <li>Nunca aplicar sombras, contornos ou rotação ao logo.</li>
+                <li>Sempre via <code className="font-mono text-primary">&lt;Logo /&gt;</code> — nunca <code className="font-mono">&lt;img&gt;</code> direto.</li>
+              </ul>
+            </DSExample>
+          </DSSection>
+
           <DSSection id="ds-novo-tokens" title="DS Novo — Tokens de Cor" description="Paleta semântica do refresh.">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
