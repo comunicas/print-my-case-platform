@@ -44,9 +44,9 @@ export function SalesByDayChart({ data, animationDelay = 0 }: SalesByDayChartPro
   }, [displayData]);
 
   const getBarColor = (index: number) => {
-    if (index === maxIdx) return "hsl(var(--chart-2))";
-    if (index === minIdx) return "hsl(var(--chart-3))";
-    return "hsl(var(--chart-1))";
+    if (index === maxIdx) return "hsl(var(--primary))";
+    if (index === minIdx) return "hsl(var(--primary) / 0.45)";
+    return "hsl(var(--primary) / 0.75)";
   };
 
   if (data.length === 0) {
@@ -96,21 +96,22 @@ export function SalesByDayChart({ data, animationDelay = 0 }: SalesByDayChartPro
         aria-label={`Gráfico de ${title.toLowerCase()} mostrando ${displayData.length} ${viewMode === "monthly" ? "meses" : "dias"}. Média: ${formatCurrency(average)}`}
       >
         <BarChart data={displayData} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+          <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="4 4" vertical={false} />
           <XAxis
             dataKey="dateDisplay"
-            tick={{ fontSize: 11 }}
+            tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
             tickLine={false}
             axisLine={false}
           />
           <YAxis
             tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
-            tick={{ fontSize: 11 }}
+            tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
             tickLine={false}
             axisLine={false}
             width={55}
           />
           <ChartTooltip
+            cursor={{ fill: "hsl(var(--primary) / 0.08)" }}
             content={
               <ChartTooltipContent
                 hideLabel={true}
