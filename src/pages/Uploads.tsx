@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { UploadDialog } from "@/components/upload/UploadDialog";
 import { ApiSyncDialog } from "@/components/upload/ApiSyncDialog";
+import { ApiStockSyncDialog } from "@/components/upload/ApiStockSyncDialog";
 import {
   UploadType,
   UploadStatus,
@@ -72,6 +73,7 @@ export default function Uploads() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isApiSyncOpen, setIsApiSyncOpen] = useState(false);
+  const [isApiStockSyncOpen, setIsApiStockSyncOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingUpload, setDeletingUpload] = useState<UploadListItem | null>(null);
 
@@ -199,6 +201,15 @@ export default function Uploads() {
                 >
                   <Cloud className="h-4 w-4 mr-2" />
                   Atualizar via API
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  onClick={() => setIsApiStockSyncOpen(true)}
+                  disabled={activePdvs.length === 0}
+                >
+                  <Package className="h-4 w-4 mr-2" />
+                  Atualizar Estoque via API
                 </Button>
                 <Button 
                   className="w-full sm:w-auto" 
@@ -446,6 +457,16 @@ export default function Uploads() {
       <ApiSyncDialog
         open={isApiSyncOpen}
         onOpenChange={setIsApiSyncOpen}
+        pdvs={activePdvs.map((p) => ({
+          id: p.id,
+          name: p.name,
+          machine_id: p.machine_id,
+        }))}
+      />
+
+      <ApiStockSyncDialog
+        open={isApiStockSyncOpen}
+        onOpenChange={setIsApiStockSyncOpen}
         pdvs={activePdvs.map((p) => ({
           id: p.id,
           name: p.name,
