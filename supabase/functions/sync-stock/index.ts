@@ -144,7 +144,11 @@ interface KxzChannel {
   active?: number | boolean;
 }
 
-async function kxzListChannels(token: string, machineId: string): Promise<KxzChannel[]> {
+async function kxzListChannels(
+  token: string,
+  machineId: string,
+  onPage?: (page: number, count: number) => void,
+): Promise<KxzChannel[]> {
   const all: KxzChannel[] = [];
   const pageSize = 20;
   let page = 1;
@@ -172,6 +176,7 @@ async function kxzListChannels(token: string, machineId: string): Promise<KxzCha
       json?.data?.records ?? json?.data?.list ?? json?.data ?? json?.records ?? [];
     if (!Array.isArray(list) || list.length === 0) break;
     all.push(...list);
+    onPage?.(page, all.length);
     if (list.length < pageSize) break;
     page += 1;
   }
