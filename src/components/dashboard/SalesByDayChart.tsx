@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { TrendingUp } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine, Cell, Legend } from "recharts";
-import { SalesByDayData, exportToExcel, aggregateByMonth } from "@/lib/dashboardUtils";
+import { SalesByDayData, aggregateByMonth } from "@/lib/dashboardUtils";
 import { formatCurrency, pluralize } from "@/lib/utils";
 import { ChartCard } from "./ChartCard";
 import { Button } from "@/components/ui/button";
