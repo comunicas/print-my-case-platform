@@ -239,29 +239,29 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
       <div className="rounded-md border">
         <Table>
            <TableHeader>
-            <TableRow>
-              <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('slot')}>
-                <div className="flex items-center gap-1">Slot <SortIcon field="slot" /></div>
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('model')}>
-                <div className="flex items-center gap-1">Produto <SortIcon field="model" /></div>
-              </TableHead>
+            <TableRow className="bg-muted/50 hover:bg-muted/50">
+              {[
+                { f: 'slot' as SortField, label: 'Slot' },
+                { f: 'model' as SortField, label: 'Produto' },
+              ].map(({ f, label }) => (
+                <TableHead key={f} className="text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground cursor-pointer hover:bg-muted" onClick={() => handleSort(f)}>
+                  <div className="flex items-center gap-1">{label} <SortIcon field={f} /></div>
+                </TableHead>
+              ))}
               {isGlobalView && (
-                <TableHead>PDV</TableHead>
+                <TableHead className="text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">PDV</TableHead>
               )}
-              <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('status')}>
-                <div className="flex items-center gap-1">Status <SortIcon field="status" /></div>
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('sales')}>
-                <div className="flex items-center gap-1">Vendas <SortIcon field="sales" /></div>
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('quantity')}>
-                <div className="flex items-center gap-1">Estoque <SortIcon field="quantity" /></div>
-              </TableHead>
-              <TableHead>
-                <div className="flex items-center gap-1">Compras</div>
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('slots')}>
+              {[
+                { f: 'status' as SortField, label: 'Status' },
+                { f: 'sales' as SortField, label: 'Vendas' },
+                { f: 'quantity' as SortField, label: 'Estoque' },
+              ].map(({ f, label }) => (
+                <TableHead key={f} className="text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground cursor-pointer hover:bg-muted" onClick={() => handleSort(f)}>
+                  <div className="flex items-center gap-1">{label} <SortIcon field={f} /></div>
+                </TableHead>
+              ))}
+              <TableHead className="text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Compras</TableHead>
+              <TableHead className="text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground cursor-pointer hover:bg-muted" onClick={() => handleSort('slots')}>
                 <div className="flex items-center gap-1">Slots <SortIcon field="slots" /></div>
               </TableHead>
               <TableHead className="w-[60px]"></TableHead>
@@ -329,8 +329,19 @@ export function ProductStockTable({ products, isLoading }: ProductStockTableProp
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2 min-w-[120px]">
-                    <Progress value={(product.totalQuantity / product.maxCapacity) * 100} className="h-2 w-16" />
-                    <span className="text-sm font-medium">{product.totalQuantity}/{product.maxCapacity}</span>
+                    <div className="flex-1 h-[5px] bg-muted rounded-full overflow-hidden min-w-[60px]">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${(product.totalQuantity / product.maxCapacity) * 100}%`,
+                          background:
+                            product.totalQuantity === 0 ? 'hsl(var(--destructive))'
+                            : product.totalQuantity <= 2 ? 'hsl(38 92% 50%)'
+                            : 'hsl(158 64% 36%)',
+                        }}
+                      />
+                    </div>
+                    <span className="text-[11px] text-muted-foreground font-medium">{product.totalQuantity}/{product.maxCapacity}</span>
                   </div>
                 </TableCell>
                 <TableCell>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Package, Boxes, AlertTriangle, RefreshCw } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import { StockKPIs } from '@/lib/stockUtils';
 
 interface StockKPICardsProps {
@@ -50,33 +51,38 @@ export const StockKPICards = React.memo(function StockKPICards({ kpis, globalKpi
   ];
 
   return (
-    <div className="grid gap-2 md:gap-4 grid-cols-2 lg:grid-cols-4">
-      {cards.map((card) => (
-        <Card 
-          key={card.title} 
-          className={onCardClick && card.filter ? "cursor-pointer hover:shadow-md transition-shadow" : ""}
-          onClick={() => onCardClick && card.filter ? onCardClick(card.filter) : undefined}
-        >
-          <CardContent className="px-3 md:px-4 py-3 md:py-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5 md:space-y-1">
-                <p className="text-xs md:text-sm text-muted-foreground">{card.title}</p>
-                <p className={`text-lg md:text-2xl font-bold ${
-                  card.highlight === 'destructive' ? 'text-destructive' : 
-                  card.highlight === 'warning' ? 'text-orange-500' : ''
-                }`}>
+    <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+      {cards.map((card) => {
+        const valueColor =
+          card.highlight === 'destructive' ? 'text-destructive'
+          : card.highlight === 'warning' ? 'text-[hsl(38_92%_38%)]'
+          : 'text-foreground';
+        const iconColor =
+          card.highlight === 'destructive' ? 'text-destructive'
+          : card.highlight === 'warning' ? 'text-[hsl(38_92%_38%)]'
+          : 'text-muted-foreground';
+        return (
+          <Card
+            key={card.title}
+            className={cn(
+              "p-4 transition-all duration-200",
+              onCardClick && card.filter && "cursor-pointer hover:-translate-y-0.5 hover:border-primary hover:shadow-[0_6px_20px_hsl(var(--primary)/0.10)]"
+            )}
+            onClick={() => onCardClick && card.filter ? onCardClick(card.filter) : undefined}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className={cn("text-[24px] md:text-[28px] font-extrabold leading-none truncate", valueColor)}>
                   {isLoading ? '-' : card.value}
                 </p>
-                <p className="text-[10px] md:text-xs text-muted-foreground">{card.description}</p>
+                <p className="text-[12px] text-muted-foreground font-medium mt-1">{card.title}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{card.description}</p>
               </div>
-              <card.icon className={`h-6 w-6 md:h-8 md:w-8 ${
-                card.highlight === 'destructive' ? 'text-destructive' : 
-                card.highlight === 'warning' ? 'text-orange-500' : 'text-muted-foreground'
-              }`} />
+              <card.icon className={cn("h-5 w-5 shrink-0", iconColor)} />
             </div>
-          </CardContent>
-        </Card>
-      ))}
+          </Card>
+        );
+      })}
     </div>
   );
 });

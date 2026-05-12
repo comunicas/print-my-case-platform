@@ -10,7 +10,6 @@ import { StockEmptyState } from "@/components/stock/StockEmptyState";
 import { useProductStock } from "@/hooks/useProductStock";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -67,31 +66,33 @@ function StockTableContent() {
             {viewMode === 'table' ? 'Detalhes do inventário por produto' : 'Visualização dos slots das máquinas'}
           </p>
         </div>
-        <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-          <Button
-            variant="ghost"
-            size="sm"
+        <div className="flex items-center gap-0 p-[3px] bg-card border border-border rounded-[8px]">
+          <button
+            type="button"
             className={cn(
-              "h-8 px-3 gap-1.5",
-              viewMode === 'table' && "bg-background shadow-sm"
+              "px-3.5 py-1.5 rounded-[6px] text-[12.5px] font-medium inline-flex items-center gap-1.5 transition-colors",
+              viewMode === 'table'
+                ? "bg-primary text-white font-semibold"
+                : "text-muted-foreground hover:bg-muted"
             )}
             onClick={() => handleViewChange('table')}
           >
             <TableIcon className="h-4 w-4" />
             <span className="hidden sm:inline">Tabela</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
+          </button>
+          <button
+            type="button"
             className={cn(
-              "h-8 px-3 gap-1.5",
-              viewMode === 'map' && "bg-background shadow-sm"
+              "px-3.5 py-1.5 rounded-[6px] text-[12.5px] font-medium inline-flex items-center gap-1.5 transition-colors",
+              viewMode === 'map'
+                ? "bg-primary text-white font-semibold"
+                : "text-muted-foreground hover:bg-muted"
             )}
             onClick={() => handleViewChange('map')}
           >
             <LayoutGrid className="h-4 w-4" />
             <span className="hidden sm:inline">Mapa</span>
-          </Button>
+          </button>
         </div>
       </div>
 
