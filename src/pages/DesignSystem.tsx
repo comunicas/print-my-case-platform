@@ -89,7 +89,7 @@ import { VisuallyHidden } from "@/components/ui/visually-hidden";
 // Project wrappers
 import { EmptyState } from "@/components/ui/empty-state";
 import { PhoneInput } from "@/components/ui/phone-input";
-import { PasswordStrength } from "@/components/ui/password-strength";
+import { PasswordStrengthIndicator } from "@/components/ui/password-strength";
 import { BrandLogo } from "@/components/ui/BrandLogo";
 import { ProductDisplay } from "@/components/ui/ProductDisplay";
 import { SearchFilter } from "@/components/ui/SearchFilter";
@@ -277,7 +277,7 @@ function PasswordDemo() {
     <div className="space-y-2 max-w-sm">
       <Label>Senha</Label>
       <Input type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder="Digite uma senha" />
-      <PasswordStrength password={pw} />
+      <PasswordStrengthIndicator password={pw} />
     </div>
   );
 }
