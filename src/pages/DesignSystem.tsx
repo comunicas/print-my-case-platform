@@ -97,6 +97,24 @@ import { SelectFilter } from "@/components/ui/SelectFilter";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { format } from "date-fns";
 
+// Dashboard / charts
+import {
+  KPICard, QuickStats, FinancialSummaryCard, LossAnalysisCard,
+  ChartCard, ChartEmptyState, ChartSkeleton,
+  SalesByDayChart, SalesHeatmapChart, TopProductsChart,
+  LossesByDayChart, StockAlertsTable, DateRangeFilter,
+} from "@/components/dashboard";
+import { ProductSalesByDayChart } from "@/components/stock/ProductSalesByDayChart";
+import { ProductSalesByHourChart } from "@/components/stock/ProductSalesByHourChart";
+import { ProductSalesHistoryChart } from "@/components/stock/ProductSalesHistoryChart";
+import { History, Package, DollarSign, ShoppingCart, TrendingUp as TrendingUpIcon } from "lucide-react";
+import { LineChart, Line, PieChart, Pie, Cell as RCell, YAxis as RYAxis } from "recharts";
+import {
+  salesByDayMock, lossesByDayMock, topProductsMock, stockByBrandMock,
+  heatmapMock, stockAlertsMock, productSalesByDayMock, productSalesByHourMock,
+  stockHistoryMock,
+} from "@/pages/ds/chartMocks";
+
 // ------------------------------------------------------------------
 // Navigation structure (used by both desktop sidebar and mobile sheet)
 // ------------------------------------------------------------------
