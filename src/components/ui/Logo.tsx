@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 type LogoVariant = "full" | "icon";
-type LogoTone = "brand" | "light" | "dark";
+type LogoTone = "brand" | "light";
 
 interface LogoProps {
   variant?: LogoVariant;
@@ -10,17 +10,17 @@ interface LogoProps {
   alt?: string;
 }
 
+// Filter calibrado para colorir o SVG branco em #9F229A (brand purple)
+const BRAND_FILTER =
+  "brightness(0) saturate(100%) invert(20%) sepia(96%) saturate(3461%) hue-rotate(289deg) brightness(91%) contrast(101%)";
+
 /**
  * PrintMyCase logo — padrão da aplicação.
  *
  * - `variant="full"` (default): logotipo completo.
  * - `variant="icon"`: símbolo compacto.
- * - `tone="brand"` (default): roxo da marca (use em fundos claros).
- * - `tone="light"`: branco (use em fundos escuros — sidebar, hero roxo).
- * - `tone="dark"`: preto (uso raro — impressões/print).
- *
- * Renderiza via CSS `mask-image`, permitindo qualquer cor sem reexportar SVG.
- * Use Tailwind `h-*` / `w-*` no `className` para dimensionar.
+ * - `tone="brand"` (default): roxo da marca (fundos claros).
+ * - `tone="light"`: branco (cor nativa do SVG — fundos escuros / sidebar).
  */
 export function Logo({
   variant = "full",
@@ -31,30 +31,13 @@ export function Logo({
   const src =
     variant === "icon" ? "/icon-printmycase.svg" : "/logo-printmycase.svg";
 
-  const color =
-    tone === "brand"
-      ? "hsl(var(--primary))"
-      : tone === "dark"
-        ? "#000000"
-        : "#FFFFFF";
-
   return (
-    <span
-      role="img"
-      aria-label={alt}
-      className={cn("inline-block select-none", className)}
-      style={{
-        aspectRatio: variant === "icon" ? "1 / 1" : "960 / 540",
-        backgroundColor: color,
-        WebkitMaskImage: `url(${src})`,
-        maskImage: `url(${src})`,
-        WebkitMaskRepeat: "no-repeat",
-        maskRepeat: "no-repeat",
-        WebkitMaskSize: "contain",
-        maskSize: "contain",
-        WebkitMaskPosition: "center",
-        maskPosition: "center",
-      }}
+    <img
+      src={src}
+      alt={alt}
+      draggable={false}
+      className={cn("object-contain select-none", className)}
+      style={tone === "brand" ? { filter: BRAND_FILTER } : undefined}
     />
   );
 }
