@@ -49,18 +49,6 @@ export function SalesHeatmapChart({ data, animationDelay = 0 }: SalesHeatmapChar
     const range = TIME_RANGES[rangeId];
     return range.label === peak.rangeLabel && DAYS[day] === peak.dayName;
   };
-  
-  const handleExport = () => {
-    const exportData: Record<string, string | number>[] = TIME_RANGES.map(range => {
-      const row: Record<string, string | number> = { Horário: range.label };
-      DAYS.forEach((day, idx) => {
-        const cell = data.find(c => c.rangeId === range.id && c.dayOfWeek === idx);
-        row[day] = cell?.revenue || 0;
-      });
-      return row;
-    });
-    exportToExcel(exportData, "heatmap-vendas");
-  };
 
   return (
     <ChartCard
