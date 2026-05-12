@@ -1,9 +1,6 @@
 import { lazy, Suspense, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-
 import { User, Settings as SettingsIcon, Building2, Plug, Loader2, MapPin, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -11,6 +8,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { usePreferences } from "@/hooks/usePreferences";
 import { usePDVs } from "@/hooks/usePDVs";
 import { TabSkeleton } from "@/components/settings";
+import { cn } from "@/lib/utils";
 
 // Lazy load das tabs de settings
 const ProfileSettings = lazy(() => import("@/components/settings/ProfileSettings").then(m => ({ default: m.ProfileSettings })));
@@ -65,9 +63,18 @@ const [searchParams, setSearchParams] = useSearchParams();
     );
   }
 
+  const tabs = [
+    { value: "profile", label: "Perfil", icon: User, show: true },
+    { value: "preferences", label: "Preferências", icon: SettingsIcon, show: true },
+    { value: "organization", label: "Organização", icon: Building2, show: true },
+    { value: "pdvs", label: "PDVs", icon: MapPin, show: true },
+    { value: "team", label: "Equipe", icon: Users, show: isAdmin },
+    { value: "integrations", label: "Integrações", icon: Plug, show: true },
+  ].filter((t) => t.show);
+
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="ds-screen-enter space-y-6">
         {/* Header */}
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Configurações</h1>
@@ -76,96 +83,60 @@ const [searchParams, setSearchParams] = useSearchParams();
           </p>
         </div>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 md:grid-cols-6 h-auto">
-            <TabsTrigger value="profile" className="gap-2 py-2">
-              <User className="h-4 w-4" />
-              <span className="hidden sm:inline">Perfil</span>
-            </TabsTrigger>
-            <TabsTrigger value="preferences" className="gap-2 py-2">
-              <SettingsIcon className="h-4 w-4" />
-              <span className="hidden sm:inline">Preferências</span>
-            </TabsTrigger>
-            <TabsTrigger value="organization" className="gap-2 py-2">
-              <Building2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Organização</span>
-            </TabsTrigger>
-            <TabsTrigger value="pdvs" className="gap-2 py-2">
-              <MapPin className="h-4 w-4" />
-              <span className="hidden sm:inline">PDVs</span>
-            </TabsTrigger>
-            {isAdmin && (
-              <TabsTrigger value="team" className="gap-2 py-2">
-                <Users className="h-4 w-4" />
-                <span className="hidden sm:inline">Equipe</span>
-              </TabsTrigger>
-            )}
-            <TabsTrigger value="integrations" className="gap-2 py-2">
-              <Plug className="h-4 w-4" />
-              <span className="hidden sm:inline">Integrações</span>
-            </TabsTrigger>
-          </TabsList>
+        {/* Layout: sidebar + content */}
+        <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-5 items-start">
+          <nav className="bg-card border border-border rounded-[var(--radius)] p-2 flex flex-row md:flex-col gap-0.5 flex-wrap">
+            {tabs.map((t) => {
+              const Icon = t.icon;
+              const isActive = activeTab === t.value;
+              return (
+                <button
+                  key={t.value}
+                  onClick={() => handleTabChange(t.value)}
+                  className={cn(
+                    "flex items-center gap-2.5 w-full px-3 py-2.5 rounded-[8px] text-[13.5px] font-medium transition-colors text-left",
+                    isActive
+                      ? "bg-primary/10 text-primary font-semibold"
+                      : "text-foreground/70 hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  <span>{t.label}</span>
+                </button>
+              );
+            })}
+          </nav>
 
-          {/* Profile Tab */}
-          <TabsContent value="profile" className="space-y-6">
+          <div className="space-y-6 min-w-0">
             <Suspense fallback={<TabSkeleton />}>
-              <ProfileSettings
-                profile={profile}
-                role={role}
-                session={session}
-                updateProfile={updateProfile}
-              />
-            </Suspense>
-          </TabsContent>
-
-          {/* Preferences Tab */}
-          <TabsContent value="preferences" className="space-y-6">
-            <Suspense fallback={<TabSkeleton />}>
-              <PreferencesSettings
-                preferences={preferences}
-                pdvs={pdvs}
-                updatePreferences={updatePreferences}
-              />
-            </Suspense>
-          </TabsContent>
-
-          {/* Organization Tab */}
-          <TabsContent value="organization" className="space-y-6">
-            {organization && (
-              <Suspense fallback={<TabSkeleton />}>
+              {activeTab === "profile" && (
+                <ProfileSettings
+                  profile={profile}
+                  role={role}
+                  session={session}
+                  updateProfile={updateProfile}
+                />
+              )}
+              {activeTab === "preferences" && (
+                <PreferencesSettings
+                  preferences={preferences}
+                  pdvs={pdvs}
+                  updatePreferences={updatePreferences}
+                />
+              )}
+              {activeTab === "organization" && organization && (
                 <OrganizationSettings
                   organization={organization}
                   isAdmin={isAdmin}
                   updateOrganization={updateOrganization}
                 />
-              </Suspense>
-            )}
-          </TabsContent>
-
-          {/* PDVs Tab */}
-          <TabsContent value="pdvs" className="space-y-6">
-            <Suspense fallback={<TabSkeleton />}>
-              <PDVsSettings />
+              )}
+              {activeTab === "pdvs" && <PDVsSettings />}
+              {activeTab === "team" && isAdmin && <TeamSettings />}
+              {activeTab === "integrations" && <IntegrationsSettings />}
             </Suspense>
-          </TabsContent>
-
-          {/* Team Tab */}
-          {isAdmin && (
-            <TabsContent value="team" className="space-y-6">
-              <Suspense fallback={<TabSkeleton />}>
-                <TeamSettings />
-              </Suspense>
-            </TabsContent>
-          )}
-
-          {/* Integrations Tab */}
-          <TabsContent value="integrations" className="space-y-6">
-            <Suspense fallback={<TabSkeleton />}>
-              <IntegrationsSettings />
-            </Suspense>
-          </TabsContent>
-        </Tabs>
+          </div>
+        </div>
       </div>
     </AppLayout>
   );
