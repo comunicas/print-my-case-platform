@@ -1194,10 +1194,27 @@ export default function DesignSystem() {
           <DSSection id="kpi-cards" title="KPI / Summary cards" description="Cards de métrica usados no Dashboard e Financeiro.">
             <DSExample title="KPICard (variants)">
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                <KPICard title="Receita" value="R$ 128.4k" icon={DollarSign} variant="success"
-                  trend={{ percentage: 12.4, direction: "up", currentValue: 128400, previousValue: 114200 } as any} />
-                <KPICard title="Vendas" value="1.284" icon={ShoppingCart}
-                  trend={{ percentage: -3.1, direction: "down", currentValue: 1284, previousValue: 1325 } as any} />
+                {(() => {
+                  const today = new Date();
+                  const start = new Date(); start.setDate(today.getDate() - 13);
+                  const prevStart = new Date(start); prevStart.setDate(prevStart.getDate() - 14);
+                  const prevEnd = new Date(start); prevEnd.setDate(prevEnd.getDate() - 1);
+                  const mkTrend = (cur: number, prev: number) => ({
+                    percentage: Math.round(((cur - prev) / prev) * 1000) / 10,
+                    hasPreviousData: true,
+                    isPositive: cur >= prev,
+                    currentPeriod: { start, end: today },
+                    previousPeriod: { start: prevStart, end: prevEnd },
+                    currentValue: cur,
+                    previousValue: prev,
+                  });
+                  return (
+                    <>
+                      <KPICard title="Receita" value="R$ 128.4k" icon={DollarSign} variant="success" trend={mkTrend(128400, 114200)} />
+                      <KPICard title="Vendas" value="1.284" icon={ShoppingCart} trend={mkTrend(1284, 1325)} />
+                    </>
+                  );
+                })()}
                 <KPICard title="Ticket médio" value="R$ 99,9" icon={TrendingUpIcon} variant="warning" />
                 <KPICard title="Perda" value="R$ 4.2k" icon={Package} variant="danger" subtitle="3.2% do total" />
               </div>
