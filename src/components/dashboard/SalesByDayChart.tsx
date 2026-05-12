@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { TrendingUp } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine, Cell, Legend } from "recharts";
-import { SalesByDayData, exportToExcel, aggregateByMonth } from "@/lib/dashboardUtils";
+import { SalesByDayData, aggregateByMonth } from "@/lib/dashboardUtils";
 import { formatCurrency, pluralize } from "@/lib/utils";
 import { ChartCard } from "./ChartCard";
 import { Button } from "@/components/ui/button";
@@ -42,18 +42,7 @@ export function SalesByDayChart({ data, animationDelay = 0 }: SalesByDayChartPro
       minIdx: revenues.indexOf(min),
     };
   }, [displayData]);
-  
-  const handleExport = () => {
-    exportToExcel(
-      displayData.map(d => ({
-        Data: d.dateDisplay,
-        Receita: d.revenue,
-        Quantidade: d.count,
-      })),
-      viewMode === "monthly" ? "vendas-por-mes" : "vendas-por-dia"
-    );
-  };
-  
+
   const getBarColor = (index: number) => {
     if (index === maxIdx) return "hsl(var(--chart-2))";
     if (index === minIdx) return "hsl(var(--chart-3))";
@@ -97,8 +86,6 @@ export function SalesByDayChart({ data, animationDelay = 0 }: SalesByDayChartPro
       description={description}
       icon={TrendingUp}
       iconColor="text-chart-2"
-      onExport={handleExport}
-      exportTestId="export-sales-by-day"
       animationDelay={animationDelay}
       headerBadge={viewToggle}
     >

@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
-import { exportToExcel } from "@/lib/dashboardUtils";
 import { pluralize } from "@/lib/utils";
 import { getBrandChartColor } from "@/lib/brandAssets";
 import { ChartCard } from "./ChartCard";
@@ -39,19 +38,6 @@ export function StockHistoryChart({ organizationId, pdvId, animationDelay = 0 }:
     return acc;
   }, {} as Record<string, { label: string; color: string }>);
 
-  const handleExport = () => {
-    exportToExcel(
-      filteredData.map(d => {
-        const row: Record<string, string | number> = { Data: d.dateDisplay };
-        brands.forEach(brand => {
-          row[brand] = d[brand] || 0;
-        });
-        return row;
-      }),
-      "historico-estoque"
-    );
-  };
-
   if (data.length === 0) return null;
 
   const periodButtons = (
@@ -80,8 +66,6 @@ export function StockHistoryChart({ organizationId, pdvId, animationDelay = 0 }:
       description="Histórico de estoque por marca no período"
       icon={History}
       iconColor="text-primary"
-      onExport={handleExport}
-      exportTestId="export-stock-history"
       headerBadge={periodButtons}
       animationDelay={animationDelay}
     >

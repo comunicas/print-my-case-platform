@@ -8,7 +8,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn, pluralize, formatCurrency } from "@/lib/utils";
-import { HeatmapCell, TIME_RANGES, getHeatmapPeak, exportToExcel } from "@/lib/dashboardUtils";
+import { HeatmapCell, TIME_RANGES, getHeatmapPeak } from "@/lib/dashboardUtils";
 import { ChartCard } from "./ChartCard";
 
 interface SalesHeatmapChartProps {
@@ -49,18 +49,6 @@ export function SalesHeatmapChart({ data, animationDelay = 0 }: SalesHeatmapChar
     const range = TIME_RANGES[rangeId];
     return range.label === peak.rangeLabel && DAYS[day] === peak.dayName;
   };
-  
-  const handleExport = () => {
-    const exportData: Record<string, string | number>[] = TIME_RANGES.map(range => {
-      const row: Record<string, string | number> = { Horário: range.label };
-      DAYS.forEach((day, idx) => {
-        const cell = data.find(c => c.rangeId === range.id && c.dayOfWeek === idx);
-        row[day] = cell?.revenue || 0;
-      });
-      return row;
-    });
-    exportToExcel(exportData, "heatmap-vendas");
-  };
 
   return (
     <ChartCard
@@ -69,8 +57,6 @@ export function SalesHeatmapChart({ data, animationDelay = 0 }: SalesHeatmapChar
       description="Concentração de vendas por dia e horário"
       icon={Grid3x3}
       iconColor="text-purple-500"
-      onExport={handleExport}
-      exportTestId="export-heatmap"
       headerBadge={peak && (
         <Badge data-testid="heatmap-peak-badge" variant="outline" className="gap-1 text-xs">
           Pico: {peak.dayName} {peak.rangeLabel}

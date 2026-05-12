@@ -2,7 +2,7 @@ import { Flame, Trophy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from "recharts";
-import { TopProductData, exportToExcel } from "@/lib/dashboardUtils";
+import { TopProductData } from "@/lib/dashboardUtils";
 import { formatCurrency, pluralize } from "@/lib/utils";
 import { getBrandChartColor } from "@/lib/brandAssets";
 import { useProductModal } from "@/contexts/ProductModalContext";
@@ -21,20 +21,7 @@ const chartConfig = {
 
 export function TopProductsChart({ data, animationDelay = 0, selectedPdvId }: TopProductsChartProps) {
   const { openProductModal } = useProductModal();
-  
-  const handleExport = () => {
-    exportToExcel(
-      data.map((d, idx) => ({
-        Posição: idx + 1,
-        Produto: d.name,
-        Marca: d.brand,
-        Receita: d.revenue,
-        Quantidade: d.count,
-      })),
-      "top-produtos"
-    );
-  };
-  
+
   const truncateName = (name: string, maxLength: number = 20) => {
     return name.length > maxLength ? `${name.substring(0, maxLength)}...` : name;
   };
@@ -46,8 +33,6 @@ export function TopProductsChart({ data, animationDelay = 0, selectedPdvId }: To
       description="Produtos com maior receita no período"
       icon={Trophy}
       iconColor="text-amber-500"
-      onExport={handleExport}
-      exportTestId="export-top-products"
       animationDelay={animationDelay}
     >
       {data.length > 0 ? (
