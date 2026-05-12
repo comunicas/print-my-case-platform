@@ -104,7 +104,7 @@ export function MobileSidebar({
       >
         <SheetHeader className="h-[60px] flex flex-row items-center border-b border-[hsl(var(--sidebar-solid-bdr))] px-4">
           <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
-          <Logo className="h-10" mono />
+          <Logo className="h-10" tone="light" />
         </SheetHeader>
 
         <div className="flex-1 flex flex-col">

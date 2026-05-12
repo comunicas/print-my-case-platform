@@ -56,7 +56,7 @@ function AuthLeftPanel() {
       </svg>
 
       <div className="auth-left-body">
-        <Logo className="auth-logo-left" mono />
+        <Logo className="auth-logo-left" tone="light" />
 
         <div className="auth-tagline">
           <h2 className="auth-tagline-title">

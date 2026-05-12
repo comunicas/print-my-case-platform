@@ -179,10 +179,10 @@ export function AppSidebar({
               className="h-9 w-9 rounded-lg flex items-center justify-center"
               style={{ background: "rgba(255,255,255,0.20)" }}
             >
-              <Logo variant="icon" className="h-6 w-6" mono />
+              <Logo variant="icon" className="h-6 w-6" tone="light" />
             </div>
           ) : (
-            <Logo className="h-10" mono />
+            <Logo className="h-10" tone="light" />
           )}
         </div>
 
