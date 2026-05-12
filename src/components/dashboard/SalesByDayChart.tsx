@@ -42,18 +42,7 @@ export function SalesByDayChart({ data, animationDelay = 0 }: SalesByDayChartPro
       minIdx: revenues.indexOf(min),
     };
   }, [displayData]);
-  
-  const handleExport = () => {
-    exportToExcel(
-      displayData.map(d => ({
-        Data: d.dateDisplay,
-        Receita: d.revenue,
-        Quantidade: d.count,
-      })),
-      viewMode === "monthly" ? "vendas-por-mes" : "vendas-por-dia"
-    );
-  };
-  
+
   const getBarColor = (index: number) => {
     if (index === maxIdx) return "hsl(var(--chart-2))";
     if (index === minIdx) return "hsl(var(--chart-3))";
