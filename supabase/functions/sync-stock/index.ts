@@ -438,6 +438,7 @@ Deno.serve(async (req) => {
     const requestedPdvIds: string[] | undefined = Array.isArray(body?.pdv_ids)
       ? body.pdv_ids.map((x: unknown) => String(x))
       : undefined;
+    const wantStream = body?.stream === true;
 
     const admin = createClient(supabaseUrl, serviceKey, {
       auth: { autoRefreshToken: false, persistSession: false },
@@ -493,10 +494,24 @@ Deno.serve(async (req) => {
       `[sync-stock] start req=${requestId} org=${orgId} day=${today} pdvs=${pdvs.length}`,
     );
 
-    let kxzToken: string | null = null;
-    const results: PdvResult[] = [];
+    type EmitFn = (event: string, data: unknown) => void;
+    let sseController: ReadableStreamDefaultController<Uint8Array> | null = null;
+    const encoder = new TextEncoder();
+    const emit: EmitFn = (event, data) => {
+      if (!sseController) return;
+      try {
+        sseController.enqueue(
+          encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`),
+        );
+      } catch {
+        // controller already closed
+      }
+    };
 
-    for (const pdv of pdvs) {
+    const runWork = async (): Promise<PdvResult[]> => {
+      let kxzToken: string | null = null;
+      const results: PdvResult[] = [];
+      for (const pdv of pdvs) {
       const pdvName = (pdv as any).name as string;
       const pdvId = (pdv as any).id as string;
       const machineId = (pdv as any).machine_id as string;
@@ -504,6 +519,13 @@ Deno.serve(async (req) => {
 
       if (!machineId) {
         results.push({
+          pdv_id: pdvId,
+          pdv_name: pdvName,
+          status: "error",
+          error: "PDV sem machine_id configurado",
+        });
+        emit("stage", { pdv_id: pdvId, stage: "login", status: "error", message: "PDV sem machine_id" });
+        emit("pdv", {
           pdv_id: pdvId,
           pdv_name: pdvName,
           status: "error",
@@ -575,8 +597,30 @@ Deno.serve(async (req) => {
       }
 
       try {
-        if (!kxzToken) kxzToken = await kxzLogin();
-        const channels = await kxzListChannels(kxzToken, machineId);
+        if (!kxzToken) {
+          emit("stage", { pdv_id: pdvId, stage: "login", status: "start" });
+          kxzToken = await kxzLogin();
+          emit("stage", { pdv_id: pdvId, stage: "login", status: "done" });
+        } else {
+          emit("stage", { pdv_id: pdvId, stage: "login", status: "cached" });
+        }
+
+        emit("stage", { pdv_id: pdvId, stage: "channels", status: "start" });
+        const channels = await kxzListChannels(kxzToken, machineId, (page, count) => {
+          emit("stage", {
+            pdv_id: pdvId,
+            stage: "channels",
+            status: "progress",
+            page,
+            count,
+          });
+        });
+        emit("stage", {
+          pdv_id: pdvId,
+          stage: "channels",
+          status: "done",
+          total: channels.length,
+        });
 
         // Snapshot anterior para deduzir pre_stock só nos aumentos reais.
         const { data: prevRecords } = await admin
@@ -597,8 +641,13 @@ Deno.serve(async (req) => {
 
         let goodsCache: Map<string, string> | null = null; // goodsId → name
         let bySlotCache: Map<string, string> | null = null; // slot → name
+        let productsStageEmitted = false;
         const ensureGoodsCache = async () => {
           if (goodsCache) return;
+          if (!productsStageEmitted) {
+            emit("stage", { pdv_id: pdvId, stage: "products", status: "start" });
+            productsStageEmitted = true;
+          }
           const briefs = await kxzListGoodsBriefs(kxzToken!, machineId);
           goodsCache = new Map();
           bySlotCache = new Map();
@@ -613,6 +662,12 @@ Deno.serve(async (req) => {
               bySlotCache!.set(norm, name);
             }
           }
+          emit("stage", {
+            pdv_id: pdvId,
+            stage: "products",
+            status: "done",
+            total: briefs.length,
+          });
         };
 
         const rows: StockRecordRow[] = [];
@@ -661,6 +716,9 @@ Deno.serve(async (req) => {
           if (occ > 1) duplicates.push({ slot_number: slot, occurrences: occ });
         }
         duplicates.sort((a, b) => b.occurrences - a.occurrences);
+        if (!productsStageEmitted) {
+          emit("stage", { pdv_id: pdvId, stage: "products", status: "skip" });
+        }
         // Em caso de duplicidade no gateway, mantém o último (sobrescreve).
         if (duplicates.length > 0) {
           const m = new Map<string, StockRecordRow>();
@@ -670,6 +728,7 @@ Deno.serve(async (req) => {
         }
 
         // === Snapshot total: limpa e reinsere
+        emit("stage", { pdv_id: pdvId, stage: "writing", status: "start", total: rows.length });
         const { error: delErr } = await admin
           .from("stock_records")
           .delete()
@@ -808,6 +867,15 @@ Deno.serve(async (req) => {
           total: rows.length,
           verification,
         });
+        emit("stage", { pdv_id: pdvId, stage: "writing", status: "done", inserted });
+        emit("pdv", {
+          pdv_id: pdvId,
+          pdv_name: pdvName,
+          status: "ready",
+          inserted,
+          total: rows.length,
+          verification,
+        });
         console.info(
           `[sync-stock] pdv=${pdvName} ok channels=${channels.length} mapped=${rows.length} inserted=${inserted} duplicates=${duplicates.length} missing=${missingNames}`,
         );
@@ -842,9 +910,73 @@ Deno.serve(async (req) => {
           details: info.details,
           hint: info.hint,
         });
+        emit("stage", {
+          pdv_id: pdvId,
+          stage: "error",
+          status: "error",
+          message: info.message,
+        });
+        emit("pdv", {
+          pdv_id: pdvId,
+          pdv_name: pdvName,
+          status: "error",
+          error: info.message,
+          code: info.code,
+          details: info.details,
+          hint: info.hint,
+        });
       }
+      }
+      return results;
+    };
+
+    if (wantStream) {
+      const stream = new ReadableStream<Uint8Array>({
+        start(c) {
+          sseController = c;
+          const heartbeat = setInterval(() => {
+            try {
+              c.enqueue(encoder.encode(`: ping\n\n`));
+            } catch {
+              // ignore
+            }
+          }, 15000);
+          emit("start", { request_id: requestId, total_pdvs: pdvs.length });
+          runWork()
+            .then((results) => {
+              emit("end", { request_id: requestId, results });
+            })
+            .catch((err) => {
+              const info = serializeError(err);
+              console.error(
+                `[sync-stock] erro fatal stream req=${requestId}:`,
+                JSON.stringify(info),
+              );
+              emit("error", { request_id: requestId, ...info });
+            })
+            .finally(() => {
+              clearInterval(heartbeat);
+              try {
+                c.close();
+              } catch {
+                // ignore
+              }
+            });
+        },
+      });
+      return new Response(stream, {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+          "X-Accel-Buffering": "no",
+        },
+      });
     }
 
+    const results = await runWork();
     return new Response(
       JSON.stringify({ ok: true, request_id: requestId, results }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
