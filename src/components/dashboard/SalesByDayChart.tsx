@@ -97,8 +97,6 @@ export function SalesByDayChart({ data, animationDelay = 0 }: SalesByDayChartPro
       description={description}
       icon={TrendingUp}
       iconColor="text-chart-2"
-      onExport={handleExport}
-      exportTestId="export-sales-by-day"
       animationDelay={animationDelay}
       headerBadge={viewToggle}
     >
