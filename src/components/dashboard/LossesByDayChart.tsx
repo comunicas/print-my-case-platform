@@ -3,7 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine, Legend } fro
 import { TrendingDown } from "lucide-react";
 import { useMemo, useState } from "react";
 import { formatCurrency, pluralize } from "@/lib/utils";
-import { exportToExcel, LossesByDayData, aggregateLossesByMonth } from "@/lib/dashboardUtils";
+import { LossesByDayData, aggregateLossesByMonth } from "@/lib/dashboardUtils";
 import { ChartCard } from "./ChartCard";
 import { Button } from "@/components/ui/button";
 
@@ -40,18 +40,6 @@ export function LossesByDayChart({ data, animationDelay = 0 }: LossesByDayChartP
       totalLosses: total,
     };
   }, [displayData]);
-
-  const handleExport = () => {
-    const exportData = displayData.map(d => ({
-      Data: d.dateDisplay,
-      Cancelamentos: d.cancellations,
-      "Qtd. Cancelamentos": d.cancellationCount,
-      Reembolsos: d.refunds,
-      "Qtd. Reembolsos": d.refundCount,
-      "Total Perdas": d.total,
-    }));
-    exportToExcel(exportData, viewMode === "monthly" ? "perdas-por-mes" : "perdas-por-dia");
-  };
 
   if (data.length === 0 || totalLosses === 0) {
     return null;
