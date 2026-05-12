@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Lock, Loader2 } from "lucide-react";
+import { Lock, Loader2, Check } from "lucide-react";
 import { PasswordStrengthIndicator } from "@/components/ui/password-strength";
 import { toast } from "sonner";
 import { profileFormSchema, passwordFormSchema } from "@/lib/schemas/settings";
@@ -41,6 +41,7 @@ export function ProfileSettings({ profile, role, session, updateProfile }: Profi
   });
   const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({});
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -61,11 +62,19 @@ export function ProfileSettings({ profile, role, session, updateProfile }: Profi
       return;
     }
     setProfileErrors({});
-    
-    updateProfile.mutate({
-      name: profileData.name.trim(),
-      phone: profileData.phone || null,
-    });
+
+    updateProfile.mutate(
+      {
+        name: profileData.name.trim(),
+        phone: profileData.phone || null,
+      },
+      {
+        onSuccess: () => {
+          setJustSaved(true);
+          setTimeout(() => setJustSaved(false), 2000);
+        },
+      }
+    );
   };
 
   const handleChangePassword = async () => {
@@ -199,12 +208,19 @@ export function ProfileSettings({ profile, role, session, updateProfile }: Profi
           </div>
 
           <div className="flex justify-end">
-            <Button 
+            <Button
               onClick={handleSaveProfile}
               disabled={updateProfile.isPending}
+              className={justSaved ? "bg-[hsl(158_64%_36%)] text-white hover:bg-[hsl(158_64%_32%)]" : ""}
             >
               {updateProfile.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Salvar Alterações
+              {justSaved ? (
+                <>
+                  <Check className="h-[15px] w-[15px] mr-1.5" /> Salvo!
+                </>
+              ) : (
+                "Salvar Alterações"
+              )}
             </Button>
           </div>
         </CardContent>
