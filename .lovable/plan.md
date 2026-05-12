@@ -1,73 +1,54 @@
+# Logo PrintMyCase como padrão do DS
+
 ## Objetivo
+Adotar o logo enviado como o logo oficial da aplicação, em formato SVG vetorial, e expor via componente padronizado no Design System.
 
-Documentar no `/ds` os 100% dos componentes de gráficos/dashboard usados na plataforma, mantendo o estilo mobile-first e o padrão das demais seções.
+## Etapas
 
-## Inventário (`src/components/dashboard/`)
+### 1. Vetorizar o PNG → SVG
+- Copiar `user-uploads://logo.png` para `/tmp/logo.png`
+- Vetorizar com `vtracer` (color tracing) gerando `src/assets/logo-printmycase.svg`
+- Otimizar paths e ajustar `viewBox` para preservar proporção (~800×440)
+- Gerar também `public/logo-printmycase.svg` para uso em `<img src>` (Auth/PublicStock que estão fora do bundling React)
 
-Componentes que recebem dados via props (renderizáveis direto com mocks):
-- `KPICard`, `QuickStats`, `FinancialSummaryCard`, `LossAnalysisCard`
-- `SalesByDayChart`, `LossesByDayChart`, `TopProductsChart`, `SalesHeatmapChart`, `StockHistoryChart`
-- `StockAlertsTable`, `DateRangeFilter`
-- Wrappers: `ChartCard`, `ChartEmptyState`, `ChartSkeleton`
+### 2. Componente padrão `<Logo />`
+Criar `src/components/ui/Logo.tsx`:
+- Props: `variant: "full" | "icon"`, `size?: number`, `className?: string`, `mono?: boolean`
+- `full` → renderiza o SVG colorido (roxo + branco)
+- `icon` → mantém `/icon-printmycase.png` (decisão do usuário)
+- `mono` → aplica `filter: brightness(0) invert(1)` para uso em fundos escuros (sidebar roxa)
+- Exportar do barrel `src/components/ui/index.ts` se existir
 
-Componentes que usam hooks/contextos com fetch real (Supabase):
-- `StockByBrandChart` (usa `useSlotsData`) → preview alternativo
-- `TopProductsChart` usa `useProductModal` (já existe no provider global → renderiza ok)
+### 3. Substituir todas as referências
+Trocar `<img src="/a33970fb-...png">` por `<Logo variant="full" />` (ou `mono`) em:
+- `src/pages/Auth.tsx` (2 ocorrências — painel esquerdo e mobile)
+- `src/components/layout/AppSidebar.tsx` (linha 190 — sidebar expandida)
+- `src/components/layout/MobileSidebar.tsx` (linha 107)
+- `src/pages/PublicStock.tsx` (linha 147 — header público)
 
-Charts de produto em `src/components/stock/`:
-- `ProductSalesByDayChart`, `ProductSalesHistoryChart`, `ProductSalesByHourChart`
+`AppSidebar` colapsada (linha 182) e `AppHeader` (linha 62) continuam usando `/icon-printmycase.png` via `<Logo variant="icon" />`.
 
-## Abordagem recomendada
+### 4. Favicon
+- Gerar `public/favicon.png` 256×256 a partir do logo (ImageMagick — fundo transparente, padding leve)
+- Apagar `public/favicon.ico` (browser usa /favicon.ico por padrão e sobrescreve)
+- Atualizar `index.html`: `<link rel="icon" href="/favicon.png" type="image/png">`
 
-**Renderizar os componentes reais com dados mockados tipados** sempre que possível (zero divergência visual com a plataforma). Para os 1–2 que dependem de hooks com fetch, criar preview equivalente reutilizando `ChartCard` + primitives de `recharts` com a mesma config — assim o /ds continua sendo "espelho vivo" sem precisar de backend.
+### 5. Documentar no Design System (`/ds`)
+Adicionar nova seção "Brand — Logo" em `src/pages/DesignSystem.tsx` (antes da nova seção "DS Novo — Tokens de Cor"):
+- Preview do `<Logo variant="full" />` em fundo claro
+- Preview do `<Logo variant="full" mono />` em fundo roxo (sidebar context)
+- Preview do `<Logo variant="icon" />` 
+- Bloco de código com import e uso
+- Bloco com regras de uso: clear-space mínimo, tamanho mínimo, fundo permitido
 
-Vantagens vs. alternativas:
-- vs. screenshots: interativo, reflete tokens/tema em tempo real.
-- vs. mocks 100% recharts: evita drift quando o componente real evoluir.
-
-## Plano de execução
-
-1. **Nova seção "Charts (dashboard)"** em `src/pages/DesignSystem.tsx`
-   - Adicionar grupo `Data viz` no `NAV_SECTIONS` com itens: `kpi-cards`, `chart-wrappers`, `sales-charts`, `stock-charts`, `loss-charts`, `product-charts`, `tables-filters`.
-
-2. **Mocks centralizados** em `src/pages/ds/chartMocks.ts` (novo)
-   - `salesByDay`, `lossesByDay`, `topProducts`, `salesHeatmap`, `stockHistory`, `stockByBrand`, `stockAlerts`, `financialSummary`, `lossAnalysis`, `quickStats`, `productSales*`.
-   - Tipos importados dos próprios componentes / `lib/dashboardUtils`.
-
-3. **Subseções e exemplos** (`DSExample`):
-   - **KPI / Summary**: `KPICard` (variantes positiva/negativa/neutra), `QuickStats`, `FinancialSummaryCard`, `LossAnalysisCard`.
-   - **Chart wrappers**: `ChartCard` (com children placeholder), `ChartSkeleton`, `ChartEmptyState`.
-   - **Sales**: `SalesByDayChart`, `SalesHeatmapChart`, `TopProductsChart`.
-   - **Stock**: `StockHistoryChart`, `StockByBrandChart` (preview standalone, ver passo 4).
-   - **Losses**: `LossesByDayChart`.
-   - **Product (stock/)**: `ProductSalesByDayChart`, `ProductSalesHistoryChart`, `ProductSalesByHourChart`.
-   - **Tabelas/Filtros**: `StockAlertsTable`, `DateRangeFilter`.
-
-4. **Preview standalone para `StockByBrandChart`**
-   - Renderizar dentro de `<DSExample>` um `ChartCard` + `PieChart` recharts com os mesmos tokens (`getStockByBrand` aplicado a um array fixo). Comentário no código apontando que o componente real busca via `useSlotsData`.
-
-5. **Cuidados mobile-first**
-   - Cada chart dentro de wrapper com `min-w-0` + altura fixa (`h-[260px]` em mobile, `md:h-[320px]`).
-   - `DSExample` já tem `overflow-x-auto`; manter.
-   - Gráficos com legenda longa: forçar `flex-wrap` no legend container quando aplicável.
-
-6. **Rodapé**: atualizar contagem (ex.: "61 UI + 18 dashboard componentes documentados").
+### 6. Limpeza
+- Remover `public/a33970fb-78ec-4651-a5e5-98cb6db17573.png` (PNG temporário do turno anterior)
 
 ## Detalhes técnicos
+- `vtracer` instalado via `nix run nixpkgs#vtracer`
+- SVG final será limpo com `svgo` se necessário para reduzir bytes
+- Componente `<Logo />` aceita `aria-label` por padrão "PrintMyCase"
+- Toda lógica visual existente (filtros `brightness(0) invert(1)` na sidebar) é encapsulada na prop `mono`
 
-- Não tocar nos componentes de `dashboard/` (apenas consumir).
-- Mocks usam tipos exportados (`SalesByDayData`, `TopProductData`, etc.) para que mudanças de schema quebrem o build do /ds — sinal saudável.
-- `ProductModalContext` já está no `App.tsx`, então `TopProductsChart` funciona dentro do `/ds` sem alteração.
-- Não adicionar dependências.
-
-## Critérios de verificação
-
-- `/ds` renderiza todos os 15 componentes de `dashboard/` + 3 de `stock/` charts sem erros.
-- Sem scroll horizontal em 360×800.
-- Tema claro/escuro: cores dos charts respondem aos tokens `--chart-*`.
-- Build TypeScript sem erros.
-
-## Fora de escopo
-
-- Refatorar `StockByBrandChart` para aceitar dados via props (pode entrar em PR futuro).
-- Restilizar charts para tokens M3 puros.
+## Resultado
+Logo oficial em SVG nativo (escalável, leve, monocromável), componente único `<Logo />` reutilizável, favicon atualizado, e documentação visual completa no `/ds`.
