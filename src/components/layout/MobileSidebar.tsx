@@ -104,7 +104,7 @@ export function MobileSidebar({
         <SheetHeader className="h-[60px] flex flex-row items-center border-b border-[hsl(var(--sidebar-solid-bdr))] px-4">
           <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
           <img
-            src="/logo-printmycase.png"
+            src="/a33970fb-78ec-4651-a5e5-98cb6db17573.png"
             alt="Print My Case"
             className="h-10 object-contain"
             style={{ filter: "brightness(0) invert(1)" }}

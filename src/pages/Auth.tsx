@@ -56,7 +56,7 @@ function AuthLeftPanel() {
 
       <div className="auth-left-body">
         <img
-          src="/logo-printmycase.png"
+          src="/a33970fb-78ec-4651-a5e5-98cb6db17573.png"
           alt="Print My Case"
           className="auth-logo-left"
         />
@@ -98,7 +98,7 @@ function AuthShell({
       <main className="auth-right">
         <div className="auth-form-wrap">
           <img
-            src="/logo-printmycase.png"
+            src="/a33970fb-78ec-4651-a5e5-98cb6db17573.png"
             alt="Print My Case"
             className="auth-logo-mobile"
           />
