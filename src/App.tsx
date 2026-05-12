@@ -28,7 +28,6 @@ const Marketing = lazy(() => import("./pages/Marketing"));
 const Financeiro = lazy(() => import("./pages/Financeiro"));
 const ShortLinkRedirect = lazy(() => import("./pages/ShortLinkRedirect"));
 const Assistente = lazy(() => import("./pages/Assistente"));
-const DesignSystem = lazy(() => import("./pages/DesignSystem"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -83,7 +82,6 @@ const App = () => (
                       <Route path="/vitrine" element={<Navigate to="/marketing?tab=midias" replace />} />
                       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                       <Route path="/organizations" element={<ProtectedRoute><Organizations /></ProtectedRoute>} />
-                      <Route path="/ds" element={<ProtectedRoute><DesignSystem /></ProtectedRoute>} />
                       <Route path="/pdvs" element={<Navigate to="/settings?tab=pdvs" replace />} />
                       <Route path="/team" element={<Navigate to="/settings?tab=team" replace />} />
                       <Route path="*" element={<NotFound />} />
