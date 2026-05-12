@@ -48,7 +48,7 @@ export function AppHeader({ isMobile, onMenuClick }: AppHeaderProps) {
   };
 
   return (
-    <header className="h-14 md:h-16 bg-card border-b border-border flex items-center justify-between gap-2 px-3 md:px-6 flex-shrink-0">
+    <header className="h-[60px] bg-background border-b border-border flex items-center justify-between gap-2 px-3 md:px-6 flex-shrink-0">
       <div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
         {isMobile && (
           <Button variant="ghost" size="icon" onClick={onMenuClick} className="flex-shrink-0 h-9 w-9 md:min-w-[44px] md:min-h-[44px]">

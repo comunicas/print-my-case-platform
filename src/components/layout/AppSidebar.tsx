@@ -95,8 +95,8 @@ export function AppSidebar({
               className={cn(
                 "w-full flex items-center justify-center px-2 py-2.5 rounded-lg text-sm font-medium transition-colors",
                 isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                  ? "bg-white/20 text-white font-semibold"
+                  : "text-[hsl(var(--sidebar-solid-fg))] hover:bg-white/10 hover:text-white"
               )}
             >
               <Icon className="h-5 w-5 flex-shrink-0" />
@@ -117,8 +117,8 @@ export function AppSidebar({
           className={cn(
             "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
             isActive
-              ? "bg-sidebar-accent text-sidebar-accent-foreground"
-              : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+              ? "bg-white/20 text-white font-semibold"
+              : "text-[hsl(var(--sidebar-solid-fg))] hover:bg-white/10 hover:text-white"
           )}
         >
           <Icon className="h-5 w-5 flex-shrink-0" />
@@ -167,16 +167,31 @@ export function AppSidebar({
     <TooltipProvider delayDuration={0}>
       <aside
         className={cn(
-          "sticky top-0 h-screen bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300 flex-shrink-0 overflow-visible z-30",
+          "sticky top-0 h-screen bg-[hsl(var(--sidebar-solid-bg))] border-r border-[hsl(var(--sidebar-solid-bdr))] flex flex-col transition-all duration-300 flex-shrink-0 overflow-visible z-30",
           collapsed ? "w-16" : "w-64"
         )}
       >
         {/* Logo Section */}
-        <div className="h-16 flex items-center justify-center border-b border-sidebar-border px-2">
+        <div className="h-[60px] flex items-center justify-center border-b border-[hsl(var(--sidebar-solid-bdr))] px-2">
           {collapsed ? (
-            <img src="/icon-printmycase.png" alt="Print My Case" className="h-8 w-8 object-contain" />
+            <div
+              className="h-9 w-9 rounded-lg flex items-center justify-center"
+              style={{ background: "rgba(255,255,255,0.20)" }}
+            >
+              <img
+                src="/icon-printmycase.png"
+                alt="Print My Case"
+                className="h-6 w-6 object-contain"
+                style={{ filter: "brightness(0) invert(1)" }}
+              />
+            </div>
           ) : (
-            <img src="/logo-printmycase.png" alt="Print My Case" className="h-10 object-contain" />
+            <img
+              src="/logo-printmycase.png"
+              alt="Print My Case"
+              className="h-10 object-contain"
+              style={{ filter: "brightness(0) invert(1)" }}
+            />
           )}
         </div>
 
@@ -193,7 +208,7 @@ export function AppSidebar({
         </nav>
 
         {/* Footer: Settings + Collapse Toggle */}
-        <div className="p-2 border-t border-sidebar-border mt-auto flex-shrink-0 space-y-1">
+        <div className="p-2 border-t border-[hsl(var(--sidebar-solid-bdr))] mt-auto flex-shrink-0 space-y-1">
           {collapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -202,7 +217,7 @@ export function AppSidebar({
                   size="sm"
                   onClick={onToggle}
                   aria-label="Expandir menu"
-                  className="w-full flex items-center justify-center text-sidebar-foreground hover:bg-sidebar-accent/50"
+                  className="w-full flex items-center justify-center text-[hsl(var(--sidebar-solid-mute))] hover:bg-white/10 hover:text-white"
                 >
                   <ChevronLeft className="h-4 w-4 rotate-180" />
                 </Button>
@@ -216,7 +231,7 @@ export function AppSidebar({
               variant="ghost"
               size="sm"
               onClick={onToggle}
-              className="w-full flex items-center justify-center gap-2 text-sidebar-foreground hover:bg-sidebar-accent/50"
+              className="w-full flex items-center justify-center gap-2 text-[hsl(var(--sidebar-solid-mute))] hover:bg-white/10 hover:text-white"
             >
               <ChevronLeft className="h-4 w-4" />
               <span>Recolher</span>

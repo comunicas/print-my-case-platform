@@ -85,8 +85,8 @@ export function MobileSidebar({
         className={cn(
           "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
           isActive
-            ? "bg-sidebar-accent text-sidebar-accent-foreground"
-            : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+            ? "bg-white/20 text-white font-semibold"
+            : "text-[hsl(var(--sidebar-solid-fg))] hover:bg-white/10 hover:text-white"
         )}
       >
         <Icon className="h-5 w-5 flex-shrink-0" />
@@ -97,13 +97,17 @@ export function MobileSidebar({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="left" className="w-72 p-0 bg-sidebar border-sidebar-border">
-        <SheetHeader className="h-16 flex flex-row items-center border-b border-sidebar-border px-4">
+      <SheetContent
+        side="left"
+        className="w-72 p-0 bg-[hsl(var(--sidebar-solid-bg))] border-[hsl(var(--sidebar-solid-bdr))] text-[hsl(var(--sidebar-solid-fg))]"
+      >
+        <SheetHeader className="h-[60px] flex flex-row items-center border-b border-[hsl(var(--sidebar-solid-bdr))] px-4">
           <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
           <img
             src="/logo-printmycase.png"
             alt="Print My Case"
             className="h-10 object-contain"
+            style={{ filter: "brightness(0) invert(1)" }}
           />
         </SheetHeader>
 
@@ -142,7 +146,7 @@ export function MobileSidebar({
           </nav>
           
           {isSuperAdmin && (
-            <nav className="py-4 px-2 space-y-1 border-t border-sidebar-border">
+            <nav className="py-4 px-2 space-y-1 border-t border-[hsl(var(--sidebar-solid-bdr))]">
               {renderNavItem({ icon: Building2, label: "Organizações", href: "/organizations" })}
             </nav>
           )}

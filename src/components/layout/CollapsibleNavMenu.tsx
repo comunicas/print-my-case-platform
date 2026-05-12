@@ -55,8 +55,8 @@ export function CollapsibleNavMenu({
             className={cn(
               "w-full flex items-center justify-center px-2 py-2.5 rounded-lg text-sm font-medium transition-colors",
               isActive
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                ? "bg-white/20 text-white font-semibold"
+                : "text-[hsl(var(--sidebar-solid-fg))] hover:bg-white/10 hover:text-white"
             )}
           >
             <Icon className="h-5 w-5 flex-shrink-0" />
@@ -79,8 +79,8 @@ export function CollapsibleNavMenu({
           className={cn(
             "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
             isActive
-              ? "bg-sidebar-accent text-sidebar-accent-foreground"
-              : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+              ? "bg-white/20 text-white font-semibold"
+              : "text-[hsl(var(--sidebar-solid-fg))] hover:bg-white/10 hover:text-white"
           )}
         >
           <Icon className="h-5 w-5 flex-shrink-0" />
@@ -119,8 +119,8 @@ export function CollapsibleNavMenu({
                 className={cn(
                   "w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
                   isSubActive
-                    ? "bg-sidebar-accent/70 text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent/30 hover:text-sidebar-accent-foreground"
+                    ? "bg-white/15 text-white font-medium"
+                    : "text-[hsl(var(--sidebar-solid-mute))] hover:bg-white/10 hover:text-white"
                 )}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60" />
