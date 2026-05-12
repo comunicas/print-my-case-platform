@@ -134,7 +134,7 @@ const UploadDetails = () => {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="ds-screen-enter space-y-6">
         {/* Header com botão voltar */}
         <div className="flex items-center gap-4">
           <Button
