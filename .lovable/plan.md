@@ -1,120 +1,131 @@
-# Plano: Design System /ds baseado em Material 3
+# Plano: /ds mobile-first + cobertura 100% de componentes
 
-## Minha opinião antes do plano
+## Objetivos
 
-Resposta curta: **parcialmente sim, com ressalvas**.
+1. Página `/ds` totalmente responsiva (mobile-first, ≥44px touch, sem scroll horizontal).
+2. Cobrir **100%** dos componentes em `src/components/ui/` (61 arquivos), não só 14.
+3. Navegação utilizável em mobile (drawer/sheet em vez de sidebar fixa).
 
-Vantagens de adotar Material 3:
-- Linguagem visual madura, acessível (WCAG), tokens bem definidos (cor, tipografia, elevação, shape, motion).
-- Documentação e referência sólidas para a equipe.
+## Lacunas atuais
 
-Riscos / pontos de atenção:
-1. **Não recomendo trocar shadcn/Radix por `@material/web` (Web Components).** O projeto é React + Tailwind + Radix com ~60 componentes shadcn já customizados, formulários com `react-hook-form`, `cva`, e um design system próprio em HSL. Misturar Web Components do MWC com React gera fricção (refs, eventos custom, SSR, theming duplicado, formulários quebrados).
-2. **Caminho recomendado:** adotar **Material 3 como sistema de tokens e diretrizes** (cor, tipografia, shape, elevation, state layers, motion) e **manter shadcn/Radix como camada de componentes**, reestilizados para refletir M3. Isso entrega 90% do valor visual sem reescrever a aplicação.
-3. Antes de qualquer migração, **a página /ds (living styleguide) é o passo certo** — ela vira a fonte de verdade e permite trocar a implementação por baixo sem quebrar telas.
+- Sidebar de navegação some no mobile (`hidden lg:block`) e não há substituto → no mobile o usuário fica sem TOC.
+- Faltam exemplos para: `alert-dialog`, `aspect-ratio`, `breadcrumb`, `calendar`, `carousel`, `chart`, `collapsible`, `command`, `context-menu`, `data-pagination`, `drawer`, `dropdown-menu`, `empty-state`, `form`, `hover-card`, `input-otp`, `menubar`, `navigation-menu`, `pagination`, `password-strength`, `phone-input`, `popover`, `pull-to-refresh`, `radio-group` (parcial), `resizable`, `scroll-area`, `sheet`, `sidebar`, `skeleton-shimmer`, `sonner`, `toggle`, `toggle-group`, `visually-hidden`, e wrappers `BrandLogo`, `FilterBar`, `PDVFilter`, `ProductDisplay`, `SearchFilter`, `SelectFilter`.
+- Algumas seções estouram em telas pequenas: ramps de cor (12 swatches lado a lado), grid de 7 cols em Shape, grid 6 cols em Elevation, tabela de tipografia.
+- Top bar com título + 2 badges + botão de tema pode quebrar em <360px.
 
-Se mesmo assim quiser ir 100% Material Web Components, posso planejar — só sinalizo que será reescrita ampla de formulários e telas.
+## Mudanças
 
----
+### A. Layout responsivo
 
-## Fase 1 — Auditoria do frontend atual
+- **Top app bar**: empilha em <640px; oculta o badge "Material 3" em xs; botão de voltar vira ícone-only em xs (com `aria-label`).
+- **Navegação**:
+  - Desktop (≥`lg`): sidebar fixa (atual).
+  - Mobile/Tablet (<`lg`): botão "menu" no top bar abre `Sheet` lateral com a mesma navegação. Fechar ao clicar item.
+  - Adicionar `<select>` mobile rápido como atalho secundário (opcional — simples) **ou** apenas o Sheet (decidi: só Sheet, mais limpo).
+- **Conteúdo principal**: `px-3 sm:px-4 md:px-8 py-6 md:py-8`, `max-w-6xl` mantido.
+- Todas as grids passam a ser mobile-first:
+  - System color chips: `grid-cols-2 sm:grid-cols-3 md:grid-cols-4`.
+  - Tonal palettes: scroll horizontal em mobile (`overflow-x-auto` com `min-w` por chip) — não compactar para não perder leitura de tons.
+  - Shape: `grid-cols-3 sm:grid-cols-4 md:grid-cols-7`.
+  - Elevation: `grid-cols-2 sm:grid-cols-3 md:grid-cols-6`.
+  - Motion durations: `grid-cols-2 sm:grid-cols-4`.
+  - Tabela tipografia: cada linha vira coluna em <640px (label embaixo do exemplo) e a label fica `truncate`.
+- Cards de exemplo (`DSExample`): `p-4 md:p-6`, code/links com `break-all`.
+- Top app bar `sticky` mantida; conteúdo com `scroll-mt-24` para compensar header maior em mobile.
+- Auditar nenhum elemento >100% width: usar `min-w-0` em flex children, `overflow-x-auto` quando necessário (table, code blocks).
 
-Gerar `docs/design-system/audit.md` cobrindo:
+### B. Cobertura completa de componentes
 
-- **Tokens atuais** (`src/index.css`, `tailwind.config.ts`): paleta HSL (primary roxo #9333EA, chart-1..10, sidebar, success/warning), radius, animations, keyframes.
-- **Inventário de componentes UI** (`src/components/ui/` — ~60 arquivos shadcn + wrappers próprios: `BrandLogo`, `FilterBar`, `PDVFilter`, `ProductDisplay`, `SearchFilter`, `SelectFilter`, `phone-input`, `password-strength`, `pull-to-refresh`, `empty-state`, `data-pagination`, `skeleton-shimmer`).
-- **Componentes de domínio** por área: `dashboard/`, `stock/`, `financeiro/`, `marketing/`, `settings/`, `team/`, `pdv/`, `upload/`, `ai-agent/`, `public/`, `layout/`.
-- **Padrões repetidos**: KPICard, ChartCard, FilterBar, EmptyState, Skeleton — candidatos a virar componentes de DS.
-- **Tipografia** (sem escala definida hoje — usa defaults Tailwind).
-- **Mapa de uso**: contagem de imports por componente para priorizar migração.
+Adicionar / completar seções (uma por grupo, exemplos compactos):
 
-Entregáveis: tabela "componente atual → equivalente M3 → ação (manter / restilizar / criar / depreciar)".
+**Foundations** (já existente — só ajustar responsividade): Color, Typography, Shape, Elevation, Spacing, Motion.
 
-## Fase 2 — Mapeamento de tokens M3
+**Actions**:
+- Buttons (existente — manter).
+- Toggle / ToggleGroup (novo).
+- DropdownMenu, ContextMenu (novo).
 
-Criar `src/design-system/tokens/` com:
+**Inputs & Forms**:
+- Input, Textarea, Select, Label (existente — manter).
+- Form (react-hook-form wrapper) — exemplo mínimo com 1 campo + erro.
+- InputOTP (novo).
+- PhoneInput, PasswordStrength (novo, wrappers do projeto).
+- Calendar + Popover (date picker pattern, novo).
 
-- `color.ts` — paleta M3 derivada do seed roxo `#9333EA` (primary, secondary, tertiary, error, neutral, neutral-variant + tons 0..100), surface levels, state layers. Geradas via `@material/material-color-utilities` (apenas em build/script, não runtime).
-- `typography.ts` — escala M3 (display, headline, title, body, label × L/M/S) mapeada para classes Tailwind.
-- `shape.ts` — corner radius (none, xs, sm, md, lg, xl, full).
-- `elevation.ts` — 6 níveis com box-shadow + tint de surface.
-- `motion.ts` — durations (short1..long4) e easings (standard, emphasized).
-- `spacing.ts` — escala 4dp.
+**Selection**:
+- Checkbox, Radio, Switch, Slider (existente).
 
-Refletir tudo em `src/index.css` (CSS vars `--md-sys-color-*`, `--md-sys-typescale-*`) e `tailwind.config.ts` (extensões consumindo as vars). Manter compatibilidade com tokens semânticos atuais (`--primary`, `--background`, etc.) via aliases para não quebrar telas existentes.
+**Containers**:
+- Card (existente).
+- Tabs, Accordion (existente).
+- Collapsible (novo).
+- AspectRatio (novo).
+- ScrollArea (novo).
+- Resizable (novo, exemplo simples 2 painéis).
+- Separator (novo).
 
-## Fase 3 — Página /ds (living styleguide)
+**Navigation**:
+- Breadcrumb (novo).
+- Pagination + DataPagination (novo).
+- NavigationMenu (novo).
+- Menubar (novo).
+- Sidebar — mostrar mini-preview do componente real em `<aside>` embutido.
 
-Nova rota `/ds` (protegida por `ProtectedRoute`, visível só a `super_admin`) com layout próprio (sem AppLayout), navegação lateral por seções:
+**Feedback**:
+- Alert, Progress, Skeleton (existente).
+- SkeletonShimmer (novo).
+- Sonner (botão que dispara toast — novo).
+- EmptyState (novo).
+- PullToRefresh — apenas referência/anatomia (não simular gesto).
 
-1. **Foundations**: Color (paleta M3 + tons + state layers), Typography (todos os estilos com exemplo), Shape, Elevation, Spacing, Motion (demos animadas), Iconography (lucide-react já usado).
-2. **Components** — uma sub-rota por componente, cada uma mostra: anatomia, variantes, estados (hover/focus/disabled/error), exemplos de código, props table, do/don't:
-   - Buttons (filled, tonal, outlined, text, elevated, FAB, icon)
-   - Inputs (filled/outlined text field, textarea, select, checkbox, radio, switch, slider, date picker, OTP, phone)
-   - Containers (card elevated/filled/outlined, dialog, sheet, drawer, popover, tooltip, accordion, tabs)
-   - Navigation (top app bar, navigation rail, navigation drawer, breadcrumb, pagination, sidebar)
-   - Communication (badge, snackbar/sonner, alert, progress linear/circular, skeleton, empty state)
-   - Data display (table, data-pagination, chart wrappers, KPI card, chart card)
-   - Domain wrappers reutilizáveis (BrandLogo, FilterBar, PDVFilter, etc.)
-3. **Patterns**: formulários, filtros, layouts de dashboard, mobile-first (min 44px touch), dark mode toggle, loading & empty states, responsividade.
-4. **Playground**: sandbox para testar combinação de tokens em tempo real.
+**Overlays**:
+- Dialog, Tooltip (existente).
+- AlertDialog (novo).
+- Sheet (novo — top/right/bottom/left triggers).
+- Drawer (novo — vaul mobile sheet).
+- Popover (novo).
+- HoverCard (novo).
+- Command (novo — palette inline).
 
-Cada componente do styleguide importa o componente real do projeto — assim /ds é "espelho vivo": refatorou o componente, /ds atualiza.
+**Data Display**:
+- Avatar, Table (existente).
+- Badge (mover para cá ou manter em Navigation — manter em Navigation).
+- Carousel (novo, 3 slides).
+- Chart (Recharts wrapper — bar chart mínimo com 5 pontos).
+- ProductDisplay, BrandLogo (wrappers — novo).
+- FilterBar, PDVFilter, SearchFilter, SelectFilter (wrappers — novo, em Patterns).
 
-## Fase 4 — Restilização gradual (não bloqueia /ds)
+**Utilities** (nova seção pequena):
+- VisuallyHidden (novo, exemplo de acessibilidade).
+- ErrorBoundary (referência textual + uso recomendado).
 
-Após /ds publicada:
-- Restilizar `button.tsx`, `card.tsx`, `input.tsx`, `dialog.tsx` etc. para refletir M3 (shape, elevation, state layers, typescale) mantendo a mesma API.
-- Adicionar variantes M3 ausentes (ex.: `variant="tonal"` em Button).
-- Migrar telas pontualmente conforme aparecem regressões visuais detectadas no /ds.
+**Patterns** (existente — manter KPI cards e Form; adicionar):
+- FilterBar mobile-first (collapsible em mobile).
+- PageHeader (breadcrumb + título + actions).
+- DataTable + Pagination.
+- EmptyState.
 
-## Fase 5 — Documentação
+### C. Atualizações estruturais
 
-- `docs/design-system/README.md` — princípios, como contribuir, mapping M3.
-- `docs/design-system/migration-guide.md` — passo a passo para devs trocarem componentes legados.
-- ADR `docs/adr/0002-design-system-material-3.md` registrando a decisão.
+- Manter `src/pages/DesignSystem.tsx` em arquivo único, mas extrair sub-seções em pequenas funções no mesmo arquivo (DRY, sem explodir em N componentes — mantém 1 arquivo navegável).
+- Atualizar `NAV_SECTIONS` para refletir novos grupos: Foundations, Actions, Inputs, Selection, Containers, Navigation, Feedback, Overlays, Data, Utilities, Patterns.
+- Documentar no rodapé: link para `docs/design-system/audit.md` e contagem "61/61 componentes documentados".
 
----
+### D. Acessibilidade mobile
 
-## Detalhes técnicos
+- Toda área clicável ≥44×44px (botões `size="default"`/`size="icon"` já entregam isso; itens de menu mobile com `py-3`).
+- Foco visível em todos os elementos (já vem do Tailwind `focus-visible:ring`).
+- Labels associadas (`htmlFor`/`id`) — já feito; replicar nos novos exemplos.
 
-```text
-src/
-  design-system/
-    tokens/        color.ts, typography.ts, shape.ts, elevation.ts, motion.ts, spacing.ts
-    theme/         m3-theme.css (gera CSS vars), theme-provider.tsx
-  pages/
-    DesignSystem.tsx                 (layout /ds)
-  components/design-system/
-    DSLayout.tsx, DSNav.tsx, DSSection.tsx, DSPropsTable.tsx,
-    DSColorSwatch.tsx, DSTypeSpecimen.tsx, DSElevationDemo.tsx,
-    DSMotionDemo.tsx, DSCodeBlock.tsx, DSPlayground.tsx
-docs/design-system/
-  audit.md, README.md, migration-guide.md, component-matrix.md
-docs/adr/
-  0002-design-system-material-3.md
-```
+## Não inclui
 
-Dependências novas (mínimas):
-- `@material/material-color-utilities` (apenas dev/script para gerar paleta a partir do seed).
-- Nenhuma dependência runtime de `@material/web` nesta fase.
+- Restilizar primitivos para "ficar M3" (fica para fase de migração; este passo é só documentação completa).
+- Criar rota guardada por role (segue `ProtectedRoute` simples — pode ser hardened depois).
+- Editar `src/components/ui/*` (nenhuma alteração de comportamento).
 
-Rota `/ds` adicionada em `src/App.tsx` dentro de `ProtectedRoute` com guarda `super_admin`.
+## Critério de aceite
 
-## Critérios de aceite
-
-- `/ds` lista 100% dos componentes em `src/components/ui/` + wrappers de domínio reutilizáveis.
-- Todos os tokens M3 disponíveis como CSS vars + classes Tailwind.
-- Tokens semânticos atuais continuam funcionando (zero regressão).
-- `audit.md` mapeia cada componente legado a uma ação (manter/restilizar/depreciar).
-- Dark mode funciona em todas as seções de /ds.
-
-## O que NÃO está no escopo desta fase
-
-- Trocar componentes nas telas de produção (fica para Fase 4, gradual).
-- Adotar `@material/web` Web Components.
-- Mudar bibliotecas de form, chart ou date picker.
-
----
-
-**Pergunta antes de implementar:** confirma que o caminho recomendado (M3 como tokens + shadcn restilizado) está OK, ou prefere mesmo a troca radical por `@material/web`?
+- Em viewport 360×800 não há scroll horizontal em nenhuma seção (exceto ramps de cor, que rolam só dentro do próprio container).
+- Menu de navegação acessível em mobile via Sheet.
+- Cada um dos 61 arquivos em `src/components/ui/` aparece em ao menos um exemplo OU nota explícita na seção Utilities/Patterns (ex.: `ErrorBoundary`, `PullToRefresh`).
+- Build sem erros TypeScript.
