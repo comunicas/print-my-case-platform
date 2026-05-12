@@ -155,7 +155,7 @@ export default function Organizations() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="ds-screen-enter space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -212,47 +212,48 @@ export default function Organizations() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {filteredOrganizations.map((org) => (
-              <Card
+              <div
                 key={org.id}
-                className="group relative cursor-pointer hover:shadow-md transition-shadow"
+                className="group relative cursor-pointer bg-card border border-border rounded-[var(--radius)] p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary hover:shadow-[0_6px_20px_hsl(var(--primary)/0.10)]"
                 onClick={() => {
                   setDetailOrg(org);
                   setDetailDialogOpen(true);
                 }}
               >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1 flex-1 min-w-0">
-                      <CardTitle className="text-lg truncate">{org.name}</CardTitle>
-                      {org.cnpj && (
-                        <CardDescription className="font-mono text-xs">
-                          {org.cnpj}
-                        </CardDescription>
-                      )}
-                    </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleOpenEdit(org)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => handleOpenDelete(org)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="space-y-1 flex-1 min-w-0">
+                    <h3 className="text-[16px] font-bold truncate">{org.name}</h3>
+                    {org.cnpj && (
+                      <p className="text-[12px] text-muted-foreground font-mono truncate">
+                        {org.cnpj}
+                      </p>
+                    )}
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
+                  <div
+                    className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEdit(org)}
+                      className="w-8 h-8 rounded-[8px] flex items-center justify-center text-foreground/70 hover:bg-muted hover:text-foreground transition-colors"
+                      aria-label="Editar"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDelete(org)}
+                      className="w-8 h-8 rounded-[8px] flex items-center justify-center text-destructive hover:bg-destructive/10 transition-colors"
+                      aria-label="Excluir"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-4 space-y-3">
                   <div className="flex gap-4 text-sm">
                     <div className="flex items-center gap-1.5 text-muted-foreground">
                       <Users className="h-4 w-4" />
@@ -266,18 +267,18 @@ export default function Organizations() {
                   {org.email && (
                     <p className="text-sm text-muted-foreground truncate">{org.email}</p>
                   )}
-                  <div className="flex items-center justify-between pt-2 border-t">
-                    <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                  <div className="flex items-center justify-between pt-2 border-t border-border">
+                    <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full font-medium">
                       {org.plan || "Profissional"}
                     </span>
                     {org.created_at && (
                       <span className="text-xs text-muted-foreground">
-                        Criada em {format(new Date(org.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                        {format(new Date(org.created_at), "dd/MM/yyyy", { locale: ptBR })}
                       </span>
                     )}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             ))}
           </div>
         )}
