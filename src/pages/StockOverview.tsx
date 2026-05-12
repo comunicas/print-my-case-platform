@@ -50,7 +50,7 @@ function StockOverviewContent() {
     .slice(0, 5);
 
   const content = (
-    <div data-testid="stock-content" className="space-y-4 md:space-y-6">
+    <div data-testid="stock-content" className="ds-screen-enter space-y-4 md:space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-foreground">Estoque</h1>
