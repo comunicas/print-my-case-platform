@@ -10,7 +10,6 @@ import { StockEmptyState } from "@/components/stock/StockEmptyState";
 import { useProductStock } from "@/hooks/useProductStock";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
