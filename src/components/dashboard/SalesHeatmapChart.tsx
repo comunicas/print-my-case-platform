@@ -79,7 +79,7 @@ export function SalesHeatmapChart({ data, animationDelay = 0 }: SalesHeatmapChar
       animationDelay={animationDelay}
     >
       {data.length > 0 ? (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0">
           <div
             data-testid="heatmap-grid"
             className="w-full min-w-[340px]"
