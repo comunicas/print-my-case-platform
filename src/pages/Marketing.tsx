@@ -74,7 +74,7 @@ export default function Marketing() {
 
   return (
     <AppLayout>
-      <div className="space-y-4 md:space-y-6">
+      <div className="ds-screen-enter space-y-4 md:space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-xl md:text-2xl font-bold">Marketing</h1>
@@ -91,14 +91,24 @@ export default function Marketing() {
         </div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList>
-            <TabsTrigger value="cupons">Cupons</TabsTrigger>
-            <TabsTrigger value="midias">Mídias</TabsTrigger>
-            {isAdmin && <TabsTrigger value="catalogos">Catálogos</TabsTrigger>}
-            {isAdmin && <TabsTrigger value="pedidos">Pedidos</TabsTrigger>}
-            {isAdmin && <TabsTrigger value="vendas">Vendas</TabsTrigger>}
-            {isAdmin && <TabsTrigger value="leads">Leads</TabsTrigger>}
-            {isAdmin && <TabsTrigger value="analytics">Analytics</TabsTrigger>}
+          <TabsList className="h-auto bg-transparent p-0 border-b border-border rounded-none w-full justify-start gap-1 overflow-x-auto">
+            {[
+              { v: "cupons", l: "Cupons", show: true },
+              { v: "midias", l: "Mídias", show: true },
+              { v: "catalogos", l: "Catálogos", show: isAdmin },
+              { v: "pedidos", l: "Pedidos", show: isAdmin },
+              { v: "vendas", l: "Vendas", show: isAdmin },
+              { v: "leads", l: "Leads", show: isAdmin },
+              { v: "analytics", l: "Analytics", show: isAdmin },
+            ].filter(t => t.show).map(t => (
+              <TabsTrigger
+                key={t.v}
+                value={t.v}
+                className="rounded-none bg-transparent border-b-2 border-transparent px-3 py-2 text-[13.5px] font-medium text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:font-semibold hover:text-foreground"
+              >
+                {t.l}
+              </TabsTrigger>
+            ))}
           </TabsList>
 
           <TabsContent value="cupons" className="mt-4">

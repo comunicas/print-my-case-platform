@@ -1278,6 +1278,112 @@ export default function DesignSystem() {
             <DSExample title="DateRangeFilter"><DateRangeFilterDemo /></DSExample>
           </DSSection>
 
+          {/* ─── DS Novo (Sprint refresh) ─── */}
+          <DSSection id="ds-novo-tokens" title="DS Novo — Tokens de Cor" description="Paleta semântica do refresh.">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { name: "--primary", cls: "bg-primary" },
+                { name: "--background", cls: "bg-background border border-border" },
+                { name: "--card", cls: "bg-card border border-border" },
+                { name: "--muted", cls: "bg-muted" },
+                { name: "--border", cls: "bg-border" },
+                { name: "--foreground", cls: "bg-foreground" },
+                { name: "--muted-foreground", cls: "bg-muted-foreground" },
+                { name: "--destructive", cls: "bg-destructive" },
+              ].map((t) => (
+                <div key={t.name} className="rounded-[var(--radius)] border border-border overflow-hidden">
+                  <div className={`${t.cls} h-16`} />
+                  <div className="px-3 py-2 text-[12px] font-mono text-muted-foreground">{t.name}</div>
+                </div>
+              ))}
+            </div>
+          </DSSection>
+
+          <DSSection id="ds-novo-typography" title="Tipografia — DM Sans" description="Escalas em uso no refresh.">
+            <div className="space-y-3">
+              {[
+                { size: "28px", weight: 800, label: "Auth title" },
+                { size: "22px", weight: 700, label: "KPI value" },
+                { size: "17px", weight: 700, label: "Page title" },
+                { size: "14.5px", weight: 700, label: "Card title" },
+                { size: "13.5px", weight: 600, label: "Button" },
+                { size: "12px", weight: 500, label: "Label / badge" },
+                { size: "11px", weight: 600, label: "Table header" },
+              ].map((t) => (
+                <div key={t.label} className="flex items-baseline gap-4 border-b border-border pb-2">
+                  <span style={{ fontSize: t.size, fontWeight: t.weight }}>Aa Bb 123</span>
+                  <span className="text-[12px] text-muted-foreground font-mono">
+                    {t.size} / {t.weight} — {t.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </DSSection>
+
+          <DSSection id="ds-novo-shell" title="Shell — Sidebar Sólida" description="Preview estático.">
+            <div className="flex h-64 rounded-[var(--radius)] border border-border overflow-hidden">
+              <div className="w-[200px] bg-primary text-white p-4 flex flex-col gap-2">
+                <div className="text-[14px] font-bold mb-3">Logo</div>
+                {["Dashboard", "Estoque", "Vendas", "Marketing", "Financeiro"].map((l, i) => (
+                  <div
+                    key={l}
+                    className={`px-3 py-2 rounded-[8px] text-[13.5px] ${i === 0 ? "bg-white/15 font-semibold" : "text-white/80"}`}
+                  >
+                    {l}
+                  </div>
+                ))}
+              </div>
+              <div className="flex-1 bg-background p-4 text-[12px] text-muted-foreground">conteúdo…</div>
+            </div>
+          </DSSection>
+
+          <DSSection id="ds-novo-kpi" title="KPI Card" description="4 variants.">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { label: "Receita", value: "R$ 12.4k", color: "hsl(158 64% 36%)" },
+                { label: "Vendas", value: "1.234", color: "hsl(var(--primary))" },
+                { label: "Visitas", value: "8.7k", color: "hsl(217 91% 50%)" },
+                { label: "Perdas", value: "R$ 320", color: "hsl(var(--destructive))" },
+              ].map((k) => (
+                <div key={k.label} className="bg-card border border-border rounded-[var(--radius)] p-4">
+                  <div className="text-[11px] uppercase tracking-[0.04em] text-muted-foreground font-semibold">{k.label}</div>
+                  <div className="text-[22px] font-extrabold mt-1" style={{ color: k.color }}>{k.value}</div>
+                </div>
+              ))}
+            </div>
+          </DSSection>
+
+          <DSSection id="ds-novo-status" title="Status Badges" description="Estados semânticos.">
+            <div className="flex flex-wrap gap-2">
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[hsl(158_64%_36%/0.15)] text-[hsl(158_64%_28%)]">ok</span>
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[hsl(38_92%_50%/0.18)] text-[hsl(38_92%_38%)]">low</span>
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-destructive/15 text-destructive">out</span>
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-primary/15 text-primary">processing</span>
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-destructive/15 text-destructive">error</span>
+            </div>
+          </DSSection>
+
+          <DSSection id="ds-novo-sync" title="Sync Card" description="Estados estáticos.">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {[
+                { state: "idle", color: "hsl(var(--muted-foreground))", label: "Pronto", btn: "Sincronizar" },
+                { state: "loading", color: "hsl(var(--primary))", label: "Sincronizando…", btn: "Sincronizando…" },
+                { state: "success", color: "hsl(158 64% 36%)", label: "Sincronizado", btn: "Sincronizar" },
+                { state: "error", color: "hsl(var(--destructive))", label: "Falha", btn: "Tentar novamente" },
+              ].map((s) => (
+                <div key={s.state} className="bg-card border border-border rounded-[var(--radius)] p-4 flex items-center justify-between gap-4">
+                  <div className="flex flex-col gap-1">
+                    <div className="text-[13.5px] font-semibold">Sync {s.state}</div>
+                    <div className="text-[12px]" style={{ color: s.color }}>{s.label}</div>
+                  </div>
+                  <button className="px-3 py-1.5 rounded-[8px] bg-primary text-white text-[12.5px] font-semibold disabled:opacity-60" disabled={s.state === "loading"}>
+                    {s.btn}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </DSSection>
+
           <footer className="md-body-small text-muted-foreground py-8 flex items-start gap-2 flex-wrap">
             <Smartphone className="h-3.5 w-3.5 mt-1 shrink-0" />
             <span className="min-w-0 break-words">
