@@ -44,6 +44,7 @@ export function Logo({
       aria-label={alt}
       className={cn("inline-block select-none", className)}
       style={{
+        aspectRatio: variant === "icon" ? "1 / 1" : "960 / 540",
         backgroundColor: color,
         WebkitMaskImage: `url(${src})`,
         maskImage: `url(${src})`,
