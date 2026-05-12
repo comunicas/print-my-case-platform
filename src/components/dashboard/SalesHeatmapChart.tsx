@@ -69,8 +69,6 @@ export function SalesHeatmapChart({ data, animationDelay = 0 }: SalesHeatmapChar
       description="Concentração de vendas por dia e horário"
       icon={Grid3x3}
       iconColor="text-purple-500"
-      onExport={handleExport}
-      exportTestId="export-heatmap"
       headerBadge={peak && (
         <Badge data-testid="heatmap-peak-badge" variant="outline" className="gap-1 text-xs">
           Pico: {peak.dayName} {peak.rangeLabel}
