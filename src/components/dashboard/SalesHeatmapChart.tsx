@@ -8,7 +8,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn, pluralize, formatCurrency } from "@/lib/utils";
-import { HeatmapCell, TIME_RANGES, getHeatmapPeak, exportToExcel } from "@/lib/dashboardUtils";
+import { HeatmapCell, TIME_RANGES, getHeatmapPeak } from "@/lib/dashboardUtils";
 import { ChartCard } from "./ChartCard";
 
 interface SalesHeatmapChartProps {
