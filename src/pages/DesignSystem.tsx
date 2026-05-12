@@ -308,7 +308,7 @@ export default function DesignSystem() {
   const [page, setPage] = useState(1);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground overflow-x-clip">
       {/* Top app bar */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
         <div className="flex items-center justify-between gap-2 px-3 sm:px-4 md:px-8 h-14">
@@ -1098,9 +1098,12 @@ export default function DesignSystem() {
             </DSExample>
           </DSSection>
 
-          <footer className="md-body-small text-muted-foreground py-8 flex items-center gap-2">
-            <Smartphone className="h-3.5 w-3.5" />
-            61/61 componentes documentados · espelho vivo dos primitivos em <code className="font-mono">src/components/ui</code>.
+          <footer className="md-body-small text-muted-foreground py-8 flex items-start gap-2 flex-wrap">
+            <Smartphone className="h-3.5 w-3.5 mt-1 shrink-0" />
+            <span className="min-w-0 break-words">
+              61/61 componentes documentados · espelho vivo dos primitivos em{" "}
+              <code className="font-mono break-all">src/components/ui</code>.
+            </span>
           </footer>
         </main>
       </div>
