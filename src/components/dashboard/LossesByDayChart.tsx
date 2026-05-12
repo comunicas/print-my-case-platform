@@ -90,7 +90,6 @@ export function LossesByDayChart({ data, animationDelay = 0 }: LossesByDayChartP
       description={description}
       icon={TrendingDown}
       iconColor="text-destructive"
-      onExport={handleExport}
       animationDelay={animationDelay}
       headerBadge={viewToggle}
     >
