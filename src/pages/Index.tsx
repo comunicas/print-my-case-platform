@@ -204,7 +204,7 @@ export default function Index() {
   }
 
   const dashboardContent = (
-    <div data-testid="dashboard-page" className="space-y-4 md:space-y-6">
+    <div data-testid="dashboard-page" className="ds-screen-enter space-y-4 md:space-y-6">
         {/* Super Admin Consolidated View - Collapsible, before header */}
         {globalMetrics && (
           <Collapsible open={consolidatedOpen} onOpenChange={setConsolidatedOpen}>

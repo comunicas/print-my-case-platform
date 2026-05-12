@@ -73,21 +73,32 @@ export function StockAlertsTable({ data, maxCapacity = 7, animationDelay = 0, se
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-[80px]">Slot</TableHead>
-                <TableHead>Produto</TableHead>
-                <TableHead className="hidden sm:table-cell">Marca</TableHead>
-                <TableHead className="hidden md:table-cell text-right">Vendas</TableHead>
-                <TableHead className="hidden md:table-cell">Índice</TableHead>
-                <TableHead className="w-[120px]">Qtd</TableHead>
-                <TableHead className="w-[80px]">Status</TableHead>
+              <TableRow className="bg-muted/50 hover:bg-muted/50">
+                <TableHead className="w-[80px] text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Slot</TableHead>
+                <TableHead className="text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Produto</TableHead>
+                <TableHead className="hidden sm:table-cell text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Marca</TableHead>
+                <TableHead className="hidden md:table-cell text-right text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Vendas</TableHead>
+                <TableHead className="hidden md:table-cell text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Índice</TableHead>
+                <TableHead className="w-[120px] text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Qtd</TableHead>
+                <TableHead className="w-[80px] text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginatedData.map((item, idx) => (
-                <TableRow data-testid="stock-alert-row" key={`${item.slotNumber}-${idx}`}>
+                <TableRow
+                  data-testid="stock-alert-row"
+                  key={`${item.slotNumber}-${idx}`}
+                  className="group hover:bg-primary/[0.08] transition-all"
+                  style={{
+                    opacity: 0,
+                    transform: 'translateY(6px)',
+                    animation: `ds-fade-up 0.35s ease ${idx * 70 + 100}ms both`,
+                  }}
+                >
                   <TableCell className="font-medium">
-                    <span className="font-mono">{item.slotNumber}</span>
+                    <span className="inline-block font-mono font-bold text-[11px] rounded-[6px] px-2 py-0.5 bg-primary/15 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                      {item.slotNumber}
+                    </span>
                   </TableCell>
                   <TableCell className="max-w-[200px]">
                     <button
