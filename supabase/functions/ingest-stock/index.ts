@@ -289,39 +289,62 @@ Deno.serve(async (req) => {
 
     console.log(`[ingest-stock] OK | pdv=${pdv.id} slot=${slotNumber} product=${productName} qty=${quantity} oldQty=${oldQuantity} deleted=${deletedCount ?? 0}`);
 
-    // 8b. Deduzir pré-estoque somente se houve AUMENTO real de quantidade
+    // 8b. Sugerir alocação de pré-estoque quando houve AUMENTO real.
+    // Não debita automaticamente — admin confirma em pending_allocations.
     const qtyIncrease = Math.max(0, quantity - oldQuantity);
     if (qtyIncrease > 0) {
-      const { data: preStockItems } = await supabase
-        .from("pre_stock")
-        .select("id, remaining_quantity")
-        .eq("organization_id", organizationId)
-        .eq("product_name", productName)
-        .eq("status", "pending")
-        .gt("remaining_quantity", 0)
-        .or(`pdv_id.eq.${pdv.id},pdv_id.is.null`)
-        .order("created_at", { ascending: true });
-
-      let toDeduct = qtyIncrease;
-      for (const ps of preStockItems ?? []) {
-        if (toDeduct <= 0) break;
-        const deducted = Math.min(toDeduct, ps.remaining_quantity);
-        const newRemaining = ps.remaining_quantity - deducted;
-        const updateData: Record<string, unknown> = {
-          remaining_quantity: newRemaining,
-          status: newRemaining <= 0 ? "allocated" : "pending",
-        };
-        if (newRemaining <= 0) {
-          updateData.allocated_pdv_id = pdv.id;
-        }
-        await supabase
+      try {
+        const { data: preStockItems } = await supabase
           .from("pre_stock")
-          .update(updateData)
-          .eq("id", ps.id);
-        toDeduct -= deducted;
-      }
-      if ((preStockItems ?? []).length > 0) {
-        console.log(`[ingest-stock] pre_stock deducted | product=${productName} increase=${qtyIncrease} (old=${oldQuantity} new=${quantity})`);
+          .select("id, product_name, remaining_quantity")
+          .eq("organization_id", organizationId)
+          .eq("status", "pending")
+          .gt("remaining_quantity", 0);
+
+        const normalized = productName.toLowerCase().trim();
+        const match = (preStockItems ?? []).find(
+          (ps: any) => String(ps.product_name ?? "").toLowerCase().trim() === normalized,
+        );
+
+        if (match && match.remaining_quantity > 0) {
+          // Dedup contra sugestão pendente já existente para (product, pdv)
+          const { data: existing } = await supabase
+            .from("pending_allocations")
+            .select("id")
+            .eq("pdv_id", pdv.id)
+            .eq("status", "pending")
+            .ilike("product_name", productName)
+            .limit(1);
+
+          if (!existing || existing.length === 0) {
+            const suggestedQty = Math.min(qtyIncrease, match.remaining_quantity);
+            const { error: allocError } = await supabase.from("pending_allocations").insert({
+              organization_id: organizationId,
+              upload_id: uploadId,
+              pdv_id: pdv.id,
+              product_name: productName,
+              suggested_quantity: suggestedQty,
+              pre_stock_id: match.id,
+              status: "pending",
+            });
+
+            if (allocError) {
+              console.warn(`[ingest-stock] pending_allocations insert falhou:`, allocError.message);
+            } else {
+              await supabase.from("notifications").insert({
+                organization_id: organizationId,
+                user_id: null,
+                type: "pending_allocation",
+                title: "Sugestões de alocação",
+                message: `1 sugestão de alocação aguarda confirmação (${productName}).`,
+                metadata: { upload_id: uploadId, pdv_id: pdv.id, count: 1 },
+              });
+              console.log(`[ingest-stock] pending_allocation created | product=${productName} qty=${suggestedQty}`);
+            }
+          }
+        }
+      } catch (allocErr) {
+        console.warn(`[ingest-stock] sugestão de alocação falhou (não-fatal):`, allocErr);
       }
     }
 
