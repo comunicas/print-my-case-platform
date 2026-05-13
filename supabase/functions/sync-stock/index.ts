@@ -777,39 +777,95 @@ Deno.serve(async (req) => {
           }
         }
 
-        // === Pre-stock: deduz apenas o aumento real por product_name
-        const newByProduct = new Map<string, number>();
-        for (const r of rows) {
-          newByProduct.set(r.product_name, (newByProduct.get(r.product_name) ?? 0) + r.quantity);
-        }
-        for (const [productName, newQty] of newByProduct) {
-          const oldQty = prevByProduct.get(productName) ?? 0;
-          const increase = newQty - oldQty;
-          if (increase <= 0) continue;
-
-          const { data: pending } = await admin
-            .from("pre_stock")
-            .select("id, remaining_quantity")
-            .eq("organization_id", orgId)
-            .eq("product_name", productName)
-            .eq("status", "pending")
-            .gt("remaining_quantity", 0)
-            .or(`pdv_id.eq.${pdvId},pdv_id.is.null`)
-            .order("created_at", { ascending: true });
-
-          let toDeduct = increase;
-          for (const ps of (pending ?? []) as any[]) {
-            if (toDeduct <= 0) break;
-            const deducted = Math.min(toDeduct, ps.remaining_quantity);
-            const newRemaining = ps.remaining_quantity - deducted;
-            const upd: Record<string, unknown> = {
-              remaining_quantity: newRemaining,
-              status: newRemaining <= 0 ? "allocated" : "pending",
-            };
-            if (newRemaining <= 0) upd.allocated_pdv_id = pdvId;
-            await admin.from("pre_stock").update(upd).eq("id", ps.id);
-            toDeduct -= deducted;
+        // === Pre-stock: cria SUGESTÕES de alocação para aumentos reais.
+        // Não debita o pre_stock automaticamente — o admin precisa confirmar
+        // cada sugestão em pending_allocations (mesmo fluxo do upload de planilha).
+        try {
+          const newByProduct = new Map<string, number>();
+          for (const r of rows) {
+            newByProduct.set(r.product_name, (newByProduct.get(r.product_name) ?? 0) + r.quantity);
           }
+
+          // Busca pre_stock pendente da org com saldo
+          const { data: pendingPreStock } = await admin
+            .from("pre_stock")
+            .select("id, product_name, remaining_quantity")
+            .eq("organization_id", orgId)
+            .eq("status", "pending")
+            .gt("remaining_quantity", 0);
+
+          if (pendingPreStock && pendingPreStock.length > 0) {
+            // Dedup: evita duplicar sugestões já pendentes para o mesmo (product, pdv)
+            const { data: existingAllocations } = await admin
+              .from("pending_allocations")
+              .select("product_name")
+              .eq("pdv_id", pdvId)
+              .eq("status", "pending");
+
+            const existingKeys = new Set(
+              (existingAllocations ?? []).map((a: any) =>
+                String(a.product_name ?? "").toLowerCase().trim(),
+              ),
+            );
+
+            const allocationsToCreate: Array<Record<string, unknown>> = [];
+            const createdKeys = new Set<string>();
+
+            for (const [productName, newQty] of newByProduct) {
+              const oldQty = prevByProduct.get(productName) ?? 0;
+              const increase = newQty - oldQty;
+              if (increase <= 0) continue;
+
+              const normalized = productName.toLowerCase().trim();
+              if (existingKeys.has(normalized) || createdKeys.has(normalized)) continue;
+
+              const match = (pendingPreStock as any[]).find(
+                (ps) => String(ps.product_name ?? "").toLowerCase().trim() === normalized,
+              );
+              if (!match || match.remaining_quantity <= 0) continue;
+
+              const suggestedQty = Math.min(increase, match.remaining_quantity);
+              if (suggestedQty <= 0) continue;
+
+              allocationsToCreate.push({
+                organization_id: orgId,
+                upload_id: uploadId,
+                pdv_id: pdvId,
+                product_name: productName,
+                suggested_quantity: suggestedQty,
+                pre_stock_id: match.id,
+                status: "pending",
+              });
+              createdKeys.add(normalized);
+            }
+
+            if (allocationsToCreate.length > 0) {
+              const { error: allocError } = await admin
+                .from("pending_allocations")
+                .insert(allocationsToCreate);
+
+              if (allocError) {
+                console.warn(
+                  `[sync-stock] pdv=${pdvName} pending_allocations insert falhou:`,
+                  JSON.stringify(serializeError(allocError)),
+                );
+              } else {
+                await admin.from("notifications").insert({
+                  organization_id: orgId,
+                  user_id: null,
+                  type: "pending_allocation",
+                  title: "Sugestões de alocação",
+                  message: `${allocationsToCreate.length} sugestão(ões) de alocação para ${pdvName} aguardam confirmação.`,
+                  metadata: { upload_id: uploadId, pdv_id: pdvId, count: allocationsToCreate.length },
+                });
+              }
+            }
+          }
+        } catch (allocErr) {
+          console.warn(
+            `[sync-stock] pdv=${pdvName} sugestão de alocação falhou (não-fatal):`,
+            JSON.stringify(serializeError(allocErr)),
+          );
         }
 
         let verification: VerificationReport | undefined;
